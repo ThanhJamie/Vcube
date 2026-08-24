@@ -1,0 +1,6 @@
+{
+  "name": "VCUBE Vietnam",
+  "description": "VCUBE - Industrial Modernism 3D Printing Marketplace & Engineering Fabrication Platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

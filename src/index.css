@@ -1,0 +1,316 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-serif: 'Newsreader', 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Responsive fluid typography scale variables */
+    --font-hero-size: 2.25rem;
+    --font-hero-lh: 1.05;
+    --font-h1-size: 1.75rem;
+    --font-h2-size: 1.35rem;
+    --font-h3-size: 1.125rem;
+    --container-gutter: 1rem;
+    --touch-target-min: 44px;
+  }
+
+  /* Media query: Small devices / Tablets (>= 640px) */
+  @media (min-width: 640px) {
+    :root {
+      --font-hero-size: 3.25rem;
+      --font-hero-lh: 1.0;
+      --font-h1-size: 2.25rem;
+      --font-h2-size: 1.65rem;
+      --font-h3-size: 1.25rem;
+      --container-gutter: 1.5rem;
+    }
+  }
+
+  /* Media query: Medium devices / Tablets & Laptops (>= 768px) */
+  @media (min-width: 768px) {
+    :root {
+      --font-hero-size: 4rem;
+      --font-hero-lh: 0.96;
+      --font-h1-size: 2.75rem;
+      --font-h2-size: 2rem;
+      --font-h3-size: 1.35rem;
+      --container-gutter: 2rem;
+    }
+  }
+
+  /* Media query: Desktops (>= 1024px) */
+  @media (min-width: 1024px) {
+    :root {
+      --font-hero-size: 4.75rem;
+      --font-hero-lh: 0.92;
+      --font-h1-size: 3.25rem;
+      --font-h2-size: 2.25rem;
+      --font-h3-size: 1.5rem;
+      --container-gutter: 3rem;
+    }
+  }
+
+  /* Media query: Large Desktops (>= 1280px) */
+  @media (min-width: 1280px) {
+    :root {
+      --font-hero-size: 5.25rem;
+      --font-hero-lh: 0.90;
+      --font-h1-size: 3.5rem;
+    }
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #F7F6F2;
+    color: #1C1C1C;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    touch-action: manipulation;
+  }
+}
+
+/* Typography Utility Classes */
+.font-serif-editorial {
+  font-family: var(--font-serif);
+}
+
+.font-editorial-heading {
+  font-family: 'Newsreader', 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: -0.02em;
+}
+
+.font-display {
+  font-family: 'Newsreader', 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: -0.02em;
+}
+
+.font-tech {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.font-sans-clean {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Fluid Typography Responsive Classes */
+.fluid-hero-heading {
+  font-family: var(--font-serif);
+  font-size: var(--font-hero-size);
+  line-height: var(--font-hero-lh);
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.fluid-h1 {
+  font-family: var(--font-serif);
+  font-size: var(--font-h1-size);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+.fluid-h2 {
+  font-family: var(--font-serif);
+  font-size: var(--font-h2-size);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  font-weight: 700;
+}
+
+/* Responsive Image Scaling System */
+.responsive-img-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.responsive-aspect-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background-color: #2A2A2A;
+}
+
+@media (min-width: 1024px) {
+  .responsive-aspect-hero {
+    aspect-ratio: 4 / 5;
+  }
+}
+
+@media (max-width: 639px) {
+  .responsive-aspect-hero {
+    aspect-ratio: 16 / 11;
+  }
+}
+
+/* Responsive 3D Canvas Viewport Box */
+.responsive-3d-viewport {
+  width: 100%;
+  height: 280px;
+}
+
+@media (min-width: 640px) {
+  .responsive-3d-viewport {
+    height: 340px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-3d-viewport {
+    height: 420px;
+  }
+}
+
+/* Responsive Table Wrapper with Smooth Mobile Scroll Indicator */
+.responsive-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.responsive-table-wrapper table {
+  min-width: 600px;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .responsive-table-wrapper table {
+    min-width: 100%;
+  }
+}
+
+/* Touch targets optimization for mobile */
+@media (max-width: 767px) {
+  .touch-target-btn {
+    min-height: var(--touch-target-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Mobile Slide-Over Drawer Animation */
+.mobile-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 998;
+  transition: opacity 0.25s ease-out;
+}
+
+.mobile-nav-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 85%;
+  max-width: 320px;
+  background-color: #F7F6F2;
+  border-left: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(0);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Editorial subtle paper grid and textured backgrounds */
+.editorial-paper-grid {
+  background-image: 
+    linear-gradient(rgba(28, 28, 28, 0.04) 1px, transparent 1px), 
+    linear-gradient(90deg, rgba(28, 28, 28, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.blueprint-grid {
+  background-image: 
+    linear-gradient(rgba(28, 28, 28, 0.05) 1px, transparent 1px), 
+    linear-gradient(90deg, rgba(28, 28, 28, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.blueprint-grid-cyan {
+  background-image: 
+    linear-gradient(rgba(28, 28, 28, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28, 28, 28, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.blueprint-grid-dense {
+  background-image: 
+    linear-gradient(rgba(28, 28, 28, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28, 28, 28, 0.06) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.fill {
+  font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Custom crisp editorial scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F7F6F2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D5CFC5;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A69C8A;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Print Stylesheet for Invoices & Technical Sheets */
+@media print {
+  body {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  header, footer, button, .no-print {
+    display: none !important;
+  }
+}
