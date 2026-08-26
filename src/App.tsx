@@ -1,11 +1,43 @@
 import React, { useState } from 'react';
-import { Product, CartItem, Order, DigitalAsset, SiteContentConfig, MaterialProfile, PrinterProfile, InkiriCostFormulaConfig, AccessoryItem } from './types';
-import { PRODUCTS, INITIAL_CART_ITEMS, MOCK_ORDERS, DIGITAL_ASSETS, DEFAULT_SITE_CONTENT, MATERIALS_CATALOG, PRINTER_PROFILES, DEFAULT_INKIRI_FORMULA_CONFIG, DEFAULT_ACCESSORIES } from './data/mockData';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+  useParams,
+  useSearchParams
+} from 'react-router-dom';
+import {
+  Product,
+  CartItem,
+  Order,
+  DigitalAsset,
+  SiteContentConfig,
+  MaterialProfile,
+  PrinterProfile,
+  InkiriCostFormulaConfig,
+  AccessoryItem
+} from './types';
+import {
+  PRODUCTS,
+  INITIAL_CART_ITEMS,
+  MOCK_ORDERS,
+  DIGITAL_ASSETS,
+  DEFAULT_SITE_CONTENT,
+  MATERIALS_CATALOG,
+  PRINTER_PROFILES,
+  DEFAULT_INKIRI_FORMULA_CONFIG,
+  DEFAULT_ACCESSORIES
+} from './data/mockData';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { Header } from './components/Header';
 import { AuthModal } from './components/AuthModal';
 import { RoleGuard } from './components/RoleGuard';
+import { ScrollToTop } from './components/ScrollToTop';
+import { NotFoundView } from './components/NotFoundView';
 import { HomeView } from './views/HomeView';
 import { ExploreView } from './views/ExploreView';
 import { ProductDetailView } from './views/ProductDetailView';
@@ -21,9 +53,112 @@ import { AssetLibraryView } from './views/AssetLibraryView';
 import { ChatSupportModal } from './components/ChatSupportModal';
 import { InvoiceModal } from './components/InvoiceModal';
 
+// --- ROUTE WRAPPER COMPONENTS ---
+
+const ExploreRoute: React.FC<{
+  products: Product[];
+  onNavigate: (screen: string, payload?: any) => void;
+  onSelectProduct: (product: Product) => void;
+}> = ({ products, onNavigate, onSelectProduct }) => {
+  const [searchParams] = useSearchParams();
+  const category = searchParams.get('category') || 'all';
+  const search = searchParams.get('search') || '';
+  const tag = searchParams.get('tag') || 'all';
+
+  return (
+    <ExploreView
+      products={products}
+      initialCategory={category}
+      initialSearch={search}
+      initialTag={tag}
+      onNavigate={onNavigate}
+      onSelectProduct={onSelectProduct}
+    />
+  );
+};
+
+const ProductDetailRoute: React.FC<{
+  products: Product[];
+  onAddToCart: (item: CartItem) => void;
+  onNavigate: (screen: string, payload?: any) => void;
+  onShowToast: (msg: string) => void;
+}> = ({ products, onAddToCart, onNavigate, onShowToast }) => {
+  const { productId } = useParams<{ productId: string }>();
+  const product = products.find((p) => p.id === productId) || products[0];
+
+  return (
+    <ProductDetailView
+      product={product}
+      onAddToCart={onAddToCart}
+      onNavigate={onNavigate}
+      onShowToast={onShowToast}
+    />
+  );
+};
+
+const PersonalizeRoute: React.FC<{
+  products: Product[];
+  onAddToCart: (item: CartItem) => void;
+  onNavigate: (screen: string, payload?: any) => void;
+  onShowToast: (msg: string) => void;
+}> = ({ products, onAddToCart, onNavigate, onShowToast }) => {
+  const { productId } = useParams<{ productId?: string }>();
+  const product = products.find((p) => p.id === productId) || products[0];
+
+  return (
+    <PersonalizeView
+      product={product}
+      onAddToCart={onAddToCart}
+      onNavigate={onNavigate}
+      onShowToast={onShowToast}
+    />
+  );
+};
+
+const OrderSuccessRoute: React.FC<{
+  orders: Order[];
+  activeOrder: Order;
+  onNavigate: (screen: string, payload?: any) => void;
+  onOpenInvoice: (order: Order) => void;
+}> = ({ orders, activeOrder, onNavigate, onOpenInvoice }) => {
+  const { orderId } = useParams<{ orderId?: string }>();
+  const order = orders.find((o) => o.id === orderId) || activeOrder || orders[0];
+
+  return (
+    <OrderSuccessView
+      order={order}
+      onNavigate={onNavigate}
+      onOpenInvoice={onOpenInvoice}
+    />
+  );
+};
+
+const OrderTrackingRoute: React.FC<{
+  orders: Order[];
+  activeOrder: Order;
+  onNavigate: (screen: string, payload?: any) => void;
+  onOpenChat: () => void;
+  onOpenInvoice: (order: Order) => void;
+}> = ({ orders, activeOrder, onNavigate, onOpenChat, onOpenInvoice }) => {
+  const { orderId } = useParams<{ orderId?: string }>();
+  const order = orders.find((o) => o.id === orderId) || activeOrder || orders[0];
+
+  return (
+    <OrderTrackingView
+      order={order}
+      onNavigate={onNavigate}
+      onOpenChat={onOpenChat}
+      onOpenInvoice={onOpenInvoice}
+    />
+  );
+};
+
+// --- MAIN APPLICATION COMPONENT WITH ROUTING ---
+
 function MainApp() {
-  const { role, profile } = useAuth();
   const { language, t } = useLanguage();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Core App State
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
@@ -36,9 +171,6 @@ function MainApp() {
   const [accessories, setAccessories] = useState<AccessoryItem[]>(DEFAULT_ACCESSORIES);
   const [pricingConfig, setPricingConfig] = useState<InkiriCostFormulaConfig>(DEFAULT_INKIRI_FORMULA_CONFIG);
 
-  // Router State
-  const [currentScreen, setCurrentScreen] = useState<string>('home');
-  const [selectedProduct, setSelectedProduct] = useState<Product>(PRODUCTS[0]);
   const [activeOrder, setActiveOrder] = useState<Order>(MOCK_ORDERS[0]);
   const [appliedDiscount, setAppliedDiscount] = useState<number>(0);
 
@@ -48,11 +180,6 @@ function MainApp() {
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'role_select'>('signin');
-
-  // Filtering params for Explore
-  const [exploreCategory, setExploreCategory] = useState<string>('all');
-  const [exploreSearch, setExploreSearch] = useState<string>('');
-  const [exploreTag, setExploreTag] = useState<string>('all');
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -66,24 +193,111 @@ function MainApp() {
     setIsAuthModalOpen(true);
   };
 
+  // Derive active screen for Header navigation highlight
+  const getCurrentScreenFromPath = (): string => {
+    const p = location.pathname;
+    if (p === '/' || p === '') return 'home';
+    if (p.startsWith('/explore')) return 'explore';
+    if (p.startsWith('/products')) return 'product_detail';
+    if (p.startsWith('/personalize')) return 'personalize';
+    if (p.startsWith('/quote') || p.startsWith('/tool-3d')) return 'tool_3d';
+    if (p.startsWith('/cart')) return 'cart';
+    if (p.startsWith('/checkout')) return 'checkout';
+    if (p.startsWith('/order-success')) return 'order_success';
+    if (p.startsWith('/tracking')) return 'order_tracking';
+    if (p.startsWith('/orders') || p.startsWith('/my-orders')) return 'my_orders';
+    if (p.startsWith('/admin')) return 'admin';
+    if (p.startsWith('/assets') || p.startsWith('/library')) return 'asset_library';
+    return 'home';
+  };
+
+  const currentScreen = getCurrentScreenFromPath();
+
+  // Central Navigation Adapter Bridge
   const handleNavigate = (screen: string, payload?: any) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (screen === 'explore') {
-      if (payload?.category !== undefined) setExploreCategory(payload.category);
-      if (payload?.search !== undefined) setExploreSearch(payload.search);
-      if (payload?.tag !== undefined) setExploreTag(payload.tag);
-    } else if (screen === 'product_detail' && payload?.product) {
-      setSelectedProduct(payload.product);
-    } else if (screen === 'personalize' && payload?.product) {
-      setSelectedProduct(payload.product);
-    } else if (screen === 'order_tracking' && payload?.order) {
-      // Find latest version of order from orders state if exists
-      const latestOrder = orders.find(o => o.id === payload.order.id) || payload.order;
-      setActiveOrder(latestOrder);
-    } else if (screen === 'checkout' && payload) {
-      if (payload.appliedDiscount !== undefined) setAppliedDiscount(payload.appliedDiscount);
+
+    switch (screen) {
+      case 'home':
+        navigate('/');
+        break;
+      case 'explore': {
+        const params = new URLSearchParams();
+        if (payload?.category && payload.category !== 'all') params.set('category', payload.category);
+        if (payload?.search) params.set('search', payload.search);
+        if (payload?.tag && payload.tag !== 'all') params.set('tag', payload.tag);
+        const searchStr = params.toString();
+        navigate(`/explore${searchStr ? `?${searchStr}` : ''}`);
+        break;
+      }
+      case 'product_detail':
+        if (payload?.product?.id) {
+          navigate(`/products/${payload.product.id}`);
+        } else {
+          navigate('/explore');
+        }
+        break;
+      case 'personalize':
+        if (payload?.product?.id) {
+          navigate(`/personalize/${payload.product.id}`);
+        } else {
+          navigate('/personalize');
+        }
+        break;
+      case 'tool_3d':
+      case 'quote':
+        navigate('/quote');
+        break;
+      case 'cart':
+        navigate('/cart');
+        break;
+      case 'checkout':
+        if (payload?.appliedDiscount !== undefined) {
+          setAppliedDiscount(payload.appliedDiscount);
+        }
+        navigate('/checkout');
+        break;
+      case 'order_success':
+        if (payload?.order) {
+          setActiveOrder(payload.order);
+          navigate(`/order-success/${payload.order.id}`);
+        } else {
+          navigate('/order-success');
+        }
+        break;
+      case 'order_tracking':
+      case 'tracking':
+        if (payload?.order) {
+          const latestOrder = orders.find((o) => o.id === payload.order.id) || payload.order;
+          setActiveOrder(latestOrder);
+          navigate(`/tracking/${latestOrder.id}`);
+        } else {
+          navigate(`/tracking/${activeOrder?.id || 'ORD-2026-8801'}`);
+        }
+        break;
+      case 'my_orders':
+      case 'orders':
+        navigate('/orders');
+        break;
+      case 'asset_library':
+      case 'assets':
+        navigate('/assets');
+        break;
+      case 'admin':
+        if (payload?.section) {
+          navigate(`/admin/${payload.section}`);
+        } else {
+          navigate('/admin');
+        }
+        break;
+      default:
+        if (screen.startsWith('/')) {
+          navigate(screen);
+        } else {
+          navigate(`/${screen}`);
+        }
+        break;
     }
-    setCurrentScreen(screen);
   };
 
   const handleAddToCart = (item: CartItem) => {
@@ -122,7 +336,7 @@ function MainApp() {
     setOrders((prev) => [newOrder, ...prev]);
     setActiveOrder(newOrder);
 
-    // Also add any digital files to user's Digital Asset Library
+    // Add digital files to user's Digital Asset Library
     const newAssets: DigitalAsset[] = newOrder.items
       .filter((i) => i.type === 'digital')
       .map((i) => ({
@@ -145,27 +359,22 @@ function MainApp() {
       setAssets((prev) => [...newAssets, ...prev]);
     }
 
-    // Clear cart after checkout
     setCart([]);
   };
 
-  // Admin Product Handlers
+  // Admin Handlers
   const handleAddNewProduct = (prod: Product) => {
     setProducts((prev) => [prod, ...prev]);
   };
 
   const handleUpdateProduct = (updated: Product) => {
     setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    if (selectedProduct.id === updated.id) {
-      setSelectedProduct(updated);
-    }
   };
 
   const handleDeleteProduct = (productId: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== productId));
   };
 
-  // Admin Order Status Update Handler
   const handleUpdateOrderStatus = (orderId: string, newStageIndex: number, newStatus: Order['status'], progress?: number) => {
     setOrders((prev) =>
       prev.map((o) => {
@@ -176,7 +385,7 @@ function MainApp() {
             status: newStatus,
             layerProgress: progress !== undefined ? progress : o.layerProgress
           };
-          if (activeOrder.id === orderId) {
+          if (activeOrder?.id === orderId) {
             setActiveOrder(updated);
           }
           return updated;
@@ -186,7 +395,6 @@ function MainApp() {
     );
   };
 
-  // Admin Site Content Update Handler
   const handleUpdateSiteContent = (newContent: SiteContentConfig) => {
     setSiteContent(newContent);
   };
@@ -202,139 +410,249 @@ function MainApp() {
         onOpenAuth={handleOpenAuth}
       />
 
-      {/* Main View Router */}
+      {/* Main View Routes */}
       <main className="flex-1">
-        {currentScreen === 'home' && (
-          <HomeView
-            products={products}
-            onNavigate={handleNavigate}
-            onSelectProduct={(p) => setSelectedProduct(p)}
+        <Routes>
+          {/* Marketplace & Home */}
+          <Route
+            path="/"
+            element={
+              <HomeView
+                products={products}
+                onNavigate={handleNavigate}
+                onSelectProduct={(p) => handleNavigate('product_detail', { product: p })}
+              />
+            }
           />
-        )}
-
-        {currentScreen === 'explore' && (
-          <ExploreView
-            products={products}
-            initialCategory={exploreCategory}
-            initialSearch={exploreSearch}
-            initialTag={exploreTag}
-            onNavigate={handleNavigate}
-            onSelectProduct={(p) => setSelectedProduct(p)}
+          <Route
+            path="/explore"
+            element={
+              <ExploreRoute
+                products={products}
+                onNavigate={handleNavigate}
+                onSelectProduct={(p) => handleNavigate('product_detail', { product: p })}
+              />
+            }
           />
-        )}
 
-        {currentScreen === 'product_detail' && (
-          <ProductDetailView
-            product={selectedProduct}
-            onAddToCart={handleAddToCart}
-            onNavigate={handleNavigate}
-            onShowToast={showToast}
+          {/* Product Details & Personalization */}
+          <Route
+            path="/products/:productId"
+            element={
+              <ProductDetailRoute
+                products={products}
+                onAddToCart={handleAddToCart}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
+            }
           />
-        )}
-
-        {currentScreen === 'personalize' && (
-          <PersonalizeView
-            product={selectedProduct}
-            onAddToCart={handleAddToCart}
-            onNavigate={handleNavigate}
-            onShowToast={showToast}
+          <Route
+            path="/personalize"
+            element={
+              <PersonalizeRoute
+                products={products}
+                onAddToCart={handleAddToCart}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
+            }
           />
-        )}
-
-        {currentScreen === 'tool_3d' && (
-          <Tool3DView
-            materials={materials}
-            printers={printers}
-            pricingConfig={pricingConfig}
-            onAddToCart={handleAddToCart}
-            onNavigate={handleNavigate}
-            onShowToast={showToast}
+          <Route
+            path="/personalize/:productId"
+            element={
+              <PersonalizeRoute
+                products={products}
+                onAddToCart={handleAddToCart}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
+            }
           />
-        )}
 
-        {currentScreen === 'cart' && (
-          <CartView
-            cart={cart}
-            onUpdateQuantity={handleUpdateQuantity}
-            onRemoveItem={handleRemoveItem}
-            onNavigate={handleNavigate}
-            onShowToast={showToast}
+          {/* 3D CAD & Instant Quoting */}
+          <Route
+            path="/quote"
+            element={
+              <Tool3DView
+                materials={materials}
+                printers={printers}
+                pricingConfig={pricingConfig}
+                onAddToCart={handleAddToCart}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
+            }
           />
-        )}
+          <Route path="/tool-3d" element={<Navigate to="/quote" replace />} />
 
-        {currentScreen === 'checkout' && (
-          <CheckoutView
-            cart={cart}
-            appliedDiscount={appliedDiscount}
-            siteContent={siteContent}
-            onOrderCompleted={handleOrderCompleted}
-            onNavigate={handleNavigate}
+          {/* Cart & Checkout */}
+          <Route
+            path="/cart"
+            element={
+              <CartView
+                cart={cart}
+                onUpdateQuantity={handleUpdateQuantity}
+                onRemoveItem={handleRemoveItem}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
+            }
           />
-        )}
-
-        {currentScreen === 'order_success' && (
-          <OrderSuccessView
-            order={activeOrder}
-            onNavigate={handleNavigate}
-            onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+          <Route
+            path="/checkout"
+            element={
+              <CheckoutView
+                cart={cart}
+                appliedDiscount={appliedDiscount}
+                siteContent={siteContent}
+                onOrderCompleted={handleOrderCompleted}
+                onNavigate={handleNavigate}
+              />
+            }
           />
-        )}
 
-        {currentScreen === 'order_tracking' && (
-          <OrderTrackingView
-            order={activeOrder}
-            onNavigate={handleNavigate}
-            onOpenChat={() => setIsChatOpen(true)}
-            onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+          {/* Order Tracking & Confirmation */}
+          <Route
+            path="/order-success"
+            element={
+              <OrderSuccessRoute
+                orders={orders}
+                activeOrder={activeOrder}
+                onNavigate={handleNavigate}
+                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+              />
+            }
           />
-        )}
-
-        {currentScreen === 'my_orders' && (
-          <MyOrdersView
-            orders={orders}
-            onNavigate={handleNavigate}
-            onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+          <Route
+            path="/order-success/:orderId"
+            element={
+              <OrderSuccessRoute
+                orders={orders}
+                activeOrder={activeOrder}
+                onNavigate={handleNavigate}
+                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+              />
+            }
           />
-        )}
-
-        {/* ForgeControl Console with Product, Order, Production Status & Content Management */}
-        {currentScreen === 'admin' && (
-          <RoleGuard
-            allowedRoles={['admin']}
-            featureName={language === 'vi' ? 'ForgeControl Quản Trị Hệ Thống' : 'ForgeControl Administration Console'}
-            onNavigate={handleNavigate}
-            onOpenAuthModal={handleOpenAuth}
-          >
-            <AdminDashboardView
-              products={products}
-              orders={orders}
-              siteContent={siteContent}
-              materials={materials}
-              printers={printers}
-              accessories={accessories}
-              pricingConfig={pricingConfig}
-              onUpdateProduct={handleUpdateProduct}
-              onAddProduct={handleAddNewProduct}
-              onDeleteProduct={handleDeleteProduct}
-              onUpdateOrderStatus={handleUpdateOrderStatus}
-              onUpdateSiteContent={handleUpdateSiteContent}
-              onUpdateMaterials={setMaterials}
-              onUpdatePrinters={setPrinters}
-              onUpdateAccessories={setAccessories}
-              onUpdatePricingConfig={setPricingConfig}
-              onNavigate={handleNavigate}
-              onShowToast={showToast}
-            />
-          </RoleGuard>
-        )}
-
-        {currentScreen === 'asset_library' && (
-          <AssetLibraryView
-            assets={assets}
-            onNavigate={handleNavigate}
-            onShowToast={showToast}
+          <Route
+            path="/tracking"
+            element={
+              <OrderTrackingRoute
+                orders={orders}
+                activeOrder={activeOrder}
+                onNavigate={handleNavigate}
+                onOpenChat={() => setIsChatOpen(true)}
+                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+              />
+            }
           />
-        )}
+          <Route
+            path="/tracking/:orderId"
+            element={
+              <OrderTrackingRoute
+                orders={orders}
+                activeOrder={activeOrder}
+                onNavigate={handleNavigate}
+                onOpenChat={() => setIsChatOpen(true)}
+                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+              />
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <MyOrdersView
+                orders={orders}
+                onNavigate={handleNavigate}
+                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+              />
+            }
+          />
+          <Route path="/my-orders" element={<Navigate to="/orders" replace />} />
+
+          {/* Digital CAD Asset Library */}
+          <Route
+            path="/assets"
+            element={
+              <AssetLibraryView
+                assets={assets}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
+            }
+          />
+          <Route path="/library" element={<Navigate to="/assets" replace />} />
+
+          {/* ForgeControl Admin Console (Secured with RoleGuard & URL section synchronization) */}
+          <Route
+            path="/admin"
+            element={
+              <RoleGuard
+                allowedRoles={['admin']}
+                featureName={language === 'vi' ? 'ForgeControl Quản Trị Hệ Thống' : 'ForgeControl Administration Console'}
+                onNavigate={handleNavigate}
+                onOpenAuthModal={handleOpenAuth}
+              >
+                <AdminDashboardView
+                  products={products}
+                  orders={orders}
+                  siteContent={siteContent}
+                  materials={materials}
+                  printers={printers}
+                  accessories={accessories}
+                  pricingConfig={pricingConfig}
+                  onUpdateProduct={handleUpdateProduct}
+                  onAddProduct={handleAddNewProduct}
+                  onDeleteProduct={handleDeleteProduct}
+                  onUpdateOrderStatus={handleUpdateOrderStatus}
+                  onUpdateSiteContent={handleUpdateSiteContent}
+                  onUpdateMaterials={setMaterials}
+                  onUpdatePrinters={setPrinters}
+                  onUpdateAccessories={setAccessories}
+                  onUpdatePricingConfig={setPricingConfig}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/:section"
+            element={
+              <RoleGuard
+                allowedRoles={['admin']}
+                featureName={language === 'vi' ? 'ForgeControl Quản Trị Hệ Thống' : 'ForgeControl Administration Console'}
+                onNavigate={handleNavigate}
+                onOpenAuthModal={handleOpenAuth}
+              >
+                <AdminDashboardView
+                  products={products}
+                  orders={orders}
+                  siteContent={siteContent}
+                  materials={materials}
+                  printers={printers}
+                  accessories={accessories}
+                  pricingConfig={pricingConfig}
+                  onUpdateProduct={handleUpdateProduct}
+                  onAddProduct={handleAddNewProduct}
+                  onDeleteProduct={handleDeleteProduct}
+                  onUpdateOrderStatus={handleUpdateOrderStatus}
+                  onUpdateSiteContent={handleUpdateSiteContent}
+                  onUpdateMaterials={setMaterials}
+                  onUpdatePrinters={setPrinters}
+                  onUpdateAccessories={setAccessories}
+                  onUpdatePricingConfig={setPricingConfig}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </RoleGuard>
+            }
+          />
+
+          {/* 404 Not Found Fallback */}
+          <Route path="*" element={<NotFoundView />} />
+        </Routes>
       </main>
 
       {/* Floating Quick Support Button */}
@@ -408,22 +726,22 @@ function MainApp() {
               </p>
               <ul className="space-y-2 text-[#8590A6]">
                 <li>
-                  <button onClick={() => handleNavigate('explore')} className="hover:text-white transition-colors text-left">
+                  <button onClick={() => handleNavigate('explore')} className="hover:text-white transition-colors text-left cursor-pointer">
                     {t('footerMarketplace', 'Marketplace linh kiện 3D', '3D Parts Marketplace')}
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => handleNavigate('tool_3d')} className="hover:text-white transition-colors text-left">
+                  <button onClick={() => handleNavigate('quote')} className="hover:text-white transition-colors text-left cursor-pointer">
                     {t('footerInstantQuote', 'Báo giá in 3D trực tuyến', 'Instant 3D File Quoting')}
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => handleNavigate('cart')} className="hover:text-white transition-colors text-left">
+                  <button onClick={() => handleNavigate('cart')} className="hover:text-white transition-colors text-left cursor-pointer">
                     {t('cartTitle', 'Giỏ hàng của bạn', 'Your Shopping Cart')}
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => handleNavigate('my_orders')} className="hover:text-white transition-colors text-left">
+                  <button onClick={() => handleNavigate('orders')} className="hover:text-white transition-colors text-left cursor-pointer">
                     {t('myOrdersTracking', 'Theo dõi đơn hàng thời gian thực', 'Real-time Order Tracking')}
                   </button>
                 </li>
@@ -437,22 +755,22 @@ function MainApp() {
               </p>
               <ul className="space-y-2 text-[#8590A6]">
                 <li>
-                  <button onClick={() => handleNavigate('admin')} className="hover:text-white transition-colors text-left font-bold text-[#57DFFE]">
+                  <button onClick={() => handleNavigate('admin')} className="hover:text-white transition-colors text-left font-bold text-[#57DFFE] cursor-pointer">
                     ForgeControl Admin Console
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => handleNavigate('admin')} className="hover:text-white transition-colors text-left">
+                  <button onClick={() => handleNavigate('admin', { section: 'products' })} className="hover:text-white transition-colors text-left cursor-pointer">
                     {language === 'vi' ? 'Quản lý sản phẩm & giá' : 'Product & Pricing Management'}
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => handleNavigate('admin')} className="hover:text-white transition-colors text-left">
+                  <button onClick={() => handleNavigate('admin', { section: 'queue' })} className="hover:text-white transition-colors text-left cursor-pointer">
                     {language === 'vi' ? 'Cập nhật tiến độ 8 bước gia công' : '8-Stage Fabrication Status'}
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => handleNavigate('admin')} className="hover:text-white transition-colors text-left">
+                  <button onClick={() => handleNavigate('admin', { section: 'storefront' })} className="hover:text-white transition-colors text-left cursor-pointer">
                     {language === 'vi' ? 'Cấu hình phí ship & thông báo' : 'Site Content & Announcement'}
                   </button>
                 </li>
@@ -486,11 +804,14 @@ function MainApp() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <LanguageProvider>
-        <MainApp />
-      </LanguageProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <LanguageProvider>
+          <ScrollToTop />
+          <MainApp />
+        </LanguageProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

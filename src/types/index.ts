@@ -30,6 +30,7 @@ export interface Product {
   isCustomizable?: boolean;
   licenseType?: 'Standard' | 'Commercial' | 'Exclusive';
   status?: 'Published' | 'Under Review' | 'Draft' | 'Out of Stock';
+  productionReadiness?: 'ready_to_print' | 'missing_profile' | 'cad_review_needed';
   sku?: string;
   salesCount?: number;
 }
