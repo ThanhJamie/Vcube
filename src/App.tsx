@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Product, CartItem, Order, DigitalAsset, SiteContentConfig } from './types';
-import { PRODUCTS, INITIAL_CART_ITEMS, MOCK_ORDERS, DIGITAL_ASSETS, DEFAULT_SITE_CONTENT } from './data/mockData';
+import { Product, CartItem, Order, DigitalAsset, SiteContentConfig, MaterialProfile, PrinterProfile, InkiriCostFormulaConfig, AccessoryItem } from './types';
+import { PRODUCTS, INITIAL_CART_ITEMS, MOCK_ORDERS, DIGITAL_ASSETS, DEFAULT_SITE_CONTENT, MATERIALS_CATALOG, PRINTER_PROFILES, DEFAULT_INKIRI_FORMULA_CONFIG, DEFAULT_ACCESSORIES } from './data/mockData';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { Header } from './components/Header';
@@ -31,6 +31,10 @@ function MainApp() {
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
   const [assets, setAssets] = useState<DigitalAsset[]>(DIGITAL_ASSETS);
   const [siteContent, setSiteContent] = useState<SiteContentConfig>(DEFAULT_SITE_CONTENT);
+  const [materials, setMaterials] = useState<MaterialProfile[]>(MATERIALS_CATALOG);
+  const [printers, setPrinters] = useState<PrinterProfile[]>(PRINTER_PROFILES);
+  const [accessories, setAccessories] = useState<AccessoryItem[]>(DEFAULT_ACCESSORIES);
+  const [pricingConfig, setPricingConfig] = useState<InkiriCostFormulaConfig>(DEFAULT_INKIRI_FORMULA_CONFIG);
 
   // Router State
   const [currentScreen, setCurrentScreen] = useState<string>('home');
@@ -239,6 +243,9 @@ function MainApp() {
 
         {currentScreen === 'tool_3d' && (
           <Tool3DView
+            materials={materials}
+            printers={printers}
+            pricingConfig={pricingConfig}
             onAddToCart={handleAddToCart}
             onNavigate={handleNavigate}
             onShowToast={showToast}
@@ -302,11 +309,19 @@ function MainApp() {
               products={products}
               orders={orders}
               siteContent={siteContent}
+              materials={materials}
+              printers={printers}
+              accessories={accessories}
+              pricingConfig={pricingConfig}
               onUpdateProduct={handleUpdateProduct}
               onAddProduct={handleAddNewProduct}
               onDeleteProduct={handleDeleteProduct}
               onUpdateOrderStatus={handleUpdateOrderStatus}
               onUpdateSiteContent={handleUpdateSiteContent}
+              onUpdateMaterials={setMaterials}
+              onUpdatePrinters={setPrinters}
+              onUpdateAccessories={setAccessories}
+              onUpdatePricingConfig={setPricingConfig}
               onNavigate={handleNavigate}
               onShowToast={showToast}
             />

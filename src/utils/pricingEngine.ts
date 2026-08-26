@@ -1,5 +1,5 @@
-import { AnalysisFile, DetailedCostBreakdown, PrinterProfile, DeliveryPackageOption, MachineComparisonItem } from '../types';
-import { MATERIALS_CATALOG, PRINTER_PROFILES } from '../data/mockData';
+import { AnalysisFile, DetailedCostBreakdown, PrinterProfile, MaterialProfile, InkiriCostFormulaConfig, DeliveryPackageOption, MachineComparisonItem } from '../types';
+import { MATERIALS_CATALOG, PRINTER_PROFILES, DEFAULT_INKIRI_FORMULA_CONFIG } from '../data/mockData';
 
 export const ELECTRICITY_PRICE_PER_KWH = 2850; // VND / kWh (Commercial Tier 2)
 export const BASE_LABOR_HOURLY_RATE = 65000; // VND / hour technician wage
@@ -20,10 +20,19 @@ export interface PricingEngineInput {
   supportsMode: 'auto' | 'tree' | 'none';
   quantity: number;
   targetMarkupPercent?: number; // default 35%
+  customPricingConfig?: InkiriCostFormulaConfig;
+  customPrinters?: PrinterProfile[];
+  customMaterials?: MaterialProfile[];
+  selectedAccessories?: {
+    id: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+  }[];
 }
 
 /**
- * VCUBE Core Slicer & Pricing Engine (PRC-005)
+ * VCUBE Core Slicer & Pricing Engine (PRC-005) - Inkiri Cost Model
  * Pure deterministic calculation - Integer VND safe output
  */
 export function calculateDetailedPricing(input: PricingEngineInput): {
@@ -31,6 +40,13 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   quickEstimateRange: { min: number; max: number };
   tier: 'quick_estimate' | 'exact_slice' | 'manual_review';
   manualReviewReasons: string[];
+  volumeDiscount?: {
+    tierLabel: string;
+    discountPercent: number;
+    discountedUnitPrice: number;
+    totalSavings: number;
+    totalAfterDiscount: number;
+  };
 } {
   const {
     file,
@@ -41,11 +57,17 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
     layerHeight,
     supportsMode,
     quantity,
-    targetMarkupPercent = 35
+    customPricingConfig,
+    customPrinters = PRINTER_PROFILES,
+    customMaterials = MATERIALS_CATALOG,
+    selectedAccessories = []
   } = input;
 
-  const currentPrinter = PRINTER_PROFILES.find(p => p.id === selectedPrinterId) || PRINTER_PROFILES[0];
-  const currentMaterial = MATERIALS_CATALOG.find(m => m.id === selectedMaterialId) || MATERIALS_CATALOG[0];
+  const cfg = customPricingConfig || DEFAULT_INKIRI_FORMULA_CONFIG;
+  const targetMarkupPercent = input.targetMarkupPercent !== undefined ? input.targetMarkupPercent : cfg.defaultMarkupPercent;
+
+  const currentPrinter = customPrinters.find(p => p.id === selectedPrinterId) || customPrinters[0] || PRINTER_PROFILES[0];
+  const currentMaterial = customMaterials.find(m => m.id === selectedMaterialId) || customMaterials[0] || MATERIALS_CATALOG[0];
 
   // 1. Multi-color & Part Extruder analysis
   const activeExtruders = new Set(file.parts.map(p => p.extruderIndex)).size;
@@ -60,17 +82,17 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   const brimRaftGrams = 6; // Standard 5mm brim contact anchor
   const totalFilamentGramsPerUnit = rawModelGrams + supportGrams + brimRaftGrams + purgeWasteGrams;
   
-  const materialCostPerGram = currentMaterial.pricePerGram;
+  const materialCostPerGram = currentMaterial.pricePerGram || (currentMaterial.costPerKg ? Math.round(currentMaterial.costPerKg / 1000 * (currentMaterial.unitPriceMultiplier || 1)) : 850);
   const materialCost = Math.round(totalFilamentGramsPerUnit * materialCostPerGram);
 
   // 3. Print Time (Hours) & Electricity Cost
-  const layerHeightMm = Number(layerHeight);
+  const layerHeightMm = Number(layerHeight) || 0.2;
   const basePrintHours = Math.max(0.6, (transformedVolume * 3.8) / (layerHeightMm * 100));
   const toolChangeHours = (toolChangesCount * 1.5) / 60; // 1.5 min per multi-filament swap
   const totalPrintHoursPerUnit = Number((basePrintHours + toolChangeHours).toFixed(2));
 
   const averagePowerKW = currentPrinter.powerKW || 0.18;
-  const electricityCost = Math.round(averagePowerKW * totalPrintHoursPerUnit * ELECTRICITY_PRICE_PER_KWH);
+  const electricityCost = Math.round(averagePowerKW * totalPrintHoursPerUnit * cfg.electricityRatePerKWh);
 
   // 4. Machine Depreciation & Consumables
   const machineLifetimeHours = currentPrinter.expectedLifetimeHours || 8000;
@@ -83,28 +105,32 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   const maintenanceAndConsumablesCost = Math.round(consumablesPerHour * totalPrintHoursPerUnit);
   const machineOperatingCost = machineDepreciationCost + maintenanceAndConsumablesCost;
 
-  // 5. Labor Cost Allocation
-  const fileReviewMinutes = 4;
-  const setupMinutes = 5;
-  const supportRemovalMinutes = supportsMode === 'none' ? 2 : 8;
-  const postProcessingMinutes = 6; // Deburring & optical measurement
-  const qcMinutes = 4;
-  const packagingMinutes = 3;
+  // 5. Labor Cost Allocation (Configurable via Admin Inkiri model)
+  const fileReviewMinutes = cfg.fileReviewLaborMinutes ?? 4;
+  const setupMinutes = cfg.setupLaborMinutes ?? 5;
+  const supportRemovalMinutes = supportsMode === 'none' ? 2 : (cfg.supportRemovalMinutes ?? 8);
+  const postProcessingMinutes = cfg.postProcessingLaborMinutes ?? 6; // Deburring & optical measurement
+  const qcMinutes = cfg.qcLaborMinutes ?? 4;
+  const packagingMinutes = cfg.packagingLaborMinutes ?? 3;
   const totalLaborMinutes = fileReviewMinutes + setupMinutes + supportRemovalMinutes + postProcessingMinutes + qcMinutes + packagingMinutes;
-  const laborHourlyRate = BASE_LABOR_HOURLY_RATE;
+  const laborHourlyRate = cfg.laborHourlyRate ?? BASE_LABOR_HOURLY_RATE;
   const laborCost = Math.round((totalLaborMinutes / 60) * laborHourlyRate);
 
   // 6. Accessories & Packaging
-  const accessoriesCost = FIXED_PACKAGING_BASE + (isMultiColor ? 5000 : 0);
+  const basePackagingCost = (cfg.fixedPackagingCost ?? FIXED_PACKAGING_BASE) + (isMultiColor ? (cfg.multiColorPackagingExtra ?? 5000) : 0);
+  const accessoriesAddonCost = selectedAccessories.reduce((sum, item) => sum + (item.unitPrice * (item.quantity || 1)), 0);
+  const accessoriesCost = basePackagingCost + accessoriesAddonCost;
 
   // 7. Overhead Allocation
-  const overheadPerUnit = FIXED_OVERHEAD_PER_UNIT;
+  const overheadPerUnit = cfg.overheadPerUnit ?? FIXED_OVERHEAD_PER_UNIT;
 
-  // 8. Failure Reserve Rate
-  let failureReserveRate = 0.08; // 8% baseline
-  if (file.printability.printabilityScore < 80) failureReserveRate += 0.06;
-  if (isMultiColor) failureReserveRate += 0.05;
-  if (currentMaterial.id.includes('nylon') || currentMaterial.id.includes('resin')) failureReserveRate += 0.04;
+  // 8. Failure Reserve Rate (Inkiri Risk formula)
+  let failureReserveRate = (cfg.baseFailureReservePercent ?? 8) / 100;
+  if (file.printability.printabilityScore < 80) failureReserveRate += (cfg.lowPrintabilityExtraPercent ?? 6) / 100;
+  if (isMultiColor) failureReserveRate += (cfg.multiColorExtraPercent ?? 5) / 100;
+  if (currentMaterial.id.includes('nylon') || currentMaterial.id.includes('resin') || currentMaterial.id.includes('pa-cf')) {
+    failureReserveRate += (cfg.difficultMaterialExtraPercent ?? 4) / 100;
+  }
 
   const baseCost = materialCost + electricityCost + machineOperatingCost + laborCost + accessoriesCost + overheadPerUnit;
   const failureReserveCost = Math.round(baseCost * failureReserveRate);
@@ -113,17 +139,56 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   // 9. Selling Price with Markup & Reverse Variable Fee Calculation
   // Reverse fees formula: SellingPrice = (CostPrice * (1 + Markup)) / (1 - (Platform% + Payment% + Royalty%))
   const targetMarkup = targetMarkupPercent / 100;
-  const totalVariableFeeRate = PLATFORM_FEE_PERCENT + PAYMENT_GATEWAY_FEE_PERCENT + DESIGNER_ROYALTY_PERCENT;
+  const platformFeeRate = (cfg.platformCommissionPercent ?? 8) / 100;
+  const paymentFeeRate = (cfg.paymentGatewayFeePercent ?? 2.5) / 100;
+  const royaltyFeeRate = (cfg.designerRoyaltyPercent ?? 5) / 100;
+  const totalVariableFeeRate = platformFeeRate + paymentFeeRate + royaltyFeeRate;
   
   const preFeeSellingPrice = Math.round(costPrice * (1 + targetMarkup));
   const rawSellingPrice = Math.round(preFeeSellingPrice / (1 - totalVariableFeeRate));
   
-  // Round up to nearest 1,000 VND
-  const finalSellingPriceRounded = Math.ceil(rawSellingPrice / 1000) * 1000;
+  // Rounding rule
+  let finalSellingPriceRounded = rawSellingPrice;
+  const rounding = cfg.roundingRule || '1000';
+  if (rounding === '1000') {
+    finalSellingPriceRounded = Math.ceil(rawSellingPrice / 1000) * 1000;
+  } else if (rounding === '5000') {
+    finalSellingPriceRounded = Math.ceil(rawSellingPrice / 5000) * 5000;
+  } else if (rounding === '10000') {
+    finalSellingPriceRounded = Math.ceil(rawSellingPrice / 10000) * 10000;
+  }
   const roundingAdjustment = finalSellingPriceRounded - rawSellingPrice;
 
   // Gross Margin = (SellingPrice - CostPrice) / SellingPrice
   const calculatedGrossMarginPercent = Number((((finalSellingPriceRounded - costPrice) / finalSellingPriceRounded) * 100).toFixed(1));
+
+  // Volume discount evaluation
+  let volumeDiscount: {
+    tierLabel: string;
+    discountPercent: number;
+    discountedUnitPrice: number;
+    totalSavings: number;
+    totalAfterDiscount: number;
+  } | undefined = undefined;
+
+  if (cfg.volumeDiscounts && cfg.volumeDiscounts.length > 0) {
+    const matchedTier = cfg.volumeDiscounts.find(
+      tier => quantity >= tier.minQty && (tier.maxQty === undefined || quantity <= tier.maxQty)
+    );
+    if (matchedTier && matchedTier.discountPercent > 0) {
+      const discountedUnitPrice = Math.round(finalSellingPriceRounded * (1 - matchedTier.discountPercent / 100));
+      const totalOriginal = finalSellingPriceRounded * quantity;
+      const totalAfterDiscount = discountedUnitPrice * quantity;
+      const totalSavings = totalOriginal - totalAfterDiscount;
+      volumeDiscount = {
+        tierLabel: matchedTier.label,
+        discountPercent: matchedTier.discountPercent,
+        discountedUnitPrice,
+        totalSavings,
+        totalAfterDiscount
+      };
+    }
+  }
 
   const breakdown: DetailedCostBreakdown = {
     modelGrams: rawModelGrams,
@@ -136,7 +201,7 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
 
     printHours: totalPrintHoursPerUnit,
     averagePowerKW,
-    electricityRatePerKWh: ELECTRICITY_PRICE_PER_KWH,
+    electricityRatePerKWh: cfg.electricityRatePerKWh,
     electricityCost,
 
     machineDepreciationCost,
@@ -163,9 +228,9 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
 
     targetMarkupPercent,
     calculatedGrossMarginPercent,
-    platformCommissionPercent: PLATFORM_FEE_PERCENT * 100,
-    paymentGatewayFeePercent: PAYMENT_GATEWAY_FEE_PERCENT * 100,
-    designerRoyaltyPercent: DESIGNER_ROYALTY_PERCENT * 100,
+    platformCommissionPercent: platformFeeRate * 100,
+    paymentGatewayFeePercent: paymentFeeRate * 100,
+    designerRoyaltyPercent: royaltyFeeRate * 100,
     fixedAdminFee: 0,
 
     preFeeSellingPrice,
@@ -203,7 +268,111 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
     breakdown,
     quickEstimateRange,
     tier,
-    manualReviewReasons
+    manualReviewReasons,
+    volumeDiscount
+  };
+}
+
+/**
+ * Direct simulator for Admin manual quick cost calculation (Inkiri Style)
+ */
+export interface ManualCalcInput {
+  filamentGrams: number;
+  printHours: number;
+  materialPricePerKg: number; // VND
+  printerAcquisitionCost: number; // VND
+  printerLifetimeHours: number;
+  printerConsumablesPerHour: number; // VND
+  printerPowerKW: number;
+  electricityRatePerKWh: number; // VND
+  laborHourlyRate: number; // VND
+  laborTotalMinutes: number;
+  packagingCost: number; // VND
+  accessoriesCost?: number; // VND (hardware / add-ons cost)
+  overheadCost: number; // VND
+  failureRatePercent: number; // %
+  markupPercent: number; // %
+  taxAndGatewayPercent: number; // %
+  quantity: number;
+}
+
+export function calculateManualInkiriEstimate(input: ManualCalcInput) {
+  const {
+    filamentGrams,
+    printHours,
+    materialPricePerKg,
+    printerAcquisitionCost,
+    printerLifetimeHours,
+    printerConsumablesPerHour,
+    printerPowerKW,
+    electricityRatePerKWh,
+    laborHourlyRate,
+    laborTotalMinutes,
+    packagingCost,
+    accessoriesCost = 0,
+    overheadCost,
+    failureRatePercent,
+    markupPercent,
+    taxAndGatewayPercent,
+    quantity
+  } = input;
+
+  // 1. Material
+  const materialCost = Math.round((filamentGrams * materialPricePerKg) / 1000);
+
+  // 2. Electricity
+  const electricityCost = Math.round(printerPowerKW * printHours * electricityRatePerKWh);
+
+  // 3. Machine Depreciation & Consumables
+  const machineDepreciation = Math.round((printerAcquisitionCost / Math.max(100, printerLifetimeHours)) * printHours);
+  const consumablesCost = Math.round(printerConsumablesPerHour * printHours);
+  const machineTotal = machineDepreciation + consumablesCost;
+
+  // 4. Labor
+  const laborCost = Math.round((laborTotalMinutes / 60) * laborHourlyRate);
+
+  // 5. Packaging & Accessories
+  const packaging = packagingCost;
+  const accessories = accessoriesCost;
+
+  // 6. Overhead
+  const overhead = overheadCost;
+
+  // 7. Base Cost & Failure
+  const subtotalCost = materialCost + electricityCost + machineTotal + laborCost + packaging + accessories + overhead;
+  const failureCost = Math.round(subtotalCost * (failureRatePercent / 100));
+  const costPriceUnit = subtotalCost + failureCost;
+
+  // 8. Selling Price
+  const preFeePrice = Math.round(costPriceUnit * (1 + markupPercent / 100));
+  const feeMultiplier = Math.max(0.01, 1 - taxAndGatewayPercent / 100);
+  const rawSellingPrice = Math.round(preFeePrice / feeMultiplier);
+  const finalUnitPrice = Math.ceil(rawSellingPrice / 1000) * 1000;
+
+  const profitPerUnit = finalUnitPrice - costPriceUnit;
+  const totalCostBatch = costPriceUnit * quantity;
+  const totalRevenueBatch = finalUnitPrice * quantity;
+  const totalProfitBatch = profitPerUnit * quantity;
+  const grossMarginPercent = Number(((profitPerUnit / finalUnitPrice) * 100).toFixed(1));
+
+  return {
+    materialCost,
+    electricityCost,
+    machineDepreciation,
+    consumablesCost,
+    machineTotal,
+    laborCost,
+    packaging,
+    accessories,
+    overhead,
+    failureCost,
+    costPriceUnit,
+    finalUnitPrice,
+    profitPerUnit,
+    grossMarginPercent,
+    totalCostBatch,
+    totalRevenueBatch,
+    totalProfitBatch
   };
 }
 
@@ -272,9 +441,13 @@ export function comparePrintersForModel(
   infillDensity: number,
   layerHeight: string,
   supportsMode: 'auto' | 'tree' | 'none',
-  quantity: number
+  quantity: number,
+  customPricingConfig?: InkiriCostFormulaConfig,
+  customPrinters?: PrinterProfile[],
+  customMaterials?: MaterialProfile[]
 ): MachineComparisonItem[] {
-  return PRINTER_PROFILES.map((printer) => {
+  const printersList = customPrinters && customPrinters.length > 0 ? customPrinters : PRINTER_PROFILES;
+  return printersList.map((printer) => {
     const calc = calculateDetailedPricing({
       file,
       transformedVolume,
@@ -284,7 +457,10 @@ export function comparePrintersForModel(
       infillPattern: 'Gyroid',
       layerHeight,
       supportsMode,
-      quantity
+      quantity,
+      customPricingConfig,
+      customPrinters: printersList,
+      customMaterials
     });
 
     const hours = calc.breakdown.printHours;

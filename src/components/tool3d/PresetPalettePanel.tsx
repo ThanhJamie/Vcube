@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SlicerPresetInfo, ModelPart, FilamentPaletteItem } from '../../types';
 
 interface PresetPalettePanelProps {
@@ -78,6 +78,27 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
 
   const [currentPalettes, setCurrentPalettes] = useState<FilamentPaletteItem[]>(initialPalettes);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
+
+  // Synchronize palettes when a new file or preset is loaded
+  useEffect(() => {
+    if (slicerPreset?.palettes && slicerPreset.palettes.length > 0) {
+      setCurrentPalettes(slicerPreset.palettes);
+    } else if (parts.length > 0) {
+      setCurrentPalettes(
+        parts.map((p, idx) => ({
+          index: p.extruderIndex || idx + 1,
+          colorHex: p.colorHex,
+          name: p.color || `Màu Part ${idx + 1}`,
+          materialType: p.materialId?.toUpperCase() || 'PLA/PETG',
+          vendor: 'Bambu Lab AMS',
+          density: 1.24,
+          usedGrams: Number((p.volumeCm3 * 1.24).toFixed(1)),
+          usedMeters: Number((p.volumeCm3 * 0.4).toFixed(2)),
+          costPerKg: 350000
+        }))
+      );
+    }
+  }, [slicerPreset, parts]);
 
   const selectedPart = parts.find(p => p.id === selectedPartId);
 

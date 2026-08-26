@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { AnalysisFile, CartItem, TransformState, MeasurementResult } from '../types';
-import { SAMPLE_ANALYSIS_FILES, PRINTER_PROFILES } from '../data/mockData';
+import { AnalysisFile, CartItem, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, InkiriCostFormulaConfig } from '../types';
+import { SAMPLE_ANALYSIS_FILES, PRINTER_PROFILES, MATERIALS_CATALOG } from '../data/mockData';
 import { ModelViewer3D } from '../components/tool3d/ModelViewer3D';
 import { StlVs3mfComparisonModal } from '../components/tool3d/StlVs3mfComparisonModal';
 import { StlUnitConfirmModal } from '../components/tool3d/StlUnitConfirmModal';
@@ -12,12 +12,18 @@ import { QuoteSummaryPanel } from '../components/tool3d/QuoteSummaryPanel';
 import { parse3DFile, splitConnectedComponents, autoRepairGeometry } from '../utils/meshParser';
 
 interface Tool3DViewProps {
+  materials?: MaterialProfile[];
+  printers?: PrinterProfile[];
+  pricingConfig?: InkiriCostFormulaConfig;
   onAddToCart: (item: CartItem) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onShowToast: (message: string) => void;
 }
 
 export const Tool3DView: React.FC<Tool3DViewProps> = ({
+  materials = MATERIALS_CATALOG,
+  printers = PRINTER_PROFILES,
+  pricingConfig,
   onAddToCart,
   onNavigate,
   onShowToast
@@ -25,10 +31,13 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   const [files, setFiles] = useState<AnalysisFile[]>(SAMPLE_ANALYSIS_FILES);
   const [selectedFile, setSelectedFile] = useState<AnalysisFile>(SAMPLE_ANALYSIS_FILES[0]);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const [activePlateIndex, setActivePlateIndex] = useState<number>(
+    SAMPLE_ANALYSIS_FILES[0].activePlateIndex || (SAMPLE_ANALYSIS_FILES[0].plates && SAMPLE_ANALYSIS_FILES[0].plates.length > 0 ? 1 : 0)
+  );
 
   // Slicing parameters
-  const [selectedPrinterId, setSelectedPrinterId] = useState<string>('bambu-x1c');
-  const [selectedMaterialId, setSelectedMaterialId] = useState<string>('pla-tough');
+  const [selectedPrinterId, setSelectedPrinterId] = useState<string>(printers[0]?.id || 'bambu-x1c');
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string>(materials[0]?.id || 'pla-tough');
   const [infillDensity, setInfillDensity] = useState<number>(25);
   const [infillPattern, setInfillPattern] = useState<string>('Gyroid');
   const [layerHeight, setLayerHeight] = useState<string>('0.16');
@@ -120,6 +129,24 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
       parts: prev.parts.map(p => p.id === partId ? { ...p, materialId } : p)
     }));
     onShowToast('Đã cập nhật vật liệu gán riêng cho chi tiết.');
+  };
+
+  const handleSelectPlate = (plateIdx: number) => {
+    setActivePlateIndex(plateIdx);
+    setSelectedFile(prev => ({
+      ...prev,
+      activePlateIndex: plateIdx
+    }));
+    const plate = selectedFile.plates?.find(p => p.index === plateIdx);
+    onShowToast(plateIdx === 0 ? 'Đang hiển thị tất cả các bàn in.' : `Đã chuyển sang ${plate?.name || `Bàn in ${plateIdx}`}.`);
+  };
+
+  const handleChangePartPlate = (partId: string, plateIndex: number) => {
+    setSelectedFile(prev => ({
+      ...prev,
+      parts: prev.parts.map(p => p.id === partId ? { ...p, plateIndex } : p)
+    }));
+    onShowToast(`Đã chuyển chi tiết sang Bàn ${plateIndex}.`);
   };
 
   // Split multi-component shells
@@ -243,11 +270,32 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         customObjectGroup: parsed.objectGroup || null,
         sha256Hash: 'c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8',
         isUnitConfirmed: is3mf ? true : false,
-        slicerPreset: parsed.slicerPreset
+        slicerPreset: parsed.slicerPreset,
+        plates: parsed.plates || (parsed.slicerPreset?.plates) || [],
+        activePlateIndex: 1
       };
 
       setFiles(prev => [newFile, ...prev]);
       setSelectedFile(newFile);
+      setActivePlateIndex(1);
+
+      // Default true 1:1 scale (100%) on import
+      setTransform({
+        scaleUniform: 100,
+        scaleX: 100,
+        scaleY: 100,
+        scaleZ: 100,
+        rotationX: 0,
+        rotationY: 0,
+        rotationZ: 0,
+        positionX: 0,
+        positionY: 0,
+        positionZ: 0,
+        unit: 'mm',
+        layFlat: true,
+        centered: true
+      });
+
       if (is3mf && parsed.slicerPreset) {
         setActiveWorkspaceTab('preset');
       }
@@ -256,7 +304,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
       if (format === 'STL') {
         setIsStlUnitModalOpen(true);
       } else {
-        onShowToast(`Đã nạp file 3D: ${file.name} (${parsed.triangleCount.toLocaleString()} tam giác)`);
+        onShowToast(`Đã nạp file 3D & Auto-Fit bàn in: ${file.name} (${parsed.triangleCount.toLocaleString()} tam giác)`);
       }
     } catch (err) {
       console.error('Error parsing 3D file:', err);
@@ -268,6 +316,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   const handleSelectSample = (file: AnalysisFile) => {
     setSelectedFile(file);
     setSelectedPartId(null);
+    setActivePlateIndex(file.activePlateIndex || (file.plates && file.plates.length > 0 ? 1 : 0));
     if (file.format === 'STL' && !file.isUnitConfirmed) {
       setIsStlUnitModalOpen(true);
     }
@@ -465,6 +514,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 }}
                 compareMode={compareMode}
                 onUpdateTransform={handleUpdateTransform}
+                plates={selectedFile.plates || selectedFile.slicerPreset?.plates || []}
+                activePlateIndex={activePlateIndex}
+                onSelectPlate={handleSelectPlate}
                 className="h-[400px] sm:h-[480px] w-full"
               />
 
@@ -556,6 +608,10 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 onChangeExtruder={handleChangePartExtruder}
                 onChangeMaterial={handleChangePartMaterial}
                 onSplitComponents={handleSplitComponents}
+                plates={selectedFile.plates || selectedFile.slicerPreset?.plates || []}
+                activePlateIndex={activePlateIndex}
+                onSelectPlate={handleSelectPlate}
+                onChangePartPlate={handleChangePartPlate}
               />
             )}
 
@@ -625,6 +681,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               layerHeight={layerHeight}
               supportsMode={supportsMode}
               quantity={quantity}
+              materials={materials}
+              printers={printers}
+              pricingConfig={pricingConfig}
               onPrinterChange={setSelectedPrinterId}
               onMaterialChange={setSelectedMaterialId}
               onInfillChange={setInfillDensity}

@@ -8,7 +8,11 @@ import {
   ModerationProductItem,
   DesignerApplication,
   DisputeRecord,
-  DMCAReport
+  DMCAReport,
+  MaterialProfile,
+  PrinterProfile,
+  InkiriCostFormulaConfig,
+  AccessoryItem
 } from '../types';
 
 export const CATEGORIES = [
@@ -33,71 +37,315 @@ export const POPULAR_TAGS = [
   { id: 'bán-chạy', nameVi: 'Bán chạy nhất', nameEn: 'Best Sellers', icon: 'local_fire_department' },
 ];
 
-export const MATERIALS_CATALOG = [
+export const MATERIALS_CATALOG: MaterialProfile[] = [
   {
     id: 'pla-tough',
     name: 'PLA Tough / PLA+',
+    brand: 'Bambu Lab / eSUN',
     density: 1.24,
     strength: 'Cao',
     heatResistance: '55°C',
     flexibility: 'Thấp',
+    costPerKg: 320000,
     pricePerGram: 850,
     unitPriceMultiplier: 1.0,
-    colors: ['#1C1C1C', '#ffffff', '#00687a', '#ea580c', '#e2e8f0'],
+    spoolWeightGrams: 1000,
+    extruderTempMin: 200,
+    extruderTempMax: 220,
+    bedTemp: 55,
+    colors: ['#1C1C1C', '#ffffff', '#00687a', '#ea580c', '#e2e8f0', '#10b981'],
     desc: 'Vật liệu phổ biến nhất, độ cứng tốt, chi tiết sắc nét, bề mặt láng mịn cho linh kiện kỹ thuật.',
-    recommendedFor: 'Prototypes, đồ gá, vỏ hộp tiêu chuẩn'
+    recommendedFor: 'Prototypes, đồ gá, vỏ hộp tiêu chuẩn',
+    inStock: true,
+    stockRollsCount: 38
   },
   {
     id: 'petg-pro',
     name: 'PETG Technical Pro',
+    brand: 'Bambu Lab / Sunlu',
     density: 1.27,
     strength: 'Rất cao',
     heatResistance: '75°C',
     flexibility: 'Trung bình',
+    costPerKg: 380000,
     pricePerGram: 1150,
     unitPriceMultiplier: 1.25,
-    colors: ['#1C1C1C', '#3b82f6', '#10b981', '#ffffff'],
+    spoolWeightGrams: 1000,
+    extruderTempMin: 230,
+    extruderTempMax: 250,
+    bedTemp: 70,
+    colors: ['#1C1C1C', '#3b82f6', '#10b981', '#ffffff', '#f59e0b'],
     desc: 'Chống va đập mạnh, kháng hóa chất & tia UV nhẹ, chịu nhiệt tốt hơn PLA đáng kể.',
-    recommendedFor: 'Linh kiện cơ khí ngoài trời, đồ gá chịu lực'
+    recommendedFor: 'Linh kiện cơ khí ngoài trời, đồ gá chịu lực',
+    inStock: true,
+    stockRollsCount: 24
   },
   {
     id: 'abs-industrial',
     name: 'ABS Industrial Grade',
+    brand: 'PolyMaker PolyLite',
     density: 1.04,
     strength: 'Rất cao',
     heatResistance: '95°C',
     flexibility: 'Trung bình',
+    costPerKg: 420000,
     pricePerGram: 1300,
     unitPriceMultiplier: 1.35,
-    colors: ['#1C1C1C', '#64748b', '#ffffff'],
+    spoolWeightGrams: 1000,
+    extruderTempMin: 245,
+    extruderTempMax: 265,
+    bedTemp: 95,
+    colors: ['#1C1C1C', '#64748b', '#ffffff', '#dc2626'],
     desc: 'Độ bền cơ tính công nghiệp, dễ mài bóng bằng Acetone, chịu nhiệt độ cao trong buồng động cơ.',
-    recommendedFor: 'Linh kiện ô tô, phụ tùng máy móc cơ khí'
+    recommendedFor: 'Linh kiện ô tô, phụ tùng máy móc cơ khí',
+    inStock: true,
+    stockRollsCount: 16
   },
   {
     id: 'tpu-flex',
-    name: 'TPU 95A Flexible',
+    name: 'TPU 95A Flexible High Speed',
+    brand: 'Bambu Lab TPU-HF',
     density: 1.21,
     strength: 'Đàn hồi cao',
     heatResistance: '60°C',
     flexibility: 'Rất dẻo',
+    costPerKg: 520000,
     pricePerGram: 1600,
     unitPriceMultiplier: 1.5,
-    colors: ['#1C1C1C', '#06b6d4', '#ea580c'],
+    spoolWeightGrams: 1000,
+    extruderTempMin: 215,
+    extruderTempMax: 235,
+    bedTemp: 45,
+    colors: ['#1C1C1C', '#06b6d4', '#ea580c', '#84cc16'],
     desc: 'Chất liệu cao su dẻo kỹ thuật, chống sốc, đàn hồi cực tốt và chống mài mòn cơ học.',
-    recommendedFor: 'Đệm chống sốc, gioăng kín nước, bánh xe robot'
+    recommendedFor: 'Đệm chống sốc, gioăng kín nước, bánh xe robot',
+    inStock: true,
+    stockRollsCount: 12
+  },
+  {
+    id: 'pa-cf',
+    name: 'PA-CF (Nylon Carbon Fiber)',
+    brand: 'Bambu Lab PAHT-CF',
+    density: 1.15,
+    strength: 'Siêu cứng cáp',
+    heatResistance: '140°C',
+    flexibility: 'Cực cứng',
+    costPerKg: 1250000,
+    pricePerGram: 2900,
+    unitPriceMultiplier: 2.3,
+    spoolWeightGrams: 1000,
+    extruderTempMin: 280,
+    extruderTempMax: 300,
+    bedTemp: 100,
+    colors: ['#18181b', '#3f3f46'],
+    desc: 'Sợi Nylon gia cường hạt Carbon Fiber siêu nhẹ và cứng vững, dùng thay thế linh kiện nhôm CNC.',
+    recommendedFor: 'Drone cánh tay chịu lực, đồ gá CNC, chi tiết máy chịu nhiệt',
+    inStock: true,
+    stockRollsCount: 8
   },
   {
     id: 'resin-8k',
     name: 'Resin Engineering 8K (SLA)',
+    brand: 'Formlabs / Anycubic',
     density: 1.18,
     strength: 'Độ nét vi mô',
     heatResistance: '65°C',
     flexibility: 'Thấp',
+    costPerKg: 780000,
     pricePerGram: 2200,
     unitPriceMultiplier: 1.85,
-    colors: ['#64748b', '#00687a', '#ffffff'],
+    spoolWeightGrams: 1000,
+    extruderTempMin: 25,
+    extruderTempMax: 35,
+    bedTemp: 30,
+    colors: ['#64748b', '#00687a', '#ffffff', '#1C1C1C'],
     desc: 'Công nghệ quang trùng hợp SLA/DLP, độ phân giải vi mô không thấy vân sọc từng lớp in.',
-    recommendedFor: 'Khuôn đúc thu nhỏ, chi tiết kim hoàn, mô hình giải phẫu'
+    recommendedFor: 'Khuôn đúc thu nhỏ, chi tiết kim hoàn, mô hình giải phẫu',
+    inStock: true,
+    stockRollsCount: 15
+  }
+];
+
+export const ACCESSORIES_CATALOG: AccessoryItem[] = [
+  {
+    id: 'acc-keychain-ring-chain',
+    name: 'Khoen móc khóa xoay Inox + Dây xích 25mm',
+    nameEn: 'Stainless Steel Keyring with Swivel Chain (25mm)',
+    category: 'keychain',
+    unit: 'cái',
+    costPrice: 1200,
+    sellingPrice: 3000,
+    sku: 'ACC-KC-RING01',
+    stockCount: 450,
+    lowStockThreshold: 50,
+    warehouseLocation: 'Kệ A1 - Hộc 02',
+    supplier: 'Xưởng Kim Khí Tân Bình',
+    description: 'Khoen kim loại không gỉ mạ niken bóng, vòng xoay 360 độ, chịu lực kéo 5kg.',
+    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Móc khóa', 'Thẻ tên', 'Quà lưu niệm', 'Charm balo']
+  },
+  {
+    id: 'acc-paracord-lanyard',
+    name: 'Dây dù Paracord 550 kèm Chốt khóa Mini EDC',
+    nameEn: 'Paracord Lanyard with Mini Quick-Release Clasp',
+    category: 'keychain',
+    unit: 'sợi',
+    costPrice: 2500,
+    sellingPrice: 6000,
+    sku: 'ACC-KC-PARA02',
+    stockCount: 180,
+    lowStockThreshold: 30,
+    warehouseLocation: 'Kệ A1 - Hộc 05',
+    supplier: 'Vật tư EDC Sài Gòn',
+    description: 'Dây dù 7 lõi đan thủ công, chịu tải cao, gắn kèm chốt bấm kim loại tiện dụng.',
+    imageUrl: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Móc khóa dao', 'Dụng cụ EDC', 'Thẻ nhân viên']
+  },
+  {
+    id: 'acc-brass-insert-m3',
+    name: 'Ốc cấy ren đồng nhiệt Brass Insert M3 x 4 x 5mm',
+    nameEn: 'Threaded Heat-Set Brass Insert M3 (Pack/pc)',
+    category: 'fastener',
+    unit: 'con',
+    costPrice: 800,
+    sellingPrice: 2000,
+    sku: 'HARD-INS-M3',
+    stockCount: 1250,
+    lowStockThreshold: 200,
+    warehouseLocation: 'Kệ B2 - Ngăn 11',
+    supplier: 'CNC Fasteners VN',
+    description: 'Ốc ren đồng đúc vân kim cương chống tuột khi siết lực, ép nhiệt mỏ hàn 240°C.',
+    imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Vỏ hộp IoT', 'Khung drone', 'Đồ gá kỹ thuật', 'Linh kiện Robot']
+  },
+  {
+    id: 'acc-brass-insert-m4',
+    name: 'Ốc cấy ren đồng nhiệt Brass Insert M4 x 6 x 6mm',
+    nameEn: 'Threaded Heat-Set Brass Insert M4',
+    category: 'fastener',
+    unit: 'con',
+    costPrice: 1200,
+    sellingPrice: 2500,
+    sku: 'HARD-INS-M4',
+    stockCount: 820,
+    lowStockThreshold: 150,
+    warehouseLocation: 'Kệ B2 - Ngăn 12',
+    supplier: 'CNC Fasteners VN',
+    description: 'Ốc ren đồng chịu lực xoắn cao, phù hợp lắp ghép vỏ máy công nghiệp.',
+    imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Vỏ máy tính', 'Khung xe robot', 'Chi tiết cơ khí']
+  },
+  {
+    id: 'acc-bolt-m3-12',
+    name: 'Bộ Bu lông lục giác chìm Inox 304 M3x12mm + Tán tự hãm',
+    nameEn: 'Stainless Steel Hex Socket Bolt M3x12 + Lock Nut',
+    category: 'hardware',
+    unit: 'bộ',
+    costPrice: 1500,
+    sellingPrice: 3500,
+    sku: 'HARD-BOLT-M312',
+    stockCount: 650,
+    lowStockThreshold: 100,
+    warehouseLocation: 'Kệ B3 - Ngăn 04',
+    supplier: 'Vật Tư Bu Lông Inox',
+    description: 'Thép không gỉ 304 chuẩn A2-70, ren mịn màng, kèm tán nylon chống trượt.',
+    imageUrl: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Khớp nối cơ khí', 'Vỏ hộp Arduino', 'Hệ bánh răng']
+  },
+  {
+    id: 'acc-magnet-neo-6x3',
+    name: 'Nam châm vĩnh cửu Neodymium N52 tròn 6x3mm',
+    nameEn: 'Neodymium N52 Disc Magnet 6x3mm (High Power)',
+    category: 'magnet',
+    unit: 'viên',
+    costPrice: 2200,
+    sellingPrice: 5000,
+    sku: 'HARD-MAG-6X3',
+    stockCount: 380,
+    lowStockThreshold: 60,
+    warehouseLocation: 'Kệ B4 - Ngăn 01',
+    supplier: 'Nam Châm Từ Tính Hà Nội',
+    description: 'Lực hút từ tính siêu mạnh N52, mạ Niken 3 lớp chống rỉ, phù hợp nắp đậy hít nam châm.',
+    imageUrl: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Hộp quà nắp hít', 'Vỏ thiết bị cảm biến', 'Mô hình tháo lắp']
+  },
+  {
+    id: 'acc-bearing-608',
+    name: 'Vòng bi bạc đạn 608-2RS High Speed ABEC-7',
+    nameEn: 'Ball Bearing 608-2RS High Precision ABEC-7',
+    category: 'bearing',
+    unit: 'cái',
+    costPrice: 6500,
+    sellingPrice: 15000,
+    sku: 'HARD-BRG-608',
+    stockCount: 140,
+    lowStockThreshold: 25,
+    warehouseLocation: 'Kệ B5 - Ngăn 08',
+    supplier: 'Bạc Đạn Vòng Bi Công Nghiệp',
+    description: 'Nắp cao su chống bụi 2 mặt, tra sẵn mỡ bôi trơn cao tốc, chạy siêu êm.',
+    imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Hộp số hành tinh', 'Con quay Fidget', 'Rulo cuốn dây', 'Bánh xe robot']
+  },
+  {
+    id: 'acc-pack-box-kraft',
+    name: 'Hộp Carton Kraft cứng quà tặng + Mút xốp EVA định hình',
+    nameEn: 'Premium Kraft Gift Box with Custom EVA Foam Cushion',
+    category: 'packaging',
+    unit: 'hộp',
+    costPrice: 8000,
+    sellingPrice: 18000,
+    sku: 'PACK-BOX-KRAFT01',
+    stockCount: 220,
+    lowStockThreshold: 40,
+    warehouseLocation: 'Kệ C1 - Tầng 2',
+    supplier: 'Bao Bì Giấy Sài Gòn Pro',
+    description: 'Hộp cứng kraft nâu vintage 12x12x6cm, lót mút xốp chống sốc bảo vệ sản phẩm cao cấp.',
+    imageUrl: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Quà tặng doanh nghiệp', 'Mô hình mỹ thuật', 'Sản phẩm custom']
+  },
+  {
+    id: 'acc-pack-zip-esd',
+    name: 'Túi Zip mờ chống trầy ESD kèm gói hút ẩm Silica Gel 2g',
+    nameEn: 'Frosted Matte Anti-Scratch Zip Bag + Desiccant Pouch',
+    category: 'packaging',
+    unit: 'túi',
+    costPrice: 1800,
+    sellingPrice: 4500,
+    sku: 'PACK-ZIP-ESD02',
+    stockCount: 620,
+    lowStockThreshold: 100,
+    warehouseLocation: 'Kệ C1 - Tầng 1',
+    supplier: 'Bao Bì Công Nghiệp ESD',
+    description: 'Túi nhựa mờ dẻo chống tĩnh điện, bảo vệ bề mặt in 3D không bị xước và ẩm mốc.',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Móc khóa', 'Linh kiện nhỏ', 'Board mạch điện tử']
+  },
+  {
+    id: 'acc-rubber-feet',
+    name: 'Bộ chân đế Silicon chống trượt & giảm rung (4 chiếc)',
+    nameEn: 'Anti-Vibration Silicon Rubber Feet Pads (Set of 4)',
+    category: 'hardware',
+    unit: 'bộ',
+    costPrice: 2800,
+    sellingPrice: 8000,
+    sku: 'HARD-RUB-FEET4',
+    stockCount: 260,
+    lowStockThreshold: 35,
+    warehouseLocation: 'Kệ B3 - Ngăn 09',
+    supplier: 'Phụ Kiện Điện Tử 3M',
+    description: 'Chân đế silicon dán keo 3M 9448A siêu dính, triệt tiêu rung động và chống trầy bàn.',
+    imageUrl: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Vỏ hộp Arduino', 'Đế loa', 'Vỏ thiết bị đo', 'Khung bàn in']
   }
 ];
 
@@ -541,7 +789,7 @@ export const DIGITAL_ASSETS: DigitalAsset[] = [
   }
 ];
 
-export const PRINTER_PROFILES: import('../types').PrinterProfile[] = [
+export const PRINTER_PROFILES: PrinterProfile[] = [
   {
     id: 'bambu-x1c',
     name: 'Bambu Lab X1-Carbon AMS',
@@ -554,7 +802,65 @@ export const PRINTER_PROFILES: import('../types').PrinterProfile[] = [
     expectedLifetimeHours: 8000,
     consumablesHourlyRate: 2500,
     hourlyRate: 28000,
+    maxPrintSpeedMmS: 500,
+    heatedBedMaxTemp: 120,
+    hasEnclosure: true,
+    hasAMS: true,
     status: 'Idle'
+  },
+  {
+    id: 'bambu-p1s',
+    name: 'Bambu Lab P1S Combo AMS',
+    brand: 'Bambu Lab',
+    bedDimensions: { x: 256, y: 256, z: 256 },
+    nozzleDiameter: 0.4,
+    technology: 'FDM',
+    powerKW: 0.16,
+    acquisitionCost: 24500000,
+    expectedLifetimeHours: 7500,
+    consumablesHourlyRate: 2000,
+    hourlyRate: 22000,
+    maxPrintSpeedMmS: 500,
+    heatedBedMaxTemp: 100,
+    hasEnclosure: true,
+    hasAMS: true,
+    status: 'Idle'
+  },
+  {
+    id: 'bambu-a1-mini',
+    name: 'Bambu Lab A1 Mini Combo',
+    brand: 'Bambu Lab',
+    bedDimensions: { x: 180, y: 180, z: 180 },
+    nozzleDiameter: 0.4,
+    technology: 'FDM',
+    powerKW: 0.11,
+    acquisitionCost: 11500000,
+    expectedLifetimeHours: 6000,
+    consumablesHourlyRate: 1500,
+    hourlyRate: 16000,
+    maxPrintSpeedMmS: 500,
+    heatedBedMaxTemp: 80,
+    hasEnclosure: false,
+    hasAMS: true,
+    status: 'Idle'
+  },
+  {
+    id: 'creality-k1-max',
+    name: 'Creality K1 Max High-Speed',
+    brand: 'Creality',
+    bedDimensions: { x: 300, y: 300, z: 300 },
+    nozzleDiameter: 0.4,
+    technology: 'FDM',
+    powerKW: 0.22,
+    acquisitionCost: 19500000,
+    expectedLifetimeHours: 6500,
+    consumablesHourlyRate: 2200,
+    hourlyRate: 24000,
+    maxPrintSpeedMmS: 600,
+    heatedBedMaxTemp: 120,
+    hasEnclosure: true,
+    hasAMS: false,
+    status: 'Printing'
   },
   {
     id: 'anycubic-kobra-max',
@@ -568,6 +874,10 @@ export const PRINTER_PROFILES: import('../types').PrinterProfile[] = [
     expectedLifetimeHours: 6000,
     consumablesHourlyRate: 2000,
     hourlyRate: 35000,
+    maxPrintSpeedMmS: 500,
+    heatedBedMaxTemp: 90,
+    hasEnclosure: false,
+    hasAMS: false,
     status: 'Idle'
   },
   {
@@ -582,9 +892,56 @@ export const PRINTER_PROFILES: import('../types').PrinterProfile[] = [
     expectedLifetimeHours: 10000,
     consumablesHourlyRate: 6500,
     hourlyRate: 55000,
+    maxPrintSpeedMmS: 100,
+    heatedBedMaxTemp: 35,
+    hasEnclosure: true,
+    hasAMS: false,
     status: 'Idle'
   }
 ];
+
+export const DEFAULT_INKIRI_FORMULA_CONFIG: InkiriCostFormulaConfig = {
+  // 1. Electricity / Điện năng
+  electricityRatePerKWh: 2850, // VND / kWh (Điện sản xuất kinh doanh bậc 2)
+
+  // 2. Labor & Operations / Nhân công kỹ thuật (Đơn giá 65,000 VND / giờ)
+  laborHourlyRate: 65000,
+  fileReviewLaborMinutes: 4, // 4 phút kiểm tra slicing & mesh
+  setupLaborMinutes: 5, // 5 phút chuẩn bị máy & xịt keo PEI
+  supportRemovalMinutes: 8, // 8 phút bóc support
+  postProcessingLaborMinutes: 6, // 6 phút mài nhẵn / deburring
+  qcLaborMinutes: 4, // 4 phút đo kiểm thước kẹp Mitutoyo
+  packagingLaborMinutes: 3, // 3 phút đóng gói xốp & hộp
+
+  // 3. Packaging & Consumables / Đóng gói & Vật tư phụ
+  fixedPackagingCost: 12000, // Hộp carton, mút xốp EVA, túi hút ẩm
+  multiColorPackagingExtra: 5000, // Thêm phụ phí bảo vệ cho chi tiết màu
+
+  // 4. Overhead & Management / Mặt bằng & Chi phí quản lý xưởng
+  overheadPerUnit: 15000, // Tiền thuê xưởng, phần mềm CAD/Slicer, internet
+
+  // 5. Failure Contingency / Dự phòng rủi ro in lỗi
+  baseFailureReservePercent: 8, // 8% cơ bản
+  lowPrintabilityExtraPercent: 6, // +6% nếu mô hình có điểm <80
+  multiColorExtraPercent: 5, // +5% nếu in nhiều màu (AMS purge rủi ro)
+  difficultMaterialExtraPercent: 4, // +4% cho vật liệu khó như Nylon, Resin
+
+  // 6. Pricing & Margins / Biên lợi nhuận & Chiết khấu
+  defaultMarkupPercent: 35, // Lợi nhuận gộp mong muốn 35%
+  platformCommissionPercent: 8, // 8% Phí nền tảng
+  paymentGatewayFeePercent: 2.5, // 2.5% Cổng thanh toán
+  designerRoyaltyPercent: 5, // 5% Bản quyền thiết kế
+  roundingRule: '1000', // Làm tròn lên 1,000đ
+
+  // 7. Quantity Discounts / Chiết khấu theo số lượng (Tiers)
+  volumeDiscounts: [
+    { minQty: 1, maxQty: 4, discountPercent: 0, label: '1 - 4 chiếc (Giá gốc lẻ)' },
+    { minQty: 5, maxQty: 9, discountPercent: 8, label: '5 - 9 chiếc (-8%)' },
+    { minQty: 10, maxQty: 24, discountPercent: 15, label: '10 - 24 chiếc (-15% Tiết kiệm)' },
+    { minQty: 25, maxQty: 49, discountPercent: 22, label: '25 - 49 chiếc (-22% Giá sỉ xưởng)' },
+    { minQty: 50, discountPercent: 30, label: '50+ chiếc (-30% Sản xuất loạt lớn)' }
+  ]
+};
 
 export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [
   {
@@ -608,7 +965,8 @@ export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [
         visible: true,
         triangleCount: 12400,
         volumeCm3: 14.2,
-        extruderIndex: 1
+        extruderIndex: 1,
+        plateIndex: 1
       },
       {
         id: 'part-planet-gears',
@@ -619,7 +977,8 @@ export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [
         visible: true,
         triangleCount: 18600,
         volumeCm3: 21.6,
-        extruderIndex: 2
+        extruderIndex: 2,
+        plateIndex: 1
       },
       {
         id: 'part-ring-housing',
@@ -630,7 +989,8 @@ export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [
         visible: true,
         triangleCount: 11800,
         volumeCm3: 22.5,
-        extruderIndex: 3
+        extruderIndex: 3,
+        plateIndex: 2
       },
       {
         id: 'part-carrier-plate',
@@ -641,7 +1001,8 @@ export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [
         visible: true,
         triangleCount: 5400,
         volumeCm3: 6.5,
-        extruderIndex: 4
+        extruderIndex: 4,
+        plateIndex: 2
       }
     ],
     isWatertight: true,
@@ -664,11 +1025,38 @@ export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [
       bedFit: true,
       overhangPercentage: 6.2
     },
-    tag: '3MF Chuẩn // Multi-Part & Multi-Material',
+    tag: '3MF Chuẩn // 2 Bàn In (Multi-Plate)',
     status: 'Ready',
     modelType: 'gear',
     sha256Hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     isUnitConfirmed: true,
+    activePlateIndex: 1,
+    plates: [
+      {
+        index: 1,
+        name: 'Bàn 1: Cụm Bánh Răng Hành Tinh',
+        predictionSeconds: 4500,
+        predictionFormatted: '1h 15m',
+        filamentGrams: 46.0,
+        filamentMeters: 15.0,
+        bedType: 'Textured PEI Plate',
+        partCount: 2,
+        partIds: ['part-sun-gear', 'part-planet-gears'],
+        dimensions: { x: 74.0, y: 74.0, z: 28.0 }
+      },
+      {
+        index: 2,
+        name: 'Bàn 2: Vỏ Vòng Ngoài & Trục Đỡ',
+        predictionSeconds: 3600,
+        predictionFormatted: '1h 00m',
+        filamentGrams: 32.4,
+        filamentMeters: 11.2,
+        bedType: 'Textured PEI Plate',
+        partCount: 2,
+        partIds: ['part-ring-housing', 'part-carrier-plate'],
+        dimensions: { x: 92.5, y: 92.5, z: 38.0 }
+      }
+    ],
     slicerPreset: {
       software: 'Bambu Studio v1.9.3 (AMS Project)',
       printerModel: 'Bambu Lab X1-Carbon 0.4 nozzle',
@@ -681,12 +1069,38 @@ export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [
       topShellLayers: 4,
       bottomShellLayers: 3,
       printSpeed: 250,
-      estimatedPrintTimeFormatted: '2h 15m',
+      estimatedPrintTimeFormatted: '2h 15m (Tổng 2 bàn)',
       estimatedPrintTimeSeconds: 8100,
       totalFilamentGrams: 78.4,
       totalFilamentMeters: 26.2,
-      plateCount: 1,
+      plateCount: 2,
       activePlateIndex: 1,
+      plates: [
+        {
+          index: 1,
+          name: 'Bàn 1: Cụm Bánh Răng Hành Tinh',
+          predictionSeconds: 4500,
+          predictionFormatted: '1h 15m',
+          filamentGrams: 46.0,
+          filamentMeters: 15.0,
+          bedType: 'Textured PEI Plate',
+          partCount: 2,
+          partIds: ['part-sun-gear', 'part-planet-gears'],
+          dimensions: { x: 74.0, y: 74.0, z: 28.0 }
+        },
+        {
+          index: 2,
+          name: 'Bàn 2: Vỏ Vòng Ngoài & Trục Đỡ',
+          predictionSeconds: 3600,
+          predictionFormatted: '1h 00m',
+          filamentGrams: 32.4,
+          filamentMeters: 11.2,
+          bedType: 'Textured PEI Plate',
+          partCount: 2,
+          partIds: ['part-ring-housing', 'part-carrier-plate'],
+          dimensions: { x: 92.5, y: 92.5, z: 38.0 }
+        }
+      ],
       palettes: [
         {
           index: 1,
@@ -862,3 +1276,186 @@ export const DEFAULT_SITE_CONTENT: import('../types').SiteContentConfig = {
   hanoiWorkshopAddress: 'Xưởng In 3D VCUBE: Khu Công Nghệ Cao Hòa Lạc, Hà Nội',
   hcmWorkshopAddress: 'Chi Nhánh Nam: Khu Công Nghệ Cao TP. Thủ Đức, TP. Hồ Chí Minh'
 };
+
+export const DEFAULT_ACCESSORIES: AccessoryItem[] = [
+  {
+    id: 'acc-keychain-swivel',
+    name: 'Khoen Móc Khóa Xoay Kim Loại Inox 304 + Xích Nối 3cm',
+    nameEn: 'Stainless Steel 304 Swivel Keychain Ring + 3cm Link Chain',
+    category: 'keychain',
+    unit: 'cái',
+    costPrice: 1500,
+    sellingPrice: 4000,
+    sku: 'ACC-KEY-001',
+    stockCount: 850,
+    lowStockThreshold: 100,
+    warehouseLocation: 'Kệ A1 - Hộc K01',
+    supplier: 'Cơ khí & Phụ Kiện Nam Phát',
+    description: 'Khoen móc khóa cao cấp không gỉ sét, khớp xoay 360 độ êm ái, thích hợp gắn mô hình in 3D quà lưu niệm.',
+    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Móc khóa lưu niệm', 'Thẻ tên thú cưng', 'Charm balo', 'Phụ kiện decor']
+  },
+  {
+    id: 'acc-split-ring-25',
+    name: 'Vòng Khoen Tròn Dẹt Mạ Niken Bóng Ø25mm Kèm Khuyên Nối',
+    nameEn: 'Flat Split Ring Nickel-Plated Ø25mm with Jump Ring',
+    category: 'keychain',
+    unit: 'cái',
+    costPrice: 800,
+    sellingPrice: 2500,
+    sku: 'ACC-KEY-002',
+    stockCount: 1200,
+    lowStockThreshold: 200,
+    warehouseLocation: 'Kệ A1 - Hộc K02',
+    supplier: 'Xưởng Kim Khí Tân Bình',
+    description: 'Vòng dẹt chịu lực đàn hồi tốt, bề mặt mạ niken sáng bóng chống xỉn màu.',
+    imageUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Móc chìa khóa', 'Thẻ nhân viên', 'Mô hình mini']
+  },
+  {
+    id: 'acc-heat-insert-m3',
+    name: 'Ốc Cấy Nhiệt Đồng Thau M3 x 4mm x OD 5.0mm (Heat-set Inserts)',
+    nameEn: 'Brass Heat-set Threaded Inserts M3 x 4.0mm OD 5.0mm',
+    category: 'fastener',
+    unit: 'cái',
+    costPrice: 750,
+    sellingPrice: 2000,
+    sku: 'ACC-FST-M3-4',
+    stockCount: 3400,
+    lowStockThreshold: 500,
+    warehouseLocation: 'Kệ B2 - Ngăn F01 (Tủ Khay Vàng)',
+    supplier: 'CNC & Fastener Precision Co.',
+    description: 'Ren đồng thau vân kim cương kép chống tuột xoắn, tối ưu cho chi tiết nhựa in 3D PLA, PETG, ABS, PA-CF.',
+    imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Vỏ hộp IoT', 'Đồ gá robot', 'Khung drone FPV', 'Cơ cấu lắp ghép']
+  },
+  {
+    id: 'acc-heat-insert-m4',
+    name: 'Ốc Cấy Nhiệt Đồng Thau M4 x 6mm x OD 6.0mm',
+    nameEn: 'Brass Heat-set Threaded Inserts M4 x 6.0mm OD 6.0mm',
+    category: 'fastener',
+    unit: 'cái',
+    costPrice: 1100,
+    sellingPrice: 3000,
+    sku: 'ACC-FST-M4-6',
+    stockCount: 1800,
+    lowStockThreshold: 300,
+    warehouseLocation: 'Kệ B2 - Ngăn F02',
+    supplier: 'CNC & Fastener Precision Co.',
+    description: 'Ốc ren M4 chịu lực kéo cao, phù hợp lắp nắp vỏ máy công nghiệp và chi tiết chịu lực.',
+    imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Vỏ hộp điện tử công nghiệp', 'Khớp nối cơ khí', 'Gá máy in']
+  },
+  {
+    id: 'acc-screw-m3-12-kit',
+    name: 'Bộ Vít Lục Giác Chìm Inox 304 M3x12mm + Long Đền Đệm',
+    nameEn: 'Stainless Steel 304 M3x12mm Socket Head Cap Screw + Washer Kit',
+    category: 'hardware',
+    unit: 'bộ',
+    costPrice: 1200,
+    sellingPrice: 3500,
+    sku: 'ACC-HRD-M312',
+    stockCount: 950,
+    lowStockThreshold: 150,
+    warehouseLocation: 'Kệ B3 - Ngăn H01',
+    supplier: 'Bu Lông Ốc Vít Hòa Phát',
+    description: 'Vít lục giác chìm DIN 912 thép không gỉ sáng bóng, độ cứng 8.8 tiêu chuẩn.',
+    imageUrl: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Vỏ hộp', 'Cụm bánh răng', 'Khung lắp ráp']
+  },
+  {
+    id: 'acc-magnet-n52-6x2',
+    name: 'Nam Châm Neodymium N52 Tròn Ø6mm x Dày 2mm Siêu Hút',
+    nameEn: 'Neodymium N52 Disc Magnet Ø6mm x 2mm High Power',
+    category: 'magnet',
+    unit: 'viên',
+    costPrice: 2200,
+    sellingPrice: 5000,
+    sku: 'ACC-MAG-62',
+    stockCount: 1450,
+    lowStockThreshold: 200,
+    warehouseLocation: 'Kệ C1 - Hộc M01 (Khu Khóa Từ)',
+    supplier: 'Công ty Nam Châm Việt',
+    description: 'Lực hút cực mạnh, mạ Niken 3 lớp Ni-Cu-Ni chống oxy hóa. Lý tưởng làm nắp hộp hít từ tính hoặc khóa gài mô hình.',
+    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Nắp hộp đóng mở từ tính', 'Khớp nối mô hình figure', 'Gá cảm biến']
+  },
+  {
+    id: 'acc-magnet-n52-10x3',
+    name: 'Nam Châm Neodymium N52 Tròn Ø10mm x Dày 3mm',
+    nameEn: 'Neodymium N52 Disc Magnet Ø10mm x 3mm',
+    category: 'magnet',
+    unit: 'viên',
+    costPrice: 4500,
+    sellingPrice: 9000,
+    sku: 'ACC-MAG-103',
+    stockCount: 620,
+    lowStockThreshold: 100,
+    warehouseLocation: 'Kệ C1 - Hộc M02',
+    supplier: 'Công ty Nam Châm Việt',
+    description: 'Lực giữ từ tính lên tới 2.5kg, phù hợp đế giữ điện thoại, gá dụng cụ xưởng.',
+    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Đồ gá xưởng', 'Giá treo dụng cụ', 'Khớp nối tháo lắp nhanh']
+  },
+  {
+    id: 'acc-bearing-608',
+    name: 'Vòng Bi Bạc Đạn Tốc Độ Cao 608-2RS (8x22x7mm)',
+    nameEn: 'High-Speed Precision Ball Bearing 608-2RS (8x22x7mm)',
+    category: 'bearing',
+    unit: 'cái',
+    costPrice: 6500,
+    sellingPrice: 15000,
+    sku: 'ACC-BRG-608',
+    stockCount: 380,
+    lowStockThreshold: 50,
+    warehouseLocation: 'Kệ C2 - Ngăn B01',
+    supplier: 'Bạc Đạn Vòng Bi SKF & FAG Phân Phối',
+    description: 'Vòng bi bọc cao su 2 mặt chống bụi, chạy êm ái với ma sát tối thiểu cho cụm bánh răng xoay, spinner, con lăn.',
+    imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Hộp số hành tinh', 'Con lăn dây tóc', 'Mô hình chuyển động cơ học']
+  },
+  {
+    id: 'acc-rubber-feet-3m',
+    name: 'Bộ 4 Đệm Chân Silicon Chống Trượt 3M Bán Cầu Ø10x3mm',
+    nameEn: '3M Self-Adhesive Silicone Rubber Feet Bumper 4-Pack Ø10x3mm',
+    category: 'hardware',
+    unit: 'bộ',
+    costPrice: 3000,
+    sellingPrice: 8000,
+    sku: 'ACC-PAD-3M4',
+    stockCount: 520,
+    lowStockThreshold: 80,
+    warehouseLocation: 'Kệ B3 - Ngăn H04',
+    supplier: 'Vật Liệu Keo Dán 3M Việt Nam',
+    description: 'Keo dán siêu dính bám chắc vào nhựa in, chống trượt trên mặt bàn kính, giảm rung ồn cho thiết bị.',
+    imageUrl: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Đế vỏ hộp IoT', 'Đế bàn phím cơ', 'Đồ gá xưởng']
+  },
+  {
+    id: 'acc-box-kraft-gift',
+    name: 'Hộp Carton Kraft Định Lượng Cao 3 Lớp + Mút Xốp EVA Định Hình',
+    nameEn: 'Premium 3-Layer Kraft Gift Box with Custom EVA Foam Cushion',
+    category: 'packaging',
+    unit: 'hộp',
+    costPrice: 8500,
+    sellingPrice: 18000,
+    sku: 'ACC-PKG-KFT1',
+    stockCount: 410,
+    lowStockThreshold: 75,
+    warehouseLocation: 'Kho Đóng Gói - Kệ P1',
+    supplier: 'Bao Bì Giấy Hưng Phát',
+    description: 'Hộp nắp gài sang trọng chuyên dụng cho đơn hàng quà tặng in 3D cao cấp và linh kiện dễ vỡ.',
+    imageUrl: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=200&auto=format&fit=crop&q=80',
+    isActive: true,
+    compatibleWith: ['Đơn hàng quà tặng', 'Mô hình sưu tầm Resin 8K', 'Hàng xuất khẩu']
+  }
+];

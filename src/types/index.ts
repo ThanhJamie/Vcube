@@ -54,6 +54,12 @@ export interface CartItem {
   uploadedLogoName?: string;
   fileFormat?: string;
   licenseType?: string;
+  selectedAccessories?: {
+    id: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+  }[];
 }
 
 export interface Order {
@@ -137,6 +143,22 @@ export interface FilamentPaletteItem {
   costPerKg?: number; // VND / kg
 }
 
+export interface PlateInfo {
+  index: number; // 1-indexed (1, 2, 3...)
+  name: string; // "Plate 1", "Bàn 1: Thân chính", etc.
+  predictionSeconds?: number;
+  predictionFormatted?: string; // "1h 45m"
+  filamentGrams?: number; // 38.5g
+  filamentMeters?: number; // 12.8m
+  partCount?: number;
+  partIds?: string[];
+  dimensions?: { x: number; y: number; z: number };
+  bedType?: string; // "Textured PEI Plate", "Smooth PEI", "High Temp Plate"
+  nozzleTemp?: number; // e.g. 220
+  bedTemp?: number; // e.g. 55
+  isCurrent?: boolean;
+}
+
 export interface SlicerPresetInfo {
   software: string; // "Bambu Studio" | "OrcaSlicer" | "PrusaSlicer" | "Cura" | "3MF Standard"
   printerModel?: string; // "Bambu Lab X1-Carbon 0.4 nozzle", "P1S", "A1 mini", "Prusa MK4"
@@ -155,6 +177,7 @@ export interface SlicerPresetInfo {
   totalFilamentMeters?: number;
   plateCount?: number;
   activePlateIndex?: number;
+  plates?: PlateInfo[];
   palettes: FilamentPaletteItem[];
 }
 
@@ -168,6 +191,7 @@ export interface ModelPart {
   triangleCount: number;
   volumeCm3: number;
   extruderIndex: number; // 1 to 4
+  plateIndex?: number; // 1-indexed (Plate 1, Plate 2...)
 }
 
 export interface ValidationIssue {
@@ -208,6 +232,91 @@ export interface MeasurementResult {
   distanceMm: number;
 }
 
+export interface MaterialProfile {
+  id: string;
+  name: string;
+  brand?: string;
+  density: number; // g/cm3
+  strength: string;
+  heatResistance: string;
+  flexibility: string;
+  costPerKg: number; // VND/kg
+  pricePerGram: number; // VND/g
+  unitPriceMultiplier: number;
+  spoolWeightGrams?: number;
+  extruderTempMin?: number;
+  extruderTempMax?: number;
+  bedTemp?: number;
+  colors: string[];
+  desc: string;
+  recommendedFor: string;
+  inStock?: boolean;
+  stockRollsCount?: number;
+}
+
+export interface AccessoryItem {
+  id: string;
+  name: string;
+  nameEn?: string;
+  category: 'keychain' | 'hardware' | 'fastener' | 'packaging' | 'bearing' | 'magnet' | 'electronic' | 'other';
+  unit: string; // 'chiếc', 'bộ', 'cái', 'hộp', 'túi', 'cuộn'
+  costPrice: number; // Giá vốn xưởng (VNĐ)
+  sellingPrice: number; // Giá bán lẻ / tính vào báo giá (VNĐ)
+  sku: string; // SKU quản lý kho
+  stockCount: number; // Số lượng tồn kho thực tế
+  lowStockThreshold: number; // Ngưỡng cảnh báo sắp hết hàng
+  warehouseLocation?: string; // Vị trí kệ kho (Kệ A1, Ngăn B3...)
+  supplier?: string; // Nhà cung cấp
+  description?: string;
+  imageUrl?: string;
+  isActive: boolean;
+  compatibleWith?: string[]; // Gợi ý ứng dụng: ['Móc khóa', 'Vỏ hộp IoT', 'Đồ gá', 'Mô hình robot']
+}
+
+export interface VolumeDiscountTier {
+  minQty: number;
+  maxQty?: number;
+  discountPercent: number;
+  label: string;
+}
+
+export interface InkiriCostFormulaConfig {
+  // 1. Electricity / Điện năng
+  electricityRatePerKWh: number; // VND/kWh, e.g. 2850
+
+  // 2. Labor & Operations / Nhân công kỹ thuật
+  laborHourlyRate: number; // VND/hour, e.g. 65000
+  fileReviewLaborMinutes: number; // default 4 mins
+  setupLaborMinutes: number; // default 5 mins
+  supportRemovalMinutes: number; // default 8 mins
+  postProcessingLaborMinutes: number; // default 6 mins
+  qcLaborMinutes: number; // default 4 mins
+  packagingLaborMinutes: number; // default 3 mins
+
+  // 3. Packaging & Consumables / Đóng gói & Vật tư phụ
+  fixedPackagingCost: number; // VND/unit, e.g. 12000
+  multiColorPackagingExtra: number; // VND/unit, e.g. 5000
+
+  // 4. Overhead & Management / Mặt bằng & Chi phí quản lý chung
+  overheadPerUnit: number; // VND/unit, e.g. 15000
+
+  // 5. Failure Contingency / Dự phòng rủi ro in lỗi
+  baseFailureReservePercent: number; // %, e.g. 8%
+  lowPrintabilityExtraPercent: number; // %, e.g. 6%
+  multiColorExtraPercent: number; // %, e.g. 5%
+  difficultMaterialExtraPercent: number; // %, e.g. 4%
+
+  // 6. Pricing & Margins / Biên lợi nhuận & Chiết khấu
+  defaultMarkupPercent: number; // %, e.g. 35%
+  platformCommissionPercent: number; // %, e.g. 8%
+  paymentGatewayFeePercent: number; // %, e.g. 2.5%
+  designerRoyaltyPercent: number; // %, e.g. 5%
+  roundingRule: '1000' | '5000' | '10000' | 'none';
+
+  // 7. Quantity Discounts / Chiết khấu theo số lượng
+  volumeDiscounts: VolumeDiscountTier[];
+}
+
 export interface PrinterProfile {
   id: string;
   name: string;
@@ -220,6 +329,10 @@ export interface PrinterProfile {
   expectedLifetimeHours: number; // e.g. 8000 hours
   consumablesHourlyRate: number; // VND / hour (nozzle, plate, belt)
   hourlyRate: number; // VND per hour legacy/general
+  maxPrintSpeedMmS?: number; // mm/s e.g. 500
+  heatedBedMaxTemp?: number; // °C e.g. 120
+  hasEnclosure?: boolean;
+  hasAMS?: boolean;
   status: 'Idle' | 'Printing' | 'Maintenance';
 }
 
@@ -356,6 +469,8 @@ export interface AnalysisFile {
   customGeometry?: any;
   customObjectGroup?: any;
   slicerPreset?: SlicerPresetInfo;
+  plates?: PlateInfo[];
+  activePlateIndex?: number;
 }
 
 export interface CustomDesignMessage {

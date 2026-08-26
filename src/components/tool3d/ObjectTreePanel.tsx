@@ -1,5 +1,5 @@
 import React from 'react';
-import { ModelPart, SlicerPresetInfo } from '../../types';
+import { ModelPart, SlicerPresetInfo, PlateInfo } from '../../types';
 
 interface ObjectTreePanelProps {
   parts: ModelPart[];
@@ -12,6 +12,10 @@ interface ObjectTreePanelProps {
   onChangeExtruder: (partId: string, extruderIdx: number) => void;
   onChangeMaterial?: (partId: string, materialId: string) => void;
   onSplitComponents?: () => void;
+  plates?: PlateInfo[];
+  activePlateIndex?: number;
+  onSelectPlate?: (plateIndex: number) => void;
+  onChangePartPlate?: (partId: string, plateIndex: number) => void;
 }
 
 const AVAILABLE_PALETTE = [
@@ -46,7 +50,11 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
   onChangeColor,
   onChangeExtruder,
   onChangeMaterial,
-  onSplitComponents
+  onSplitComponents,
+  plates = [],
+  activePlateIndex = 0,
+  onSelectPlate,
+  onChangePartPlate
 }) => {
   // Count unique active extruders for multi-material tool swaps
   const activeExtruders = new Set(parts.map(p => p.extruderIndex)).size;
@@ -159,19 +167,39 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
                   </span>
                 </div>
 
-                {/* Extruder Assignment */}
-                <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <span className="text-[10px] text-[#7D7565] font-sans">Đầu đùn:</span>
-                  <select
-                    value={part.extruderIndex}
-                    onChange={(e) => onChangeExtruder(part.id, Number(e.target.value))}
-                    className="bg-white border border-black/20 text-[11px] font-tech font-bold px-1.5 py-0.5 rounded focus:outline-none focus:border-[#00687a]"
-                  >
-                    <option value={1}>Tool T1</option>
-                    <option value={2}>Tool T2</option>
-                    <option value={3}>Tool T3</option>
-                    <option value={4}>Tool T4</option>
-                  </select>
+                {/* Extruder & Plate Assignment */}
+                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {plates && plates.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-[#7D7565] font-sans">Bàn:</span>
+                      <select
+                        value={part.plateIndex || 1}
+                        onChange={(e) => onChangePartPlate && onChangePartPlate(part.id, Number(e.target.value))}
+                        className="bg-white border border-cyan-700/40 text-[11px] font-tech font-bold text-[#00687a] px-1.5 py-0.5 rounded focus:outline-none focus:border-[#00687a]"
+                        title="Chuyển chi tiết này sang Bàn in khác"
+                      >
+                        {plates.map((pl) => (
+                          <option key={pl.index} value={pl.index}>
+                            Bàn {pl.index}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-[#7D7565] font-sans">Đầu đùn:</span>
+                    <select
+                      value={part.extruderIndex}
+                      onChange={(e) => onChangeExtruder(part.id, Number(e.target.value))}
+                      className="bg-white border border-black/20 text-[11px] font-tech font-bold px-1.5 py-0.5 rounded focus:outline-none focus:border-[#00687a]"
+                    >
+                      <option value={1}>Tool T1</option>
+                      <option value={2}>Tool T2</option>
+                      <option value={3}>Tool T3</option>
+                      <option value={4}>Tool T4</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

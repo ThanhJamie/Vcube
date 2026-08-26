@@ -3,7 +3,7 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { ThreeMFLoader } from 'three/examples/jsm/loaders/3MFLoader.js';
 import JSZip from 'jszip';
-import { ModelPart, SlicerPresetInfo, FilamentPaletteItem } from '../types';
+import { ModelPart, SlicerPresetInfo, FilamentPaletteItem, PlateInfo } from '../types';
 
 export interface ParsedMeshResult {
   geometry?: THREE.BufferGeometry;
@@ -19,6 +19,8 @@ export interface ParsedMeshResult {
   parts: ModelPart[];
   materialsDetected?: string[];
   slicerPreset?: SlicerPresetInfo;
+  plates?: PlateInfo[];
+  activePlateIndex?: number;
 }
 
 /**
@@ -276,6 +278,7 @@ async function extract3MFMetadata(
   xmlDocs: Document[]
 ): Promise<SlicerPresetInfo> {
   const palettes: FilamentPaletteItem[] = [];
+  const plates: PlateInfo[] = [];
   let software = '3MF Universal Standard';
   let printerModel = 'Bambu Lab X1-Carbon / P1S / A1 (0.4 nozzle)';
   let nozzleDiameter = 0.4;
@@ -397,6 +400,34 @@ async function extract3MFMetadata(
       const plateNodes = getElementsByLocalName(sDoc, 'plate');
       if (plateNodes.length > 0) {
         plateCount = plateNodes.length;
+        plateNodes.forEach((pNode, pIdx) => {
+          const id = parseInt(pNode.getAttribute('id') || pNode.getAttribute('index') || String(pIdx + 1), 10);
+          const pName = pNode.getAttribute('name') || `Plate ${id}`;
+          const predSec = parseInt(pNode.getAttribute('prediction') || '0', 10);
+          const weightG = parseFloat(pNode.getAttribute('weight') || pNode.getAttribute('filament_weight') || '0') || 0;
+          const lengthM = parseFloat(pNode.getAttribute('filament_length') || '0') || 0;
+          const bedType = pNode.getAttribute('bed_type') || 'Textured PEI Plate';
+
+          let predFormatted = '35m';
+          if (predSec > 0) {
+            const hrs = Math.floor(predSec / 3600);
+            const mins = Math.floor((predSec % 3600) / 60);
+            predFormatted = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+          }
+
+          plates.push({
+            index: id,
+            name: pName,
+            predictionSeconds: predSec > 0 ? predSec : undefined,
+            predictionFormatted: predFormatted,
+            filamentGrams: weightG > 0 ? Number(weightG.toFixed(1)) : undefined,
+            filamentMeters: lengthM > 0 ? Number(lengthM.toFixed(2)) : undefined,
+            bedType,
+            partCount: 0,
+            partIds: []
+          });
+        });
+
         const p1 = plateNodes[0];
         const predSec = parseInt(p1.getAttribute('prediction') || '0', 10);
         if (predSec > 0) {
@@ -500,8 +531,21 @@ async function extract3MFMetadata(
     estimatedPrintTimeSeconds,
     totalFilamentGrams: Number(totalFilamentGrams.toFixed(1)) || 42.7,
     totalFilamentMeters: Number(totalFilamentMeters.toFixed(2)) || 14.1,
-    plateCount,
+    plateCount: plates.length > 0 ? plates.length : plateCount,
     activePlateIndex,
+    plates: plates.length > 0 ? plates : [
+      {
+        index: 1,
+        name: 'Plate 1 (Bàn in chính)',
+        predictionSeconds: estimatedPrintTimeSeconds,
+        predictionFormatted: estimatedPrintTimeFormatted || '45m',
+        filamentGrams: totalFilamentGrams > 0 ? Number(totalFilamentGrams.toFixed(1)) : 28.5,
+        filamentMeters: totalFilamentMeters > 0 ? Number(totalFilamentMeters.toFixed(2)) : 9.5,
+        bedType: 'Textured PEI Plate',
+        partCount: 1,
+        partIds: []
+      }
+    ],
     palettes
   };
 }
@@ -790,6 +834,45 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
   const finalVolume = Number(totalVolume.toFixed(2)) || Number(((size.x * size.y * size.z * 0.45) / 1000).toFixed(2));
   const finalSurfaceArea = Number(totalSurfaceArea.toFixed(2)) || Number(((2 * (size.x * size.y + size.y * size.z + size.z * size.x)) / 100).toFixed(2));
 
+  const computedPlates: PlateInfo[] = (slicerPreset.plates && slicerPreset.plates.length > 0)
+    ? slicerPreset.plates.map((plate, pIdx) => {
+        const plateParts = parts.filter(p => (p.plateIndex || 1) === plate.index);
+        const partCount = plateParts.length > 0 ? plateParts.length : (pIdx === 0 ? Math.max(1, parts.length) : 1);
+        const partIds = plateParts.map(p => p.id);
+        const plateVol = plateParts.reduce((acc, p) => acc + (p.volumeCm3 || 0), 0) || (finalVolume / (slicerPreset.plates?.length || 1));
+        const filamentG = plate.filamentGrams || Number((plateVol * 1.24).toFixed(1));
+
+        return {
+          ...plate,
+          partCount,
+          partIds,
+          filamentGrams: filamentG,
+          dimensions: {
+            x: Number(size.x.toFixed(1)),
+            y: Number(size.z.toFixed(1)),
+            z: Number(size.y.toFixed(1))
+          }
+        };
+      })
+    : [
+        {
+          index: 1,
+          name: 'Plate 1 (Bàn in chính)',
+          predictionSeconds: slicerPreset.estimatedPrintTimeSeconds || 3600,
+          predictionFormatted: slicerPreset.estimatedPrintTimeFormatted || '45m',
+          filamentGrams: Number((finalVolume * 1.24).toFixed(1)),
+          filamentMeters: Number((finalVolume * 0.4).toFixed(2)),
+          bedType: 'Textured PEI Plate',
+          partCount: parts.length > 0 ? parts.length : 1,
+          partIds: parts.map(p => p.id),
+          dimensions: {
+            x: Number(size.x.toFixed(1)),
+            y: Number(size.z.toFixed(1)),
+            z: Number(size.y.toFixed(1))
+          }
+        }
+      ];
+
   return {
     objectGroup: normalizedGroup,
     dimensions: {
@@ -814,10 +897,17 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
         visible: true,
         triangleCount: Math.round(totalTriangles),
         volumeCm3: finalVolume,
-        extruderIndex: 1
+        extruderIndex: 1,
+        plateIndex: 1
       }
     ],
-    slicerPreset
+    slicerPreset: {
+      ...slicerPreset,
+      plates: computedPlates,
+      plateCount: computedPlates.length
+    },
+    plates: computedPlates,
+    activePlateIndex: 1
   };
 }
 

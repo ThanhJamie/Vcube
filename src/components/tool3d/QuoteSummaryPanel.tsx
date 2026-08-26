@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AnalysisFile, PrinterProfile, CartItem, DeliveryPackageOption } from '../../types';
+import { AnalysisFile, MaterialProfile, PrinterProfile, CartItem, DeliveryPackageOption, InkiriCostFormulaConfig } from '../../types';
 import { MATERIALS_CATALOG, PRINTER_PROFILES } from '../../data/mockData';
 import {
   calculateDetailedPricing,
@@ -19,6 +19,9 @@ interface QuoteSummaryPanelProps {
   layerHeight: string;
   supportsMode: 'auto' | 'tree' | 'none';
   quantity: number;
+  materials?: MaterialProfile[];
+  printers?: PrinterProfile[];
+  pricingConfig?: InkiriCostFormulaConfig;
   onPrinterChange: (id: string) => void;
   onMaterialChange: (id: string) => void;
   onInfillChange: (val: number) => void;
@@ -41,6 +44,9 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   layerHeight,
   supportsMode,
   quantity,
+  materials = MATERIALS_CATALOG,
+  printers = PRINTER_PROFILES,
+  pricingConfig,
   onPrinterChange,
   onMaterialChange,
   onInfillChange,
@@ -59,8 +65,8 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   const [isRequestingManualReview, setIsRequestingManualReview] = useState(false);
   const [manualReviewSent, setManualReviewSent] = useState(false);
 
-  const currentPrinter = PRINTER_PROFILES.find(p => p.id === selectedPrinterId) || PRINTER_PROFILES[0];
-  const currentMaterial = MATERIALS_CATALOG.find(m => m.id === selectedMaterialId) || MATERIALS_CATALOG[0];
+  const currentPrinter = printers.find(p => p.id === selectedPrinterId) || printers[0] || PRINTER_PROFILES[0];
+  const currentMaterial = materials.find(m => m.id === selectedMaterialId) || materials[0] || MATERIALS_CATALOG[0];
 
   // Core Pricing Calculation
   const pricingResult = calculateDetailedPricing({
@@ -72,7 +78,10 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
     infillPattern,
     layerHeight,
     supportsMode,
-    quantity
+    quantity,
+    customPricingConfig: pricingConfig,
+    customPrinters: printers,
+    customMaterials: materials
   });
 
   const { breakdown, quickEstimateRange, tier, manualReviewReasons } = pricingResult;
@@ -92,7 +101,9 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
     infillDensity,
     layerHeight,
     supportsMode,
-    quantity
+    quantity,
+    pricingConfig,
+    printers
   );
 
   // Expiration Date (7 days from now)
@@ -195,7 +206,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               onChange={(e) => onPrinterChange(e.target.value)}
               className="w-full bg-[#F7F6F2] border border-black/20 p-2 text-xs text-[#1C1C1C] rounded font-sans focus:outline-none focus:border-[#00687a]"
             >
-              {PRINTER_PROFILES.map((p) => (
+              {printers.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} ({p.technology})
                 </option>
@@ -212,7 +223,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               onChange={(e) => onMaterialChange(e.target.value)}
               className="w-full bg-[#F7F6F2] border border-black/20 p-2 text-xs text-[#1C1C1C] rounded font-sans focus:outline-none focus:border-[#00687a]"
             >
-              {MATERIALS_CATALOG.map((m) => (
+              {materials.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name} ({m.pricePerGram.toLocaleString()} đ/g)
                 </option>

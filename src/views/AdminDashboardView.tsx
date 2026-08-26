@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
-import { Product, Order, SiteContentConfig } from '../types';
+import { Product, Order, SiteContentConfig, MaterialProfile, PrinterProfile, InkiriCostFormulaConfig, AccessoryItem } from '../types';
 import { CATEGORIES, MATERIALS_CATALOG } from '../data/mockData';
 import { useLanguage } from '../context/LanguageContext';
+import { PricingConfigPanel } from '../components/admin/PricingConfigPanel';
 
 interface AdminDashboardViewProps {
   products: Product[];
   orders: Order[];
   siteContent: SiteContentConfig;
+  materials: MaterialProfile[];
+  printers: PrinterProfile[];
+  accessories: AccessoryItem[];
+  pricingConfig: InkiriCostFormulaConfig;
   onUpdateProduct: (product: Product) => void;
   onAddProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
   onUpdateOrderStatus: (orderId: string, newStageIndex: number, newStatus: Order['status'], progress?: number) => void;
   onUpdateSiteContent: (content: SiteContentConfig) => void;
+  onUpdateMaterials: (materials: MaterialProfile[]) => void;
+  onUpdatePrinters: (printers: PrinterProfile[]) => void;
+  onUpdateAccessories: (accessories: AccessoryItem[]) => void;
+  onUpdatePricingConfig: (config: InkiriCostFormulaConfig) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onShowToast: (message: string) => void;
 }
@@ -20,19 +29,27 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   products,
   orders,
   siteContent,
+  materials,
+  printers,
+  accessories,
+  pricingConfig,
   onUpdateProduct,
   onAddProduct,
   onDeleteProduct,
   onUpdateOrderStatus,
   onUpdateSiteContent,
+  onUpdateMaterials,
+  onUpdatePrinters,
+  onUpdateAccessories,
+  onUpdatePricingConfig,
   onNavigate,
   onShowToast,
 }) => {
   const { language } = useLanguage();
   const isVi = language === 'vi';
 
-  // 4 Core MVP Admin Tabs
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'production' | 'content'>('orders');
+  // 5 Core Admin Tabs
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'production' | 'pricing' | 'content'>('orders');
 
   // Product Management States
   const [productSearch, setProductSearch] = useState('');
@@ -287,6 +304,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('pricing')}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'pricing'
+                ? 'border-[#00687A] text-[#00687A] bg-white rounded-t'
+                : 'border-transparent text-[#545F73] hover:text-[#091426]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-base">calculate</span>
+            {isVi ? '4. Bảng Giá & Xưởng In (Inkiri Cost Engine)' : '4. Pricing & Factory Cost Model'}
+            <span className="ml-1 px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded text-[10px] font-tech font-bold">Inkiri v3.4</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('content')}
             className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'content'
@@ -295,7 +325,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             }`}
           >
             <span className="material-symbols-outlined text-base">tune</span>
-            {isVi ? '4. Quản Lý Nội Dung Xưởng' : '4. Site Content & Workshop Config'}
+            {isVi ? '5. Quản Lý Nội Dung Xưởng' : '5. Site Content & Workshop Config'}
           </button>
         </div>
 
@@ -684,7 +714,22 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
         )}
 
-        {/* TAB 4: BASIC CONTENT & WORKSHOP MANAGEMENT */}
+        {/* TAB 4: PRICING & FACTORY COST MODEL (INKIRI 3D COST ENGINE) */}
+        {activeTab === 'pricing' && (
+          <PricingConfigPanel
+            materials={materials}
+            printers={printers}
+            accessories={accessories}
+            pricingConfig={pricingConfig}
+            onUpdateMaterials={onUpdateMaterials}
+            onUpdatePrinters={onUpdatePrinters}
+            onUpdateAccessories={onUpdateAccessories}
+            onUpdatePricingConfig={onUpdatePricingConfig}
+            onShowToast={onShowToast}
+          />
+        )}
+
+        {/* TAB 5: BASIC CONTENT & WORKSHOP MANAGEMENT */}
         {activeTab === 'content' && (
           <form onSubmit={handleSaveContent} className="space-y-6">
             <div className="bg-white p-6 border border-[#C5C6CD] rounded space-y-6">

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { ModelPart, TransformState, MeasurementResult } from '../../types';
+import { ModelPart, TransformState, MeasurementResult, PlateInfo } from '../../types';
 
 interface ModelViewer3DProps {
   modelType?: string;
@@ -24,6 +24,10 @@ interface ModelViewer3DProps {
   compareMode?: 'normal' | 'before' | 'after';
   onUpdateTransform?: (updated: Partial<TransformState>) => void;
   className?: string;
+  // Multi-Plate Support
+  plates?: PlateInfo[];
+  activePlateIndex?: number;
+  onSelectPlate?: (plateIndex: number) => void;
 }
 
 export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
@@ -47,11 +51,17 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   onMeasurementChange,
   compareMode = 'normal',
   onUpdateTransform,
-  className = 'h-[380px] sm:h-[460px] w-full'
+  className = 'h-[380px] sm:h-[460px] w-full',
+  plates = [],
+  activePlateIndex = 1,
+  onSelectPlate
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [wireframe, setWireframe] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const [showPlateDetails, setShowPlateDetails] = useState(false);
   const [modelHeight, setModelHeight] = useState(40);
   const [modelDims, setModelDims] = useState<{ x: number; y: number; z: number }>({ x: 92, y: 92, z: 38 });
   const [hoveredPartName, setHoveredPartName] = useState<string | null>(null);
@@ -60,6 +70,9 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   const [caliperDistance, setCaliperDistance] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isBedOverflow, setIsBedOverflow] = useState(false);
+
+  // Active plate object
+  const currentPlate = plates.find(p => p.index === activePlateIndex) || (plates.length > 0 ? plates[0] : null);
 
   // References to Three.js internal objects
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -124,11 +137,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     // 2. Cameras (CAD Extended Frustum with far=50,000 to prevent any zoomout clipping)
     const aspect = width / height;
     const persCamera = new THREE.PerspectiveCamera(45, aspect, 0.5, 50000);
-    persCamera.position.set(160, 140, 180);
-    persCamera.lookAt(0, 20, 0);
+    const initialBedMax = Math.max(bedDimensions.x, bedDimensions.y, bedDimensions.z, 250);
+    const initCamDist = initialBedMax * 2.2;
+    persCamera.position.set(initCamDist * 0.75, initCamDist * 0.7, initCamDist * 0.85);
+    persCamera.lookAt(0, bedDimensions.z * 0.2, 0);
     perspectiveCameraRef.current = persCamera;
 
-    const frustumSize = Math.max(bedDimensions.x, bedDimensions.y, 260);
+    const frustumSize = Math.max(bedDimensions.x, bedDimensions.y, 260) * 1.8;
     const orthoCamera = new THREE.OrthographicCamera(
       (frustumSize * aspect) / -2,
       (frustumSize * aspect) / 2,
@@ -137,8 +152,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       0.5,
       50000
     );
-    orthoCamera.position.set(160, 140, 180);
-    orthoCamera.lookAt(0, 20, 0);
+    orthoCamera.position.set(initCamDist * 0.75, initCamDist * 0.7, initCamDist * 0.85);
+    orthoCamera.lookAt(0, bedDimensions.z * 0.2, 0);
     orthoCameraRef.current = orthoCamera;
 
     const currentCam = cameraMode === 'orthographic' ? orthoCamera : persCamera;
@@ -305,12 +320,17 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           const partId = currentPart?.id || `part-${partIndex}`;
           const isSelected = partId === selectedPartId;
           const partColor = currentPart?.colorHex || (partIndex === 0 ? '#00687a' : '#ea580c');
+          const partPlateIndex = currentPart?.plateIndex || 1;
+
+          // Check if part belongs to active plate (if 0, show all)
+          const isPlateVisible = activePlateIndex === 0 || partPlateIndex === activePlateIndex;
+          const isPartVisible = (currentPart ? currentPart.visible !== false : true) && isPlateVisible;
 
           m.material = createMaterial(partId, partColor, isSelected);
           m.castShadow = true;
           m.receiveShadow = true;
-          m.visible = currentPart ? currentPart.visible !== false : true;
-          m.userData = { partId, partName: currentPart?.name || `Component ${partIndex + 1}` };
+          m.visible = isPartVisible;
+          m.userData = { partId, partName: currentPart?.name || `Component ${partIndex + 1}`, plateIndex: partPlateIndex };
 
           partMeshMapRef.current.set(partId, m);
           partIndex++;
@@ -326,6 +346,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       calculatedHeight = size.y;
       computedDimensions = { x: Number(size.x.toFixed(1)), y: Number(size.z.toFixed(1)), z: Number(size.y.toFixed(1)) };
+      
+      // Override with active plate dimensions if present
+      if (currentPlate && currentPlate.dimensions && activePlateIndex > 0) {
+        computedDimensions = currentPlate.dimensions;
+        calculatedHeight = currentPlate.dimensions.z;
+      }
+
       setModelDims(computedDimensions);
       setModelHeight(calculatedHeight);
 
@@ -337,18 +364,29 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     }
     // --- CASE 3: BENCHMARK SAMPLE MODELS (True 1:1 Scale) ---
     else if (modelType === 'gear' || modelType.includes('planetary')) {
-      calculatedHeight = 38;
-      computedDimensions = { x: 92.5, y: 92.5, z: 38.0 };
+      const isPlate1Active = activePlateIndex === 0 || activePlateIndex === 1;
+      const isPlate2Active = activePlateIndex === 0 || activePlateIndex === 2;
+
+      if (activePlateIndex === 1) {
+        calculatedHeight = 28;
+        computedDimensions = { x: 74.0, y: 74.0, z: 28.0 };
+      } else if (activePlateIndex === 2) {
+        calculatedHeight = 38;
+        computedDimensions = { x: 92.5, y: 92.5, z: 38.0 };
+      } else {
+        calculatedHeight = 38;
+        computedDimensions = { x: 92.5, y: 92.5, z: 38.0 };
+      }
       setModelDims(computedDimensions);
-      setModelHeight(38);
+      setModelHeight(calculatedHeight);
 
       const sunPart = parts[0];
       const planetPart = parts[1];
       const ringPart = parts[2];
       const carrierPart = parts[3];
 
-      // 1. Central Sun Gear
-      if (sunPart?.visible !== false) {
+      // 1. Central Sun Gear (Plate 1)
+      if (sunPart?.visible !== false && isPlate1Active) {
         const sunGeo = new THREE.CylinderGeometry(16, 16, 28, 24);
         const sunMesh = new THREE.Mesh(
           sunGeo,
@@ -356,13 +394,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         );
         sunMesh.position.y = 14;
         sunMesh.castShadow = true;
-        sunMesh.userData = { partId: sunPart?.id || 'sun', partName: sunPart?.name || 'Sun Gear Central' };
+        sunMesh.userData = { partId: sunPart?.id || 'sun', partName: sunPart?.name || 'Sun Gear Central', plateIndex: 1 };
         group.add(sunMesh);
         if (sunPart?.id) partMeshMapRef.current.set(sunPart.id, sunMesh);
       }
 
-      // 2. Planet Gears Triad
-      if (planetPart?.visible !== false) {
+      // 2. Planet Gears Triad (Plate 1)
+      if (planetPart?.visible !== false && isPlate1Active) {
         for (let i = 0; i < 3; i++) {
           const angle = (i * Math.PI * 2) / 3;
           const pGeo = new THREE.CylinderGeometry(12, 12, 24, 20);
@@ -374,14 +412,14 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           pMesh.position.z = Math.sin(angle) * 34;
           pMesh.position.y = 14;
           pMesh.castShadow = true;
-          pMesh.userData = { partId: planetPart?.id || 'planet', partName: planetPart?.name || 'Planet Gears Triad' };
+          pMesh.userData = { partId: planetPart?.id || 'planet', partName: planetPart?.name || 'Planet Gears Triad', plateIndex: 1 };
           group.add(pMesh);
           if (planetPart?.id && i === 0) partMeshMapRef.current.set(planetPart.id, pMesh);
         }
       }
 
-      // 3. Outer Ring Gear Housing
-      if (ringPart?.visible !== false) {
+      // 3. Outer Ring Gear Housing (Plate 2)
+      if (ringPart?.visible !== false && isPlate2Active) {
         const ringTorus = new THREE.TorusGeometry(46, 7.6, 16, 36);
         const ringMesh = new THREE.Mesh(
           ringTorus,
@@ -390,13 +428,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         ringMesh.rotation.x = Math.PI / 2;
         ringMesh.position.y = 14;
         ringMesh.castShadow = true;
-        ringMesh.userData = { partId: ringPart?.id || 'ring', partName: ringPart?.name || 'Outer Ring Gear Body' };
+        ringMesh.userData = { partId: ringPart?.id || 'ring', partName: ringPart?.name || 'Outer Ring Gear Body', plateIndex: 2 };
         group.add(ringMesh);
         if (ringPart?.id) partMeshMapRef.current.set(ringPart.id, ringMesh);
       }
 
-      // 4. Carrier Plate & Base
-      if (carrierPart?.visible !== false) {
+      // 4. Carrier Plate & Base (Plate 2)
+      if (carrierPart?.visible !== false && isPlate2Active) {
         const plateGeo = new THREE.CylinderGeometry(38, 38, 5.6, 30);
         const plateMesh = new THREE.Mesh(
           plateGeo,
@@ -404,7 +442,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         );
         plateMesh.position.y = 2.8;
         plateMesh.receiveShadow = true;
-        plateMesh.userData = { partId: carrierPart?.id || 'carrier', partName: carrierPart?.name || 'Carrier Plate' };
+        plateMesh.userData = { partId: carrierPart?.id || 'carrier', partName: carrierPart?.name || 'Carrier Plate', plateIndex: 2 };
         group.add(plateMesh);
         if (carrierPart?.id) partMeshMapRef.current.set(carrierPart.id, plateMesh);
       }
@@ -470,15 +508,20 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     }
 
     // 8. Apply Transformations (Scale, Rotation, Translation)
-    const scaleFactor = (transform.scaleUniform / 100) * (transform.unit === 'inch' ? 25.4 : 1.0);
+    const unitScale = transform.unit === 'inch' ? 25.4 : 1.0;
+    const uniformRatio = (transform.scaleUniform ?? 100) / 100;
+    const axisRatioX = (transform.scaleX ?? 100) > 5 ? (transform.scaleX ?? 100) / 100 : (transform.scaleX ?? 1.0);
+    const axisRatioY = (transform.scaleY ?? 100) > 5 ? (transform.scaleY ?? 100) / 100 : (transform.scaleY ?? 1.0);
+    const axisRatioZ = (transform.scaleZ ?? 100) > 5 ? (transform.scaleZ ?? 100) / 100 : (transform.scaleZ ?? 1.0);
+
     group.scale.set(
-      scaleFactor * (transform.scaleX || 1),
-      scaleFactor * (transform.scaleY || 1),
-      scaleFactor * (transform.scaleZ || 1)
+      uniformRatio * axisRatioX * unitScale,
+      uniformRatio * axisRatioY * unitScale,
+      uniformRatio * axisRatioZ * unitScale
     );
-    group.rotation.x = THREE.MathUtils.degToRad(transform.rotationX);
-    group.rotation.y = THREE.MathUtils.degToRad(transform.rotationY);
-    group.rotation.z = THREE.MathUtils.degToRad(transform.rotationZ);
+    group.rotation.x = THREE.MathUtils.degToRad(transform.rotationX || 0);
+    group.rotation.y = THREE.MathUtils.degToRad(transform.rotationY || 0);
+    group.rotation.z = THREE.MathUtils.degToRad(transform.rotationZ || 0);
     group.position.x = transform.positionX || 0;
     group.position.z = transform.positionZ || 0;
     group.updateMatrixWorld(true);
@@ -534,15 +577,15 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       }
     }
 
-    // 11. Dynamic Optimal Camera Auto-fit
+    // 11. Dynamic Optimal Camera Auto-fit with generous margin
     const maxDim = Math.max(computedDimensions.x, computedDimensions.y, computedDimensions.z, 50);
-    const bedMax = Math.max(bedDimensions.x, bedDimensions.y);
-    const fitDist = Math.max(maxDim * 1.8, bedMax * 1.2, 160);
+    const bedMax = Math.max(bedDimensions.x, bedDimensions.y, bedDimensions.z);
+    const fitDist = Math.max(maxDim * 2.4, bedMax * 2.0, 360);
 
-    persCamera.position.set(fitDist * 0.75, fitDist * 0.65, fitDist * 0.85);
-    persCamera.lookAt(0, calculatedHeight / 2, 0);
-    orthoCamera.position.set(fitDist * 0.75, fitDist * 0.65, fitDist * 0.85);
-    orthoCamera.lookAt(0, calculatedHeight / 2, 0);
+    persCamera.position.set(fitDist * 0.75, fitDist * 0.7, fitDist * 0.85);
+    persCamera.lookAt(0, calculatedHeight * 0.3, 0);
+    orthoCamera.position.set(fitDist * 0.75, fitDist * 0.7, fitDist * 0.85);
+    orthoCamera.lookAt(0, calculatedHeight * 0.3, 0);
 
     // 11. Mouse & Touch Raycasting & Interaction Handlers
     let isDragging = false;
@@ -803,8 +846,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     transform,
     bedDimensions,
     wireframe,
-    clipPlaneActive,
-    clippingAxis,
     showDefects,
     showBoundingBox,
     cameraMode,
@@ -819,26 +860,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     measurementActive
   ]);
 
-  // Clipping Plane Slider Handler
-  const handleSliceChange = (val: number) => {
-    setCurrentSlice(val);
-    if (clipPlaneRef.current) {
-      let normal = new THREE.Vector3(0, -1, 0);
-      let maxDist = modelHeight;
-      if (clippingAxis === 'x') {
-        normal = new THREE.Vector3(-1, 0, 0);
-        maxDist = modelDims.x;
-      } else if (clippingAxis === 'y') {
-        normal = new THREE.Vector3(0, 0, -1);
-        maxDist = modelDims.y;
-      }
-
-      clipPlaneRef.current.normal.copy(normal);
-      clipPlaneRef.current.constant = (val / 100) * (maxDist / 2);
-      setClipPlaneActive(val < 100);
-    }
-  };
-
   // Reset Camera View
   const handleResetCamera = () => {
     if (meshGroupRef.current) {
@@ -846,15 +867,15 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       meshGroupRef.current.position.set(0, 0, 0);
     }
     const maxDim = Math.max(modelDims.x, modelDims.y, modelDims.z, 50);
-    const bedMax = Math.max(bedDimensions.x, bedDimensions.y);
-    const dist = Math.max(maxDim * 1.8, bedMax * 1.2, 160);
+    const bedMax = Math.max(bedDimensions.x, bedDimensions.y, bedDimensions.z);
+    const dist = Math.max(maxDim * 2.4, bedMax * 2.0, 360);
     if (perspectiveCameraRef.current) {
-      perspectiveCameraRef.current.position.set(dist * 0.75, dist * 0.65, dist * 0.85);
-      perspectiveCameraRef.current.lookAt(0, modelHeight / 2, 0);
+      perspectiveCameraRef.current.position.set(dist * 0.75, dist * 0.7, dist * 0.85);
+      perspectiveCameraRef.current.lookAt(0, modelHeight * 0.3, 0);
     }
     if (orthoCameraRef.current) {
-      orthoCameraRef.current.position.set(dist * 0.75, dist * 0.65, dist * 0.85);
-      orthoCameraRef.current.lookAt(0, modelHeight / 2, 0);
+      orthoCameraRef.current.position.set(dist * 0.75, dist * 0.7, dist * 0.85);
+      orthoCameraRef.current.lookAt(0, modelHeight * 0.3, 0);
       orthoCameraRef.current.zoom = 1.0;
       orthoCameraRef.current.updateProjectionMatrix();
     }
@@ -869,46 +890,23 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     const sphere = new THREE.Sphere();
     box.getBoundingSphere(sphere);
 
-    const radius = Math.max(sphere.radius, bedDimensions.x * 0.45, 45);
-    const cameraDist = radius * 2.2;
+    const radius = Math.max(sphere.radius, bedDimensions.x * 0.55, 50);
+    const cameraDist = Math.max(radius * 2.6, 360);
 
     if (perspectiveCameraRef.current) {
-      perspectiveCameraRef.current.position.set(cameraDist * 0.75, cameraDist * 0.65, cameraDist * 0.85);
-      perspectiveCameraRef.current.lookAt(0, modelHeight / 2, 0);
+      perspectiveCameraRef.current.position.set(cameraDist * 0.75, cameraDist * 0.7, cameraDist * 0.85);
+      perspectiveCameraRef.current.lookAt(0, modelHeight * 0.3, 0);
     }
     if (orthoCameraRef.current) {
-      orthoCameraRef.current.position.set(cameraDist * 0.75, cameraDist * 0.65, cameraDist * 0.85);
-      orthoCameraRef.current.lookAt(0, modelHeight / 2, 0);
+      orthoCameraRef.current.position.set(cameraDist * 0.75, cameraDist * 0.7, cameraDist * 0.85);
+      orthoCameraRef.current.lookAt(0, modelHeight * 0.3, 0);
       orthoCameraRef.current.zoom = 1.0;
       orthoCameraRef.current.updateProjectionMatrix();
     }
   };
 
   const [activePreset, setActivePreset] = useState<'iso' | 'top' | 'front' | 'side'>('iso');
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isSlicingPlaying, setIsSlicingPlaying] = useState(false);
   const [showQuickTools, setShowQuickTools] = useState(true);
-
-  // Auto-slicing simulation loop
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isSlicingPlaying) {
-      timer = setInterval(() => {
-        setCurrentSlice(prev => {
-          if (prev >= 100) return 5;
-          return prev + 2;
-        });
-      }, 80);
-    }
-    return () => clearInterval(timer);
-  }, [isSlicingPlaying]);
-
-  // Sync slicing with clipPlane
-  useEffect(() => {
-    if (isSlicingPlaying) {
-      handleSliceChange(currentSlice);
-    }
-  }, [currentSlice, isSlicingPlaying]);
 
   // Quick 90 deg rotation
   const handleRotate90 = (axis: 'x' | 'y' | 'z') => {
@@ -1025,19 +1023,33 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       {/* 3D WebGL Canvas */}
       <div ref={containerRef} className="w-full flex-1 cursor-grab active:cursor-grabbing min-h-[300px]" />
 
-      {/* UNIFIED TOP BAR: Status, Dimensions & CAD Toolbar (No Overlap) */}
-      <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex flex-wrap md:flex-nowrap items-center justify-between gap-2 pointer-events-none">
-        {/* LEFT ZONE: Status & Geometry Metrics */}
-        <div className="pointer-events-auto flex items-center gap-2 bg-[#091426]/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#1e2e48] shadow-lg text-xs text-white">
-          <span className="w-2 h-2 rounded-full bg-[#00d2ff] animate-pulse"></span>
-          <span className="font-tech text-xs font-bold text-cyan-300 tracking-wide">VCUBE 3D</span>
+      {/* MINIMALIST TOP BAR: Clean & Non-intrusive with Multi-Plate Switcher */}
+      <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        {/* LEFT ZONE: Status, Dimensions & Plate Details Popover */}
+        <div className="pointer-events-auto flex items-center gap-2 bg-[#091426]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#1e2e48] shadow-md text-xs text-white">
+          <span className="w-2 h-2 rounded-full bg-[#00d2ff] animate-pulse shrink-0"></span>
+          <span className="font-tech text-xs font-bold text-cyan-300 tracking-wide shrink-0">VCUBE 3D</span>
           <span className="text-slate-600 hidden sm:inline">|</span>
-          <span className="font-tech text-slate-300 text-[11px] hidden sm:inline">
-            Bàn: {bedDimensions.x}×{bedDimensions.y}×{bedDimensions.z} mm
+          <span className="font-tech text-[11px] text-cyan-200 bg-cyan-950/70 px-2 py-0.5 rounded border border-cyan-800/50">
+            {modelDims.x.toFixed(1)} × {modelDims.y.toFixed(1)} × {modelDims.z.toFixed(1)} mm
           </span>
-          <span className="font-tech text-[11px] text-cyan-200 bg-cyan-950/70 px-1.5 py-0.5 rounded border border-cyan-800/50">
-            {modelDims.x.toFixed(1)}×{modelDims.y.toFixed(1)}×{modelDims.z.toFixed(1)} mm
-          </span>
+
+          {/* Current Plate Specs Quick Badge */}
+          {currentPlate && (
+            <button
+              type="button"
+              onClick={() => setShowPlateDetails(!showPlateDetails)}
+              title="Nhấn để xem / ẩn chi tiết thông số bàn in này"
+              className="flex items-center gap-1 px-2 py-0.5 bg-[#00687a]/40 hover:bg-[#00687a]/70 text-cyan-200 border border-cyan-500/40 rounded text-[11px] font-tech transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-xs text-cyan-300">info</span>
+              <span className="font-bold">{currentPlate.name || `Bàn ${currentPlate.index}`}</span>
+              {currentPlate.predictionFormatted && (
+                <span className="text-slate-300 text-[10px]">({currentPlate.predictionFormatted})</span>
+              )}
+            </button>
+          )}
+
           {isBedOverflow && onUpdateTransform && (
             <button
               type="button"
@@ -1051,253 +1063,222 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           )}
         </div>
 
-        {/* RIGHT ZONE: Grouped CAD Tools Toolbar */}
-        <div className="pointer-events-auto flex items-center gap-1 bg-[#091426]/95 backdrop-blur-md p-1 rounded-lg border border-[#1e2e48] shadow-lg text-white overflow-x-auto max-w-full">
-          {/* Projection Mode */}
-          <button
-            type="button"
-            onClick={() => onCameraModeChange && onCameraModeChange(cameraMode === 'perspective' ? 'orthographic' : 'perspective')}
-            title={cameraMode === 'perspective' ? '3D Phối cảnh (Perspective) -> Nhấn đổi Trục đo CAD' : 'Trục đo CAD (Orthographic) -> Nhấn đổi Phối cảnh 3D'}
-            className={`px-2 py-1 text-[10px] font-tech font-bold rounded flex items-center gap-1 transition-colors ${
-              cameraMode === 'orthographic' ? 'bg-cyan-700 text-white shadow-xs' : 'text-slate-300 hover:bg-[#1e2e48]'
-            }`}
-          >
-            <span className="material-symbols-outlined text-xs">view_in_ar</span>
-            <span>{cameraMode === 'perspective' ? 'PERSP' : 'ORTHO'}</span>
-          </button>
+        {/* RIGHT ZONE: Multi-Plate Switcher List + Compact Tools Menu */}
+        <div className="pointer-events-auto flex items-center gap-1.5">
+          {/* Plate Selection List (Tabs) */}
+          {plates && plates.length > 0 ? (
+            <div className="flex items-center gap-1 bg-[#091426]/90 backdrop-blur-md p-1 rounded-lg border border-[#1e2e48] shadow-md text-white">
+              <span className="text-[10px] uppercase font-tech text-slate-400 font-bold px-1.5 hidden md:inline">
+                Bàn In:
+              </span>
+              {plates.map((plate) => {
+                const isActive = activePlateIndex === plate.index;
+                return (
+                  <button
+                    key={plate.index}
+                    type="button"
+                    onClick={() => {
+                      if (onSelectPlate) onSelectPlate(plate.index);
+                      handleAutoFit();
+                    }}
+                    title={`${plate.name} | Thời gian: ${plate.predictionFormatted || 'N/A'} | Nhựa: ${plate.filamentGrams ? plate.filamentGrams + 'g' : 'N/A'}`}
+                    className={`px-2.5 py-1 rounded text-xs font-tech font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      isActive
+                        ? 'bg-[#00687a] text-white shadow-sm border border-cyan-400/60 ring-1 ring-cyan-500/30'
+                        : 'text-slate-300 hover:text-white hover:bg-[#1e2e48]'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-xs">
+                      {isActive ? 'layers' : 'layers_clear'}
+                    </span>
+                    <span>Bàn {plate.index}</span>
+                    {plate.predictionFormatted && (
+                      <span
+                        className={`text-[10px] px-1 py-0.2 rounded font-normal ${
+                          isActive ? 'bg-cyan-950/90 text-cyan-200' : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {plate.predictionFormatted}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
 
-          <span className="w-px h-4 bg-[#1e2e48] mx-0.5 shrink-0"></span>
+              {plates.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSelectPlate) onSelectPlate(0);
+                    handleAutoFit();
+                  }}
+                  title="Xem tất cả các bàn in cùng lúc"
+                  className={`px-2 py-1 rounded text-xs font-tech font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                    activePlateIndex === 0
+                      ? 'bg-[#00687a] text-white shadow-sm border border-cyan-400/60'
+                      : 'text-slate-400 hover:text-white hover:bg-[#1e2e48]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xs">view_in_ar</span>
+                  <span>Tất cả</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 bg-[#091426]/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-[#1e2e48] shadow-md text-white font-tech text-xs">
+              <span className="material-symbols-outlined text-xs text-cyan-400">layers</span>
+              <span className="text-slate-300">Bàn 1 (Đơn)</span>
+            </div>
+          )}
 
-          {/* Viewport Presets */}
-          <div className="flex items-center gap-0.5 bg-[#0e1a2f] p-0.5 rounded border border-[#1e2e48]/60">
-            {(['iso', 'top', 'front', 'side'] as const).map((view) => (
-              <button
-                key={view}
-                type="button"
-                onClick={() => setViewPreset(view)}
-                className={`px-1.5 py-0.5 text-[9px] font-tech font-bold rounded transition-colors uppercase ${
-                  activePreset === view ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white hover:bg-[#1e2e48]'
-                }`}
-                title={`Góc nhìn ${view.toUpperCase()}`}
-              >
-                {view}
-              </button>
-            ))}
+          {/* Compact Viewport Tools Dropdown Button */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowToolsMenu(!showToolsMenu)}
+              title="Công cụ góc nhìn & Thao tác Viewport 3D"
+              className={`p-1.5 rounded-lg bg-[#091426]/90 backdrop-blur-md border border-[#1e2e48] shadow-md text-white hover:bg-[#1e2e48] transition-colors flex items-center gap-1 cursor-pointer ${
+                showToolsMenu ? 'border-cyan-500 text-cyan-300 ring-1 ring-cyan-500/40' : 'text-slate-300'
+              }`}
+            >
+              <span className="material-symbols-outlined text-sm">settings</span>
+              <span className="material-symbols-outlined text-xs text-slate-400">
+                {showToolsMenu ? 'expand_less' : 'expand_more'}
+              </span>
+            </button>
+
+            {/* Floating Tools Menu */}
+            {showToolsMenu && (
+              <div className="absolute right-0 top-full mt-1.5 w-48 bg-[#091426]/95 backdrop-blur-md p-1.5 rounded-xl border border-[#1e2e48] shadow-2xl text-xs text-white space-y-1 z-30">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleAutoFit();
+                    setShowToolsMenu(false);
+                  }}
+                  className="w-full px-2.5 py-1.5 rounded text-left hover:bg-[#1e2e48] transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm text-cyan-400">fit_screen</span>
+                  <span>Căn vừa Viewport</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setWireframe(!wireframe)}
+                  className={`w-full px-2.5 py-1.5 rounded text-left transition-colors flex items-center justify-between cursor-pointer ${
+                    wireframe ? 'bg-cyan-900/60 text-cyan-300 font-bold' : 'hover:bg-[#1e2e48]'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm text-cyan-400">grid_4x4</span>
+                    <span>Khung dây (Wireframe)</span>
+                  </span>
+                  {wireframe && <span className="material-symbols-outlined text-xs">check</span>}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsRotating(!isRotating)}
+                  className={`w-full px-2.5 py-1.5 rounded text-left transition-colors flex items-center justify-between cursor-pointer ${
+                    isRotating ? 'bg-cyan-900/60 text-cyan-300 font-bold' : 'hover:bg-[#1e2e48]'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm text-cyan-400">360</span>
+                    <span>Tự động xoay 360°</span>
+                  </span>
+                  {isRotating && <span className="material-symbols-outlined text-xs">check</span>}
+                </button>
+
+                <div className="border-t border-[#1e2e48] my-1"></div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCaptureThumbnail();
+                    setShowToolsMenu(false);
+                  }}
+                  className="w-full px-2.5 py-1.5 rounded text-left hover:bg-[#1e2e48] transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm text-amber-400">photo_camera</span>
+                  <span>Chụp ảnh 3D (PNG)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFullscreen(!isFullscreen);
+                    setShowToolsMenu(false);
+                  }}
+                  className="w-full px-2.5 py-1.5 rounded text-left hover:bg-[#1e2e48] transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm text-slate-300">
+                    {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
+                  </span>
+                  <span>{isFullscreen ? 'Thu nhỏ Viewport' : 'Toàn màn hình'}</span>
+                </button>
+              </div>
+            )}
           </div>
-
-          <span className="w-px h-4 bg-[#1e2e48] mx-0.5 shrink-0"></span>
-
-          {/* Orbit / Pan Toggle */}
-          <button
-            type="button"
-            onClick={() => setInteractionMode(interactionMode === 'orbit' ? 'pan' : 'orbit')}
-            title={interactionMode === 'orbit' ? 'Chế độ Xoay (Orbit). Bấm để chuyển sang Pan' : 'Chế độ Di chuyển (Pan). Bấm để chuyển sang Orbit'}
-            className={`p-1.5 rounded transition-colors ${interactionMode === 'pan' ? 'text-cyan-300 bg-cyan-900/60 ring-1 ring-cyan-500' : 'text-slate-400 hover:text-white hover:bg-[#1e2e48]'}`}
-          >
-            <span className="material-symbols-outlined text-sm">pan_tool</span>
-          </button>
-
-          {/* Auto Fit View */}
-          <button
-            type="button"
-            onClick={handleAutoFit}
-            title="Căn chỉnh vừa khung nhìn (Fit Model)"
-            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-[#1e2e48] transition-colors"
-          >
-            <span className="material-symbols-outlined text-sm">fit_screen</span>
-          </button>
-
-          {/* Reset Camera */}
-          <button
-            type="button"
-            onClick={handleResetCamera}
-            title="Đặt lại vị trí góc nhìn chuẩn (Reset Cam)"
-            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-[#1e2e48] transition-colors"
-          >
-            <span className="material-symbols-outlined text-sm">center_focus_strong</span>
-          </button>
-
-          {/* 360 Auto-Rotate */}
-          <button
-            type="button"
-            onClick={() => setIsRotating(!isRotating)}
-            title={isRotating ? 'Dừng xoay tự động' : 'Tự động xoay 360°'}
-            className={`p-1.5 rounded transition-colors ${isRotating ? 'text-cyan-300 bg-cyan-900/60 ring-1 ring-cyan-500' : 'text-slate-400 hover:text-white hover:bg-[#1e2e48]'}`}
-          >
-            <span className="material-symbols-outlined text-sm">360</span>
-          </button>
-
-          <span className="w-px h-4 bg-[#1e2e48] mx-0.5 shrink-0"></span>
-
-          {/* Bounding Box */}
-          <button
-            type="button"
-            onClick={onToggleBoundingBox}
-            title={showBoundingBox ? 'Ẩn Hộp Giới Hạn (Bounding Box)' : 'Hiện Hộp Giới Hạn (Bounding Box)'}
-            className={`p-1.5 rounded transition-colors ${showBoundingBox ? 'text-cyan-300 bg-cyan-900/60' : 'text-slate-400 hover:text-white hover:bg-[#1e2e48]'}`}
-          >
-            <span className="material-symbols-outlined text-sm">crop_free</span>
-          </button>
-
-          {/* Wireframe */}
-          <button
-            type="button"
-            onClick={() => setWireframe(!wireframe)}
-            title={wireframe ? 'Chế độ Khối đặc' : 'Chế độ Khung dây (Wireframe)'}
-            className={`p-1.5 rounded transition-colors ${wireframe ? 'text-cyan-300 bg-cyan-900/60' : 'text-slate-400 hover:text-white hover:bg-[#1e2e48]'}`}
-          >
-            <span className="material-symbols-outlined text-sm">grid_4x4</span>
-          </button>
-
-          {/* Caliper Measurement */}
-          <button
-            type="button"
-            onClick={onToggleMeasurement}
-            title={measurementActive ? 'Tắt Thước Đo 3D' : 'Bật Thước Đo 3D (Caliper)'}
-            className={`p-1.5 rounded transition-colors ${
-              measurementActive ? 'text-amber-400 bg-amber-950/70 ring-1 ring-amber-500' : 'text-slate-400 hover:text-white hover:bg-[#1e2e48]'
-            }`}
-          >
-            <span className="material-symbols-outlined text-sm">straighten</span>
-          </button>
-
-          {/* Overhang Inspection */}
-          <button
-            type="button"
-            onClick={onToggleDefects}
-            title={showDefects ? 'Tắt Bản đồ nhiệt Overhang' : 'Bản đồ nhiệt Overhang / Lỗi lưới'}
-            className={`p-1.5 rounded transition-colors ${
-              showDefects ? 'text-amber-400 bg-amber-950/70 ring-1 ring-amber-500' : 'text-slate-400 hover:text-white hover:bg-[#1e2e48]'
-            }`}
-          >
-            <span className="material-symbols-outlined text-sm">wb_incandescent</span>
-          </button>
-
-          <span className="w-px h-4 bg-[#1e2e48] mx-0.5 shrink-0"></span>
-
-          {/* Capture Snapshot */}
-          <button
-            type="button"
-            onClick={handleCaptureThumbnail}
-            title="Chụp ảnh Thumbnail 3D (Tải PNG)"
-            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-[#1e2e48] transition-colors"
-          >
-            <span className="material-symbols-outlined text-sm">photo_camera</span>
-          </button>
-
-          {/* Fullscreen Toggle */}
-          <button
-            type="button"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            title={isFullscreen ? 'Thu nhỏ Viewport' : 'Toàn màn hình Viewport'}
-            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-[#1e2e48] transition-colors"
-          >
-            <span className="material-symbols-outlined text-sm">
-              {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
-            </span>
-          </button>
         </div>
       </div>
 
-      {/* FLOATING QUICK-TRANSFORM PALETTE (LEFT / MID-LEFT) */}
-      {onUpdateTransform && (
-        <div className="absolute left-2.5 top-16 z-20 flex flex-col gap-1 pointer-events-none">
-          {showQuickTools ? (
-            <div className="pointer-events-auto bg-[#091426]/95 backdrop-blur-md p-1.5 rounded-lg border border-[#1e2e48] shadow-xl text-white flex flex-col gap-1 w-32 animate-fadeIn">
-              <div className="flex items-center justify-between text-[10px] font-tech text-slate-400 px-1 border-b border-[#1e2e48] pb-1">
-                <span className="text-cyan-300 font-bold">THAO TÁC 3D</span>
-                <button
-                  type="button"
-                  onClick={() => setShowQuickTools(false)}
-                  className="hover:text-white text-slate-500"
-                  title="Ẩn thanh công cụ nhanh"
-                >
-                  <span className="material-symbols-outlined text-xs">close</span>
-                </button>
-              </div>
-
-              {/* Quick Scale Delta */}
-              <div className="flex items-center justify-between gap-1 text-[10px] font-tech">
-                <span className="text-slate-400">Scale:</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickScaleDelta(-10)}
-                    title="Giảm 10% tỷ lệ"
-                    className="px-1.5 py-0.5 bg-[#0e1a2f] hover:bg-cyan-900 border border-[#1e2e48] rounded text-slate-200"
-                  >
-                    -10%
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickScaleDelta(10)}
-                    title="Tăng 10% tỷ lệ"
-                    className="px-1.5 py-0.5 bg-[#0e1a2f] hover:bg-cyan-900 border border-[#1e2e48] rounded text-slate-200"
-                  >
-                    +10%
-                  </button>
-                </div>
-              </div>
-
-              {/* Rotate 90 Deg */}
-              <div className="flex items-center justify-between gap-1 text-[10px] font-tech pt-0.5">
-                <span className="text-slate-400">Xoay 90°:</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleRotate90('z')}
-                    title="Xoay 90° trục Z"
-                    className="px-1.5 py-0.5 bg-[#0e1a2f] hover:bg-cyan-900 border border-[#1e2e48] rounded text-slate-200"
-                  >
-                    Z
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRotate90('x')}
-                    title="Xoay 90° trục X"
-                    className="px-1.5 py-0.5 bg-[#0e1a2f] hover:bg-cyan-900 border border-[#1e2e48] rounded text-slate-200"
-                  >
-                    X
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRotate90('y')}
-                    title="Xoay 90° trục Y"
-                    className="px-1.5 py-0.5 bg-[#0e1a2f] hover:bg-cyan-900 border border-[#1e2e48] rounded text-slate-200"
-                  >
-                    Y
-                  </button>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <button
-                type="button"
-                onClick={handleCenterModel}
-                className="w-full mt-1 py-1 px-1.5 bg-[#0e1a2f] hover:bg-[#1e2e48] text-slate-300 hover:text-white rounded text-[10px] font-tech flex items-center justify-center gap-1 border border-[#1e2e48] transition-colors"
-              >
-                <span className="material-symbols-outlined text-xs">filter_center_focus</span>
-                Căn giữa bàn
-              </button>
-
-              <button
-                type="button"
-                onClick={handleScaleToFitBed}
-                className="w-full py-1 px-1.5 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 hover:text-cyan-100 rounded text-[10px] font-tech font-bold flex items-center justify-center gap-1 border border-cyan-800/60 transition-colors"
-              >
-                <span className="material-symbols-outlined text-xs">aspect_ratio</span>
-                Co vừa bàn in
-              </button>
+      {/* DETAILED ACTIVE PLATE SPECS CARD (Collapsible floating card) */}
+      {showPlateDetails && currentPlate && (
+        <div className="absolute top-14 left-2.5 max-w-sm bg-[#091426]/95 backdrop-blur-md p-3.5 rounded-xl border border-cyan-500/40 shadow-2xl text-xs text-white space-y-2.5 z-20 animate-fadeIn">
+          <div className="flex items-center justify-between border-b border-cyan-900/50 pb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-cyan-400 text-sm">print</span>
+              <strong className="font-tech text-cyan-200 text-xs uppercase tracking-wider">
+                {currentPlate.name || `Bàn In Số ${currentPlate.index}`}
+              </strong>
             </div>
-          ) : (
             <button
               type="button"
-              onClick={() => setShowQuickTools(true)}
-              title="Mở thanh công cụ nhanh"
-              className="pointer-events-auto p-1.5 bg-[#091426]/90 backdrop-blur-md rounded-lg border border-[#1e2e48] text-cyan-400 hover:text-white shadow-lg transition-colors"
+              onClick={() => setShowPlateDetails(false)}
+              className="text-slate-400 hover:text-white text-xs cursor-pointer"
             >
-              <span className="material-symbols-outlined text-sm">build</span>
+              ✕
             </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-[11px] font-tech">
+            <div className="bg-[#050b14]/70 p-2 rounded border border-[#1e2e48]">
+              <span className="text-slate-400 block text-[10px]">Thời gian in ước tính</span>
+              <strong className="text-emerald-400 text-xs">
+                {currentPlate.predictionFormatted || '1h 15m'}
+              </strong>
+            </div>
+            <div className="bg-[#050b14]/70 p-2 rounded border border-[#1e2e48]">
+              <span className="text-slate-400 block text-[10px]">Nhựa tiêu hao</span>
+              <strong className="text-cyan-300 text-xs">
+                {currentPlate.filamentGrams ? `${currentPlate.filamentGrams}g` : '46.0g'}{' '}
+                <span className="text-[10px] text-slate-400 font-normal">
+                  ({currentPlate.filamentMeters ? `${currentPlate.filamentMeters}m` : '15.0m'})
+                </span>
+              </strong>
+            </div>
+            <div className="bg-[#050b14]/70 p-2 rounded border border-[#1e2e48]">
+              <span className="text-slate-400 block text-[10px]">Loại mặt bàn in</span>
+              <span className="text-slate-200 font-bold">
+                {currentPlate.bedType || 'Textured PEI Plate'}
+              </span>
+            </div>
+            <div className="bg-[#050b14]/70 p-2 rounded border border-[#1e2e48]">
+              <span className="text-slate-400 block text-[10px]">Số chi tiết trên bàn</span>
+              <span className="text-amber-400 font-bold">
+                {currentPlate.partCount || 2} chi tiết
+              </span>
+            </div>
+          </div>
+
+          {currentPlate.dimensions && (
+            <div className="text-[10px] font-tech text-slate-300 flex items-center justify-between pt-1 border-t border-[#1e2e48]">
+              <span>Kích thước chiếm dụng:</span>
+              <span className="text-cyan-300 font-bold">
+                {currentPlate.dimensions.x} × {currentPlate.dimensions.y} × {currentPlate.dimensions.z} mm
+              </span>
+            </div>
           )}
         </div>
       )}
@@ -1336,62 +1317,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           </p>
         </div>
       )}
-
-      {/* BOTTOM SLICER & CROSS-SECTION CLIPPING BAR */}
-      <div className="absolute bottom-2.5 left-2.5 right-2.5 bg-[#091426]/95 backdrop-blur-md px-3.5 py-2 rounded-lg border border-[#1e2e48] shadow-xl flex items-center justify-between gap-3 text-white z-20">
-        {/* Layer Label & Play/Pause Simulation */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setIsSlicingPlaying(!isSlicingPlaying)}
-            title={isSlicingPlaying ? 'Dừng mô phỏng cắt lớp' : 'Chạy mô phỏng cắt lớp tự động (Layer Simulation)'}
-            className={`p-1 rounded transition-colors ${isSlicingPlaying ? 'text-cyan-300 bg-cyan-900/60 ring-1 ring-cyan-500' : 'text-slate-400 hover:text-white hover:bg-[#1e2e48]'}`}
-          >
-            <span className="material-symbols-outlined text-sm">
-              {isSlicingPlaying ? 'pause' : 'play_arrow'}
-            </span>
-          </button>
-          <span className="material-symbols-outlined text-cyan-400 text-sm hidden sm:inline">layers</span>
-          <span className="font-tech text-xs text-slate-200 whitespace-nowrap">
-            MẶT CẮT: <span className="text-cyan-300 font-bold">{currentSlice}%</span>
-          </span>
-        </div>
-
-        {/* Axis Selector */}
-        <div className="flex items-center gap-0.5 shrink-0 bg-[#0e1a2f] p-0.5 rounded border border-[#1e2e48] text-[10px] font-tech font-bold">
-          {(['z', 'x', 'y'] as const).map((axis) => (
-            <button
-              key={axis}
-              type="button"
-              onClick={() => setClippingAxis(axis)}
-              className={`px-1.5 py-0.5 rounded transition-colors uppercase ${
-                clippingAxis === axis ? 'bg-[#00687a] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title={`Cắt theo trục ${axis.toUpperCase()}`}
-            >
-              {axis}
-            </button>
-          ))}
-        </div>
-
-        {/* Range Slider */}
-        <input
-          type="range"
-          min="5"
-          max="100"
-          value={currentSlice}
-          onChange={(e) => {
-            setIsSlicingPlaying(false);
-            handleSliceChange(Number(e.target.value));
-          }}
-          className="w-full h-1.5 bg-[#132238] rounded-lg appearance-none cursor-pointer accent-cyan-400"
-        />
-
-        {/* Calculated Height Info */}
-        <div className="text-[10px] font-tech text-slate-400 shrink-0 hidden md:block whitespace-nowrap">
-          H = {((modelHeight * currentSlice) / 100).toFixed(1)} / {modelHeight.toFixed(1)} mm
-        </div>
-      </div>
     </div>
   );
 };
