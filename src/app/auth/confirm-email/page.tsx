@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { MailCheck, ArrowRight, RefreshCw } from 'lucide-react'
 import { createClient } from '@/src/backend/supabase/client'
 
-export default function ConfirmEmailPage() {
+function ConfirmEmailContent() {
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || 'email của bạn'
   const [resendStatus, setResendStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle')
@@ -87,5 +87,13 @@ export default function ConfirmEmailPage() {
         </Link>
       </div>
     </div>
+  )
+}
+
+export default function ConfirmEmailPage() {
+  return (
+    <Suspense fallback={<div className="text-white text-center p-8 font-mono text-xs">Đang tải thông tin xác nhận...</div>}>
+      <ConfirmEmailContent />
+    </Suspense>
   )
 }
