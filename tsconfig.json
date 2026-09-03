@@ -33,20 +33,12 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "strict": false,
-    "incremental": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+    "resolveJsonModule": true
   },
   "include": [
     "src/**/*",
-    "vite.config.ts",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "vite.config.ts"
   ],
   "exclude": [
     "node_modules",
