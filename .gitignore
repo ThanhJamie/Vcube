@@ -1,8 +1,59 @@
+# Dependencies
 node_modules/
-build/
+.pnp
+.pnp.js
+
+# Production build outputs
 dist/
+dist-ssr/
+build/
 coverage/
-.DS_Store
+*.tsbuildinfo
+
+# Environment variables & secrets (CRITICAL)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+service-account*.json
+! .env.example
+
+# AI Agents & Automation tools cache
+.agents/
+.gemini/
+.system_generated/
+scratch/
+
+# Logs
+logs/
 *.log
-.env*
-!.env.example
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Operating System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# IDE & Editor files
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+.vscode/*
+! .vscode/extensions.json
+! .vscode/settings.json
+
+# Local temp & caches
+.cache/
+.parcel-cache/
+.eslintcache
+tmp/
+temp/
+supabase/.temp/
