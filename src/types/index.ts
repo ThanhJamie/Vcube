@@ -316,6 +316,21 @@ export interface InkiriCostFormulaConfig {
 
   // 7. Quantity Discounts / Chiết khấu theo số lượng
   volumeDiscounts: VolumeDiscountTier[];
+
+  // 8. Customization & Addon Fees / Phí dịch vụ cá nhân hóa
+  customEngravingFee?: number; // VND, e.g. 50000 (khắc tên / laser / đùn nổi)
+  customLogoUploadFee?: number; // VND, e.g. 80000 (chèn logo vector)
+
+  // 9. Delivery Package Lead Time Adjustments / Tùy chỉnh chiết khấu & phụ phí giao hàng
+  economyDiscountPercent?: number; // %, e.g. 10% (Gói Tiết kiệm 5-7 ngày)
+  expressRushSurchargePercent?: number; // %, e.g. 30% (Gói Hỏa tốc 24H)
+
+  // 10. Slicing Model Constants / Hệ số tiêu hao phôi & tháp xả
+  supportVolumeRatioPercent?: number; // %, e.g. 16% khối lượng support
+  brimRaftGrams?: number; // Grams, e.g. 6g vành brim bám dính
+  multiColorToolChangeMins?: number; // Phút, e.g. 1.5 phút/lần đổi màu AMS
+  multiColorPurgeWasteGrams?: number; // Grams, e.g. 28g tháp xả mỗi màu thêm
+  fastEstimatorBaseOverhead?: number; // VND, e.g. 45000 chi phí cơ sở cho bộ tính nhanh
 }
 
 export interface PrinterProfile {
@@ -590,7 +605,7 @@ export interface SiteContentConfig {
   hcmWorkshopAddress: string;
 }
 
-export type UserRole = 'customer' | 'designer' | 'admin';
+export type UserRole = 'customer' | 'designer' | 'admin' | 'lab';
 
 export interface AppUserProfile {
   uid: string;

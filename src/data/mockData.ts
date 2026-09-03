@@ -940,7 +940,22 @@ export const DEFAULT_INKIRI_FORMULA_CONFIG: InkiriCostFormulaConfig = {
     { minQty: 10, maxQty: 24, discountPercent: 15, label: '10 - 24 chiếc (-15% Tiết kiệm)' },
     { minQty: 25, maxQty: 49, discountPercent: 22, label: '25 - 49 chiếc (-22% Giá sỉ xưởng)' },
     { minQty: 50, discountPercent: 30, label: '50+ chiếc (-30% Sản xuất loạt lớn)' }
-  ]
+  ],
+
+  // 8. Customization & Addon Fees
+  customEngravingFee: 50000, // 50,000 VND
+  customLogoUploadFee: 80000, // 80,000 VND
+
+  // 9. Delivery Package Lead Time Adjustments
+  economyDiscountPercent: 10, // -10% cho gói Tiết kiệm
+  expressRushSurchargePercent: 30, // +30% cho gói Hỏa tốc 24H
+
+  // 10. Slicing Model Constants
+  supportVolumeRatioPercent: 16, // 16% khối lượng support
+  brimRaftGrams: 6, // 6g brim
+  multiColorToolChangeMins: 1.5, // 1.5 phút / lần thay màu
+  multiColorPurgeWasteGrams: 28, // 28g / màu thêm
+  fastEstimatorBaseOverhead: 45000 // 45,000 VND cơ bản
 };
 
 export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [
@@ -1256,12 +1271,265 @@ export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [
   }
 ];
 
-export const CUSTOM_REQUESTS: CustomDesignRequest[] = [];
-export const PAYOUT_TRANSACTIONS: PayoutTransaction[] = [];
-export const MODERATION_PRODUCTS: ModerationProductItem[] = [];
-export const DESIGNER_APPLICATIONS: DesignerApplication[] = [];
-export const DISPUTES_LIST: DisputeRecord[] = [];
-export const DMCA_REPORTS: DMCAReport[] = [];
+export const CUSTOM_REQUESTS: CustomDesignRequest[] = [
+  {
+    id: 'req-2026-001',
+    clientName: 'Nguyễn Hải Phong (Robotics Lab)',
+    clientInitials: 'HP',
+    title: 'Thiết Kế Cụm Bánh Răng Hành Tinh Tỉ Số Truyền 5:1',
+    previewMessage: 'Cần gân trợ lực chịu xoắn cho trục động cơ Nema 23...',
+    time: '10:45',
+    status: 'In Progress',
+    unread: true,
+    budget: '1.200.000 đ',
+    deadline: '02/09/2026',
+    serviceType: 'Tối ưu hóa thiết kế CAD & Dung sai in-place',
+    targetSpecs: {
+      material: 'Nylon PA12-CF / PETG Technical',
+      infill: '60% Gyroid',
+      nozzle: '0.4mm Hardened Steel'
+    },
+    referenceFiles: [
+      { name: 'Nema23_Mount_Spec.pdf', type: 'image' },
+      { name: 'Gear_Profile_Draft.step', type: 'stl' }
+    ],
+    messages: [
+      {
+        id: 'msg-001',
+        sender: 'client',
+        senderName: 'Nguyễn Hải Phong',
+        senderInitials: 'HP',
+        time: '10:30',
+        text: 'Chào bạn, bên lab mình đang cần thiết kế lại cụm bánh răng hành tinh cho cánh tay robot mini. Mô-men xoắn đầu ra khoảng 4.5 N.m.'
+      },
+      {
+        id: 'msg-002',
+        sender: 'designer',
+        senderName: 'Lê Thắng CAD/CAM (Bạn)',
+        senderInitials: 'LT',
+        time: '10:38',
+        text: 'Chào anh Phong, với mô-men xoắn này em đề xuất dùng profile răng module 1.25, góc áp lực 20 độ và in bằng Nylon-CF để chống mòn răng.'
+      },
+      {
+        id: 'msg-003',
+        sender: 'client',
+        senderName: 'Nguyễn Hải Phong',
+        senderInitials: 'HP',
+        time: '10:45',
+        text: 'Cần gân trợ lực chịu xoắn cho trục động cơ Nema 23 và dung sai khe hở in-place khoảng 0.2mm để không bị dính răng nhé.'
+      }
+    ]
+  },
+  {
+    id: 'req-2026-002',
+    clientName: 'Trần Minh Trí (IoT Solution)',
+    clientInitials: 'TT',
+    title: 'Vỏ Hộp Cảm Biến Môi Trường IP67 Kèm Khớp Gài Snap-Fit',
+    previewMessage: 'Bạn có thể tối ưu gioăng cao su O-ring chống nước không?',
+    time: 'Hôm qua',
+    status: 'Pending',
+    unread: false,
+    budget: '850.000 đ',
+    deadline: '05/09/2026',
+    serviceType: 'Thiết kế vỏ hộp thiết bị điện tử',
+    targetSpecs: {
+      material: 'ABS Kỹ Thuật / Resin Tough',
+      infill: '100% Solid',
+      nozzle: '0.4mm'
+    },
+    referenceFiles: [
+      { name: 'PCB_Outline_Dimension.dxf', type: 'image' }
+    ],
+    messages: [
+      {
+        id: 'msg-101',
+        sender: 'client',
+        senderName: 'Trần Minh Trí',
+        senderInitials: 'TT',
+        time: 'Hôm qua 15:20',
+        text: 'Chào Thắng, bên mình cần thiết kế vỏ bảo vệ module cảm biến bụi mịn PM2.5 lắp ngoài trời.'
+      },
+      {
+        id: 'msg-102',
+        sender: 'client',
+        senderName: 'Trần Minh Trí',
+        senderInitials: 'TT',
+        time: 'Hôm qua 15:25',
+        text: 'Bạn có thể tối ưu gioăng cao su O-ring chống nước và rãnh thoát nước ngưng tụ không?'
+      }
+    ]
+  },
+  {
+    id: 'req-2026-003',
+    clientName: 'TS. Vũ Đức Đam (VinFast Innovation)',
+    clientInitials: 'VĐ',
+    title: 'Đồ Gá Kiểm Tra Kích Thước Jig CMM Chống Trầy Xước',
+    previewMessage: 'Đã nhận báo giá, đang chờ phòng tài chính duyệt PO.',
+    time: '24/08/2026',
+    status: 'Quoted',
+    unread: false,
+    budget: '2.500.000 đ',
+    deadline: '30/08/2026',
+    serviceType: 'Đồ gá sản xuất (Jigs & Fixtures)',
+    targetSpecs: {
+      material: 'PETG ESD Chống Tĩnh Điện',
+      infill: '50% Triangular',
+      nozzle: '0.6mm High Flow'
+    },
+    referenceFiles: [
+      { name: 'CMM_Fixture_Base.step', type: 'stl' }
+    ],
+    messages: [
+      {
+        id: 'msg-201',
+        sender: 'client',
+        senderName: 'TS. Vũ Đức Đam',
+        senderInitials: 'VĐ',
+        time: '24/08 09:15',
+        text: 'Chúng tôi cần 1 bộ đồ gá kiểm tra nhanh kích thước chi tiết dập kim loại bằng máy CMM.'
+      },
+      {
+        id: 'msg-202',
+        sender: 'designer',
+        senderName: 'Lê Thắng CAD/CAM (Bạn)',
+        senderInitials: 'LT',
+        time: '24/08 11:30',
+        text: 'Tôi đã gửi Báo Giá Kỹ Thuật chi tiết bao gồm mô hình 3D CAD, bản vẽ 2D dung sai GD&T và chi phí in thử mẫu.',
+        quote: {
+          amount: 2500000,
+          currency: 'VND',
+          description: 'Gói thiết kế đồ gá Jig CMM + hiệu chỉnh 3 lần + bàn giao file STEP/Parasolid.',
+          status: 'sent'
+        }
+      },
+      {
+        id: 'msg-203',
+        sender: 'client',
+        senderName: 'TS. Vũ Đức Đam',
+        senderInitials: 'VĐ',
+        time: '24/08 14:00',
+        text: 'Đã nhận báo giá, đang chờ phòng tài chính duyệt PO.'
+      }
+    ]
+  }
+];
+
+export const PAYOUT_TRANSACTIONS: PayoutTransaction[] = [
+  {
+    id: 'TRX-94821-Z',
+    date: '25/08/2026',
+    reference: 'VCUBE-PAYOUT-8842',
+    method: 'Vietcombank (*8892)',
+    amount: 15400000,
+    status: 'COMPLETED'
+  },
+  {
+    id: 'TRX-83192-A',
+    date: '10/08/2026',
+    reference: 'VCUBE-PAYOUT-7921',
+    method: 'Vietcombank (*8892)',
+    amount: 22850000,
+    status: 'COMPLETED'
+  },
+  {
+    id: 'TRX-71044-K',
+    date: '25/07/2026',
+    reference: 'VCUBE-PAYOUT-6512',
+    method: 'MB Bank (*1029)',
+    amount: 18200000,
+    status: 'COMPLETED'
+  }
+];
+
+export const MODERATION_PRODUCTS: ModerationProductItem[] = [
+  {
+    id: 'mod-001',
+    title: 'Hệ Thống Bánh Răng Hành Tinh Cycloid Đảo Chiều',
+    format: 'STEP / STL',
+    designer: 'Lê Thắng CAD/CAM',
+    isVerifiedDesigner: true,
+    license: 'Standard Commercial',
+    scale: '1:1 True Scale',
+    material: 'Nylon-CF / PETG',
+    price: 180000,
+    image: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80',
+    status: 'APPROVED'
+  },
+  {
+    id: 'mod-002',
+    title: 'Vỏ Bảo Vệ Thiết Bị Định Vị GPS Tracker Chống Nước',
+    format: '3MF / STL',
+    designer: 'Đặng Tuấn Kiệt',
+    isVerifiedDesigner: false,
+    license: 'Standard Personal',
+    scale: '1:1',
+    material: 'ABS / ASA',
+    price: 95000,
+    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+    status: 'PENDING'
+  },
+  {
+    id: 'mod-003',
+    title: 'Mô Hình Điêu Khắc Rồng Thời Lý Tham Số Hóa Parametric',
+    format: 'OBJ / STL 8K',
+    designer: 'Studio Điêu Khắc Đại Việt',
+    isVerifiedDesigner: true,
+    license: 'Extended Royalty-Free',
+    scale: '150mm H',
+    material: 'Resin Engineering 8K',
+    price: 250000,
+    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+    status: 'APPROVED'
+  }
+];
+
+export const DESIGNER_APPLICATIONS: DesignerApplication[] = [
+  {
+    id: 'app-001',
+    name: 'Phạm Hoàng Long',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    role: 'Kỹ Sư Thiết Kế Cơ Khí Chính Xác',
+    status: 'Pending',
+    portfolioUrl: 'https://grabcad.com/long.pham.cad',
+    software: ['SolidWorks', 'Autodesk Fusion 360', 'KeyShot'],
+    bio: '5 năm kinh nghiệm thiết kế khuôn mẫu và tối ưu hóa chi tiết in 3D FDM/SLS công nghiệp.',
+    submissionDate: '26/08/2026'
+  },
+  {
+    id: 'app-002',
+    name: 'Ngô Thanh Vân',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    role: '3D Character & Organic Sculptor',
+    status: 'Verified',
+    portfolioUrl: 'https://artstation.com/vanngo3d',
+    software: ['ZBrush', 'Blender', 'Substance Painter'],
+    bio: 'Chuyên gia điêu khắc mô hình mỹ thuật độ phân giải siêu cao 8K cho in Resin SLA/DLP.',
+    submissionDate: '15/08/2026'
+  }
+];
+
+export const DISPUTES_LIST: DisputeRecord[] = [
+  {
+    id: 'DISP-8821',
+    customer: 'Công ty TNHH Cơ Khí An Phát',
+    designer: 'Lê Thắng CAD/CAM',
+    amount: 1450000,
+    status: 'RESOLVED',
+    isTopSeller: true,
+    isVerified: true
+  }
+];
+
+export const DMCA_REPORTS: DMCAReport[] = [
+  {
+    id: 'DMCA-001',
+    modelName: 'Mô Hình Figure Iron Man Mark 85 Articulated',
+    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=400&auto=format&fit=crop&q=80',
+    reporter: 'Marvel Studios Legal Team (Vietnam Rep)',
+    dateFiled: '18/08/2026',
+    status: 'Takedown Issued'
+  }
+];
 
 export const DEFAULT_SITE_CONTENT: import('../types').SiteContentConfig = {
   announcementText: '🇻🇳 ĐẠI LỄ 2/9: Giảm 20% toàn bộ file 3D & Miễn phí vận chuyển toàn quốc cho đơn từ 300.000đ • Báo giá tức thì trong 3s',

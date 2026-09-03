@@ -31,35 +31,50 @@ import {
   DEFAULT_INKIRI_FORMULA_CONFIG,
   DEFAULT_ACCESSORIES
 } from './data/mockData';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { LanguageProvider, useLanguage } from './context/LanguageContext';
-import { Header } from './components/Header';
-import { AuthModal } from './components/AuthModal';
-import { RoleGuard } from './components/RoleGuard';
-import { ScrollToTop } from './components/ScrollToTop';
-import { NotFoundView } from './components/NotFoundView';
-import { HomeView } from './views/HomeView';
-import { ExploreView } from './views/ExploreView';
-import { ProductDetailView } from './views/ProductDetailView';
-import { Tool3DView } from './views/Tool3DView';
-import { CartView } from './views/CartView';
-import { CheckoutView } from './views/CheckoutView';
-import { OrderSuccessView } from './views/OrderSuccessView';
-import { OrderTrackingView } from './views/OrderTrackingView';
-import { MyOrdersView } from './views/MyOrdersView';
-import { AdminDashboardView } from './views/AdminDashboardView';
-import { PersonalizeView } from './views/PersonalizeView';
-import { AssetLibraryView } from './views/AssetLibraryView';
-import { ChatSupportModal } from './components/ChatSupportModal';
-import { InvoiceModal } from './components/InvoiceModal';
+import { AuthProvider, useAuth } from '@frontend/context/AuthContext';
+import { LanguageProvider, useLanguage } from '@frontend/context/LanguageContext';
+import { Header } from '@frontend/components/Header';
+import { AuthModal } from '@frontend/components/AuthModal';
+import { RoleGuard } from '@frontend/components/RoleGuard';
+import { ScrollToTop } from '@frontend/components/ScrollToTop';
+import { NotFoundView } from '@frontend/components/NotFoundView';
+import { HomeView } from '@frontend/views/HomeView';
+import { ExploreView } from '@frontend/views/ExploreView';
+import { ProductDetailView } from '@frontend/views/ProductDetailView';
+import { Tool3DView } from '@frontend/views/Tool3DView';
+import { CartView } from '@frontend/views/CartView';
+import { CheckoutView } from '@frontend/views/CheckoutView';
+import { OrderSuccessView } from '@frontend/views/OrderSuccessView';
+import { OrderTrackingView } from '@frontend/views/OrderTrackingView';
+import { MyOrdersView } from '@frontend/views/MyOrdersView';
+import { AdminDashboardView } from '@frontend/views/AdminDashboardView';
+import { DesignerDashboardView } from '@frontend/views/DesignerDashboardView';
+import { PersonalizeView } from '@frontend/views/PersonalizeView';
+import { AssetLibraryView } from '@frontend/views/AssetLibraryView';
+import { LoginView } from '@frontend/views/LoginView';
+import { RegisterView } from '@frontend/views/RegisterView';
+import { ChatSupportModal } from '@frontend/components/ChatSupportModal';
+import { InvoiceModal } from '@frontend/components/InvoiceModal';
 
 // --- ROUTE WRAPPER COMPONENTS ---
 
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isLoggedIn } = useAuth();
+  if (!isLoggedIn) {
+    return <Navigate to="/auth/login" replace />;
+  }
+  return <>{children}</>;
+};
+
 const ExploreRoute: React.FC<{
   products: Product[];
+  materials?: MaterialProfile[];
+  pricingConfig?: InkiriCostFormulaConfig;
+  onAddToCart: (item: CartItem) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onSelectProduct: (product: Product) => void;
-}> = ({ products, onNavigate, onSelectProduct }) => {
+  onShowToast: (msg: string) => void;
+}> = ({ products, materials, pricingConfig, onAddToCart, onNavigate, onSelectProduct, onShowToast }) => {
   const [searchParams] = useSearchParams();
   const category = searchParams.get('category') || 'all';
   const search = searchParams.get('search') || '';
@@ -68,27 +83,35 @@ const ExploreRoute: React.FC<{
   return (
     <ExploreView
       products={products}
+      materials={materials}
+      pricingConfig={pricingConfig}
       initialCategory={category}
       initialSearch={search}
       initialTag={tag}
+      onAddToCart={onAddToCart}
       onNavigate={onNavigate}
       onSelectProduct={onSelectProduct}
+      onShowToast={onShowToast}
     />
   );
 };
 
 const ProductDetailRoute: React.FC<{
   products: Product[];
+  materials?: MaterialProfile[];
+  pricingConfig?: InkiriCostFormulaConfig;
   onAddToCart: (item: CartItem) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onShowToast: (msg: string) => void;
-}> = ({ products, onAddToCart, onNavigate, onShowToast }) => {
+}> = ({ products, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
   const { productId } = useParams<{ productId: string }>();
   const product = products.find((p) => p.id === productId) || products[0];
 
   return (
     <ProductDetailView
       product={product}
+      materials={materials}
+      pricingConfig={pricingConfig}
       onAddToCart={onAddToCart}
       onNavigate={onNavigate}
       onShowToast={onShowToast}
@@ -98,16 +121,20 @@ const ProductDetailRoute: React.FC<{
 
 const PersonalizeRoute: React.FC<{
   products: Product[];
+  materials?: MaterialProfile[];
+  pricingConfig?: InkiriCostFormulaConfig;
   onAddToCart: (item: CartItem) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onShowToast: (msg: string) => void;
-}> = ({ products, onAddToCart, onNavigate, onShowToast }) => {
+}> = ({ products, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
   const { productId } = useParams<{ productId?: string }>();
   const product = products.find((p) => p.id === productId) || products[0];
 
   return (
     <PersonalizeView
       product={product}
+      materials={materials}
+      pricingConfig={pricingConfig}
       onAddToCart={onAddToCart}
       onNavigate={onNavigate}
       onShowToast={onShowToast}
@@ -157,19 +184,83 @@ const OrderTrackingRoute: React.FC<{
 
 function MainApp() {
   const { language, t } = useLanguage();
+  const { user, role, isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Core App State
-  const [products, setProducts] = useState<Product[]>(PRODUCTS);
+  // Core App State with LocalStorage persistence for Admin & Designer configurable items
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem('vcube_products');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Could not load saved products', e);
+    }
+    return PRODUCTS;
+  });
   const [cart, setCart] = useState<CartItem[]>(INITIAL_CART_ITEMS);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
   const [assets, setAssets] = useState<DigitalAsset[]>(DIGITAL_ASSETS);
   const [siteContent, setSiteContent] = useState<SiteContentConfig>(DEFAULT_SITE_CONTENT);
-  const [materials, setMaterials] = useState<MaterialProfile[]>(MATERIALS_CATALOG);
-  const [printers, setPrinters] = useState<PrinterProfile[]>(PRINTER_PROFILES);
+  
+  const [materials, setMaterials] = useState<MaterialProfile[]>(() => {
+    try {
+      const saved = localStorage.getItem('vcube_materials');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Could not load saved materials', e);
+    }
+    return MATERIALS_CATALOG;
+  });
+
+  const [printers, setPrinters] = useState<PrinterProfile[]>(() => {
+    try {
+      const saved = localStorage.getItem('vcube_printers');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Could not load saved printers', e);
+    }
+    return PRINTER_PROFILES;
+  });
+
   const [accessories, setAccessories] = useState<AccessoryItem[]>(DEFAULT_ACCESSORIES);
-  const [pricingConfig, setPricingConfig] = useState<InkiriCostFormulaConfig>(DEFAULT_INKIRI_FORMULA_CONFIG);
+
+  const [pricingConfig, setPricingConfig] = useState<InkiriCostFormulaConfig>(() => {
+    try {
+      const saved = localStorage.getItem('vcube_pricing_config');
+      if (saved) return { ...DEFAULT_INKIRI_FORMULA_CONFIG, ...JSON.parse(saved) };
+    } catch (e) {
+      console.warn('Could not load saved pricing config', e);
+    }
+    return DEFAULT_INKIRI_FORMULA_CONFIG;
+  });
+
+  const handleUpdatePricingConfig = (newConfig: InkiriCostFormulaConfig) => {
+    setPricingConfig(newConfig);
+    try {
+      localStorage.setItem('vcube_pricing_config', JSON.stringify(newConfig));
+    } catch (e) {
+      console.warn('Could not save pricing config', e);
+    }
+  };
+
+  const handleUpdateMaterials = (newMaterials: MaterialProfile[]) => {
+    setMaterials(newMaterials);
+    try {
+      localStorage.setItem('vcube_materials', JSON.stringify(newMaterials));
+    } catch (e) {
+      console.warn('Could not save materials', e);
+    }
+  };
+
+  const handleUpdatePrinters = (newPrinters: PrinterProfile[]) => {
+    setPrinters(newPrinters);
+    try {
+      localStorage.setItem('vcube_printers', JSON.stringify(newPrinters));
+    } catch (e) {
+      console.warn('Could not save printers', e);
+    }
+  };
 
   const [activeOrder, setActiveOrder] = useState<Order>(MOCK_ORDERS[0]);
   const [appliedDiscount, setAppliedDiscount] = useState<number>(0);
@@ -179,7 +270,7 @@ function MainApp() {
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'role_select'>('signin');
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'role_select' | 'account'>('signin');
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -188,7 +279,7 @@ function MainApp() {
     }, 3500);
   };
 
-  const handleOpenAuth = (mode: 'signin' | 'signup' | 'role_select' = 'signin') => {
+  const handleOpenAuth = (mode: 'signin' | 'signup' | 'role_select' | 'account' = 'signin') => {
     setAuthModalMode(mode);
     setIsAuthModalOpen(true);
   };
@@ -207,6 +298,7 @@ function MainApp() {
     if (p.startsWith('/tracking')) return 'order_tracking';
     if (p.startsWith('/orders') || p.startsWith('/my-orders')) return 'my_orders';
     if (p.startsWith('/admin')) return 'admin';
+    if (p.startsWith('/designer') || p.startsWith('/creator')) return 'designer';
     if (p.startsWith('/assets') || p.startsWith('/library')) return 'asset_library';
     return 'home';
   };
@@ -216,6 +308,28 @@ function MainApp() {
   // Central Navigation Adapter Bridge
   const handleNavigate = (screen: string, payload?: any) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (screen === 'login' || screen === 'signin') {
+      navigate('/auth/login');
+      return;
+    }
+    if (screen === 'register' || screen === 'signup') {
+      navigate('/auth/register');
+      return;
+    }
+
+    // If user is not logged in, clicking buttons or navigating protected views triggers login
+    if (!isLoggedIn && screen !== 'home') {
+      navigate('/auth/login');
+      return;
+    }
+
+    // Only admin can access admin console
+    if (screen === 'admin' && role !== 'admin') {
+      showToast(language === 'vi' ? 'Chỉ Quản Trị Viên (Admin) mới có quyền truy cập trang quản trị' : 'Admin role required to access Admin Console');
+      navigate('/');
+      return;
+    }
 
     switch (screen) {
       case 'home':
@@ -282,6 +396,14 @@ function MainApp() {
       case 'asset_library':
       case 'assets':
         navigate('/assets');
+        break;
+      case 'designer':
+      case 'creator':
+        if (payload?.tab) {
+          navigate(`/designer/${payload.tab}`);
+        } else {
+          navigate('/designer');
+        }
         break;
       case 'admin':
         if (payload?.section) {
@@ -362,17 +484,41 @@ function MainApp() {
     setCart([]);
   };
 
-  // Admin Handlers
+  // Product Handlers (Synced to LocalStorage Catalog DB)
   const handleAddNewProduct = (prod: Product) => {
-    setProducts((prev) => [prod, ...prev]);
+    setProducts((prev) => {
+      const updated = [prod, ...prev];
+      try {
+        localStorage.setItem('vcube_products', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Could not save products to storage', e);
+      }
+      return updated;
+    });
   };
 
   const handleUpdateProduct = (updated: Product) => {
-    setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setProducts((prev) => {
+      const next = prev.map((p) => (p.id === updated.id ? updated : p));
+      try {
+        localStorage.setItem('vcube_products', JSON.stringify(next));
+      } catch (e) {
+        console.warn('Could not save products to storage', e);
+      }
+      return next;
+    });
   };
 
   const handleDeleteProduct = (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
+    setProducts((prev) => {
+      const next = prev.filter((p) => p.id !== productId);
+      try {
+        localStorage.setItem('vcube_products', JSON.stringify(next));
+      } catch (e) {
+        console.warn('Could not save products to storage', e);
+      }
+      return next;
+    });
   };
 
   const handleUpdateOrderStatus = (orderId: string, newStageIndex: number, newStatus: Order['status'], progress?: number) => {
@@ -419,19 +565,29 @@ function MainApp() {
             element={
               <HomeView
                 products={products}
+                materials={materials}
+                pricingConfig={pricingConfig}
+                onAddToCart={handleAddToCart}
                 onNavigate={handleNavigate}
                 onSelectProduct={(p) => handleNavigate('product_detail', { product: p })}
+                onShowToast={showToast}
               />
             }
           />
           <Route
             path="/explore"
             element={
-              <ExploreRoute
-                products={products}
-                onNavigate={handleNavigate}
-                onSelectProduct={(p) => handleNavigate('product_detail', { product: p })}
-              />
+              <ProtectedRoute>
+                <ExploreRoute
+                  products={products}
+                  materials={materials}
+                  pricingConfig={pricingConfig}
+                  onAddToCart={handleAddToCart}
+                  onNavigate={handleNavigate}
+                  onSelectProduct={(p) => handleNavigate('product_detail', { product: p })}
+                  onShowToast={showToast}
+                />
+              </ProtectedRoute>
             }
           />
 
@@ -439,34 +595,46 @@ function MainApp() {
           <Route
             path="/products/:productId"
             element={
-              <ProductDetailRoute
-                products={products}
-                onAddToCart={handleAddToCart}
-                onNavigate={handleNavigate}
-                onShowToast={showToast}
-              />
+              <ProtectedRoute>
+                <ProductDetailRoute
+                  products={products}
+                  materials={materials}
+                  pricingConfig={pricingConfig}
+                  onAddToCart={handleAddToCart}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/personalize"
             element={
-              <PersonalizeRoute
-                products={products}
-                onAddToCart={handleAddToCart}
-                onNavigate={handleNavigate}
-                onShowToast={showToast}
-              />
+              <ProtectedRoute>
+                <PersonalizeRoute
+                  products={products}
+                  materials={materials}
+                  pricingConfig={pricingConfig}
+                  onAddToCart={handleAddToCart}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/personalize/:productId"
             element={
-              <PersonalizeRoute
-                products={products}
-                onAddToCart={handleAddToCart}
-                onNavigate={handleNavigate}
-                onShowToast={showToast}
-              />
+              <ProtectedRoute>
+                <PersonalizeRoute
+                  products={products}
+                  materials={materials}
+                  pricingConfig={pricingConfig}
+                  onAddToCart={handleAddToCart}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </ProtectedRoute>
             }
           />
 
@@ -474,14 +642,16 @@ function MainApp() {
           <Route
             path="/quote"
             element={
-              <Tool3DView
-                materials={materials}
-                printers={printers}
-                pricingConfig={pricingConfig}
-                onAddToCart={handleAddToCart}
-                onNavigate={handleNavigate}
-                onShowToast={showToast}
-              />
+              <ProtectedRoute>
+                <Tool3DView
+                  materials={materials}
+                  printers={printers}
+                  pricingConfig={pricingConfig}
+                  onAddToCart={handleAddToCart}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </ProtectedRoute>
             }
           />
           <Route path="/tool-3d" element={<Navigate to="/quote" replace />} />
@@ -490,25 +660,29 @@ function MainApp() {
           <Route
             path="/cart"
             element={
-              <CartView
-                cart={cart}
-                onUpdateQuantity={handleUpdateQuantity}
-                onRemoveItem={handleRemoveItem}
-                onNavigate={handleNavigate}
-                onShowToast={showToast}
-              />
+              <ProtectedRoute>
+                <CartView
+                  cart={cart}
+                  onUpdateQuantity={handleUpdateQuantity}
+                  onRemoveItem={handleRemoveItem}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/checkout"
             element={
-              <CheckoutView
-                cart={cart}
-                appliedDiscount={appliedDiscount}
-                siteContent={siteContent}
-                onOrderCompleted={handleOrderCompleted}
-                onNavigate={handleNavigate}
-              />
+              <ProtectedRoute>
+                <CheckoutView
+                  cart={cart}
+                  appliedDiscount={appliedDiscount}
+                  siteContent={siteContent}
+                  onOrderCompleted={handleOrderCompleted}
+                  onNavigate={handleNavigate}
+                />
+              </ProtectedRoute>
             }
           />
 
@@ -516,57 +690,67 @@ function MainApp() {
           <Route
             path="/order-success"
             element={
-              <OrderSuccessRoute
-                orders={orders}
-                activeOrder={activeOrder}
-                onNavigate={handleNavigate}
-                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
-              />
+              <ProtectedRoute>
+                <OrderSuccessRoute
+                  orders={orders}
+                  activeOrder={activeOrder}
+                  onNavigate={handleNavigate}
+                  onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/order-success/:orderId"
             element={
-              <OrderSuccessRoute
-                orders={orders}
-                activeOrder={activeOrder}
-                onNavigate={handleNavigate}
-                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
-              />
+              <ProtectedRoute>
+                <OrderSuccessRoute
+                  orders={orders}
+                  activeOrder={activeOrder}
+                  onNavigate={handleNavigate}
+                  onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/tracking"
             element={
-              <OrderTrackingRoute
-                orders={orders}
-                activeOrder={activeOrder}
-                onNavigate={handleNavigate}
-                onOpenChat={() => setIsChatOpen(true)}
-                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
-              />
+              <ProtectedRoute>
+                <OrderTrackingRoute
+                  orders={orders}
+                  activeOrder={activeOrder}
+                  onNavigate={handleNavigate}
+                  onOpenChat={() => setIsChatOpen(true)}
+                  onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/tracking/:orderId"
             element={
-              <OrderTrackingRoute
-                orders={orders}
-                activeOrder={activeOrder}
-                onNavigate={handleNavigate}
-                onOpenChat={() => setIsChatOpen(true)}
-                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
-              />
+              <ProtectedRoute>
+                <OrderTrackingRoute
+                  orders={orders}
+                  activeOrder={activeOrder}
+                  onNavigate={handleNavigate}
+                  onOpenChat={() => setIsChatOpen(true)}
+                  onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/orders"
             element={
-              <MyOrdersView
-                orders={orders}
-                onNavigate={handleNavigate}
-                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
-              />
+              <ProtectedRoute>
+                <MyOrdersView
+                  orders={orders}
+                  onNavigate={handleNavigate}
+                  onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+                />
+              </ProtectedRoute>
             }
           />
           <Route path="/my-orders" element={<Navigate to="/orders" replace />} />
@@ -575,14 +759,64 @@ function MainApp() {
           <Route
             path="/assets"
             element={
-              <AssetLibraryView
-                assets={assets}
-                onNavigate={handleNavigate}
-                onShowToast={showToast}
-              />
+              <ProtectedRoute>
+                <AssetLibraryView
+                  assets={assets}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </ProtectedRoute>
             }
           />
           <Route path="/library" element={<Navigate to="/assets" replace />} />
+
+          {/* Designer Studio / Creator Portal (Secured with RoleGuard for designer & admin) */}
+          <Route
+            path="/designer"
+            element={
+              <RoleGuard
+                allowedRoles={['designer', 'admin']}
+                featureName={language === 'vi' ? 'Studio Tác Giả & Quản Lý Ấn Phẩm' : '3D Designer Studio & Publications'}
+                onNavigate={handleNavigate}
+                onOpenAuthModal={handleOpenAuth}
+              >
+                <DesignerDashboardView
+                  products={products}
+                  materials={materials}
+                  pricingConfig={pricingConfig}
+                  onAddNewProduct={handleAddNewProduct}
+                  onUpdateProduct={handleUpdateProduct}
+                  onDeleteProduct={handleDeleteProduct}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/designer/:tab"
+            element={
+              <RoleGuard
+                allowedRoles={['designer', 'admin']}
+                featureName={language === 'vi' ? 'Studio Tác Giả & Quản Lý Ấn Phẩm' : '3D Designer Studio & Publications'}
+                onNavigate={handleNavigate}
+                onOpenAuthModal={handleOpenAuth}
+              >
+                <DesignerDashboardView
+                  products={products}
+                  materials={materials}
+                  pricingConfig={pricingConfig}
+                  onAddNewProduct={handleAddNewProduct}
+                  onUpdateProduct={handleUpdateProduct}
+                  onDeleteProduct={handleDeleteProduct}
+                  onNavigate={handleNavigate}
+                  onShowToast={showToast}
+                />
+              </RoleGuard>
+            }
+          />
+          <Route path="/creator" element={<Navigate to="/designer" replace />} />
+          <Route path="/creator/*" element={<Navigate to="/designer" replace />} />
 
           {/* ForgeControl Admin Console (Secured with RoleGuard & URL section synchronization) */}
           <Route
@@ -607,10 +841,10 @@ function MainApp() {
                   onDeleteProduct={handleDeleteProduct}
                   onUpdateOrderStatus={handleUpdateOrderStatus}
                   onUpdateSiteContent={handleUpdateSiteContent}
-                  onUpdateMaterials={setMaterials}
-                  onUpdatePrinters={setPrinters}
+                  onUpdateMaterials={handleUpdateMaterials}
+                  onUpdatePrinters={handleUpdatePrinters}
                   onUpdateAccessories={setAccessories}
-                  onUpdatePricingConfig={setPricingConfig}
+                  onUpdatePricingConfig={handleUpdatePricingConfig}
                   onNavigate={handleNavigate}
                   onShowToast={showToast}
                 />
@@ -639,16 +873,22 @@ function MainApp() {
                   onDeleteProduct={handleDeleteProduct}
                   onUpdateOrderStatus={handleUpdateOrderStatus}
                   onUpdateSiteContent={handleUpdateSiteContent}
-                  onUpdateMaterials={setMaterials}
-                  onUpdatePrinters={setPrinters}
+                  onUpdateMaterials={handleUpdateMaterials}
+                  onUpdatePrinters={handleUpdatePrinters}
                   onUpdateAccessories={setAccessories}
-                  onUpdatePricingConfig={setPricingConfig}
+                  onUpdatePricingConfig={handleUpdatePricingConfig}
                   onNavigate={handleNavigate}
                   onShowToast={showToast}
                 />
               </RoleGuard>
             }
           />
+
+          {/* Authentication Pages */}
+          <Route path="/auth/login" element={<LoginView onNavigate={handleNavigate} />} />
+          <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+          <Route path="/auth/register" element={<RegisterView onNavigate={handleNavigate} />} />
+          <Route path="/register" element={<Navigate to="/auth/register" replace />} />
 
           {/* 404 Not Found Fallback */}
           <Route path="*" element={<NotFoundView />} />
@@ -748,34 +988,36 @@ function MainApp() {
               </ul>
             </div>
 
-            {/* Col 3: Admin Console */}
-            <div className="space-y-2.5 text-xs font-sans">
-              <p className="font-bold uppercase tracking-widest text-[#D8E3FB] text-[10px] font-tech">
-                {t('footerCreators', 'Quản Trị Hệ Thống', 'Administration')}
-              </p>
-              <ul className="space-y-2 text-[#8590A6]">
-                <li>
-                  <button onClick={() => handleNavigate('admin')} className="hover:text-white transition-colors text-left font-bold text-[#57DFFE] cursor-pointer">
-                    ForgeControl Admin Console
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => handleNavigate('admin', { section: 'products' })} className="hover:text-white transition-colors text-left cursor-pointer">
-                    {language === 'vi' ? 'Quản lý sản phẩm & giá' : 'Product & Pricing Management'}
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => handleNavigate('admin', { section: 'queue' })} className="hover:text-white transition-colors text-left cursor-pointer">
-                    {language === 'vi' ? 'Cập nhật tiến độ 8 bước gia công' : '8-Stage Fabrication Status'}
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => handleNavigate('admin', { section: 'storefront' })} className="hover:text-white transition-colors text-left cursor-pointer">
-                    {language === 'vi' ? 'Cấu hình phí ship & thông báo' : 'Site Content & Announcement'}
-                  </button>
-                </li>
-              </ul>
-            </div>
+            {/* Col 3: Admin Console - Only visible for admin users */}
+            {role === 'admin' && (
+              <div className="space-y-2.5 text-xs font-sans">
+                <p className="font-bold uppercase tracking-widest text-[#D8E3FB] text-[10px] font-tech">
+                  {t('footerCreators', 'Quản Trị Hệ Thống', 'Administration')}
+                </p>
+                <ul className="space-y-2 text-[#8590A6]">
+                  <li>
+                    <button onClick={() => handleNavigate('admin')} className="hover:text-white transition-colors text-left font-bold text-[#57DFFE] cursor-pointer">
+                      ForgeControl Admin Console
+                    </button>
+                  </li>
+                  <li>
+                    <button onClick={() => handleNavigate('admin', { section: 'products' })} className="hover:text-white transition-colors text-left cursor-pointer">
+                      {language === 'vi' ? 'Quản lý sản phẩm & giá' : 'Product & Pricing Management'}
+                    </button>
+                  </li>
+                  <li>
+                    <button onClick={() => handleNavigate('admin', { section: 'queue' })} className="hover:text-white transition-colors text-left cursor-pointer">
+                      {language === 'vi' ? 'Cập nhật tiến độ 8 bước gia công' : '8-Stage Fabrication Status'}
+                    </button>
+                  </li>
+                  <li>
+                    <button onClick={() => handleNavigate('admin', { section: 'storefront' })} className="hover:text-white transition-colors text-left cursor-pointer">
+                      {language === 'vi' ? 'Cấu hình phí ship & thông báo' : 'Site Content & Announcement'}
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            )}
 
             {/* Col 4: Dynamic Contact from Admin Content */}
             <div className="space-y-2.5 text-xs font-sans">

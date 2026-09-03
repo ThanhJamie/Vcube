@@ -72,14 +72,16 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   // 1. Multi-color & Part Extruder analysis
   const activeExtruders = new Set(file.parts.map(p => p.extruderIndex)).size;
   const isMultiColor = activeExtruders > 1;
+  const toolChangeMinutes = cfg.multiColorToolChangeMins ?? 1.5;
   const toolChangesCount = isMultiColor ? (activeExtruders - 1) * 85 : 0;
-  const purgeWasteGrams = isMultiColor ? (activeExtruders - 1) * 28 : 0;
+  const purgeWasteGrams = isMultiColor ? (activeExtruders - 1) * (cfg.multiColorPurgeWasteGrams ?? 28) : 0;
 
   // 2. Material Grams Breakdown
   // Shell volume (perimeter walls ~22%) + infill volume
+  const supportRatio = (cfg.supportVolumeRatioPercent ?? 16) / 100;
   const rawModelGrams = Math.max(5, Math.round(transformedVolume * currentMaterial.density * (0.22 + (infillDensity / 100) * 0.78)));
-  const supportGrams = supportsMode === 'none' ? 0 : Math.round(rawModelGrams * 0.16);
-  const brimRaftGrams = 6; // Standard 5mm brim contact anchor
+  const supportGrams = supportsMode === 'none' ? 0 : Math.round(rawModelGrams * supportRatio);
+  const brimRaftGrams = cfg.brimRaftGrams ?? 6; // Standard brim contact anchor
   const totalFilamentGramsPerUnit = rawModelGrams + supportGrams + brimRaftGrams + purgeWasteGrams;
   
   const materialCostPerGram = currentMaterial.pricePerGram || (currentMaterial.costPerKg ? Math.round(currentMaterial.costPerKg / 1000 * (currentMaterial.unitPriceMultiplier || 1)) : 850);
@@ -88,7 +90,7 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   // 3. Print Time (Hours) & Electricity Cost
   const layerHeightMm = Number(layerHeight) || 0.2;
   const basePrintHours = Math.max(0.6, (transformedVolume * 3.8) / (layerHeightMm * 100));
-  const toolChangeHours = (toolChangesCount * 1.5) / 60; // 1.5 min per multi-filament swap
+  const toolChangeHours = (toolChangesCount * toolChangeMinutes) / 60;
   const totalPrintHoursPerUnit = Number((basePrintHours + toolChangeHours).toFixed(2));
 
   const averagePowerKW = currentPrinter.powerKW || 0.18;
@@ -379,23 +381,26 @@ export function calculateManualInkiriEstimate(input: ManualCalcInput) {
 /**
  * Generate 3 Customer Packages: Economy, Standard, Express (PRC-007)
  */
-export function generateDeliveryPackages(unitBasePrice: number, quantity: number): DeliveryPackageOption[] {
+export function generateDeliveryPackages(unitBasePrice: number, quantity: number, customPricingConfig?: InkiriCostFormulaConfig): DeliveryPackageOption[] {
   const today = new Date();
+  const cfg = customPricingConfig || DEFAULT_INKIRI_FORMULA_CONFIG;
+  const ecoDiscount = (cfg.economyDiscountPercent ?? 10) / 100;
+  const expRushSurcharge = (cfg.expressRushSurchargePercent ?? 30) / 100;
   
-  // Economy: 5-7 days (Batch optimized printing) - 10% discount
+  // Economy: 5-7 days (Batch optimized printing) - Configurable discount
   const ecoDate = new Date(today);
   ecoDate.setDate(today.getDate() + 6);
-  const ecoUnitPrice = Math.ceil((unitBasePrice * 0.90) / 1000) * 1000;
+  const ecoUnitPrice = Math.ceil((unitBasePrice * (1 - ecoDiscount)) / 1000) * 1000;
 
   // Standard: 3-4 days (Regular factory queue)
   const stdDate = new Date(today);
   stdDate.setDate(today.getDate() + 3);
   const stdUnitPrice = unitBasePrice;
 
-  // Express: 1-2 days (Priority rush queue) + 30% rush fee
+  // Express: 1-2 days (Priority rush queue) + Configurable rush fee
   const expDate = new Date(today);
   expDate.setDate(today.getDate() + 1);
-  const expUnitPrice = Math.ceil((unitBasePrice * 1.30) / 1000) * 1000;
+  const expUnitPrice = Math.ceil((unitBasePrice * (1 + expRushSurcharge)) / 1000) * 1000;
 
   return [
     {

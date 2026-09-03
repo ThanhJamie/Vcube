@@ -17,7 +17,17 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
-        "./*"
+        "./*",
+        "./src/*"
+      ],
+      "@frontend/*": [
+        "./src/frontend/*"
+      ],
+      "@backend/*": [
+        "./src/backend/*"
+      ],
+      "@ai/*": [
+        "./src/ai/*"
       ]
     },
     "allowImportingTsExtensions": true,
