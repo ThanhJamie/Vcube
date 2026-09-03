@@ -253,7 +253,7 @@ export const AdminOrdersPanel: React.FC<AdminOrdersPanelProps> = ({
                 </p>
                 <p className="text-[#545F73]">{selectedOrderDetail.payment.method}</p>
                 <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-tech font-bold bg-emerald-100 text-emerald-800">
-                  {selectedOrderDetail.payment.status === 'paid' ? 'Đã Thanh Toán' : 'Chờ Thanh Toán'}
+                  {selectedOrderDetail.payment.isPaid ? 'Đã Thanh Toán' : 'Chờ Thanh Toán'}
                 </span>
               </div>
             </div>

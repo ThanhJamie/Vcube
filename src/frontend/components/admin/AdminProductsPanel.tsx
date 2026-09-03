@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Product } from '../../types';
+import { Product, ProductStatus } from '../../types';
 import { CATEGORIES } from '../../data/mockData';
 import { useLanguage } from '../../context/LanguageContext';
+import { dbService } from '../../../backend/supabase/database';
 
 interface AdminProductsPanelProps {
   products: Product[];
@@ -257,13 +258,25 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    <span className={`inline-block text-[10px] font-tech font-bold px-2 py-0.5 rounded ${
-                      prod.status === 'Out of Stock'
-                        ? 'bg-rose-100 text-rose-800'
-                        : 'bg-emerald-100 text-emerald-800'
-                    }`}>
-                      {prod.status === 'Out of Stock' ? (isVi ? 'Tạm Ẩn' : 'Hidden') : (isVi ? 'Đang Bán' : 'Active')}
-                    </span>
+                    <select
+                      value={(prod.status || 'published').toLowerCase()}
+                      onChange={(e) => {
+                        const nextStatus = e.target.value as any;
+                        onUpdateProduct({ ...prod, status: nextStatus });
+                        onShowToast(isVi ? `Đã chuyển "${prod.name}" sang ${nextStatus === 'published' ? 'Đang Bán (Published)' : nextStatus === 'draft' ? 'Bản Nháp (Draft)' : 'Lưu Trữ (Archived)'}` : `Updated status to ${nextStatus}`);
+                      }}
+                      className={`text-[11px] font-mono font-bold px-2 py-1 rounded-lg border cursor-pointer focus:outline-none transition-colors ${
+                        (prod.status || 'published').toLowerCase() === 'published'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                          : (prod.status || 'published').toLowerCase() === 'draft'
+                          ? 'bg-amber-50 text-amber-800 border-amber-300'
+                          : 'bg-slate-100 text-slate-700 border-slate-300'
+                      }`}
+                    >
+                      <option value="published">● Published</option>
+                      <option value="draft">◌ Draft</option>
+                      <option value="archived">✖ Archived</option>
+                    </select>
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-1.5">

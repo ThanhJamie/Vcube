@@ -280,7 +280,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="flex items-center gap-2 truncate">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
                 <span className="text-[#94A3B8] text-xs">Đang đăng nhập:</span>
-                <span className="font-bold text-white truncate text-xs">{profile?.displayName || user?.displayName || 'Thành viên'}</span>
+                <span className="font-bold text-white truncate text-xs">{profile?.displayName || user?.user_metadata?.full_name || 'Thành viên'}</span>
                 <span className={`text-[9px] font-tech uppercase px-2 py-0.5 rounded font-bold border ${activeRoleBadge.badgeClass}`}>
                   {currentRole}
                 </span>
@@ -377,7 +377,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
               <p className="text-xs text-rose-800 leading-relaxed">
                 Bạn có chắc chắn muốn đăng xuất khỏi tài khoản{' '}
-                <strong className="font-semibold">{profile?.displayName || user?.displayName || 'hiện tại'}</strong>{' '}
+                <strong className="font-semibold">{profile?.displayName || user?.user_metadata?.full_name || 'hiện tại'}</strong>{' '}
                 ({profile?.email || user?.email})?
               </p>
               <div className="flex items-center gap-2 pt-1">
@@ -422,7 +422,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <div>
                       <div className="flex items-center gap-2">
                         <h4 className="font-bold text-sm text-[#091426]">
-                          {profile?.displayName || user?.displayName || 'Khách Mua Hàng'}
+                          {profile?.displayName || user?.user_metadata?.full_name || 'Khách Mua Hàng'}
                         </h4>
                         <span className={`text-[9px] font-tech uppercase px-2 py-0.5 rounded font-bold border ${activeRoleBadge.badgeClass}`}>
                           {activeRoleBadge.label}

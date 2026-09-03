@@ -107,7 +107,7 @@ export const AdminMachinesPanel: React.FC<AdminMachinesPanelProps> = ({
   };
 
   const handleToggleStatus = (printer: PrinterProfile) => {
-    const nextStatus = printer.status === 'Printing' ? 'Idle' : printer.status === 'Idle' ? 'Maintenance' : 'Printing';
+    const nextStatus: 'Idle' | 'Printing' | 'Maintenance' = printer.status === 'Printing' ? 'Idle' : printer.status === 'Idle' ? 'Maintenance' : 'Printing';
     const updatedList = printers.map(p => p.id === printer.id ? { ...p, status: nextStatus } : p);
     onUpdatePrinters(updatedList);
     onShowToast(isVi ? `Đã chuyển "${printer.name}" sang: ${nextStatus}` : `Set ${printer.name} status to: ${nextStatus}`);
@@ -170,13 +170,13 @@ export const AdminMachinesPanel: React.FC<AdminMachinesPanelProps> = ({
                     className={`px-2.5 py-1 rounded-full text-[10px] font-tech font-bold uppercase cursor-pointer transition-all ${
                       printer.status === 'Printing'
                         ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
-                        : printer.status === 'Idle' || printer.status === 'Ready'
+                        : printer.status === 'Idle'
                         ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                         : 'bg-rose-100 text-rose-900 border border-rose-300'
                     }`}
                     title="Nhấp để chuyển trạng thái nhanh"
                   >
-                    ● {printer.status || 'Ready'}
+                    ● {printer.status || 'Idle'}
                   </button>
                 </div>
 

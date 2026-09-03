@@ -1532,10 +1532,58 @@ export const DMCA_REPORTS: DMCAReport[] = [
 ];
 
 export const DEFAULT_SITE_CONTENT: import('../types').SiteContentConfig = {
-  announcementText: '🇻🇳 ĐẠI LỄ 2/9: Giảm 20% toàn bộ file 3D & Miễn phí vận chuyển toàn quốc cho đơn từ 300.000đ • Báo giá tức thì trong 3s',
+  // Top Announcement / Campaign
+  announcementText: 'Giảm 20% toàn bộ file thiết kế CAD & Miễn phí đo kiểm dung sai ±0.05mm cho các linh kiện gắn tag #2/9.',
   announcementActive: true,
-  heroHeadline: 'CHẾ TÁC & IN 3D CÔNG NGHIỆP CHÍNH XÁC',
-  heroSubheadline: 'Nền tảng sản xuất bồi đắp và chế tác linh kiện cơ khí chính xác theo tiêu chuẩn công nghiệp ISO/ASTM 52900. Dung sai kiểm định ±0.05mm.',
+  announcementBadge: '🇻🇳 ĐẠI LỄ QUỐC KHÁNH 2/9',
+  announcementActionText: 'Xem Sản Phẩm Tag 2/9',
+  announcementActionTag: '2/9',
+
+  // Hero Section
+  heroBadge: 'VCUBE PRECISION ANTHOLOGY // 2026',
+  heroHeadline: 'CHẾ TÁC CƠ KHÍ IN 3D CHÍNH XÁC',
+  heroHeadlineLine1: 'CHẾ TÁC CƠ KHÍ',
+  heroHeadlineHighlight: 'IN 3D CÔNG NGHIỆP CHÍNH XÁC',
+  heroSubheadline: 'Nền tảng sản xuất bồi đắp linh kiện cơ khí, vỏ hộp IoT và khuôn mẫu kỹ thuật số. Kiểm tra hình học mesh tự động, nhận báo giá tức thì trong 3 giây với dung sai đo kiểm dưới ±0.05mm.',
+  heroCtaQuoteText: 'Báo Giá File 3D Tức Thì',
+  heroCtaCatalogText: 'Khám Phá Kho Mẫu CAD',
+  heroMetric1Label: 'Dung Sai Đo Kiểm',
+  heroMetric1Value: '±0.05 MM',
+  heroMetric2Label: 'Thời Gian Bàn Giao',
+  heroMetric2Value: 'GIAO HÀNG 24H',
+  heroMetric3Label: 'Tiêu Chuẩn Sản Xuất',
+  heroMetric3Value: 'ISO/ASTM 52900',
+
+  // 3-Step Workshop Workflow
+  workflowBadge: 'CHRONICLE // QUY TRÌNH XƯỞNG',
+  workflowTitle: 'Quy Trình Gia Công 3 Bước Chuẩn Xác',
+  workflowStep1Title: 'Tải Lên & Khảo Sát Mesh STL',
+  workflowStep1Desc: 'Thuật toán quét hình học VCUBE kiểm tra cấu trúc watertight, định vị góc overhanging và tính toán thể tích vật liệu trong 3 giây.',
+  workflowStep2Title: 'Cắt Lớp & In Nhiệt Chuẩn Xác',
+  workflowStep2Desc: 'Gia công trên hệ thống máy Bambu Lab X1C & Formlabs Form 4 với sợi carbon PETG-CF và nhựa Resin kỹ thuật độ chính xác cao.',
+  workflowStep3Title: 'Kiểm Định QC & Bàn Giao',
+  workflowStep3Desc: 'Đo kiểm quang học và thước kẹp Mitutoyo xác thực dung sai ±0.05mm, đóng gói chống sốc và giao hàng toàn quốc.',
+
+  // Live Fast Estimator
+  estimatorBadge: 'VCUBE FAST ESTIMATOR // LIVE QUOTE',
+  estimatorTitle: 'Mô Phỏng & Ước Tính Chi Phí In 3D Trực Tiếp',
+  estimatorSubtitle: 'Chọn vật liệu kỹ thuật, độ đặc infill và kích cỡ mẫu để mô phỏng tức thì chi phí gia công theo bảng giá xưởng VCUBE.',
+  estimatorBenefit1: 'Tự động tính toán theo tỉ trọng vật liệu g/cm³ chuẩn xác',
+  estimatorBenefit2: 'Miễn phí gọt support & rửa cồn siêu âm xử lý bề mặt UV',
+  estimatorCtaText: 'Tải File STL Lên Để Báo Giá Chi Tiết →',
+
+  // Trust Partners & R&D Labs
+  trustPartnersTitle: 'Được Tin Cậy Bởi Các Đơn Vị R&D & Xưởng Cơ Khí',
+  trustPartnersList: [
+    'BK ROBOTICS LAB',
+    'FPT HI-TECH INNOVATION',
+    'VNU AEROSPACE LAB',
+    'VIET-CNC AUTOMATION',
+    'ISO 9001:2015 CERTIFIED',
+    'BAMBU LAB FLEET 24X'
+  ],
+
+  // Facilities, Specifications & Shipping
   toleranceSpec: '±0.05mm (Mitutoyo Calibrated)',
   standardShippingFee: 25000,
   freeShippingThreshold: 300000,

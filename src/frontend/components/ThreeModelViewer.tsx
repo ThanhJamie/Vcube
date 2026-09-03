@@ -31,6 +31,12 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const meshGroupRef = useRef<THREE.Group | null>(null);
   const clipPlaneRef = useRef<THREE.Plane | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const [activeAngle, setActiveAngle] = useState<'iso' | 'top' | 'front' | 'side'>('iso');
+
+  useEffect(() => {
+    setWireframe(initialWireframe);
+  }, [initialWireframe]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -51,6 +57,7 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.set(45, 35, 45);
     camera.lookAt(0, 5, 0);
+    cameraRef.current = camera;
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -369,6 +376,26 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
     }
   };
 
+  const setCameraAngle = (angle: 'iso' | 'top' | 'front' | 'side') => {
+    setActiveAngle(angle);
+    setIsRotating(false);
+    if (!cameraRef.current || !meshGroupRef.current) return;
+    meshGroupRef.current.rotation.set(0, 0, 0);
+    if (angle === 'iso') {
+      cameraRef.current.position.set(45, 35, 45);
+      cameraRef.current.lookAt(0, 5, 0);
+    } else if (angle === 'top') {
+      cameraRef.current.position.set(0, 65, 0.001);
+      cameraRef.current.lookAt(0, 0, 0);
+    } else if (angle === 'front') {
+      cameraRef.current.position.set(0, 10, 60);
+      cameraRef.current.lookAt(0, 10, 0);
+    } else if (angle === 'side') {
+      cameraRef.current.position.set(60, 10, 0);
+      cameraRef.current.lookAt(0, 10, 0);
+    }
+  };
+
   return (
     <div className={`relative bg-[#091426] rounded-xl overflow-hidden border border-[#1e293b] flex flex-col ${className}`}>
       {/* 3D Canvas container */}
@@ -383,24 +410,40 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
       </div>
 
       <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-[#0b1c30]/80 backdrop-blur-md p-1.5 rounded-lg border border-[#334155]/60">
+        {/* Camera Orientation Presets */}
+        <div className="hidden sm:flex items-center gap-0.5 bg-[#0f172a] p-0.5 rounded border border-[#334155]/40 mr-1 text-[9px] font-mono">
+          {(['iso', 'top', 'front', 'side'] as const).map((ang) => (
+            <button
+              key={ang}
+              onClick={() => setCameraAngle(ang)}
+              className={`px-1.5 py-0.5 rounded uppercase font-bold transition-colors cursor-pointer ${
+                activeAngle === ang ? 'bg-[#00687a] text-white' : 'text-slate-400 hover:text-white'
+              }`}
+              title={`Góc nhìn ${ang.toUpperCase()}`}
+            >
+              {ang}
+            </button>
+          ))}
+        </div>
+
         <button
           onClick={() => setIsRotating(!isRotating)}
           title={isRotating ? 'Dừng xoay tự động' : 'Bật xoay tự động'}
-          className={`p-1.5 rounded hover:bg-[#1e293b] transition-colors ${isRotating ? 'text-cyan-400' : 'text-slate-400'}`}
+          className={`p-1.5 rounded hover:bg-[#1e293b] transition-colors cursor-pointer ${isRotating ? 'text-cyan-400' : 'text-slate-400'}`}
         >
           <span className="material-symbols-outlined text-lg">360</span>
         </button>
         <button
           onClick={() => setWireframe(!wireframe)}
           title={wireframe ? 'Chế độ Đặc (Solid)' : 'Chế độ Khung dây (Wireframe)'}
-          className={`p-1.5 rounded hover:bg-[#1e293b] transition-colors ${wireframe ? 'text-cyan-400' : 'text-slate-400'}`}
+          className={`p-1.5 rounded hover:bg-[#1e293b] transition-colors cursor-pointer ${wireframe ? 'text-cyan-400' : 'text-slate-400'}`}
         >
           <span className="material-symbols-outlined text-lg">grid_4x4</span>
         </button>
         <button
           onClick={resetView}
           title="Đặt lại góc nhìn chuẩn"
-          className="p-1.5 rounded hover:bg-[#1e293b] text-slate-400 hover:text-white transition-colors"
+          className="p-1.5 rounded hover:bg-[#1e293b] text-slate-400 hover:text-white transition-colors cursor-pointer"
         >
           <span className="material-symbols-outlined text-lg">center_focus_strong</span>
         </button>

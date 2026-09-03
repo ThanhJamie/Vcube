@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../types';
-import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_INKIRI_FORMULA_CONFIG } from '../data/mockData';
+import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, SiteContentConfig } from '../types';
+import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_INKIRI_FORMULA_CONFIG, DEFAULT_SITE_CONTENT } from '../data/mockData';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { useLanguage } from '../context/LanguageContext';
@@ -10,6 +10,7 @@ interface HomeViewProps {
   products: Product[];
   materials?: MaterialProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
+  siteContent?: SiteContentConfig;
   onAddToCart?: (item: CartItem) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onSelectProduct: (product: Product) => void;
@@ -20,6 +21,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   products,
   materials = MATERIALS_CATALOG,
   pricingConfig = DEFAULT_INKIRI_FORMULA_CONFIG,
+  siteContent,
   onAddToCart,
   onNavigate,
   onSelectProduct,
@@ -30,6 +32,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const isVi = language === 'vi';
   const materialsList = materials && materials.length > 0 ? materials : MATERIALS_CATALOG;
   const activeConfig = pricingConfig || DEFAULT_INKIRI_FORMULA_CONFIG;
+  const activeContent = siteContent || DEFAULT_SITE_CONTENT;
 
   // Active Model in Hero
   const [heroModel, setHeroModel] = useState<'gear' | 'drone' | 'box'>('gear');
@@ -174,86 +177,90 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   };
 
-  return (
-    <div className="min-h-screen flex flex-col bg-[#F7F6F2] text-[#1C1C1C]">
-      {/* 1. Special 2/9 Event Campaign Banner */}
-      <section className="bg-gradient-to-r from-[#990000] via-[#C00000] to-[#800000] text-white py-3 sm:py-3.5 px-4 sm:px-6 md:px-12 border-b border-black/20 shadow-md">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-center md:text-left">
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-            <span className="bg-[#FFD700] text-[#990000] text-[10px] font-tech font-extrabold uppercase px-2.5 py-0.5 rounded shadow-xs tracking-wider shrink-0 flex items-center gap-1">
-              <span className="material-symbols-outlined text-xs">celebration</span>
-              {t('campaign29Badge', '🇻🇳 ĐẠI LỄ QUỐC KHÁNH 2/9', '🇻🇳 NATIONAL DAY 2/9')}
-            </span>
-            <p className="text-xs sm:text-sm font-sans font-medium text-white/95 leading-snug">
-              {isVi 
-                ? 'Giảm 20% toàn bộ file thiết kế CAD & Miễn phí đo kiểm dung sai ±0.05mm cho các linh kiện gắn tag #2/9.'
-                : '20% OFF all CAD engineering files & Free ±0.05mm metrology validation for items tagged #2/9.'}
-            </p>
-          </div>
+  const partnersList = activeContent.trustPartnersList && activeContent.trustPartnersList.length > 0
+    ? activeContent.trustPartnersList
+    : (DEFAULT_SITE_CONTENT.trustPartnersList || ['BK ROBOTICS LAB', 'FPT HI-TECH INNOVATION', 'VNU AEROSPACE LAB', 'VIET-CNC AUTOMATION', 'ISO 9001:2015 CERTIFIED', 'BAMBU LAB FLEET 24X']);
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => {
-                if (!isLoggedIn) {
-                  onNavigate('login');
-                  return;
-                }
-                setSelectedTag('2/9');
-                const el = document.getElementById('browse-cad-catalog');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="px-4 py-1.5 bg-[#FFD700] hover:bg-[#FFE44D] text-[#990000] font-sans font-bold text-[11px] uppercase tracking-wider rounded transition-all shadow-sm flex items-center gap-1.5 cursor-pointer touch-target-btn"
-            >
-              <span>{t('explore29TagBtn', 'Xem Sản Phẩm Tag 2/9', 'Browse 2/9 Tag Models')}</span>
-              <span className="material-symbols-outlined text-sm">arrow_downward</span>
-            </button>
+  return (
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#091426] font-sans relative selection:bg-[#00687A] selection:text-white">
+      {/* Background Ambient Glowing Radiance (Aligned with Login & Register) */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 opacity-70">
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#DCE9FF]/60 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-[#57DFFE]/15 rounded-full blur-3xl" />
+        <div className="absolute bottom-10 left-1/4 w-[400px] h-[400px] bg-[#DCE9FF]/40 rounded-full blur-3xl" />
+      </div>
+
+      {/* 1. Dynamic Top Campaign Banner */}
+      {activeContent.announcementActive && (
+        <section className="bg-gradient-to-r from-[#091426] via-[#11233B] to-[#091426] text-white py-2.5 sm:py-3 px-4 sm:px-6 md:px-12 border-b border-[#CBD5E1]/30 shadow-xs">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 text-center md:text-left">
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+              <span className="bg-[#00687A] text-white text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-md shadow-xs tracking-wider shrink-0 flex items-center gap-1.5 border border-[#57DFFE]/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#57DFFE] animate-ping" />
+                {activeContent.announcementBadge || '🇻🇳 ĐẠI LỄ QUỐC KHÁNH 2/9'}
+              </span>
+              <p className="text-xs sm:text-sm font-medium text-slate-200 leading-snug">
+                {activeContent.announcementText}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  if (!isLoggedIn) {
+                    onNavigate('login');
+                    return;
+                  }
+                  if (activeContent.announcementActionTag) {
+                    setSelectedTag(activeContent.announcementActionTag);
+                  }
+                  const el = document.getElementById('browse-cad-catalog');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="px-3.5 py-1.5 bg-gradient-to-r from-[#00687A] to-[#0E7490] hover:from-[#005260] hover:to-[#085F75] text-white font-bold text-[11px] uppercase tracking-wider rounded-lg transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>{activeContent.announcementActionText || 'Xem Sản Phẩm Tag 2/9'}</span>
+                <span className="material-symbols-outlined text-sm">arrow_downward</span>
+              </button>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 2. Hero Section with Interactive 3D Model Switcher */}
-      <section className="relative overflow-hidden py-8 sm:py-12 lg:py-16 border-b border-black/10 px-4 sm:px-6 md:px-12 bg-[#F7F6F2]">
+      <section className="relative overflow-hidden py-10 sm:py-16 lg:py-20 px-4 sm:px-6 md:px-12">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Left Content Column */}
-            <div className="lg:col-span-7 flex flex-col justify-center">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-white border border-black/10 rounded-xs text-[10px] uppercase font-tech tracking-[0.2em] text-[#00687A] font-bold mb-4 w-fit shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00687A] animate-pulse"></span>
-                <span>VCUBE PRECISION ANTHOLOGY // 2026</span>
+            <div className="lg:col-span-7 flex flex-col justify-center space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-[#CBD5E1] rounded-lg text-[10px] uppercase font-mono tracking-[0.2em] text-[#00687A] font-bold w-fit shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-[#00687A] animate-pulse" />
+                <span>{activeContent.heroBadge || 'VCUBE PRECISION ANTHOLOGY // 2026'}</span>
               </div>
 
-              <h1 className="fluid-hero-heading mb-4 text-[#1C1C1C] leading-[1.08] tracking-tight">
-                {isVi ? (
-                  <>
-                    CHẾ TÁC CƠ KHÍ<br />
-                    <span className="text-[#00687A]">IN 3D CHÍNH XÁC</span>
-                  </>
-                ) : (
-                  <>
-                    INDUSTRIAL<br />
-                    <span className="text-[#00687A]">3D FABRICATION</span>
-                  </>
-                )}
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-[#091426] tracking-tight leading-[1.12]">
+                {activeContent.heroHeadlineLine1 || 'CHẾ TÁC CƠ KHÍ'}
+                <br />
+                <span className="text-[#00687A] bg-gradient-to-r from-[#00687A] to-[#0E7490] bg-clip-text text-transparent">
+                  {activeContent.heroHeadlineHighlight || 'IN 3D CÔNG NGHIỆP CHÍNH XÁC'}
+                </span>
               </h1>
 
               <div className="flex gap-4 sm:gap-6 items-start max-w-xl">
-                <div className="w-8 sm:w-12 h-[2px] bg-[#00687A] mt-2.5 sm:mt-3 flex-shrink-0"></div>
-                <p className="text-sm sm:text-base lg:text-lg leading-relaxed text-[#1C1C1C]/80 font-serif">
-                  {t('heroDescription', 
-                    'Nền tảng sản xuất bồi đắp linh kiện cơ khí, vỏ hộp IoT và khuôn mẫu kỹ thuật số. Kiểm tra hình học mesh tự động, nhận báo giá tức thì trong 3 giây với dung sai đo kiểm dưới ±0.05mm.',
-                    'Additive manufacturing for mechanical components, IoT enclosures, and digital tooling. Automated mesh inspection and instant quoting in 3 seconds with tolerance under ±0.05mm.'
-                  )}
+                <div className="w-1.5 h-14 bg-gradient-to-b from-[#00687A] to-[#57DFFE] rounded-full flex-shrink-0 mt-1" />
+                <p className="text-sm sm:text-base text-[#475569] leading-relaxed font-sans font-normal">
+                  {activeContent.heroSubheadline}
                 </p>
               </div>
 
               {/* Main CTAs */}
-              <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center">
+              <div className="pt-2 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center">
                 <button
                   onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}
-                  className="bg-[#00687A] hover:bg-[#005463] text-white px-6 sm:px-8 py-3.5 sm:py-4 font-sans text-xs uppercase tracking-widest font-bold transition-all shadow-md flex items-center justify-center gap-2 touch-target-btn cursor-pointer rounded"
+                  className="h-12 px-7 rounded-xl bg-gradient-to-r from-[#00687A] to-[#0E7490] hover:from-[#005260] hover:to-[#085F75] text-white text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-lg shadow-[#00687A]/25 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-base">upload_file</span>
-                  {t('btnInstantQuote', 'Báo Giá File 3D Tức Thì', 'Instant 3D File Quote')}
+                  <span className="material-symbols-outlined text-lg">upload_file</span>
+                  <span>{activeContent.heroCtaQuoteText || 'Báo Giá File 3D Tức Thì'}</span>
                 </button>
 
                 <button
@@ -265,67 +272,83 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     const el = document.getElementById('browse-cad-catalog');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="bg-white border border-black/20 hover:border-black/40 hover:bg-[#F1F5F9] px-6 sm:px-8 py-3.5 sm:py-4 font-sans text-xs uppercase tracking-widest font-bold transition-colors text-[#1C1C1C] flex items-center justify-center gap-2 touch-target-btn cursor-pointer rounded"
+                  className="h-12 px-7 rounded-xl bg-white hover:bg-slate-50 border border-[#CBD5E1] hover:border-[#00687A] text-[#091426] text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-base">view_in_ar</span>
-                  {t('btnExploreCatalog', 'Khám Phá Kho Mẫu CAD', 'Browse CAD Catalog')}
+                  <span className="material-symbols-outlined text-lg text-[#00687A]">view_in_ar</span>
+                  <span>{activeContent.heroCtaCatalogText || 'Khám Phá Kho Mẫu CAD'}</span>
                 </button>
               </div>
 
-              {/* Editorial Metadata Strip */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-6 pt-6 sm:pt-8 mt-6 sm:mt-8 border-t border-black/10 font-sans text-[10px] uppercase tracking-wider text-[#7D7565]">
-                <div className="bg-white/70 p-2.5 rounded border border-black/5">
-                  <span className="block opacity-70 text-[9px] mb-0.5">{t('statTolerance', 'Dung Sai', 'Tolerance')}</span>
-                  <span className="font-tech text-xs sm:text-sm font-bold text-[#00687A]">{t('statToleranceVal', '±0.05 MM', '±0.05 MM')}</span>
+              {/* 3 Technical Quality Spec Metrics Cards */}
+              <div className="grid grid-cols-3 gap-3 pt-6 border-t border-[#CBD5E1] text-xs">
+                <div className="bg-white p-3.5 rounded-xl border border-[#CBD5E1] shadow-xs">
+                  <span className="block text-[10px] text-[#64748B] font-medium mb-0.5">
+                    {activeContent.heroMetric1Label || 'Dung Sai Đo Kiểm'}
+                  </span>
+                  <span className="font-mono text-sm sm:text-base font-extrabold text-[#00687A]">
+                    {activeContent.heroMetric1Value || '±0.05 MM'}
+                  </span>
                 </div>
-                <div className="bg-white/70 p-2.5 rounded border border-black/5">
-                  <span className="block opacity-70 text-[9px] mb-0.5">{t('statLeadTime', 'Thời Gian Giao', 'Lead Time')}</span>
-                  <span className="font-tech text-xs sm:text-sm font-bold text-[#1C1C1C]">{t('statLeadTimeVal', 'GIAO HÀNG 24H', '24H DISPATCH')}</span>
+
+                <div className="bg-white p-3.5 rounded-xl border border-[#CBD5E1] shadow-xs">
+                  <span className="block text-[10px] text-[#64748B] font-medium mb-0.5">
+                    {activeContent.heroMetric2Label || 'Thời Gian Bàn Giao'}
+                  </span>
+                  <span className="font-mono text-sm sm:text-base font-extrabold text-[#091426]">
+                    {activeContent.heroMetric2Value || 'GIAO HÀNG 24H'}
+                  </span>
                 </div>
-                <div className="bg-white/70 p-2.5 rounded border border-black/5">
-                  <span className="block opacity-70 text-[9px] mb-0.5">{t('statStandard', 'Tiêu Chuẩn', 'Standard')}</span>
-                  <span className="font-tech text-xs sm:text-sm font-bold text-[#1C1C1C]">{t('statStandardVal', 'ISO/ASTM 52900', 'ISO/ASTM 52900')}</span>
+
+                <div className="bg-white p-3.5 rounded-xl border border-[#CBD5E1] shadow-xs">
+                  <span className="block text-[10px] text-[#64748B] font-medium mb-0.5">
+                    {activeContent.heroMetric3Label || 'Tiêu Chuẩn Sản Xuất'}
+                  </span>
+                  <span className="font-mono text-sm sm:text-base font-extrabold text-[#091426]">
+                    {activeContent.heroMetric3Value || 'ISO/ASTM 52900'}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Right: Interactive 3D Showcase with Switcher */}
+            {/* Right: Interactive 3D Showcase with Modern Chassis */}
             <div className="lg:col-span-5 relative flex flex-col items-center justify-center pt-2 lg:pt-0">
-              {/* Main 3D Canvas Box */}
-              <div className="w-full responsive-aspect-hero bg-[#091426] shadow-2xl relative flex flex-col justify-between p-4 overflow-hidden rounded-md border border-white/10">
+              <div className="w-full bg-[#091426] shadow-2xl relative flex flex-col justify-between p-5 overflow-hidden rounded-2xl border border-slate-800">
                 {/* Top header on 3D Box */}
-                <div className="w-full flex items-center justify-between z-10 text-white/70 font-sans text-[10px] uppercase tracking-wider">
-                  <span className="font-tech text-[#57DFFE] font-bold">PLATE // 01</span>
-                  <div className="flex items-center gap-1 bg-black/40 p-1 rounded">
+                <div className="w-full flex items-center justify-between z-10 text-white/70 font-mono text-[10px] uppercase tracking-wider">
+                  <span className="font-bold text-[#57DFFE] flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#57DFFE] animate-pulse" />
+                    CHASSIS // 3D VIEWER
+                  </span>
+                  <div className="flex items-center gap-1 bg-black/40 p-1 rounded-lg border border-white/10">
                     <button
                       onClick={() => setHeroModel('gear')}
-                      className={`px-2 py-0.5 text-[9px] rounded font-tech font-bold transition-all ${
-                        heroModel === 'gear' ? 'bg-[#00687A] text-white' : 'text-white/60 hover:text-white'
+                      className={`px-2.5 py-1 text-[10px] rounded-md font-mono font-bold transition-all cursor-pointer ${
+                        heroModel === 'gear' ? 'bg-[#00687A] text-white shadow-xs' : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      Gear
+                      Bánh Răng
                     </button>
                     <button
                       onClick={() => setHeroModel('drone')}
-                      className={`px-2 py-0.5 text-[9px] rounded font-tech font-bold transition-all ${
-                        heroModel === 'drone' ? 'bg-[#00687A] text-white' : 'text-white/60 hover:text-white'
+                      className={`px-2.5 py-1 text-[10px] rounded-md font-mono font-bold transition-all cursor-pointer ${
+                        heroModel === 'drone' ? 'bg-[#00687A] text-white shadow-xs' : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      Drone
+                      Khung Drone
                     </button>
                     <button
                       onClick={() => setHeroModel('box')}
-                      className={`px-2 py-0.5 text-[9px] rounded font-tech font-bold transition-all ${
-                        heroModel === 'box' ? 'bg-[#00687A] text-white' : 'text-white/60 hover:text-white'
+                      className={`px-2.5 py-1 text-[10px] rounded-md font-mono font-bold transition-all cursor-pointer ${
+                        heroModel === 'box' ? 'bg-[#00687A] text-white shadow-xs' : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      IoT Case
+                      Vỏ Hộp IoT
                     </button>
                   </div>
                 </div>
 
                 {/* 3D Canvas Viewer */}
-                <div className="flex-1 w-full h-full relative my-2 min-h-[240px]">
+                <div className="w-full h-[280px] sm:h-[320px] relative my-3">
                   <ThreeModelViewer
                     modelType={heroModel}
                     color={heroModel === 'gear' ? '#00687a' : heroModel === 'drone' ? '#38bdf8' : '#e2e8f0'}
@@ -334,29 +357,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 {/* Bottom Footer on 3D Box */}
-                <div className="w-full flex items-end justify-between z-10 pt-2 border-t border-white/10">
-                  <span className="font-tech text-[10px] text-[#57DFFE] flex items-center gap-1">
-                    <span className="material-symbols-outlined text-xs animate-spin">360</span>
-                    360° INTERACTIVE MESH
+                <div className="w-full flex items-center justify-between z-10 pt-3 border-t border-white/10">
+                  <span className="font-mono text-[10px] text-[#57DFFE] flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm animate-spin">360</span>
+                    XOAY 3D 360° TƯƠNG TÁC
                   </span>
                   <div className="text-right">
-                    <span className="block font-sans text-[8px] text-white/50 uppercase tracking-widest">Facility</span>
-                    <span className="block text-white text-xs font-serif italic">Hoa Lac Hi-Tech Farm, Hanoi</span>
+                    <span className="block font-mono text-[9px] text-slate-400 uppercase tracking-widest">
+                      {activeContent.hanoiWorkshopAddress.split(':')[0] || 'XƯỞNG VCUBE'}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Floating Metrology QC Note */}
-              <div className="hidden sm:flex absolute -bottom-5 -left-4 bg-white p-3.5 shadow-xl border border-black/10 max-w-[260px] z-20 rounded gap-3 items-center">
-                <div className="w-8 h-8 rounded-full bg-[#E5EEFF] text-[#00687A] flex items-center justify-center font-bold shrink-0">
-                  <span className="material-symbols-outlined text-base">verified</span>
+              <div className="hidden sm:flex absolute -bottom-5 -left-4 bg-white p-3.5 shadow-xl border border-[#CBD5E1] max-w-[280px] z-20 rounded-2xl gap-3 items-center">
+                <div className="w-9 h-9 rounded-xl bg-[#00687A]/10 text-[#00687A] flex items-center justify-center font-bold shrink-0 border border-[#00687A]/20">
+                  <span className="material-symbols-outlined text-lg">verified</span>
                 </div>
                 <div>
-                  <span className="font-sans text-[9px] uppercase tracking-widest text-[#7D7565] block font-bold">
-                    {isVi ? 'Kiểm định quang học' : 'Optical Metrology'}
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-[#64748B] block font-bold">
+                    QUANG HỌC MITUTOYO
                   </span>
-                  <p className="text-[11px] leading-tight font-serif text-[#1C1C1C]">
-                    {isVi ? 'Dung sai ±0.05mm xác thực bởi thước Mitutoyo' : '±0.05mm validated by Mitutoyo calibrated gauges'}
+                  <p className="text-[11px] font-medium text-[#091426] leading-tight">
+                    {activeContent.toleranceSpec || 'Dung sai ±0.05mm xác thực bởi thước kẹp điện tử'}
                   </p>
                 </div>
               </div>
@@ -509,7 +533,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
 
             {/* Quick Engineering Tag Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
               <span className="text-[10px] font-tech font-bold uppercase text-[#7D7565] shrink-0 flex items-center gap-1">
                 <span className="material-symbols-outlined text-xs text-[#00687A]">sell</span>
                 {isVi ? 'Tag nhanh:' : 'Tags:'}
@@ -845,157 +869,156 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </section>
 
       {/* 4. Live 3D Quoting Cost Simulator Widget */}
-      <section className="py-12 sm:py-16 bg-[#091426] text-white border-b border-black/20 px-4 sm:px-6 md:px-12">
+      <section className="py-14 sm:py-20 px-4 sm:px-6 md:px-12">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-            {/* Left: Info & Values */}
-            <div className="lg:col-span-5 space-y-4">
-              <span className="font-tech text-[10px] uppercase tracking-[0.25em] text-[#57DFFE] font-bold block">
-                VCUBE FAST ESTIMATOR // LIVE QUOTE
-              </span>
-              <h2 className="fluid-h2 text-white">
-                {t('calcTitle', 'Mô Phỏng & Ước Tính Chi Phí In 3D Trực Tiếp', 'Live 3D Print Cost Simulator')}
-              </h2>
-              <p className="text-xs sm:text-sm text-[#BCC7DE] font-serif leading-relaxed">
-                {t('calcSubtitle', 
-                  'Chọn vật liệu kỹ thuật, độ đặc infill và kích cỡ mẫu để mô phỏng tức thì chi phí gia công theo bảng giá xưởng VCUBE.',
-                  'Select engineering materials, infill density, and part dimensions for real-time cost estimation.'
-                )}
-              </p>
+          <div className="bg-[#091426] text-white rounded-3xl p-6 sm:p-10 lg:p-12 shadow-2xl border border-slate-800">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              {/* Left: Info & Values */}
+              <div className="lg:col-span-5 space-y-4">
+                <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[#57DFFE] font-bold block">
+                  {activeContent.estimatorBadge || 'VCUBE FAST ESTIMATOR // LIVE QUOTE'}
+                </span>
+                <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+                  {activeContent.estimatorTitle || 'Mô Phỏng & Ước Tính Chi Phí In 3D Trực Tiếp'}
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+                  {activeContent.estimatorSubtitle || 'Chọn vật liệu kỹ thuật, độ đặc infill và kích cỡ mẫu để mô phỏng tức thì chi phí gia công theo bảng giá xưởng VCUBE.'}
+                </p>
 
-              <div className="pt-2 space-y-2 text-xs text-[#8590A6] font-sans">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#57DFFE] text-sm">check_circle</span>
-                  <span>{isVi ? 'Tự động tính toán theo tỉ trọng vật liệu g/cm³' : 'Automated density calculation based on g/cm³'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#57DFFE] text-sm">check_circle</span>
-                  <span>{isVi ? 'Miễn phí gọt support & rửa cồn siêu âm UV' : 'Free support removal & ultrasonic UV curing'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Interactive Controls & Instant Price Display Card */}
-            <div className="lg:col-span-7 bg-white text-[#1C1C1C] p-6 sm:p-8 rounded-xl shadow-xl border border-white/20">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
-                {/* Material Selection */}
-                <div>
-                  <label className="text-[10px] font-sans uppercase font-bold text-[#545F73] block mb-2">
-                    {t('calcMaterial', 'Loại vật liệu:', 'Material:')}
-                  </label>
-                  <select
-                    value={calcMaterialId}
-                    onChange={(e) => setCalcMaterialId(e.target.value)}
-                    className="w-full bg-[#F8FAFC] border border-black/15 p-2.5 text-xs text-[#1C1C1C] font-bold rounded-lg focus:outline-none focus:border-[#00687A] cursor-pointer"
-                  >
-                    {MATERIALS_CATALOG.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.strength})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[10px] text-[#7D7565] mt-1 italic">
-                    {activeMaterial.desc}
-                  </p>
-                </div>
-
-                {/* Part Scale Selector */}
-                <div>
-                  <label className="text-[10px] font-sans uppercase font-bold text-[#545F73] block mb-2">
-                    {isVi ? 'Kích thước linh kiện:' : 'Part scale:'}
-                  </label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(['small', 'medium', 'large'] as const).map((sz) => (
-                      <button
-                        key={sz}
-                        type="button"
-                        onClick={() => setCalcPartSize(sz)}
-                        className={`py-2 text-xs font-bold rounded-lg transition-all uppercase cursor-pointer ${
-                          calcPartSize === sz
-                            ? 'bg-[#00687A] text-white shadow-xs'
-                            : 'bg-[#F1F5F9] text-[#545F73] hover:bg-[#E2E8F0]'
-                        }`}
-                      >
-                        {sz === 'small' ? (isVi ? 'Nhỏ (<5cm)' : 'Small') : sz === 'medium' ? (isVi ? 'Vừa (<10cm)' : 'Medium') : (isVi ? 'Lớn (<20cm)' : 'Large')}
-                      </button>
-                    ))}
+                <div className="pt-2 space-y-2.5 text-xs text-slate-300 font-sans">
+                  <div className="flex items-center gap-2.5">
+                    <span className="material-symbols-outlined text-[#57DFFE] text-base">check_circle</span>
+                    <span>{activeContent.estimatorBenefit1 || 'Tự động tính toán theo tỉ trọng vật liệu g/cm³ chuẩn xác'}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="material-symbols-outlined text-[#57DFFE] text-base">check_circle</span>
+                    <span>{activeContent.estimatorBenefit2 || 'Miễn phí gọt support & rửa cồn siêu âm xử lý bề mặt UV'}</span>
                   </div>
                 </div>
+              </div>
 
-                {/* Infill Slider */}
-                <div className="sm:col-span-2">
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="text-[10px] font-sans uppercase font-bold text-[#545F73]">
-                      {t('calcInfill', 'Độ đặc Infill:', 'Infill Density:')}
+              {/* Right: Interactive Controls & Instant Price Display Card */}
+              <div className="lg:col-span-7 bg-white text-[#091426] p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+                  {/* Material Selection */}
+                  <div>
+                    <label className="text-[10px] font-mono uppercase font-bold text-[#64748B] block mb-2">
+                      {t('calcMaterial', 'Loại vật liệu:', 'Material:')}
                     </label>
-                    <span className="font-tech font-bold text-xs text-[#00687A]">{calcInfill}%</span>
+                    <select
+                      value={calcMaterialId}
+                      onChange={(e) => setCalcMaterialId(e.target.value)}
+                      className="w-full bg-[#F8FAFC] border border-[#CBD5E1] p-2.5 text-xs text-[#091426] font-bold rounded-xl focus:outline-none focus:border-[#00687A] cursor-pointer"
+                    >
+                      {MATERIALS_CATALOG.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.strength})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-[#64748B] mt-1 italic">
+                      {activeMaterial.desc}
+                    </p>
                   </div>
-                  <input
-                    type="range"
-                    min="15"
-                    max="100"
-                    step="5"
-                    value={calcInfill}
-                    onChange={(e) => setCalcInfill(Number(e.target.value))}
-                    className="w-full accent-[#00687A] cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[9px] font-tech text-[#7D7565] mt-0.5">
-                    <span>15% (Trưng bày/Vỏ)</span>
-                    <span>50% (Cơ khí chịu lực)</span>
-                    <span>100% (Đặc hoàn toàn)</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Dynamic Live Estimation Result Strip */}
-              <div className="bg-[#F8FAFC] border border-[#CBD5E1] p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 text-center sm:text-left w-full sm:w-auto">
+                  {/* Part Scale Selector */}
                   <div>
-                    <span className="text-[10px] text-[#7D7565] uppercase block">{t('calcEstWeight', 'Trọng lượng:', 'Weight:')}</span>
-                    <span className="font-tech text-sm font-bold text-[#1C1C1C]">~{estimatedGrams}g</span>
+                    <label className="text-[10px] font-mono uppercase font-bold text-[#64748B] block mb-2">
+                      {isVi ? 'Kích thước linh kiện:' : 'Part scale:'}
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(['small', 'medium', 'large'] as const).map((sz) => (
+                        <button
+                          key={sz}
+                          type="button"
+                          onClick={() => setCalcPartSize(sz)}
+                          className={`py-2 text-xs font-bold rounded-xl transition-all uppercase cursor-pointer ${
+                            calcPartSize === sz
+                              ? 'bg-[#00687A] text-white shadow-xs'
+                              : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+                          }`}
+                        >
+                          {sz === 'small' ? (isVi ? 'Nhỏ (<5cm)' : 'Small') : sz === 'medium' ? (isVi ? 'Vừa (<10cm)' : 'Medium') : (isVi ? 'Lớn (<20cm)' : 'Large')}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-[#7D7565] uppercase block">{t('calcEstTime', 'Thời gian in:', 'Print time:')}</span>
-                    <span className="font-tech text-sm font-bold text-[#1C1C1C]">~{estimatedHours}h</span>
+
+                  {/* Infill Slider */}
+                  <div className="sm:col-span-2">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-mono uppercase font-bold text-[#64748B]">
+                        {t('calcInfill', 'Độ đặc Infill:', 'Infill Density:')}
+                      </label>
+                      <span className="font-mono font-bold text-xs text-[#00687A]">{calcInfill}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="15"
+                      max="100"
+                      step="5"
+                      value={calcInfill}
+                      onChange={(e) => setCalcInfill(Number(e.target.value))}
+                      className="w-full accent-[#00687A] cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[9px] font-mono text-[#64748B] mt-0.5">
+                      <span>15% (Trưng bày/Vỏ)</span>
+                      <span>50% (Cơ khí chịu lực)</span>
+                      <span>100% (Đặc hoàn toàn)</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="text-center sm:text-right w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-black/10">
-                  <span className="text-[10px] text-[#7D7565] uppercase block">{t('calcEstPrice', 'Chi phí ước tính:', 'Estimated cost:')}</span>
-                  <span className="font-tech text-xl font-bold text-[#00687A]">
-                    {estimatedPrice.toLocaleString(isVi ? 'vi-VN' : 'en-US')} đ
-                  </span>
+                {/* Dynamic Live Estimation Result Strip */}
+                <div className="bg-[#F8FAFC] border border-[#CBD5E1] p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                  <div className="grid grid-cols-2 gap-4 text-center sm:text-left w-full sm:w-auto">
+                    <div>
+                      <span className="text-[10px] text-[#64748B] uppercase block font-medium">{t('calcEstWeight', 'Trọng lượng:', 'Weight:')}</span>
+                      <span className="font-mono text-sm font-bold text-[#091426]">~{estimatedGrams}g</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#64748B] uppercase block font-medium">{t('calcEstTime', 'Thời gian in:', 'Print time:')}</span>
+                      <span className="font-mono text-sm font-bold text-[#091426]">~{estimatedHours}h</span>
+                    </div>
+                  </div>
+
+                  <div className="text-center sm:text-right w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-[#CBD5E1]">
+                    <span className="text-[10px] text-[#64748B] uppercase block font-medium">{t('calcEstPrice', 'Chi phí ước tính:', 'Estimated cost:')}</span>
+                    <span className="font-mono text-xl font-bold text-[#00687A]">
+                      {estimatedPrice.toLocaleString(isVi ? 'vi-VN' : 'en-US')} đ
+                    </span>
+                  </div>
                 </div>
+
+                {/* Call to Action to full 3D Upload */}
+                <button
+                  onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}
+                  className="w-full py-3.5 bg-gradient-to-r from-[#00687A] to-[#0E7490] hover:from-[#005260] hover:to-[#085F75] text-white font-sans text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base">upload_file</span>
+                  <span>{activeContent.estimatorCtaText || 'Tải File STL Lên Để Báo Giá Chi Tiết →'}</span>
+                </button>
               </div>
-
-              {/* Call to Action to full 3D Upload */}
-              <button
-                onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}
-                className="w-full py-3.5 bg-[#091426] hover:bg-[#1E293B] text-white font-sans text-xs uppercase tracking-widest font-bold rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-              >
-                <span className="material-symbols-outlined text-sm text-[#57DFFE]">upload_file</span>
-                {t('calcUploadFullCTA', 'Tải File STL Lên Để Báo Giá Chi Tiết →', 'Upload STL File for Full Analysis →')}
-              </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 5. Technical Taxonomy & Application Categories (Interactive Sub-tag Discovery) */}
-      <section className="py-10 sm:py-16 bg-[#F7F6F2] border-b border-black/10 px-4 sm:px-6 md:px-12">
+      {/* 5. Technical Taxonomy & Application Categories */}
+      <section className="py-12 sm:py-16 bg-white border-y border-[#CBD5E1] px-4 sm:px-6 md:px-12">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 sm:mb-8 pb-4 border-b border-black/10 gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-[#CBD5E1] gap-3">
             <div>
-              <span className="font-sans text-[9px] sm:text-[10px] uppercase tracking-[0.25em] text-[#A69C8A] block mb-1">
-                {t('sectionTaxonomyPre', 'Taxonomy // Phân Loại', 'Taxonomy // Categories')}
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00687A] block mb-1 font-bold">
+                {t('sectionTaxonomyPre', 'TAXONOMY // PHÂN LOẠI', 'TAXONOMY // CATEGORIES')}
               </span>
-              <h2 className="fluid-h2 text-[#1C1C1C]">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#091426] tracking-tight">
                 {t('sectionTaxonomyTitle', 'Danh Mục Ứng Dụng Kỹ Thuật', 'Engineering Application Categories')}
               </h2>
             </div>
             <button
               onClick={() => handleProtectedAction(() => onNavigate('explore'))}
-              className="font-sans text-xs uppercase tracking-widest text-[#00687A] hover:underline font-bold flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+              className="font-mono text-xs uppercase tracking-wider text-[#00687A] hover:underline font-bold flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
             >
               <span>{isVi ? `Xem toàn bộ kho bản vẽ (${products.length * 20}+)` : `Browse full library (${products.length * 20}+)`}</span>
               <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -1015,21 +1038,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   const el = document.getElementById('browse-cad-catalog');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="bg-white p-5 border border-black/10 hover:border-[#00687A] hover:shadow-md transition-all text-left flex flex-col justify-between min-h-[160px] group rounded-xl cursor-pointer"
+                className="bg-[#F8FAFC] p-5 border border-[#CBD5E1] hover:border-[#00687A] hover:shadow-md transition-all text-left flex flex-col justify-between min-h-[160px] group rounded-2xl cursor-pointer"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="font-tech text-[10px] text-[#A69C8A] font-bold">0{idx + 1}</span>
+                  <span className="font-mono text-[10px] text-[#64748B] font-bold">0{idx + 1}</span>
                   <span className="material-symbols-outlined text-2xl text-[#00687A] group-hover:scale-110 transition-transform">
                     {cat.icon}
                   </span>
                 </div>
                 <div>
-                  <h3 className="font-serif font-bold text-sm text-[#1C1C1C] group-hover:text-[#00687A] transition-colors leading-snug">
+                  <h3 className="font-bold text-sm text-[#091426] group-hover:text-[#00687A] transition-colors leading-snug">
                     {isVi ? cat.name : (cat as any).nameEn || cat.name}
                   </h3>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-black/5 font-tech text-[10px]">
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#CBD5E1]/60 font-mono text-[10px]">
                     <span className="text-[#00687A] font-bold">{cat.count} files</span>
-                    <span className="material-symbols-outlined text-xs text-[#7D7565] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                    <span className="material-symbols-outlined text-xs text-[#64748B] group-hover:translate-x-1 transition-transform">arrow_forward</span>
                   </div>
                 </div>
               </button>
@@ -1039,81 +1062,97 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </section>
 
       {/* 6. 3-Step Precision Manufacturing Process Chronicle */}
-      <section className="py-12 sm:py-16 bg-[#FFFFFF] px-4 sm:px-6 md:px-12 border-b border-black/10">
+      <section className="py-14 sm:py-20 px-4 sm:px-6 md:px-12">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8 sm:mb-12 text-center max-w-xl mx-auto">
-            <span className="font-sans text-[9px] sm:text-[10px] uppercase tracking-[0.25em] text-[#A69C8A] block mb-2 font-bold">
-              {t('sectionWorkflowPre', 'Chronicle // Quy Trình Xưởng', 'Chronicle // Fabrication Flow')}
+          <div className="mb-10 sm:mb-14 text-center max-w-xl mx-auto space-y-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00687A] block font-bold">
+              {activeContent.workflowBadge || 'CHRONICLE // QUY TRÌNH XƯỞNG'}
             </span>
-            <h2 className="fluid-h2 text-[#1C1C1C]">
-              {t('sectionWorkflowTitle', 'Quy Trình Gia Công 3 Bước Chuẩn Xác', '3-Step Precision Manufacturing Workflow')}
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-[#091426] tracking-tight">
+              {activeContent.workflowTitle || 'Quy Trình Gia Công 3 Bước Chuẩn Xác'}
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-            <div className="bg-[#F8FAFC] border border-black/10 p-6 sm:p-8 relative flex flex-col justify-between rounded-xl shadow-2xs">
-              <span className="font-serif text-4xl font-bold text-black/10 absolute top-6 right-6">01</span>
-              <div>
-                <span className="font-sans text-[9px] uppercase tracking-[0.25em] text-[#00687A] block mb-2 font-bold">Phase One</span>
-                <h3 className="font-serif font-bold text-lg text-[#1C1C1C] mb-2">
-                  {isVi ? 'Tải Lên & Khảo Sát Mesh STL' : 'Upload & Mesh Inspection'}
+            {/* Step 1 */}
+            <div className="bg-white border border-[#CBD5E1] p-6 sm:p-8 relative flex flex-col justify-between rounded-2xl shadow-xs hover:shadow-lg hover:border-[#00687A]/50 transition-all">
+              <span className="font-mono text-5xl font-black text-slate-100 absolute top-6 right-6 select-none pointer-events-none">01</span>
+              <div className="relative z-10 space-y-2">
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00687A] block font-bold">PHASE 01</span>
+                <h3 className="font-bold text-lg text-[#091426]">
+                  {activeContent.workflowStep1Title || 'Tải Lên & Khảo Sát Mesh STL'}
                 </h3>
-                <p className="text-xs text-[#545F73] leading-relaxed font-serif">
-                  {isVi
-                    ? 'Thuật toán quét hình học VCUBE kiểm tra cấu trúc watertight, định vị góc overhanging và tính toán thể tích vật liệu trong 3 giây.'
-                    : 'VCUBE algorithms verify watertight geometry, analyze overhang angles, and calculate precise material volume in 3 seconds.'}
+                <p className="text-xs text-[#64748B] leading-relaxed font-sans">
+                  {activeContent.workflowStep1Desc || 'Thuật toán quét hình học VCUBE kiểm tra cấu trúc watertight, định vị góc overhanging và tính toán thể tích vật liệu trong 3 giây.'}
                 </p>
               </div>
-              <div className="w-8 h-[2px] bg-[#00687A] mt-4 sm:mt-6"></div>
+              <div className="w-10 h-1 bg-[#00687A] rounded-full mt-6" />
             </div>
 
-            <div className="bg-[#F8FAFC] border border-black/10 p-6 sm:p-8 relative flex flex-col justify-between rounded-xl shadow-2xs">
-              <span className="font-serif text-4xl font-bold text-black/10 absolute top-6 right-6">02</span>
-              <div>
-                <span className="font-sans text-[9px] uppercase tracking-[0.25em] text-[#00687A] block mb-2 font-bold">Phase Two</span>
-                <h3 className="font-serif font-bold text-lg text-[#1C1C1C] mb-2">
-                  {isVi ? 'Cắt Lớp & In Nhiệt Chuẩn Xác' : 'Slicing & Thermal Print'}
+            {/* Step 2 */}
+            <div className="bg-white border border-[#CBD5E1] p-6 sm:p-8 relative flex flex-col justify-between rounded-2xl shadow-xs hover:shadow-lg hover:border-[#00687A]/50 transition-all">
+              <span className="font-mono text-5xl font-black text-slate-100 absolute top-6 right-6 select-none pointer-events-none">02</span>
+              <div className="relative z-10 space-y-2">
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00687A] block font-bold">PHASE 02</span>
+                <h3 className="font-bold text-lg text-[#091426]">
+                  {activeContent.workflowStep2Title || 'Cắt Lớp & In Nhiệt Chuẩn Xác'}
                 </h3>
-                <p className="text-xs text-[#545F73] leading-relaxed font-serif">
-                  {isVi
-                    ? 'Gia công trên hệ thống Bambu Lab X1C & Formlabs Form 4 với sợi carbon PETG-CF và nhựa Resin kỹ thuật cao cấp.'
-                    : 'Fabricated on calibrated Bambu Lab X1C & Formlabs Form 4 arrays with engineering PETG-CF and high-temp resins.'}
+                <p className="text-xs text-[#64748B] leading-relaxed font-sans">
+                  {activeContent.workflowStep2Desc || 'Gia công trên hệ thống máy Bambu Lab X1C & Formlabs Form 4 với sợi carbon PETG-CF và nhựa Resin kỹ thuật độ chính xác cao.'}
                 </p>
               </div>
-              <div className="w-8 h-[2px] bg-[#00687A] mt-4 sm:mt-6"></div>
+              <div className="w-10 h-1 bg-[#00687A] rounded-full mt-6" />
             </div>
 
-            <div className="bg-[#F8FAFC] border border-black/10 p-6 sm:p-8 relative flex flex-col justify-between rounded-xl shadow-2xs">
-              <span className="font-serif text-4xl font-bold text-black/10 absolute top-6 right-6">03</span>
-              <div>
-                <span className="font-sans text-[9px] uppercase tracking-[0.25em] text-[#00687A] block mb-2 font-bold">Phase Three</span>
-                <h3 className="font-serif font-bold text-lg text-[#1C1C1C] mb-2">
-                  {isVi ? 'Kiểm Định QC & Bàn Giao' : 'QC Metrology & Dispatch'}
+            {/* Step 3 */}
+            <div className="bg-white border border-[#CBD5E1] p-6 sm:p-8 relative flex flex-col justify-between rounded-2xl shadow-xs hover:shadow-lg hover:border-[#00687A]/50 transition-all">
+              <span className="font-mono text-5xl font-black text-slate-100 absolute top-6 right-6 select-none pointer-events-none">03</span>
+              <div className="relative z-10 space-y-2">
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#00687A] block font-bold">PHASE 03</span>
+                <h3 className="font-bold text-lg text-[#091426]">
+                  {activeContent.workflowStep3Title || 'Kiểm Định QC & Bàn Giao'}
                 </h3>
-                <p className="text-xs text-[#545F73] leading-relaxed font-serif">
-                  {isVi
-                    ? 'Đo kiểm quang học và thước kẹp Mitutoyo xác thực dung sai ±0.05mm, đóng gói chống sốc và giao hàng toàn quốc.'
-                    : 'Optical and Mitutoyo caliper validation confirms ±0.05mm tolerance, shockproof packaging, and express nationwide delivery.'}
+                <p className="text-xs text-[#64748B] leading-relaxed font-sans">
+                  {activeContent.workflowStep3Desc || 'Đo kiểm quang học và thước kẹp Mitutoyo xác thực dung sai ±0.05mm, đóng gói chống sốc và giao hàng toàn quốc.'}
                 </p>
               </div>
-              <div className="w-8 h-[2px] bg-[#00687A] mt-4 sm:mt-6"></div>
+              <div className="w-10 h-1 bg-[#00687A] rounded-full mt-6" />
             </div>
           </div>
         </div>
       </section>
 
       {/* 7. Trust & Industrial Partners Banner */}
-      <section className="py-10 bg-[#F8FAFC] px-4 sm:px-6 md:px-12">
-        <div className="max-w-7xl mx-auto text-center space-y-4">
-          <span className="text-[10px] uppercase font-tech font-bold text-[#7D7565] tracking-widest block">
-            {t('sectionTrustTitle', 'Được Tin Cậy Bởi Các Đơn Vị R&D & Xưởng Cơ Khí', 'Trusted by R&D Labs & Engineering Facilities')}
+      <section className="py-12 bg-white border-t border-[#CBD5E1] px-4 sm:px-6 md:px-12">
+        <div className="max-w-7xl mx-auto text-center space-y-5">
+          <span className="text-[10px] uppercase font-mono font-bold text-[#64748B] tracking-widest block">
+            {activeContent.trustPartnersTitle || 'Được Tin Cậy Bởi Các Đơn Vị R&D & Xưởng Cơ Khí'}
           </span>
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12 opacity-60 grayscale hover:grayscale-0 transition-all font-tech text-xs font-bold text-[#1C1C1C]">
-            <span className="px-3 py-1 bg-white border border-black/10 rounded">BK ROBOTICS LAB</span>
-            <span className="px-3 py-1 bg-white border border-black/10 rounded">FPT HI-TECH INNOVATION</span>
-            <span className="px-3 py-1 bg-white border border-black/10 rounded">VNU AEROSPACE LAB</span>
-            <span className="px-3 py-1 bg-white border border-black/10 rounded">VIET-CNC AUTOMATION</span>
-            <span className="px-3 py-1 bg-white border border-black/10 rounded">ISO 9001:2015 CERTIFIED</span>
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 font-mono text-xs font-bold text-[#091426]">
+            {partnersList.map((partner, pIdx) => (
+              <span
+                key={pIdx}
+                className="px-4 py-2 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl hover:border-[#00687A] hover:text-[#00687A] transition-all shadow-2xs"
+              >
+                {partner}
+              </span>
+            ))}
+          </div>
+
+          {/* Workshop Contact Details Strip */}
+          <div className="pt-6 border-t border-[#E2E8F0] grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-[#64748B]">
+            <div>
+              <strong className="text-[#091426] block font-bold mb-0.5">Xưởng Bắc:</strong>
+              <span>{activeContent.hanoiWorkshopAddress}</span>
+            </div>
+            <div>
+              <strong className="text-[#091426] block font-bold mb-0.5">Xưởng Nam:</strong>
+              <span>{activeContent.hcmWorkshopAddress}</span>
+            </div>
+            <div>
+              <strong className="text-[#091426] block font-bold mb-0.5">Hỗ Trợ Kỹ Thuật:</strong>
+              <span>Hotline: <strong className="text-[#00687A]">{activeContent.hotline}</strong> • Email: {activeContent.contactEmail}</span>
+            </div>
           </div>
         </div>
       </section>

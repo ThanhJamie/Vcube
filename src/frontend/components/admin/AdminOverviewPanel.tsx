@@ -29,7 +29,7 @@ export const AdminOverviewPanel: React.FC<AdminOverviewPanelProps> = ({
   const totalRevenue = orders.reduce((sum, o) => sum + (o.payment?.total || 0), 0);
   const activeOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
   const printingPrinters = printers.filter(p => p.status === 'Printing').length;
-  const readyPrinters = printers.filter(p => p.status === 'Idle' || p.status === 'Ready').length;
+  const readyPrinters = printers.filter(p => p.status === 'Idle').length;
   
   // Stock alerts
   const lowMaterials = materials.filter(m => (m.stockRollsCount ?? 10) <= 5);
@@ -284,10 +284,10 @@ export const AdminOverviewPanel: React.FC<AdminOverviewPanelProps> = ({
                     <p className="text-[10px] text-[#545F73] font-tech">{printer.brand} • {printer.technology}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-tech font-bold uppercase ${
-                    printer.status === 'Printing'
-                      ? 'bg-amber-100 text-amber-800 animate-pulse'
-                      : printer.status === 'Idle' || printer.status === 'Ready'
-                      ? 'bg-emerald-100 text-emerald-800'
+                      printer.status === 'Printing'
+                        ? 'bg-amber-100 text-amber-800 animate-pulse'
+                        : printer.status === 'Idle'
+                        ? 'bg-emerald-100 text-emerald-800'
                       : 'bg-rose-100 text-rose-800'
                   }`}>
                     {printer.status || 'Sẵn Sàng'}

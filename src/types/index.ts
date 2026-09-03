@@ -29,11 +29,17 @@ export interface Product {
   batchProgress?: { current: number; total: number; targetDate: string };
   isCustomizable?: boolean;
   licenseType?: 'Standard' | 'Commercial' | 'Exclusive';
-  status?: 'Published' | 'Under Review' | 'Draft' | 'Out of Stock';
+  status?: ProductStatus | 'Published' | 'Draft' | 'Archived' | 'Under Review' | 'Out of Stock';
   productionReadiness?: 'ready_to_print' | 'missing_profile' | 'cad_review_needed';
   sku?: string;
   salesCount?: number;
+  cadFileUrl?: string;
+  cadFormat?: 'STL' | 'STEP' | '3MF';
+  fileSizeBytes?: number;
+  thumbnailUrl?: string;
 }
+
+export type ProductStatus = 'draft' | 'published' | 'archived';
 
 export interface CartItem {
   id: string;
@@ -592,10 +598,51 @@ export interface DMCAReport {
 }
 
 export interface SiteContentConfig {
+  // Top Announcement / Campaign
   announcementText: string;
   announcementActive: boolean;
+  announcementBadge?: string;
+  announcementActionText?: string;
+  announcementActionTag?: string;
+
+  // Hero Section
+  heroBadge?: string;
   heroHeadline: string;
+  heroHeadlineLine1?: string;
+  heroHeadlineHighlight?: string;
   heroSubheadline: string;
+  heroCtaQuoteText?: string;
+  heroCtaCatalogText?: string;
+  heroMetric1Label?: string;
+  heroMetric1Value?: string;
+  heroMetric2Label?: string;
+  heroMetric2Value?: string;
+  heroMetric3Label?: string;
+  heroMetric3Value?: string;
+
+  // 3-Step Workshop Workflow
+  workflowBadge?: string;
+  workflowTitle?: string;
+  workflowStep1Title?: string;
+  workflowStep1Desc?: string;
+  workflowStep2Title?: string;
+  workflowStep2Desc?: string;
+  workflowStep3Title?: string;
+  workflowStep3Desc?: string;
+
+  // Live Fast Estimator
+  estimatorBadge?: string;
+  estimatorTitle?: string;
+  estimatorSubtitle?: string;
+  estimatorBenefit1?: string;
+  estimatorBenefit2?: string;
+  estimatorCtaText?: string;
+
+  // Trust Partners & R&D Labs
+  trustPartnersTitle?: string;
+  trustPartnersList?: string[];
+
+  // Facilities, Specifications & Shipping
   toleranceSpec: string;
   standardShippingFee: number;
   freeShippingThreshold: number;

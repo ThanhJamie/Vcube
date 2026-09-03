@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -33,6 +33,8 @@ import {
 } from './data/mockData';
 import { AuthProvider, useAuth } from '@frontend/context/AuthContext';
 import { LanguageProvider, useLanguage } from '@frontend/context/LanguageContext';
+import { dbService } from './backend/supabase/database';
+import { supabase } from './backend/supabase/client';
 import { Header } from '@frontend/components/Header';
 import { AuthModal } from '@frontend/components/AuthModal';
 import { RoleGuard } from '@frontend/components/RoleGuard';
@@ -105,11 +107,41 @@ const ProductDetailRoute: React.FC<{
   onShowToast: (msg: string) => void;
 }> = ({ products, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
   const { productId } = useParams<{ productId: string }>();
-  const product = products.find((p) => p.id === productId) || products[0];
+  const product = products.find((p) => p.id === productId);
+
+  if (!product && products.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 border-3 border-[#00687A] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="font-mono text-xs text-[#64748B]">Đang tải thông số kỹ thuật mô hình 3D...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product && products.length > 0) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
+        <div className="bg-white p-8 rounded-2xl border border-[#CBD5E1] text-center max-w-md space-y-4 shadow-sm">
+          <span className="material-symbols-outlined text-4xl text-[#64748B]">precision_manufacturing</span>
+          <h2 className="font-bold text-lg text-[#091426]">Không tìm thấy bản vẽ CAD này</h2>
+          <p className="text-xs text-[#64748B]">Mô hình bạn đang tìm có thể đã được lưu trữ hoặc thay đổi mã định danh.</p>
+          <button
+            onClick={() => onNavigate('explore')}
+            className="px-5 py-2.5 bg-[#00687A] hover:bg-[#005260] text-white font-mono text-xs uppercase font-bold rounded-xl shadow-xs cursor-pointer"
+          >
+            Quay lại Kho Bản Vẽ
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ProductDetailView
-      product={product}
+      product={product!}
+      allProducts={products}
       materials={materials}
       pricingConfig={pricingConfig}
       onAddToCart={onAddToCart}
@@ -201,7 +233,15 @@ function MainApp() {
   const [cart, setCart] = useState<CartItem[]>(INITIAL_CART_ITEMS);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
   const [assets, setAssets] = useState<DigitalAsset[]>(DIGITAL_ASSETS);
-  const [siteContent, setSiteContent] = useState<SiteContentConfig>(DEFAULT_SITE_CONTENT);
+  const [siteContent, setSiteContent] = useState<SiteContentConfig>(() => {
+    try {
+      const saved = localStorage.getItem('vcube_site_content');
+      if (saved) return { ...DEFAULT_SITE_CONTENT, ...JSON.parse(saved) };
+    } catch (e) {
+      console.warn('Could not load saved site content', e);
+    }
+    return DEFAULT_SITE_CONTENT;
+  });
   
   const [materials, setMaterials] = useState<MaterialProfile[]>(() => {
     try {
@@ -234,6 +274,102 @@ function MainApp() {
     }
     return DEFAULT_INKIRI_FORMULA_CONFIG;
   });
+
+  // Synchronize products from Supabase DB on startup + Realtime Channel + Auto Seeding
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Initial Fetch with auto-seed fallback
+    dbService.getProducts().then(async (remoteProducts) => {
+      if (isMounted) {
+        if (remoteProducts && remoteProducts.length > 0) {
+          setProducts(remoteProducts);
+        } else {
+          // If empty, auto-seed mockData into Supabase
+          const seeded = await dbService.seedInitialProductsIfEmpty();
+          if (seeded) {
+            const fresh = await dbService.getProducts();
+            if (isMounted && fresh.length > 0) setProducts(fresh);
+          }
+        }
+      }
+    }).catch((err) => console.warn('Could not sync remote products:', err));
+
+    // 2. Supabase Realtime Channel for Multi-user Sync
+    const channel = supabase
+      .channel('public:products')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          if (!isMounted) return;
+          if (payload.eventType === 'INSERT') {
+            const newRecord: any = payload.new;
+            setProducts((prev) => {
+              if (prev.some((p) => p.id === newRecord.id)) return prev;
+              const mapped: Product = {
+                id: newRecord.id,
+                sku: newRecord.sku,
+                name: newRecord.name,
+                category: newRecord.category,
+                designer: newRecord.designer,
+                pricePhysical: Number(newRecord.price_physical || 0),
+                priceDigital: Number(newRecord.price_digital || 0),
+                images: Array.isArray(newRecord.images) ? newRecord.images : [newRecord.images].filter(Boolean),
+                thumbnailUrl: newRecord.thumbnail_url || (Array.isArray(newRecord.images) ? newRecord.images[0] : ''),
+                cadFileUrl: newRecord.cad_file_url || '',
+                cadFormat: newRecord.cad_format || 'STL',
+                description: newRecord.description || '',
+                features: Array.isArray(newRecord.features) ? newRecord.features : [],
+                specs: newRecord.specs || { dimensions: '80x80x40mm', weight: '60g', resolution: '0.12mm', infillDefault: '35%', technology: 'FDM' },
+                supportedMaterials: Array.isArray(newRecord.supported_materials) ? newRecord.supported_materials : ['PLA Tough'],
+                colors: Array.isArray(newRecord.colors) ? newRecord.colors : [],
+                tags: Array.isArray(newRecord.tags) ? newRecord.tags : [],
+                badge: newRecord.badge,
+                rating: Number(newRecord.rating || 5.0),
+                reviewsCount: Number(newRecord.reviews_count || 0),
+                printsCount: Number(newRecord.prints_count || 0),
+                printTime: newRecord.print_time || '2h',
+                isCustomizable: Boolean(newRecord.is_customizable),
+                status: (newRecord.status || 'published').toLowerCase() as any,
+                productionReadiness: newRecord.production_readiness || 'ready_to_print'
+              };
+              return [mapped, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedRecord: any = payload.new;
+            setProducts((prev) =>
+              prev.map((p) =>
+                p.id === updatedRecord.id
+                  ? {
+                      ...p,
+                      name: updatedRecord.name || p.name,
+                      category: updatedRecord.category || p.category,
+                      pricePhysical: Number(updatedRecord.price_physical ?? p.pricePhysical),
+                      priceDigital: Number(updatedRecord.price_digital ?? p.priceDigital),
+                      status: (updatedRecord.status || p.status).toLowerCase() as any,
+                      badge: updatedRecord.badge !== undefined ? updatedRecord.badge : p.badge,
+                      images: Array.isArray(updatedRecord.images) ? updatedRecord.images : p.images,
+                      thumbnailUrl: updatedRecord.thumbnail_url || p.thumbnailUrl,
+                    }
+                  : p
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            const deletedRecord: any = payload.old;
+            if (deletedRecord?.id) {
+              setProducts((prev) => prev.filter((p) => p.id !== deletedRecord.id));
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleUpdatePricingConfig = (newConfig: InkiriCostFormulaConfig) => {
     setPricingConfig(newConfig);
@@ -484,41 +620,68 @@ function MainApp() {
     setCart([]);
   };
 
-  // Product Handlers (Synced to LocalStorage Catalog DB)
-  const handleAddNewProduct = (prod: Product) => {
+  // Product Handlers (Synced to Supabase DB & LocalStorage Catalog DB with Rollback)
+  const handleAddNewProduct = async (prod: Product) => {
+    const previous = [...products];
+    // Optimistic UI update
     setProducts((prev) => {
       const updated = [prod, ...prev];
-      try {
-        localStorage.setItem('vcube_products', JSON.stringify(updated));
-      } catch (e) {
-        console.warn('Could not save products to storage', e);
-      }
+      try { localStorage.setItem('vcube_products', JSON.stringify(updated)); } catch (e) {}
       return updated;
     });
+
+    const res = await dbService.saveProduct(prod);
+    if (!res.success) {
+      // Rollback on DB error
+      console.warn('Rollback adding product due to DB error:', res.error);
+      setProducts(previous);
+      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch (e) {}
+      showToast(language === 'vi' ? 'Không thể lưu vào Supabase. Đã hoàn tác.' : 'Could not save to Supabase. Reverted.');
+    } else {
+      showToast(language === 'vi' ? 'Đã thêm sản phẩm thành công!' : 'Product added successfully!');
+    }
   };
 
-  const handleUpdateProduct = (updated: Product) => {
+  const handleUpdateProduct = async (updated: Product) => {
+    const previous = [...products];
+    // Optimistic UI update
     setProducts((prev) => {
       const next = prev.map((p) => (p.id === updated.id ? updated : p));
-      try {
-        localStorage.setItem('vcube_products', JSON.stringify(next));
-      } catch (e) {
-        console.warn('Could not save products to storage', e);
-      }
+      try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch (e) {}
       return next;
     });
+
+    const res = await dbService.saveProduct(updated);
+    if (!res.success) {
+      // Rollback on DB error
+      console.warn('Rollback updating product due to DB error:', res.error);
+      setProducts(previous);
+      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch (e) {}
+      showToast(language === 'vi' ? 'Lỗi cập nhật trên Supabase. Đã hoàn tác.' : 'Supabase update failed. Reverted.');
+    } else {
+      showToast(language === 'vi' ? 'Đã cập nhật sản phẩm thành công!' : 'Product updated successfully!');
+    }
   };
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
+    const previous = [...products];
+    // Optimistic UI update
     setProducts((prev) => {
       const next = prev.filter((p) => p.id !== productId);
-      try {
-        localStorage.setItem('vcube_products', JSON.stringify(next));
-      } catch (e) {
-        console.warn('Could not save products to storage', e);
-      }
+      try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch (e) {}
       return next;
     });
+
+    const res = await dbService.deleteProduct(productId);
+    if (!res.success) {
+      // Rollback on DB error
+      console.warn('Rollback deleting product due to DB error:', res.error);
+      setProducts(previous);
+      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch (e) {}
+      showToast(language === 'vi' ? 'Lỗi xóa trên Supabase. Đã hoàn tác.' : 'Supabase delete failed. Reverted.');
+    } else {
+      showToast(language === 'vi' ? 'Đã xóa sản phẩm thành công!' : 'Product deleted successfully!');
+    }
   };
 
   const handleUpdateOrderStatus = (orderId: string, newStageIndex: number, newStatus: Order['status'], progress?: number) => {
@@ -543,6 +706,12 @@ function MainApp() {
 
   const handleUpdateSiteContent = (newContent: SiteContentConfig) => {
     setSiteContent(newContent);
+    try {
+      localStorage.setItem('vcube_site_content', JSON.stringify(newContent));
+    } catch (e) {
+      console.warn('Could not save site content to localStorage', e);
+    }
+    showToast('Đã lưu và cập nhật cấu hình giao diện website.');
   };
 
   return (
@@ -567,6 +736,7 @@ function MainApp() {
                 products={products}
                 materials={materials}
                 pricingConfig={pricingConfig}
+                siteContent={siteContent}
                 onAddToCart={handleAddToCart}
                 onNavigate={handleNavigate}
                 onSelectProduct={(p) => handleNavigate('product_detail', { product: p })}
