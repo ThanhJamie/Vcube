@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Order } from '../../types';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -15,6 +15,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
 }) => {
   const { language } = useLanguage();
   const isVi = language === 'vi';
+  const [copiedToken, setCopiedToken] = useState(false);
 
   const hasDigitalItems = order.items.some(i => i.type === 'digital');
   const hasPhysicalItems = order.items.some(i => i.type === 'physical');
@@ -41,6 +42,40 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
               Mã đơn: <strong className="text-[#00687A] text-sm">{order.orderNumber}</strong> • Ngày tạo: {order.date}
             </p>
           </div>
+
+          {/* Guest Checkout Access Token Badge */}
+          {order.secureAccessToken && (
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 text-left shadow-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-sm text-emerald-700">key</span>
+                  <span>MÃ TRA CỨU KHÁCH VÃNG LAI (GUEST ACCESS TOKEN)</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-mono text-[10px] font-bold">
+                  Không Cần Mật Khẩu
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-800 font-sans">
+                Bạn đang đặt hàng ở chế độ Khách Vãng Lai. Hãy lưu mã này để tra cứu trạng thái in và tiến độ đơn hàng bất kỳ lúc nào:
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <code className="px-3 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs font-mono font-bold text-emerald-900 select-all flex-1 truncate">
+                  {order.secureAccessToken}
+                </code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(order.secureAccessToken!);
+                    setCopiedToken(true);
+                    setTimeout(() => setCopiedToken(false), 2000);
+                  }}
+                  className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <span className="material-symbols-outlined text-xs">{copiedToken ? 'check' : 'content_copy'}</span>
+                  <span>{copiedToken ? 'Đã chép' : 'Sao chép'}</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* 4-Step Live Pipeline Status Indicator */}
           <div className="py-6 border-y border-[#CBD5E1] grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs font-mono">

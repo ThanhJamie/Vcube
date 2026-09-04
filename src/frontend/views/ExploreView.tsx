@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../types';
 import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_INKIRI_FORMULA_CONFIG } from '../data/mockData';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
+import { SEOHead } from '../components/SEOHead';
+import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -230,6 +232,16 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#091426] py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans relative selection:bg-[#00687A] selection:text-white">
+      <SEOHead
+        title={isVi ? 'Kho Bản Vẽ CAD & Linh Kiện 3D' : '3D CAD & Precision Parts Marketplace'}
+        description={isVi
+          ? `Khám phá hơn ${products.length} bản vẽ cơ khí chính xác được kiểm định ứng suất, đạt chuẩn Watertight 100% tại VCUBE Vietnam.`
+          : `Explore over ${products.length} precision mechanical 3D CAD designs stress-tested and certified for instant digital fabrication at VCUBE Vietnam.`}
+        image={products[0]?.thumbnailUrl || (products[0]?.images && products[0]?.images[0]) || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=1200&h=630&fit=crop'}
+        url={typeof window !== 'undefined' ? window.location.href : undefined}
+        type="website"
+      />
+
       {/* Background Ambient Glowing Radiance (Aligned with Login & HomeView) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 opacity-70">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#DCE9FF]/60 rounded-full blur-3xl" />
@@ -297,35 +309,37 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {POPULAR_TAGS.map((tag) => {
-              const isActive = selectedTag === tag.id;
-              const is29 = tag.id === '2/9';
+          <div className="pt-1">
+            <HorizontalScrollFilter>
+              {POPULAR_TAGS.map((tag) => {
+                const isActive = selectedTag === tag.id;
+                const is29 = tag.id === '2/9';
 
-              return (
-                <button
-                  key={tag.id}
-                  onClick={() => setSelectedTag(isActive ? 'all' : tag.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
-                    isActive
-                      ? is29
-                        ? 'bg-[#990000] text-white font-bold shadow-xs'
-                        : 'bg-[#00687A] text-white font-bold shadow-xs'
-                      : is29
-                      ? 'bg-red-50 text-[#990000] border border-red-200 hover:bg-red-100 font-bold'
-                      : 'bg-[#F8FAFC] text-[#475569] border border-[#CBD5E1] hover:border-[#00687A] hover:text-[#091426]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-xs">{tag.icon}</span>
-                  <span>{isVi ? tag.nameVi : tag.nameEn}</span>
-                  {is29 && (
-                    <span className="bg-[#FFD700] text-[#990000] text-[8px] font-bold px-1 rounded-full uppercase">
-                      HOT
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={tag.id}
+                    onClick={() => setSelectedTag(isActive ? 'all' : tag.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
+                      isActive
+                        ? is29
+                          ? 'bg-[#990000] text-white font-bold shadow-xs'
+                          : 'bg-[#00687A] text-white font-bold shadow-xs'
+                        : is29
+                        ? 'bg-red-50 text-[#990000] border border-red-200 hover:bg-red-100 font-bold'
+                        : 'bg-[#F8FAFC] text-[#475569] border border-[#CBD5E1] hover:border-[#00687A] hover:text-[#091426]'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-xs">{tag.icon}</span>
+                    <span>{isVi ? tag.nameVi : tag.nameEn}</span>
+                    {is29 && (
+                      <span className="bg-[#FFD700] text-[#990000] text-[8px] font-bold px-1 rounded-full uppercase">
+                        HOT
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </HorizontalScrollFilter>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import { AnalysisFile, DetailedCostBreakdown, PrinterProfile, MaterialProfile, InkiriCostFormulaConfig, DeliveryPackageOption, MachineComparisonItem } from '../types';
+import { AnalysisFile, DetailedCostBreakdown, PrinterProfile, MaterialProfile, InkiriCostFormulaConfig, DeliveryPackageOption, MachineComparisonItem, OrderFinancialSplit } from '../types';
 import { MATERIALS_CATALOG, PRINTER_PROFILES, DEFAULT_INKIRI_FORMULA_CONFIG } from '../data/mockData';
 
 export const ELECTRICITY_PRICE_PER_KWH = 2850; // VND / kWh (Commercial Tier 2)
@@ -99,7 +99,7 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   // 4. Machine Depreciation & Consumables
   const machineLifetimeHours = currentPrinter.expectedLifetimeHours || 8000;
   const machineAcquisitionCost = currentPrinter.acquisitionCost || 35000000;
-  const machineDepreciationPerHour = machineAcquisitionCost / machineLifetimeHours;
+  const machineDepreciationPerHour = cfg.defaultMachineDepreciationPerHour || (machineAcquisitionCost / machineLifetimeHours);
   const consumablesPerHour = currentPrinter.consumablesHourlyRate || 2500;
   
   const machineOperatingCostPerHour = machineDepreciationPerHour + consumablesPerHour;
@@ -118,10 +118,11 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   const laborHourlyRate = cfg.laborHourlyRate ?? BASE_LABOR_HOURLY_RATE;
   const laborCost = Math.round((totalLaborMinutes / 60) * laborHourlyRate);
 
-  // 6. Accessories & Packaging
+  // 6. Accessories, IPA Finishing & Packaging
   const basePackagingCost = (cfg.fixedPackagingCost ?? FIXED_PACKAGING_BASE) + (isMultiColor ? (cfg.multiColorPackagingExtra ?? 5000) : 0);
+  const ipaFinishingCost = cfg.ipaSolventCost ?? 8000;
   const accessoriesAddonCost = selectedAccessories.reduce((sum, item) => sum + (item.unitPrice * (item.quantity || 1)), 0);
-  const accessoriesCost = basePackagingCost + accessoriesAddonCost;
+  const accessoriesCost = basePackagingCost + ipaFinishingCost + accessoriesAddonCost;
 
   // 7. Overhead Allocation
   const overheadPerUnit = cfg.overheadPerUnit ?? FIXED_OVERHEAD_PER_UNIT;
@@ -221,6 +222,7 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
     laborCost,
 
     accessoriesCost,
+    ipaSolventCost: ipaFinishingCost,
     overheadPerUnit,
     failureReserveRate,
     failureReserveCost,
@@ -290,6 +292,7 @@ export interface ManualCalcInput {
   laborHourlyRate: number; // VND
   laborTotalMinutes: number;
   packagingCost: number; // VND
+  ipaCost?: number; // VND (Cồn IPA & dung môi rửa sấy hoàn thiện)
   accessoriesCost?: number; // VND (hardware / add-ons cost)
   overheadCost: number; // VND
   failureRatePercent: number; // %
@@ -311,6 +314,7 @@ export function calculateManualInkiriEstimate(input: ManualCalcInput) {
     laborHourlyRate,
     laborTotalMinutes,
     packagingCost,
+    ipaCost = 0,
     accessoriesCost = 0,
     overheadCost,
     failureRatePercent,
@@ -333,15 +337,16 @@ export function calculateManualInkiriEstimate(input: ManualCalcInput) {
   // 4. Labor
   const laborCost = Math.round((laborTotalMinutes / 60) * laborHourlyRate);
 
-  // 5. Packaging & Accessories
+  // 5. Packaging & Accessories & IPA
   const packaging = packagingCost;
+  const ipa = ipaCost;
   const accessories = accessoriesCost;
 
   // 6. Overhead
   const overhead = overheadCost;
 
   // 7. Base Cost & Failure
-  const subtotalCost = materialCost + electricityCost + machineTotal + laborCost + packaging + accessories + overhead;
+  const subtotalCost = materialCost + electricityCost + machineTotal + laborCost + packaging + ipa + accessories + overhead;
   const failureCost = Math.round(subtotalCost * (failureRatePercent / 100));
   const costPriceUnit = subtotalCost + failureCost;
 
@@ -365,6 +370,7 @@ export function calculateManualInkiriEstimate(input: ManualCalcInput) {
     machineTotal,
     laborCost,
     packaging,
+    ipaCost: ipa,
     accessories,
     overhead,
     failureCost,
@@ -500,4 +506,89 @@ export function comparePrintersForModel(
       recommendationTag
     };
   });
+}
+
+/**
+ * PRC-005 v2: Multi-Party Financial Split (3-Sided Marketplace Engine)
+ * Transparently splits gross order revenue among:
+ * 1. Payment Gateway (2%)
+ * 2. Designer Royalty (5% - 20% on physical, 90% on digital)
+ * 3. Workshop MES Payout (BOM + Machine + Labor + 80% rush surcharge + 100% personalization)
+ * 4. Platform Take-Rate (VCUBE marketplace margin)
+ * Plus automated 7-day Escrow Buffer.
+ */
+export function compute3SidedOrderFinancialSplit(params: {
+  orderId: string;
+  orderNumber: string;
+  orderType: 'physical' | 'digital' | 'mixed';
+  grossAmount: number;
+  basePartPrice?: number;
+  quantity?: number;
+  volumeDiscountPercent?: number;
+  rushSurcharge?: number;
+  personalizationFee?: number;
+  designerRoyaltyRate?: number;
+  workshopCostPrice?: number;
+  customPricingConfig?: InkiriCostFormulaConfig;
+}): OrderFinancialSplit {
+  const {
+    orderId,
+    orderNumber,
+    orderType,
+    grossAmount,
+    basePartPrice = Math.round(grossAmount * 0.7),
+    quantity = 1,
+    volumeDiscountPercent = 0,
+    rushSurcharge = 0,
+    personalizationFee = 0,
+    designerRoyaltyRate,
+    workshopCostPrice = Math.round(grossAmount * 0.60),
+    customPricingConfig
+  } = params;
+
+  const cfg = customPricingConfig || DEFAULT_INKIRI_FORMULA_CONFIG;
+  const actualGatewayRate = (cfg.paymentGatewayFeePercent ?? 2.5) / 100;
+  const actualRoyaltyRate = designerRoyaltyRate !== undefined ? designerRoyaltyRate : (cfg.designerRoyaltyPercent ?? 5) / 100;
+
+  // 1. Payment Gateway Fee
+  const paymentGatewayFee = Math.round(grossAmount * actualGatewayRate);
+
+  let creatorRoyalty = 0;
+  let workshopPayout = 0;
+  let platformTakeRate = 0;
+
+  if (orderType === 'digital') {
+    // 90% to creator, remainder to platform after gateway fee
+    creatorRoyalty = Math.round(grossAmount * 0.90);
+    workshopPayout = 0;
+    platformTakeRate = Math.max(0, grossAmount - paymentGatewayFee - creatorRoyalty);
+  } else {
+    // Physical manufacturing:
+    // Designer absorbs only half of any volume discount given to buyers
+    const discountMultiplier = Math.max(0.5, 1 - (volumeDiscountPercent * 0.5) / 100);
+    creatorRoyalty = Math.round((basePartPrice * quantity * discountMultiplier) * actualRoyaltyRate);
+
+    // Workshop receives: production BOM & operational cost + 80% rush surcharge + 100% personalization fees
+    const rushWorkshopPortion = Math.round(rushSurcharge * 0.8);
+    workshopPayout = workshopCostPrice + rushWorkshopPortion + personalizationFee;
+
+    // Platform take-rate (residual margin)
+    platformTakeRate = Math.max(0, grossAmount - paymentGatewayFee - creatorRoyalty - workshopPayout);
+  }
+
+  // 7-day escrow hold date
+  const releaseDate = new Date();
+  releaseDate.setDate(releaseDate.getDate() + 7);
+
+  return {
+    orderId,
+    orderNumber,
+    grossAmount,
+    paymentGatewayFee,
+    creatorRoyalty,
+    workshopPayout,
+    platformTakeRate,
+    escrowStatus: 'holding',
+    escrowReleaseDate: releaseDate.toISOString()
+  };
 }

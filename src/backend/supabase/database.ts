@@ -1,6 +1,16 @@
 import { supabase } from './client';
-import { Order, Product } from '../../types';
-import { PRODUCTS } from '../../data/mockData';
+import { Order, Product, MaterialProfile, PrinterProfile, AppUserProfile, WorkshopPartner, AccessoryItem, SiteContentConfig, InkiriCostFormulaConfig } from '../../types';
+import { 
+  PRODUCTS, 
+  MOCK_ORDERS, 
+  MATERIALS_CATALOG, 
+  PRINTER_PROFILES, 
+  MOCK_APP_USERS, 
+  DEFAULT_INKIRI_FORMULA_CONFIG,
+  DEFAULT_SITE_CONTENT,
+  WORKSHOP_PARTNERS,
+  ACCESSORIES_CATALOG
+} from '../../data/mockData';
 
 export const dbService = {
   // Products
@@ -213,31 +223,113 @@ export const dbService = {
   },
 
   // Orders
-  async saveOrder(order: Order): Promise<{ success: boolean; error?: string }> {
+  async saveOrder(order: Order, explicitUserId?: string): Promise<{ success: boolean; error?: string }> {
     try {
+      const customerEmail = order.shippingAddress?.email || 'guest@vcube.vn';
+      const customerName = order.shippingAddress?.fullName || 'Khách Hàng VCUBE';
+      const customerPhone = order.shippingAddress?.phone || '';
+      const totalAmount = order.payment?.total || 0;
+      const shippingFee = order.payment?.shippingFee || 0;
+      const secureToken = order.secureAccessToken || `token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+
+      // Pass full user_id from user account if logged in (ensuring RLS auth.uid() = user_id works)
+      let userId: string | null = explicitUserId || (order as any).userId || (order as any).user_id || null;
+      if (!userId) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user?.id) {
+            userId = authData.user.id;
+          }
+        } catch {
+          // Fallback if auth is unavailable or guest checkout
+        }
+      }
+
       const { error } = await supabase.from('orders').upsert({
         id: order.id,
         order_number: order.orderNumber,
+        user_id: userId,
         date: order.date,
         estimated_delivery: order.estimatedDelivery,
+        customer_email: customerEmail,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        total_amount: totalAmount,
+        shipping_fee: shippingFee,
+        secure_access_token: secureToken,
         status: order.status,
         status_stage_index: order.statusStageIndex,
+        layer_progress: order.layerProgress || 0,
+        payment_method: order.payment?.method || 'cod',
+        payment_status: order.payment?.isPaid ? 'paid' : 'unpaid',
         items: order.items,
         shipping_address: order.shippingAddress,
         carrier: order.carrier,
         payment: order.payment,
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
 
       if (error) {
         console.warn('Supabase DB saveOrder fallback to local:', error.message);
         const existing: Order[] = JSON.parse(localStorage.getItem('vcube_orders') || '[]');
-        const updated = [order, ...existing.filter((o: Order) => o.id !== order.id)];
+        const updated = [{ ...order, secureAccessToken: secureToken }, ...existing.filter((o: Order) => o.id !== order.id)];
         localStorage.setItem('vcube_orders', JSON.stringify(updated));
       }
       return { success: true };
     } catch (err: any) {
       console.warn('DB error:', err);
+      return { success: false, error: err?.message };
+    }
+  },
+
+  async updateOrderStatus(
+    orderId: string, 
+    statusStageIndex: number, 
+    status: string, 
+    notes?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const updateData: Record<string, any> = {
+        status,
+        status_stage_index: statusStageIndex,
+        updated_at: new Date().toISOString(),
+      };
+      if (notes) {
+        updateData.notes = notes;
+      }
+      if (statusStageIndex >= 6) {
+        updateData.layer_progress = 100;
+      }
+
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId);
+
+      // Keep localStorage in sync
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const localOrders: Order[] = JSON.parse(localStorage.getItem('vcube_orders') || '[]');
+          const idx = localOrders.findIndex((o: Order) => o.id === orderId);
+          if (idx !== -1) {
+            localOrders[idx].status = status as any;
+            localOrders[idx].statusStageIndex = statusStageIndex;
+            if (statusStageIndex >= 6) {
+              localOrders[idx].layerProgress = 100;
+            }
+            localStorage.setItem('vcube_orders', JSON.stringify(localOrders));
+          }
+        }
+      } catch {}
+
+      if (error) {
+        console.warn('Supabase updateOrderStatus error:', error.message);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err: any) {
+      console.warn('DB error on updateOrderStatus:', err);
       return { success: false, error: err?.message };
     }
   },
@@ -257,6 +349,8 @@ export const dbService = {
           estimatedDelivery: d.estimated_delivery || '3 ngày sau khi duyệt',
           status: d.status || 'processing',
           statusStageIndex: d.status_stage_index ?? 1,
+          layerProgress: d.layer_progress ?? d.layerProgress ?? 0,
+          secureAccessToken: d.secure_access_token || d.secureAccessToken,
           items: d.items || [],
           shippingAddress: d.shipping_address || {
             fullName: 'Khách hàng',
@@ -289,12 +383,512 @@ export const dbService = {
     return local ? JSON.parse(local) : [];
   },
 
+  // Guest order lookup via secure access token
+  async getOrderByToken(identifier: string, token: string): Promise<Order | null> {
+    try {
+      // 1. Try Security Definer RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_order_by_guest_token', {
+        p_order_number: identifier,
+        p_token: token,
+      });
+
+      const matched = (rpcData && rpcData.length > 0) ? rpcData[0] : null;
+
+      if (!rpcError && matched) {
+        return {
+          id: matched.id,
+          orderNumber: matched.order_number || matched.id,
+          date: matched.date || matched.created_at || new Date().toISOString(),
+          estimatedDelivery: matched.estimated_delivery || '3 ngày sau khi duyệt',
+          status: matched.status || 'processing',
+          statusStageIndex: matched.status_stage_index ?? 1,
+          layerProgress: matched.layer_progress ?? 0,
+          secureAccessToken: matched.secure_access_token,
+          items: matched.items || [],
+          shippingAddress: matched.shipping_address || {},
+          carrier: matched.carrier || {},
+          payment: matched.payment || {},
+        };
+      }
+
+      // 2. Direct query fallback
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .or(`order_number.eq.${identifier},id.eq.${identifier}`)
+        .eq('secure_access_token', token)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        return {
+          id: data.id,
+          orderNumber: data.order_number || data.id,
+          date: data.date || data.created_at || new Date().toISOString(),
+          estimatedDelivery: data.estimated_delivery || '3 ngày sau khi duyệt',
+          status: data.status || 'processing',
+          statusStageIndex: data.status_stage_index ?? 1,
+          layerProgress: data.layer_progress ?? 0,
+          secureAccessToken: data.secure_access_token,
+          items: data.items || [],
+          shippingAddress: data.shipping_address || {},
+          carrier: data.carrier || {},
+          payment: data.payment || {},
+        };
+      }
+    } catch (e) {
+      console.warn('Supabase getOrderByToken fallback to local:', e);
+    }
+
+    // 3. Fallback to localStorage
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const localOrders: Order[] = JSON.parse(localStorage.getItem('vcube_orders') || '[]');
+        const cleanId = identifier.trim().toLowerCase();
+        const found = localOrders.find(
+          (o) =>
+            (o.orderNumber.toLowerCase() === cleanId || o.id.toLowerCase() === cleanId) &&
+            o.secureAccessToken === token
+        );
+        if (found) return found;
+      }
+    } catch {}
+
+    return null;
+  },
+
   // Quotes
   async saveQuote(quote: any): Promise<void> {
     try {
       await supabase.from('quotes').insert([quote]);
     } catch (e) {
       console.warn('Save quote error:', e);
+    }
+  },
+
+  // Users & Multi-stakeholder Profiles
+  async getUsers(): Promise<AppUserProfile[]> {
+    try {
+      const { data, error } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false });
+      if (!error && data && data.length > 0) {
+        return data.map((d: any): AppUserProfile => ({
+          uid: d.id,
+          email: d.email,
+          displayName: d.display_name,
+          phone: d.phone || '',
+          role: d.role || 'customer',
+          company: d.company || '',
+          avatarUrl: d.avatar_url || '',
+          createdAt: d.created_at || new Date().toISOString(),
+          lastLoginAt: d.updated_at || new Date().toISOString(),
+          kycStatus: d.kyc_status || 'verified',
+          accountStatus: d.account_status || 'active',
+          totalOrders: Number(d.total_orders || 0),
+          totalSpent: Number(d.total_spent || 0),
+          notes: d.notes || '',
+        }));
+      }
+    } catch (e) {
+      console.warn('Supabase getUsers fallback to local:', e);
+    }
+    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_app_users') : null;
+    return local ? JSON.parse(local) : MOCK_APP_USERS;
+  },
+
+  async saveUser(user: Partial<AppUserProfile> & { uid: string }): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('user_profiles').upsert({
+        id: user.uid,
+        email: user.email,
+        display_name: user.displayName,
+        phone: user.phone,
+        role: user.role,
+        company: user.company,
+        avatar_url: user.avatarUrl,
+        kyc_status: user.kycStatus,
+        account_status: user.accountStatus,
+        total_orders: user.totalOrders,
+        total_spent: user.totalSpent,
+        notes: user.notes,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  async updateUserKyc(userId: string, kycStatus: 'verified' | 'pending_review' | 'rejected' | 'unverified', notes?: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('user_profiles').update({
+        kyc_status: kycStatus,
+        notes: notes || undefined,
+        updated_at: new Date().toISOString(),
+      }).eq('id', userId);
+
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  // Materials
+  async getMaterials(): Promise<MaterialProfile[]> {
+    try {
+      const { data, error } = await supabase.from('materials').select('*');
+      if (!error && data && data.length > 0) {
+        return data.map((d: any): MaterialProfile => ({
+          id: d.id,
+          name: d.name,
+          brand: d.brand,
+          density: Number(d.density || 1.24),
+          strength: d.strength,
+          heatResistance: d.heat_resistance,
+          flexibility: d.flexibility,
+          costPerKg: Number(d.cost_per_kg || 320000),
+          pricePerGram: Number(d.price_per_gram || 850),
+          unitPriceMultiplier: Number(d.unit_price_multiplier || 1.0),
+          spoolWeightGrams: Number(d.spool_weight_grams || 1000),
+          extruderTempMin: Number(d.extruder_temp_min || 200),
+          extruderTempMax: Number(d.extruder_temp_max || 220),
+          bedTemp: Number(d.bed_temp || 55),
+          colors: Array.isArray(d.colors) ? d.colors : [],
+          desc: d.desc || '',
+          recommendedFor: d.recommended_for || '',
+          inStock: Boolean(d.in_stock),
+          stockRollsCount: Number(d.stock_rolls_count || 10),
+        }));
+      }
+    } catch (e) {
+      console.warn('Supabase getMaterials fallback to local:', e);
+    }
+    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_materials') : null;
+    return local ? JSON.parse(local) : MATERIALS_CATALOG;
+  },
+
+  async saveMaterial(mat: MaterialProfile): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('materials').upsert({
+        id: mat.id,
+        name: mat.name,
+        brand: mat.brand,
+        density: mat.density,
+        strength: mat.strength,
+        heat_resistance: mat.heatResistance,
+        flexibility: mat.flexibility,
+        cost_per_kg: mat.costPerKg,
+        price_per_gram: mat.pricePerGram,
+        unit_price_multiplier: mat.unitPriceMultiplier,
+        spool_weight_grams: mat.spoolWeightGrams,
+        extruder_temp_min: mat.extruderTempMin,
+        extruder_temp_max: mat.extruderTempMax,
+        bed_temp: mat.bedTemp,
+        colors: mat.colors,
+        desc: mat.desc,
+        recommended_for: mat.recommendedFor,
+        in_stock: mat.inStock,
+        stock_rolls_count: mat.stockRollsCount,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  // Printer Fleet
+  async getPrinters(): Promise<PrinterProfile[]> {
+    try {
+      const { data, error } = await supabase.from('printer_fleet').select('*');
+      if (!error && data && data.length > 0) {
+        return data.map((d: any): PrinterProfile => ({
+          id: d.id,
+          name: d.name,
+          brand: d.brand || 'Bambu Lab',
+          bedDimensions: d.bed_dimensions || { x: 256, y: 256, z: 256 },
+          nozzleDiameter: Number(d.nozzle_diameter || 0.4),
+          technology: d.technology || 'FDM',
+          powerKW: Number(d.power_kw || 0.18),
+          acquisitionCost: Number(d.acquisition_cost || 30000000),
+          expectedLifetimeHours: Number(d.expected_lifetime_hours || 8000),
+          consumablesHourlyRate: Number(d.consumables_hourly_rate || 2000),
+          hourlyRate: Number(d.hourly_rate || 25000),
+          maxPrintSpeedMmS: Number(d.max_print_speed_mms || 500),
+          heatedBedMaxTemp: Number(d.heated_bed_max_temp || 100),
+          hasEnclosure: Boolean(d.has_enclosure),
+          hasAMS: Boolean(d.has_ams),
+          status: d.status || 'Idle',
+        }));
+      }
+    } catch (e) {
+      console.warn('Supabase getPrinters fallback to local:', e);
+    }
+    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_printers') : null;
+    return local ? JSON.parse(local) : PRINTER_PROFILES;
+  },
+
+  async savePrinter(printer: PrinterProfile): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('printer_fleet').upsert({
+        id: printer.id,
+        name: printer.name,
+        brand: printer.brand,
+        bed_dimensions: printer.bedDimensions,
+        nozzle_diameter: printer.nozzleDiameter,
+        technology: printer.technology,
+        power_kw: printer.powerKW,
+        acquisition_cost: printer.acquisitionCost,
+        expected_lifetime_hours: printer.expectedLifetimeHours,
+        consumables_hourly_rate: printer.consumablesHourlyRate,
+        hourly_rate: printer.hourlyRate,
+        max_print_speed_mms: printer.maxPrintSpeedMmS,
+        heated_bed_max_temp: printer.heatedBedMaxTemp,
+        has_enclosure: printer.hasEnclosure,
+        has_ams: printer.hasAMS,
+        status: printer.status,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  // Pricing Config
+  async getPricingConfig(): Promise<InkiriCostFormulaConfig> {
+    try {
+      const { data, error } = await supabase.from('pricing_configs').select('*').eq('is_active', true).limit(1).single();
+      if (!error && data && data.config) {
+        return data.config as InkiriCostFormulaConfig;
+      }
+      // Fallback check on singular table if legacy
+      const legacyRes = await supabase.from('pricing_config').select('*').limit(1).single();
+      if (!legacyRes.error && legacyRes.data && legacyRes.data.config) {
+        return legacyRes.data.config as InkiriCostFormulaConfig;
+      }
+    } catch (e) {
+      console.warn('Supabase getPricingConfig fallback to local:', e);
+    }
+    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_pricing_config') : null;
+    return local ? JSON.parse(local) : DEFAULT_INKIRI_FORMULA_CONFIG;
+  },
+
+  async savePricingConfig(config: InkiriCostFormulaConfig): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Keep localStorage in sync
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vcube_pricing_config', JSON.stringify(config));
+      }
+
+      const { error } = await supabase.from('pricing_configs').upsert({
+        id: 'default-active-formula',
+        config_name: 'Default Inkiri Formula v3.4',
+        formula_version: 'v3.4',
+        is_active: true,
+        config: config,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) {
+        // Fallback upsert on legacy table if present
+        await supabase.from('pricing_config').upsert({
+          id: 'default-active-formula',
+          config: config,
+          updated_at: new Date().toISOString(),
+        });
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  // Site Content & CMS
+  async getSiteContent(): Promise<SiteContentConfig> {
+    try {
+      const { data, error } = await supabase.from('site_content').select('*').limit(1).single();
+      if (!error && data) {
+        return {
+          ...DEFAULT_SITE_CONTENT,
+          heroBadge: data.hero_badge || DEFAULT_SITE_CONTENT.heroBadge,
+          heroHeadline: data.hero_title || DEFAULT_SITE_CONTENT.heroHeadline,
+          heroSubheadline: data.hero_subtitle || DEFAULT_SITE_CONTENT.heroSubheadline,
+          hotline: data.phone || DEFAULT_SITE_CONTENT.hotline,
+          contactEmail: data.email || DEFAULT_SITE_CONTENT.contactEmail,
+          hanoiWorkshopAddress: data.hanoi_workshop_address || DEFAULT_SITE_CONTENT.hanoiWorkshopAddress,
+          hcmWorkshopAddress: data.hcm_workshop_address || DEFAULT_SITE_CONTENT.hcmWorkshopAddress,
+          announcementText: data.announcement_text || DEFAULT_SITE_CONTENT.announcementText,
+          announcementActive: data.announcement_enabled ?? DEFAULT_SITE_CONTENT.announcementActive,
+        };
+      }
+    } catch (e) {
+      console.warn('Supabase getSiteContent fallback to local:', e);
+    }
+    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_site_content') : null;
+    return local ? JSON.parse(local) : DEFAULT_SITE_CONTENT;
+  },
+
+  async saveSiteContent(content: SiteContentConfig): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vcube_site_content', JSON.stringify(content));
+      }
+      const { error } = await supabase.from('site_content').upsert({
+        id: 'default',
+        hero_badge: content.heroBadge,
+        hero_title: content.heroHeadline,
+        hero_subtitle: content.heroSubheadline,
+        phone: content.hotline,
+        email: content.contactEmail,
+        hanoi_workshop_address: content.hanoiWorkshopAddress,
+        hcm_workshop_address: content.hcmWorkshopAddress,
+        announcement_text: content.announcementText,
+        announcement_enabled: content.announcementActive,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  // Banking Idempotency: Record Payment Transaction
+  async recordPaymentTransaction(tx: {
+    orderId: string;
+    transactionId: string;
+    amount: number;
+    gateway?: string;
+    payload?: any;
+  }): Promise<{ success: boolean; error?: string; alreadyProcessed?: boolean }> {
+    try {
+      const { error } = await supabase.from('payment_transactions').insert({
+        id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        order_id: tx.orderId,
+        transaction_id: tx.transactionId,
+        amount: tx.amount,
+        payment_gateway: tx.gateway || 'vietqr',
+        payload: tx.payload || {},
+        status: 'success',
+      });
+      if (error) {
+        if (error.code === '23505') {
+          // Unique constraint violation on transaction_id
+          return { success: true, alreadyProcessed: true };
+        }
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  // Workshop Partners
+  async getWorkshopPartners(): Promise<WorkshopPartner[]> {
+    try {
+      const { data, error } = await supabase.from('workshop_partners').select('*').order('created_at', { ascending: false });
+      if (!error && data && data.length > 0) {
+        return data.map((d: any): WorkshopPartner => ({
+          id: d.id,
+          name: d.name,
+          region: (d.region || 'hanoi') as 'hanoi' | 'danang' | 'hcm',
+          address: d.address || '',
+          contactPerson: d.contact_person || 'Kỹ sư quản trị xưởng',
+          phone: d.phone || '',
+          email: d.email || '',
+          supportedTechnologies: Array.isArray(d.supported_technologies) ? d.supported_technologies : ['FDM'],
+          maxBuildVolume: d.max_build_volume || { x: 450, y: 450, z: 500 },
+          activePrintersCount: Number(d.active_jobs_count || d.active_printers_count || 10),
+          availablePrintersCount: Number(d.available_printers_count || 4),
+          slaRating: Number(d.rating || d.sla_rating || 4.9),
+          completedJobsCount: Number(d.completed_jobs_count || 500),
+          currentQueueLength: Number(d.current_queue_length || 6.5),
+          inStockMaterials: Array.isArray(d.in_stock_materials) ? d.in_stock_materials : ['PLA Pro', 'PETG Technical Pro', 'ABS Industrial'],
+          status: (d.capacity_status === 'available' || d.status === 'active') ? 'active' : (d.capacity_status || d.status || 'active') as any,
+        }));
+      }
+    } catch (e) {
+      console.warn('Supabase getWorkshopPartners fallback to local:', e);
+    }
+    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_workshop_partners') : null;
+    return local ? JSON.parse(local) : WORKSHOP_PARTNERS;
+  },
+
+  async saveWorkshopPartner(partner: WorkshopPartner): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('workshop_partners').upsert({
+        id: partner.id,
+        name: partner.name,
+        code: `WS-${partner.region.toUpperCase()}-${partner.id.substring(0, 4).toUpperCase()}`,
+        region: partner.region,
+        address: partner.address,
+        phone: partner.phone,
+        email: partner.email,
+        capacity_status: partner.status === 'active' ? 'available' : partner.status,
+        rating: partner.slaRating,
+        sla_on_time_rate: 98.5,
+        active_jobs_count: partner.activePrintersCount,
+        supported_technologies: partner.supportedTechnologies,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  // Accessories & Hardware Add-ons
+  async getAccessories(): Promise<AccessoryItem[]> {
+    try {
+      const { data, error } = await supabase.from('accessories').select('*').order('created_at', { ascending: false });
+      if (!error && data && data.length > 0) {
+        return data.map((d: any): AccessoryItem => ({
+          id: d.id,
+          name: d.name,
+          nameEn: d.name_en || d.name,
+          category: (d.type || d.category || 'hardware') as any,
+          unit: d.unit || 'cái',
+          costPrice: Number(d.cost_price || Math.round((d.price || 0) * 0.5)),
+          sellingPrice: Number(d.price ?? d.selling_price ?? 0),
+          sku: d.sku || `ACC-${d.id.substring(0, 6).toUpperCase()}`,
+          stockCount: Number(d.stock_quantity ?? d.stock_count ?? 0),
+          lowStockThreshold: Number(d.low_stock_threshold || 10),
+          warehouseLocation: d.warehouse_location || 'Kệ A1 - Hộc 01',
+          supplier: d.supplier || 'VCUBE Fab Hub',
+          description: d.description || '',
+          imageUrl: d.image_url || '',
+          isActive: Boolean(d.in_stock ?? d.is_active ?? true),
+          compatibleWith: Array.isArray(d.compatible_with) ? d.compatible_with : ['Móc khóa', 'Vỏ hộp IoT', 'Đồ gá'],
+        }));
+      }
+    } catch (e) {
+      console.warn('Supabase getAccessories fallback to local:', e);
+    }
+    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_accessories') : null;
+    return local ? JSON.parse(local) : ACCESSORIES_CATALOG;
+  },
+
+  async saveAccessory(acc: AccessoryItem): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('accessories').upsert({
+        id: acc.id,
+        name: acc.name,
+        type: acc.category,
+        price: acc.sellingPrice,
+        in_stock: acc.isActive && acc.stockCount > 0,
+        stock_quantity: acc.stockCount,
+        description: acc.description,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
     }
   },
 };

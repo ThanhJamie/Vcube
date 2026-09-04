@@ -2,9 +2,9 @@
 
 @layer base {
   :root {
-    --font-serif: 'Newsreader', 'Cormorant Garamond', Georgia, serif;
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-serif: 'Be Vietnam Pro', 'Inter', Georgia, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
     /* Responsive fluid typography scale variables */
     --font-hero-size: 2.25rem;
@@ -63,8 +63,8 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #F7F6F2;
-    color: #1C1C1C;
+    background-color: #F8FAFC;
+    color: #091426;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
@@ -74,46 +74,51 @@
 
 /* Typography Utility Classes */
 .font-serif-editorial {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
 }
 
 .font-editorial-heading {
-  font-family: 'Newsreader', 'Cormorant Garamond', Georgia, serif;
+  font-family: var(--font-sans);
   letter-spacing: -0.02em;
 }
 
 .font-display {
-  font-family: 'Newsreader', 'Cormorant Garamond', Georgia, serif;
+  font-family: var(--font-sans);
   letter-spacing: -0.02em;
 }
 
-.font-tech {
-  font-family: 'JetBrains Mono', monospace;
+.font-tech, .font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-.font-sans-clean {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Fluid Typography Responsive Classes */
 .fluid-hero-heading {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--font-hero-size);
   line-height: var(--font-hero-lh);
   letter-spacing: -0.03em;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .fluid-h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--font-h1-size);
   line-height: 1.15;
   letter-spacing: -0.02em;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .fluid-h2 {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--font-h2-size);
   line-height: 1.2;
   letter-spacing: -0.015em;
@@ -213,9 +218,9 @@
   bottom: 0;
   width: 85%;
   max-width: 320px;
-  background-color: #F7F6F2;
-  border-left: 1px solid rgba(0, 0, 0, 0.15);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
+  background-color: #F8FAFC;
+  border-left: 1px solid #CBD5E1;
+  box-shadow: -4px 0 24px rgba(9, 20, 38, 0.2);
   z-index: 999;
   display: flex;
   flex-direction: column;
@@ -280,15 +285,15 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #F7F6F2;
+  background: #F8FAFC;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D5CFC5;
+  background: #CBD5E1;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #A69C8A;
+  background: #94A3B8;
 }
 
 @keyframes pulse-subtle {

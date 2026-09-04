@@ -20,6 +20,10 @@ import { WarehouseInventoryPanel } from '../components/admin/WarehouseInventoryP
 import { AdminStorefrontPanel } from '../components/admin/AdminStorefrontPanel';
 import { AdminSettingsPanel } from '../components/admin/AdminSettingsPanel';
 import { PricingConfigPanel } from '../components/admin/PricingConfigPanel';
+import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
+import { AdminPartnersPanel } from '../components/admin/AdminPartnersPanel';
+import { AdminSeoPanel } from '../components/admin/AdminSeoPanel';
+import { seedService } from '../../backend';
 
 interface AdminDashboardViewProps {
   products: Product[];
@@ -69,8 +73,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
   // Navigation State - synced with URL route
   const validSections: AdminNavSection[] = [
-    'overview', 'orders', 'products', 'queue', 'machines', 'inventory',
-    'pricing-setup', 'cost-rules', 'materials', 'hardware', 'quote-calc', 'storefront', 'settings'
+    'overview', 'users', 'designers', 'partners',
+    'orders', 'queue', 'machines', 'inventory',
+    'pricing', 'pricing-setup', 'cost-rules', 'materials', 'hardware', 'quote-calc',
+    'products', 'storefront', 'seo', 'settings'
   ];
 
   const initialSec: AdminNavSection = (routeSection && validSections.includes(routeSection as AdminNavSection))
@@ -79,6 +85,25 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
   const [activeSection, setActiveSection] = useState<AdminNavSection>(initialSec);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+  const handleTriggerCloudSync = async () => {
+    setIsCloudSyncing(true);
+    try {
+      const result = await seedService.seedAllToSupabase();
+      if (result.success) {
+        onShowToast(isVi 
+          ? `Đồng bộ Cloud hoàn tất (${result.counts.products} SP, ${result.counts.orders} đơn, ${result.counts.user_profiles} người dùng, ${result.counts.materials} vật liệu)`
+          : `Cloud synced successfully (${result.counts.products} products, ${result.counts.orders} orders)`);
+      } else {
+        onShowToast(isVi ? `Đồng bộ xong với lưu ý: ${result.errors.join(', ')}` : `Sync notice: ${result.errors.join(', ')}`);
+      }
+    } catch (err: any) {
+      onShowToast(isVi ? `Lỗi đồng bộ: ${err?.message || 'Không thể kết nối'}` : `Sync error: ${err?.message}`);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
 
   useEffect(() => {
     if (routeSection && validSections.includes(routeSection as AdminNavSection)) {
@@ -100,64 +125,89 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   // Breadcrumb mapping
   const sectionBreadcrumbs: Record<AdminNavSection, { group: string; title: string; icon: string }> = {
     overview: {
-      group: isVi ? 'TỔNG QUAN' : 'OVERVIEW',
+      group: isVi ? 'TỔNG QUAN & ĐIỀU HÀNH' : 'EXECUTIVE OVERVIEW',
       title: isVi ? 'Bảng Điều Khiển Trung Tâm' : 'Dashboard Overview',
       icon: 'dashboard'
     },
+    users: {
+      group: isVi ? 'HỆ SINH THÁI TÁC NHÂN' : 'STAKEHOLDERS & PEOPLE',
+      title: isVi ? 'Quản Trị Người Dùng & Hồ Sơ KYC' : 'User Profiles & KYC Management',
+      icon: 'manage_accounts'
+    },
+    designers: {
+      group: isVi ? 'HỆ SINH THÁI TÁC NHÂN' : 'STAKEHOLDERS & PEOPLE',
+      title: isVi ? 'Quản Trị Nhà Thiết Kế 3D & Bản Quyền' : '3D Designers & Intellectual Property',
+      icon: 'draw'
+    },
+    partners: {
+      group: isVi ? 'HỆ SINH THÁI TÁC NHÂN' : 'STAKEHOLDERS & PEOPLE',
+      title: isVi ? 'Mạng Lưới Xưởng In Đối Tác (MES Hubs)' : 'Workshop Partner MES Network',
+      icon: 'factory'
+    },
     orders: {
-      group: isVi ? 'THƯƠNG MẠI' : 'COMMERCE',
-      title: isVi ? 'Quản Lý Đơn Hàng' : 'Orders Management',
+      group: isVi ? 'VẬN HÀNH SẢN XUẤT' : 'PRODUCTION & ORDERS',
+      title: isVi ? 'Quản Lý Đơn Hàng Thương Mại' : 'Orders Management',
       icon: 'receipt_long'
     },
-    products: {
-      group: isVi ? 'THƯƠNG MẠI' : 'COMMERCE',
-      title: isVi ? 'Sản Phẩm & Catalog CAD' : 'Products & Catalog',
-      icon: 'inventory_2'
-    },
     queue: {
-      group: isVi ? 'VẬN HÀNH SẢN XUẤT' : 'PRODUCTION',
+      group: isVi ? 'VẬN HÀNH SẢN XUẤT' : 'PRODUCTION & ORDERS',
       title: isVi ? 'Hàng Đợi Chế Tác 8 Nấc' : 'Production Queue',
       icon: 'precision_manufacturing'
     },
     machines: {
-      group: isVi ? 'VẬN HÀNH SẢN XUẤT' : 'PRODUCTION',
+      group: isVi ? 'VẬN HÀNH SẢN XUẤT' : 'PRODUCTION & ORDERS',
       title: isVi ? 'Đội Máy In 3D FDM / SLA' : '3D Printer Fleet',
       icon: 'print'
     },
     inventory: {
-      group: isVi ? 'VẬN HÀNH SẢN XUẤT' : 'PRODUCTION',
+      group: isVi ? 'VẬN HÀNH SẢN XUẤT' : 'PRODUCTION & ORDERS',
       title: isVi ? 'Kho Vật Liệu & Sơ Đồ Kệ' : 'Warehouse Inventory & Bins',
       icon: 'shelves'
     },
-    'pricing-setup': {
-      group: isVi ? 'ĐỊNH GIÁ & TÍNH TOÁN' : 'PRICING & SETUP',
+    pricing: {
+      group: isVi ? 'ĐỊNH GIÁ & DỰ TOÁN' : 'PRICING & COST ENGINE',
       title: isVi ? 'Cấu Hình Định Giá & Chi Phí Inkiri (Toàn Diện)' : 'Inkiri Pricing & Cost Engine Setup',
       icon: 'tune'
     },
+    'pricing-setup': {
+      group: isVi ? 'ĐỊNH GIÁ & DỰ TOÁN' : 'PRICING & COST ENGINE',
+      title: isVi ? 'Cấu Hình Định Giá Inkiri' : 'Inkiri Pricing Setup',
+      icon: 'tune'
+    },
     'cost-rules': {
-      group: isVi ? 'ĐỊNH GIÁ & TÍNH TOÁN' : 'PRICING & SETUP',
+      group: isVi ? 'ĐỊNH GIÁ & DỰ TOÁN' : 'PRICING & COST ENGINE',
       title: isVi ? 'Cấu Hình Định Giá Inkiri' : 'Inkiri Pricing Setup',
       icon: 'tune'
     },
     materials: {
-      group: isVi ? 'ĐỊNH GIÁ & TÍNH TOÁN' : 'PRICING & SETUP',
+      group: isVi ? 'ĐỊNH GIÁ & DỰ TOÁN' : 'PRICING & COST ENGINE',
       title: isVi ? 'Danh Mục Nhựa & Resin' : 'Filaments & Resins',
       icon: 'layers'
     },
     hardware: {
-      group: isVi ? 'ĐỊNH GIÁ & TÍNH TOÁN' : 'PRICING & SETUP',
+      group: isVi ? 'ĐỊNH GIÁ & DỰ TOÁN' : 'PRICING & COST ENGINE',
       title: isVi ? 'Phụ Kiện, Ốc Cấy & Nam Châm' : 'Hardware & Fasteners',
       icon: 'extension'
     },
     'quote-calc': {
-      group: isVi ? 'ĐỊNH GIÁ & TÍNH TOÁN' : 'PRICING & SETUP',
+      group: isVi ? 'ĐỊNH GIÁ & DỰ TOÁN' : 'PRICING & COST ENGINE',
       title: isVi ? 'Báo Giá Dự Toán BOM Kỹ Thuật' : 'BOM Quote Calculator',
-      icon: 'request_quote'
+      icon: 'calculate'
+    },
+    products: {
+      group: isVi ? 'CỬA HÀNG, NỘI DUNG & SEO' : 'STOREFRONT & SEO CMS',
+      title: isVi ? 'Sản Phẩm & Catalog CAD' : 'Products & Catalog',
+      icon: 'inventory_2'
     },
     storefront: {
-      group: isVi ? 'HỆ THỐNG' : 'SYSTEM',
+      group: isVi ? 'CỬA HÀNG, NỘI DUNG & SEO' : 'STOREFRONT & SEO CMS',
       title: isVi ? 'Cấu Hình Storefront & Banner' : 'Storefront & Banner CMS',
       icon: 'storefront'
+    },
+    seo: {
+      group: isVi ? 'CỬA HÀNG, NỘI DUNG & SEO' : 'STOREFRONT & SEO CMS',
+      title: isVi ? 'Quản Trị SEO & Metadata Toàn Diện' : 'SEO & Search Engine Metadata',
+      icon: 'travel_explore'
     },
     settings: {
       group: isVi ? 'HỆ THỐNG' : 'SYSTEM',
@@ -217,6 +267,21 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
           {/* Top Right Status & Action Controls */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Supabase Cloud DB Sync Button */}
+            <button
+              onClick={handleTriggerCloudSync}
+              disabled={isCloudSyncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-300 transition-colors cursor-pointer shadow-2xs disabled:opacity-60"
+              title={isVi ? 'Đồng bộ mock data lên Supabase Database' : 'Sync mock data to Supabase Database'}
+            >
+              <span className={`material-symbols-outlined text-sm text-emerald-600 ${isCloudSyncing ? 'animate-spin' : ''}`}>
+                sync
+              </span>
+              <span className="hidden md:inline">
+                {isCloudSyncing ? (isVi ? 'Đang đồng bộ...' : 'Syncing...') : (isVi ? 'Đồng Bộ DB' : 'Sync DB')}
+              </span>
+            </button>
+
             {/* Quick Quote Button */}
             {activeSection !== 'quote-calc' && (
               <button
@@ -281,6 +346,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           {activeSection === 'queue' && (
             <AdminProductionQueuePanel
               orders={orders}
+              printers={printers}
               onUpdateOrderStatus={onUpdateOrderStatus}
               onNavigateTracking={(order) => onNavigate('tracking', { order })}
               onShowToast={onShowToast}
@@ -305,7 +371,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             />
           )}
 
-          {(activeSection === 'pricing-setup' || activeSection === 'cost-rules' || activeSection === 'materials' || activeSection === 'hardware' || activeSection === 'quote-calc') && (
+          {(activeSection === 'pricing' || activeSection === 'pricing-setup' || activeSection === 'cost-rules' || activeSection === 'materials' || activeSection === 'hardware' || activeSection === 'quote-calc') && (
             <PricingConfigPanel
               initialSubTab={
                 activeSection === 'materials' ? 'materials' :
@@ -324,8 +390,38 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             />
           )}
 
+          {activeSection === 'users' && (
+            <AdminUsersPanel
+              onShowToast={onShowToast}
+              onNavigateSection={handleSelectSection}
+            />
+          )}
+
+          {activeSection === 'designers' && (
+            <AdminUsersPanel
+              initialRoleFilter="designer"
+              onShowToast={onShowToast}
+              onNavigateSection={handleSelectSection}
+            />
+          )}
+
+          {activeSection === 'partners' && (
+            <AdminPartnersPanel
+              onShowToast={onShowToast}
+              onNavigateSection={handleSelectSection}
+            />
+          )}
+
           {activeSection === 'storefront' && (
             <AdminStorefrontPanel
+              siteContent={siteContent}
+              onUpdateSiteContent={onUpdateSiteContent}
+              onShowToast={onShowToast}
+            />
+          )}
+
+          {activeSection === 'seo' && (
+            <AdminSeoPanel
               siteContent={siteContent}
               onUpdateSiteContent={onUpdateSiteContent}
               onShowToast={onShowToast}
@@ -342,3 +438,5 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     </div>
   );
 };
+
+export default AdminDashboardView;

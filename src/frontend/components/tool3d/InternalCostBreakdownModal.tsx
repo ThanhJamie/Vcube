@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { DetailedCostBreakdown, PrinterProfile } from '../../types';
 
 interface InternalCostBreakdownModalProps {
@@ -23,6 +24,20 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
   const [overridePriceInput, setOverridePriceInput] = useState<string>(String(breakdown.finalSellingPriceRounded));
   const [overrideReason, setOverrideReason] = useState<string>('');
   const [overrideSuccessMsg, setOverrideSuccessMsg] = useState<string>('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -90,22 +105,27 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
     }
   ];
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border border-black/20 max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white border border-[#CBD5E1] rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden my-auto">
         
         {/* Modal Header */}
-        <div className="p-5 sm:p-6 border-b border-black/10 flex items-center justify-between bg-[#1C1C1C] text-white">
+        <div className="p-5 sm:p-6 border-b border-black/10 flex items-center justify-between bg-[#091426] text-white shrink-0">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-sans text-[9px] uppercase tracking-widest text-cyan-400 font-bold">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-[#57DFFE] font-bold">
                 PRC-006 // Báo Cáo Giá Vốn & Lợi Nhuận Nội Bộ (Internal Costing)
               </span>
-              <span className="px-2 py-0.5 text-[9px] bg-red-900/60 text-red-300 font-bold rounded border border-red-700/50">
+              <span className="px-2 py-0.5 text-[9px] bg-red-950/80 text-red-300 font-bold rounded border border-red-700/50">
                 Chỉ Dành Cho Kỹ Sư & Quản Đốc
               </span>
             </div>
-            <h2 className="font-serif font-bold text-lg sm:text-xl text-white">
+            <h2 className="font-sans font-bold text-lg sm:text-xl text-white">
               Cấu Trúc Chi Phí & Định Giá: {fileName}
             </h2>
           </div>
@@ -158,7 +178,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
           {/* 6-Level Cost Breakdown Table */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-serif font-bold text-sm text-[#1C1C1C] flex items-center gap-1.5">
+              <h3 className="font-sans font-bold text-sm text-[#1C1C1C] flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-base text-[#00687a]">bar_chart</span>
                 Bảng Bóc Tách Chi Phí Sản Xuất Cơ Sở (Base Cost Breakdown)
               </h3>
@@ -216,7 +236,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
 
           {/* Reverse Fee Calculation & Pricing Math */}
           <div className="bg-[#FAF9F5] border border-black/10 p-4 rounded-lg space-y-3">
-            <h4 className="font-serif font-bold text-xs uppercase tracking-wider text-[#1C1C1C] flex items-center gap-1.5">
+            <h4 className="font-sans font-bold text-xs uppercase tracking-wider text-[#1C1C1C] flex items-center gap-1.5">
               <span className="material-symbols-outlined text-sm text-[#00687a]">functions</span>
               Giải Ngược Phí Sàn & Thuật Toán Tính Giá Bán (Reverse Fee Formula)
             </h4>
@@ -320,6 +340,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

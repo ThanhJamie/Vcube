@@ -12,7 +12,10 @@ import {
   MaterialProfile,
   PrinterProfile,
   InkiriCostFormulaConfig,
-  AccessoryItem
+  AccessoryItem,
+  WorkshopPartner,
+  AppUserProfile,
+  OrderFinancialSplit
 } from '../types';
 
 export const CATEGORIES = [
@@ -916,6 +919,8 @@ export const DEFAULT_INKIRI_FORMULA_CONFIG: InkiriCostFormulaConfig = {
   // 3. Packaging & Consumables / Đóng gói & Vật tư phụ
   fixedPackagingCost: 12000, // Hộp carton, mút xốp EVA, túi hút ẩm
   multiColorPackagingExtra: 5000, // Thêm phụ phí bảo vệ cho chi tiết màu
+  ipaSolventCost: 8000, // Chi phí cồn IPA hoàn thiện & sấy UV rửa sạch (8,000 VNĐ/sp)
+  defaultMachineDepreciationPerHour: 4375, // Khấu hao máy in tiêu chuẩn ~4,375 VNĐ/giờ (35tr / 8000h)
 
   // 4. Overhead & Management / Mặt bằng & Chi phí quản lý xưởng
   overheadPerUnit: 15000, // Tiền thuê xưởng, phần mềm CAD/Slicer, internet
@@ -1591,6 +1596,29 @@ export const DEFAULT_SITE_CONTENT: import('../types').SiteContentConfig = {
   contactEmail: 'contact@vcube.vn',
   hanoiWorkshopAddress: 'Xưởng In 3D VCUBE: Khu Công Nghệ Cao Hòa Lạc, Hà Nội',
   hcmWorkshopAddress: 'Chi Nhánh Nam: Khu Công Nghệ Cao TP. Thủ Đức, TP. Hồ Chí Minh'
+  hcmWorkshopAddress: 'Chi Nhánh Nam: Khu Công Nghệ Cao TP. Thủ Đức, TP. Hồ Chí Minh',
+
+  // SEO & Metadata Defaults
+  seoTitle: 'VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì',
+  seoDescription: 'Nền tảng sản xuất bồi đắp và in 3D công nghiệp hàng đầu Việt Nam. Báo giá tức thì trong 3 giây cho file STL, STEP, 3MF với dung sai ±0.05mm, công nghệ FDM, SLA, SLS.',
+  seoKeywords: 'in 3d, dich vu in 3d, bao gia in 3d, in 3d cong nghiep, cat lop stl, bambu lab, formlabs, in 3d ha noi, in 3d hcm, vcube',
+  seoOgImage: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=1200&h=630&fit=crop',
+  seoCanonicalUrl: 'https://vcube.vn',
+  seoRobotsIndex: true,
+  seoStructuredData: JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": "VCUBE Precision 3D Manufacturing",
+    "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=1200&h=630&fit=crop",
+    "telephone": "1900 6833",
+    "email": "contact@vcube.vn",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Hà Nội & TP. Hồ Chí Minh",
+      "addressCountry": "VN"
+    },
+    "priceRange": "$$"
+  }, null, 2)
 };
 
 export const DEFAULT_ACCESSORIES: AccessoryItem[] = [
@@ -1775,3 +1803,389 @@ export const DEFAULT_ACCESSORIES: AccessoryItem[] = [
     compatibleWith: ['Đơn hàng quà tặng', 'Mô hình sưu tầm Resin 8K', 'Hàng xuất khẩu']
   }
 ];
+
+export const WORKSHOP_PARTNERS: WorkshopPartner[] = [
+  {
+    id: 'ws-hanoi-hub',
+    name: 'VCUBE R&D & MES Farm Hà Nội',
+    region: 'hanoi',
+    address: 'Số 18 Hoàng Quốc Việt, Cầu Giấy, Hà Nội',
+    contactPerson: 'Kỹ sư Vũ Mạnh Cường',
+    phone: '0981.234.567',
+    email: 'hanoi.hub@vcube.vn',
+    supportedTechnologies: ['FDM', 'SLA', 'SLS'],
+    maxBuildVolume: { x: 450, y: 450, z: 500 },
+    activePrintersCount: 16,
+    availablePrintersCount: 5,
+    slaRating: 4.95,
+    completedJobsCount: 1240,
+    currentQueueLength: 14.5,
+    inStockMaterials: ['PLA Pro (Standard)', 'PETG Technical Pro', 'ABS Industrial', 'Tough Resin (High Detail)', 'PA-CF Carbon Fiber'],
+    status: 'active'
+  },
+  {
+    id: 'ws-danang-lab',
+    name: 'VCUBE Innovation Hub Đà Nẵng',
+    region: 'danang',
+    address: 'Khu Công Nghệ Cao Đà Nẵng, Hòa Vang, Đà Nẵng',
+    contactPerson: 'Kỹ sư Nguyễn Lê Hoàng',
+    phone: '0905.888.999',
+    email: 'danang.hub@vcube.vn',
+    supportedTechnologies: ['FDM', 'SLA'],
+    maxBuildVolume: { x: 300, y: 300, z: 350 },
+    activePrintersCount: 8,
+    availablePrintersCount: 3,
+    slaRating: 4.88,
+    completedJobsCount: 560,
+    currentQueueLength: 6.2,
+    inStockMaterials: ['PLA Pro (Standard)', 'PETG Technical Pro', 'Tough Resin (High Detail)'],
+    status: 'active'
+  },
+  {
+    id: 'ws-hcm-mega',
+    name: 'VCUBE Smart MES Hub TP. Hồ Chí Minh',
+    region: 'hcm',
+    address: 'Đường D1, Khu Công Nghệ Cao (SHTP), TP. Thủ Đức, TP.HCM',
+    contactPerson: 'Trưởng xưởng Trần Đình Phong',
+    phone: '0912.456.789',
+    email: 'hcm.hub@vcube.vn',
+    supportedTechnologies: ['FDM', 'SLA', 'SLS'],
+    maxBuildVolume: { x: 500, y: 500, z: 600 },
+    activePrintersCount: 28,
+    availablePrintersCount: 9,
+    slaRating: 4.98,
+    completedJobsCount: 2890,
+    currentQueueLength: 22.0,
+    inStockMaterials: ['PLA Pro (Standard)', 'PETG Technical Pro', 'ABS Industrial', 'Tough Resin (High Detail)', 'TPU 95A Flexible', 'PA-CF Carbon Fiber', 'PEEK High Temp'],
+    status: 'active'
+  }
+];
+
+export const MOCK_APP_USERS: AppUserProfile[] = [
+  // 1. Khách hàng (Buyers)
+  {
+    uid: 'usr-buy-001',
+    email: 'khachhang@vcube.vn',
+    displayName: 'Nguyễn Văn Minh',
+    role: 'customer',
+    phone: '0918.765.432',
+    company: 'Cá nhân (Hà Nội)',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    createdAt: '2025-08-12T09:30:00Z',
+    lastLoginAt: '2026-09-03T14:20:00Z',
+    kycStatus: 'verified',
+    kycDocumentType: 'id_card',
+    kycDocumentNumber: '001094018291',
+    kycSubmittedAt: '2025-08-13T10:00:00Z',
+    kycVerifiedAt: '2025-08-14T08:30:00Z',
+    accountStatus: 'active',
+    totalOrders: 14,
+    totalSpent: 12450000,
+    notes: 'Khách hàng thân thiết, thường in mô hình đồ gá và linh kiện thay thế.'
+  },
+  {
+    uid: 'usr-buy-002',
+    email: 'vuhainam@vinatech.com',
+    displayName: 'Vũ Hải Nam (VinaTech Robot)',
+    role: 'customer',
+    phone: '0903.112.233',
+    company: 'VinaTech Robotics JSC',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    createdAt: '2025-10-05T11:00:00Z',
+    lastLoginAt: '2026-09-02T16:45:00Z',
+    kycStatus: 'verified',
+    kycDocumentType: 'business_license',
+    kycDocumentNumber: '0317829102',
+    kycSubmittedAt: '2025-10-06T09:15:00Z',
+    kycVerifiedAt: '2025-10-07T14:00:00Z',
+    accountStatus: 'active',
+    totalOrders: 28,
+    totalSpent: 54200000,
+    bankAccount: {
+      bankName: 'Vietcombank',
+      accountNumber: '0071001289912',
+      accountHolder: 'CONG TY CP ROBOT VINATECH'
+    },
+    notes: 'Khách hàng doanh nghiệp B2B, xuất hóa đơn VAT đều đặn hàng tháng.'
+  },
+  {
+    uid: 'usr-buy-003',
+    email: 'linh.pham@hust.edu.vn',
+    displayName: 'Phạm Thùy Linh',
+    role: 'customer',
+    phone: '0977.345.678',
+    company: 'Đại Học Bách Khoa Hà Nội',
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    createdAt: '2026-02-18T14:10:00Z',
+    lastLoginAt: '2026-08-28T09:00:00Z',
+    kycStatus: 'unverified',
+    accountStatus: 'active',
+    totalOrders: 3,
+    totalSpent: 1450000,
+    notes: 'In bài tập lớn đồ án tốt nghiệp ngành Cơ điện tử.'
+  },
+  {
+    uid: 'usr-buy-004',
+    email: 'ductrong.danger@gmail.com',
+    displayName: 'Hoàng Trọng Đức',
+    role: 'customer',
+    phone: '0938.999.001',
+    company: 'Tự do',
+    createdAt: '2026-01-10T08:00:00Z',
+    lastLoginAt: '2026-07-15T11:00:00Z',
+    kycStatus: 'rejected',
+    kycDocumentType: 'id_card',
+    kycDocumentNumber: '079090001234',
+    kycRejectionReason: 'Ảnh chụp CCCD bị mờ, không khớp tên tài khoản đặt hàng',
+    accountStatus: 'suspended',
+    totalOrders: 2,
+    totalSpent: 650000,
+    notes: 'Tài khoản bị tạm khóa do từ chối nhận hàng COD không lý do 2 lần liên tiếp.'
+  },
+
+  // 2. Nhà thiết kế (Designers / Creators)
+  {
+    uid: 'usr-des-001',
+    email: 'creator.lethang@vcube.vn',
+    displayName: 'Lê Thắng CAD/CAM',
+    role: 'designer',
+    phone: '0912.888.777',
+    company: 'Studio Thiết Kế Cơ Khí Thắng Pro',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    engineerRank: 'Senior CAD Engineer (SolidWorks Expert)',
+    designerBio: 'Kỹ sư thiết kế máy hơn 8 năm kinh nghiệm. Chuyên khớp nối snap-fit, hộp số hành tinh và đồ gá in 3D không cần support.',
+    specialties: ['Cơ khí chính xác', 'Bánh răng', 'Vỏ hộp IoT', 'Đồ gá Jigs'],
+    createdAt: '2025-06-01T08:00:00Z',
+    lastLoginAt: '2026-09-04T05:30:00Z',
+    kycStatus: 'verified',
+    kycDocumentType: 'id_card',
+    kycDocumentNumber: '001088019922',
+    kycSubmittedAt: '2025-06-02T10:00:00Z',
+    kycVerifiedAt: '2025-06-03T16:00:00Z',
+    accountStatus: 'active',
+    totalOrders: 142,
+    totalRevenue: 42800000,
+    bankAccount: {
+      bankName: 'MB Bank',
+      accountNumber: '888899992222',
+      accountHolder: 'LE VAN THANG'
+    },
+    notes: 'Creator Kim Cương, tác giả mẫu Hộp số hành tinh bán chạy nhất sàn.'
+  },
+  {
+    uid: 'usr-des-002',
+    email: 'maianh.sculpt@gmail.com',
+    displayName: 'Trần Mai Anh',
+    role: 'designer',
+    phone: '0945.666.222',
+    company: 'Artisan Figure Studio',
+    avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    engineerRank: 'ZBrush 3D Sculptor',
+    designerBio: 'Tạo hình nhân vật văn hóa dân gian Việt Nam, mô hình decor phong cách tối giản.',
+    specialties: ['Figure 3D', 'Decor nội thất', 'Resin 8K', 'Văn hóa dân gian'],
+    createdAt: '2026-08-10T14:20:00Z',
+    lastLoginAt: '2026-09-03T20:10:00Z',
+    kycStatus: 'pending',
+    kycDocumentType: 'id_card',
+    kycDocumentNumber: '038195004455',
+    kycSubmittedAt: '2026-08-29T15:30:00Z',
+    accountStatus: 'under_review',
+    totalOrders: 18,
+    totalRevenue: 8600000,
+    bankAccount: {
+      bankName: 'Techcombank',
+      accountNumber: '19034567890123',
+      accountHolder: 'TRAN MAI ANH'
+    },
+    notes: 'Đang đợi admin duyệt hồ sơ KYC & Portfolio trước khi cấp huy hiệu Verified Creator.'
+  },
+  {
+    uid: 'usr-des-003',
+    email: 'khai.arch@vcube.vn',
+    displayName: 'Đỗ Quang Khải',
+    role: 'designer',
+    phone: '0983.123.987',
+    company: 'Parametric Lab HN',
+    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+    engineerRank: 'Rhino / Grasshopper Architect',
+    designerBio: 'Thiết kế kiến trúc tham số và đèn trang trí lồng ghép ánh sáng.',
+    specialties: ['Parametric Design', 'Đèn Decor', 'Kiến trúc'],
+    createdAt: '2025-11-20T10:00:00Z',
+    lastLoginAt: '2026-09-01T12:00:00Z',
+    kycStatus: 'verified',
+    kycDocumentType: 'id_card',
+    kycDocumentNumber: '025091002233',
+    kycSubmittedAt: '2025-11-21T09:00:00Z',
+    kycVerifiedAt: '2025-11-22T11:00:00Z',
+    accountStatus: 'active',
+    totalOrders: 86,
+    totalRevenue: 25600000,
+    bankAccount: {
+      bankName: 'ACB',
+      accountNumber: '284729101',
+      accountHolder: 'DO QUANG KHAI'
+    }
+  },
+
+  // 3. Xưởng in đối tác (Print Farms / MES / Labs)
+  {
+    uid: 'usr-lab-001',
+    email: 'hanoi.hub@vcube.vn',
+    displayName: 'Kỹ sư Vũ Mạnh Cường (MES Hà Nội)',
+    role: 'lab',
+    phone: '0981.234.567',
+    company: 'VCUBE R&D & MES Farm Hà Nội',
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    engineerRank: 'Xưởng Trưởng MES Miền Bắc',
+    createdAt: '2025-05-10T08:00:00Z',
+    lastLoginAt: '2026-09-04T06:00:00Z',
+    kycStatus: 'verified',
+    kycDocumentType: 'business_license',
+    kycDocumentNumber: '0109928410',
+    kycSubmittedAt: '2025-05-11T09:00:00Z',
+    kycVerifiedAt: '2025-05-12T14:00:00Z',
+    accountStatus: 'active',
+    workshopPartnerId: 'ws-hanoi-hub',
+    totalOrders: 1240,
+    totalRevenue: 385000000,
+    bankAccount: {
+      bankName: 'VietinBank',
+      accountNumber: '110002849102',
+      accountHolder: 'XUONG CHE TAC 3D VCUBE HANOI'
+    },
+    notes: 'Quy mô 16 máy FDM/SLA, phụ trách toàn bộ đơn hàng khu vực phía Bắc.'
+  },
+  {
+    uid: 'usr-lab-002',
+    email: 'hcm.hub@vcube.vn',
+    displayName: 'Trần Đình Phong (Mega MES SHTP HCM)',
+    role: 'lab',
+    phone: '0912.456.789',
+    company: 'VCUBE Smart MES Hub TP. Hồ Chí Minh',
+    avatarUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
+    engineerRank: 'Giám Đốc Vận Hành Cụm SHTP',
+    createdAt: '2025-04-15T08:00:00Z',
+    lastLoginAt: '2026-09-04T06:15:00Z',
+    kycStatus: 'verified',
+    kycDocumentType: 'business_license',
+    kycDocumentNumber: '0318924011',
+    kycSubmittedAt: '2025-04-16T10:00:00Z',
+    kycVerifiedAt: '2025-04-17T11:00:00Z',
+    accountStatus: 'active',
+    workshopPartnerId: 'ws-hcm-mega',
+    totalOrders: 2890,
+    totalRevenue: 920000000,
+    bankAccount: {
+      bankName: 'BIDV',
+      accountNumber: '31410002948192',
+      accountHolder: 'CONG TY TNHH VCUBE INDUSTRIAL SHTP'
+    },
+    notes: 'Trung tâm gia công lớn nhất hệ thống với 28 máy FDM/SLA/SLS công nghiệp.'
+  },
+  {
+    uid: 'usr-lab-003',
+    email: 'danang.hub@vcube.vn',
+    displayName: 'Kỹ sư Nguyễn Lê Hoàng (MES Đà Nẵng)',
+    role: 'lab',
+    phone: '0905.888.999',
+    company: 'VCUBE Innovation Hub Đà Nẵng',
+    avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80',
+    engineerRank: 'Điều Phối Viên MES Miền Trung',
+    createdAt: '2025-09-01T08:00:00Z',
+    lastLoginAt: '2026-09-03T18:00:00Z',
+    kycStatus: 'pending',
+    kycDocumentType: 'business_license',
+    kycDocumentNumber: '0402849102',
+    kycSubmittedAt: '2026-08-25T11:00:00Z',
+    accountStatus: 'under_review',
+    workshopPartnerId: 'ws-danang-lab',
+    totalOrders: 560,
+    totalRevenue: 148000000,
+    bankAccount: {
+      bankName: 'Techcombank',
+      accountNumber: '19139482910291',
+      accountHolder: 'NGUYEN LE HOANG'
+    },
+    notes: 'Đang bổ sung kiểm định phòng cháy chữa cháy và hồ sơ 4 máy in mới.'
+  },
+
+  // 4. Quản trị viên (Admins / ForgeControl)
+  {
+    uid: 'usr-adm-001',
+    email: 'admin.forge@vcube.vn',
+    displayName: 'Kỹ Sư Trưởng Tuấn',
+    role: 'admin',
+    phone: '0909.001.002',
+    company: 'VCUBE Headquarter Tech Team',
+    avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    engineerRank: 'ForgeControl Master Architect',
+    createdAt: '2025-01-01T00:00:00Z',
+    lastLoginAt: '2026-09-04T06:30:00Z',
+    kycStatus: 'verified',
+    accountStatus: 'active',
+    notes: 'Toàn quyền điều hành cấu hình hệ thống, thuật toán định giá và phân quyền.'
+  },
+  {
+    uid: 'usr-adm-002',
+    email: 'ngoc.ops@vcube.vn',
+    displayName: 'Phạm Bích Ngọc (Admin Vận Hành)',
+    role: 'admin',
+    phone: '0915.222.333',
+    company: 'VCUBE Marketplace Operations',
+    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    engineerRank: 'Operations Specialist & KYC Manager',
+    createdAt: '2025-03-15T08:00:00Z',
+    lastLoginAt: '2026-09-04T06:10:00Z',
+    kycStatus: 'verified',
+    accountStatus: 'active',
+    notes: 'Chuyên viên kiểm duyệt hồ sơ KYC, xử lý khiếu nại tranh chấp và đối soát ví Escrow.'
+  }
+];
+
+export const MOCK_FINANCIAL_SPLITS: OrderFinancialSplit[] = [
+  {
+    orderId: 'ORD-2026-8801',
+    orderNumber: 'VC-8801',
+    grossAmount: 3850000,
+    paymentGatewayFee: 77000, // 2%
+    creatorRoyalty: 269500,   // 7%
+    workshopPayout: 2890000,  // BOM + Machine + Labor
+    platformTakeRate: 613500, // Margin sàn
+    escrowStatus: 'holding',
+    escrowReleaseDate: '2026-09-11T00:00:00Z'
+  },
+  {
+    orderId: 'ORD-2026-8802',
+    orderNumber: 'VC-8802',
+    grossAmount: 850000,
+    paymentGatewayFee: 17000, // 2%
+    creatorRoyalty: 59500,
+    workshopPayout: 612000,
+    platformTakeRate: 161500,
+    escrowStatus: 'holding',
+    escrowReleaseDate: '2026-09-10T00:00:00Z'
+  },
+  {
+    orderId: 'ORD-2026-8799',
+    orderNumber: 'VC-8799',
+    grossAmount: 14500000,
+    paymentGatewayFee: 290000, // 2%
+    creatorRoyalty: 1015000,
+    workshopPayout: 10875000,
+    platformTakeRate: 2320000,
+    escrowStatus: 'released',
+    escrowReleaseDate: '2026-09-02T00:00:00Z'
+  },
+  {
+    orderId: 'ORD-2026-8795',
+    orderNumber: 'VC-8795',
+    grossAmount: 1200000,
+    paymentGatewayFee: 24000,
+    creatorRoyalty: 84000,
+    workshopPayout: 880000,
+    platformTakeRate: 212000,
+    escrowStatus: 'disputed',
+    escrowReleaseDate: '2026-09-08T00:00:00Z'
+  }
+];
+

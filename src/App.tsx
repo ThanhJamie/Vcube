@@ -43,20 +43,27 @@ import { NotFoundView } from '@frontend/components/NotFoundView';
 import { HomeView } from '@frontend/views/HomeView';
 import { ExploreView } from '@frontend/views/ExploreView';
 import { ProductDetailView } from '@frontend/views/ProductDetailView';
-import { Tool3DView } from '@frontend/views/Tool3DView';
 import { CartView } from '@frontend/views/CartView';
 import { CheckoutView } from '@frontend/views/CheckoutView';
 import { OrderSuccessView } from '@frontend/views/OrderSuccessView';
 import { OrderTrackingView } from '@frontend/views/OrderTrackingView';
 import { MyOrdersView } from '@frontend/views/MyOrdersView';
-import { AdminDashboardView } from '@frontend/views/AdminDashboardView';
-import { DesignerDashboardView } from '@frontend/views/DesignerDashboardView';
 import { PersonalizeView } from '@frontend/views/PersonalizeView';
 import { AssetLibraryView } from '@frontend/views/AssetLibraryView';
 import { LoginView } from '@frontend/views/LoginView';
 import { RegisterView } from '@frontend/views/RegisterView';
 import { ChatSupportModal } from '@frontend/components/ChatSupportModal';
 import { InvoiceModal } from '@frontend/components/InvoiceModal';
+import { CartDrawer } from '@frontend/components/CartDrawer';
+import { PageSkeleton } from '@frontend/components/PageSkeleton';
+import { useCartStore } from '@frontend/stores/useCartStore';
+import { useUIStore } from '@frontend/stores/useUIStore';
+
+// Heavy modules code-split via React.lazy() for fast initial page load
+const Tool3DView = React.lazy(() => import('@frontend/views/Tool3DView'));
+const AdminDashboardView = React.lazy(() => import('@frontend/views/AdminDashboardView'));
+const DesignerDashboardView = React.lazy(() => import('@frontend/views/DesignerDashboardView'));
+
 
 // --- ROUTE WRAPPER COMPONENTS ---
 
@@ -230,7 +237,29 @@ function MainApp() {
     }
     return PRODUCTS;
   });
-  const [cart, setCart] = useState<CartItem[]>(INITIAL_CART_ITEMS);
+  // Zustand State Management for Cart & UI
+  const cart = useCartStore((s) => s.cart);
+  const appliedDiscount = useCartStore((s) => s.appliedDiscount);
+  const addToCartStore = useCartStore((s) => s.addToCart);
+  const updateQuantityStore = useCartStore((s) => s.updateQuantity);
+  const removeItemStore = useCartStore((s) => s.removeItem);
+  const clearCartStore = useCartStore((s) => s.clearCart);
+  const setAppliedDiscount = useCartStore((s) => s.setAppliedDiscount);
+  const mergeGuestCart = useCartStore((s) => s.mergeGuestCart);
+
+  // Zustand State Management for UI Drawers, Modals & Toast Queue
+  const isCartDrawerOpen = useUIStore((s) => s.isCartDrawerOpen);
+  const setIsCartDrawerOpen = useUIStore((s) => s.setIsCartDrawerOpen);
+  const isAuthModalOpen = useUIStore((s) => s.isAuthModalOpen);
+  const authModalMode = useUIStore((s) => s.authModalMode);
+  const openAuthModal = useUIStore((s) => s.openAuthModal);
+  const closeAuthModal = useUIStore((s) => s.closeAuthModal);
+  const isChatOpen = useUIStore((s) => s.isChatOpen);
+  const setIsChatOpen = useUIStore((s) => s.setIsChatOpen);
+  const toastQueue = useUIStore((s) => s.toastQueue);
+  const addToast = useUIStore((s) => s.addToast);
+  const removeToast = useUIStore((s) => s.removeToast);
+
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
   const [assets, setAssets] = useState<DigitalAsset[]>(DIGITAL_ASSETS);
   const [siteContent, setSiteContent] = useState<SiteContentConfig>(() => {
@@ -371,12 +400,40 @@ function MainApp() {
     };
   }, []);
 
-  const handleUpdatePricingConfig = (newConfig: InkiriCostFormulaConfig) => {
+  // Fetch dynamic system parameters (Pricing Config & Site Content) from Supabase on mount
+  useEffect(() => {
+    let isMounted = true;
+    dbService.getPricingConfig().then((cfg) => {
+      if (isMounted && cfg) setPricingConfig(cfg);
+    }).catch((err) => console.warn('Could not load remote pricing config:', err));
+
+    dbService.getSiteContent().then((content) => {
+      if (isMounted && content) setSiteContent(content);
+    }).catch((err) => console.warn('Could not load remote site content:', err));
+
+    dbService.getMaterials().then((remoteMats) => {
+      if (isMounted && remoteMats && remoteMats.length > 0) setMaterials(remoteMats);
+    }).catch((err) => console.warn('Could not load remote materials:', err));
+
+    dbService.getPrinters().then((remotePrinters) => {
+      if (isMounted && remotePrinters && remotePrinters.length > 0) setPrinters(remotePrinters);
+    }).catch((err) => console.warn('Could not load remote printers:', err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleUpdatePricingConfig = async (newConfig: InkiriCostFormulaConfig) => {
     setPricingConfig(newConfig);
     try {
       localStorage.setItem('vcube_pricing_config', JSON.stringify(newConfig));
     } catch (e) {
       console.warn('Could not save pricing config', e);
+    }
+    const res = await dbService.savePricingConfig(newConfig);
+    if (!res.success) {
+      console.warn('Could not persist pricing config to Supabase:', res.error);
     }
   };
 
@@ -387,6 +444,10 @@ function MainApp() {
     } catch (e) {
       console.warn('Could not save materials', e);
     }
+    // Asynchronously upsert to Supabase
+    newMaterials.forEach((m) => {
+      dbService.saveMaterial(m).catch((e) => console.warn('Failed to sync material to Supabase:', e));
+    });
   };
 
   const handleUpdatePrinters = (newPrinters: PrinterProfile[]) => {
@@ -396,28 +457,29 @@ function MainApp() {
     } catch (e) {
       console.warn('Could not save printers', e);
     }
+    // Asynchronously upsert to Supabase
+    newPrinters.forEach((p) => {
+      dbService.savePrinter(p).catch((e) => console.warn('Failed to sync printer to Supabase:', e));
+    });
   };
 
   const [activeOrder, setActiveOrder] = useState<Order>(MOCK_ORDERS[0]);
-  const [appliedDiscount, setAppliedDiscount] = useState<number>(0);
-
-  // Modals & Notifications
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'role_select' | 'account'>('signin');
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
+  // Sync server cart with guest local cart upon user login
+  useEffect(() => {
+    if (isLoggedIn && user) {
+      // When user logs in, merge guest local cart with user's remote server cart
+      mergeGuestCart([]);
+    }
+  }, [isLoggedIn, user, mergeGuestCart]);
+
+  const showToast = (msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    addToast({ message: msg, type });
   };
 
   const handleOpenAuth = (mode: 'signin' | 'signup' | 'role_select' | 'account' = 'signin') => {
-    setAuthModalMode(mode);
-    setIsAuthModalOpen(true);
+    openAuthModal(mode);
   };
 
   // Derive active screen for Header navigation highlight
@@ -454,8 +516,21 @@ function MainApp() {
       return;
     }
 
-    // If user is not logged in, clicking buttons or navigating protected views triggers login
-    if (!isLoggedIn && screen !== 'home') {
+    const publicScreens = [
+      'home',
+      'explore',
+      'product_detail',
+      'personalize',
+      'tool_3d',
+      'quote',
+      'cart',
+      'checkout',
+      'order_success',
+      'order-success',
+      'order_tracking',
+      'tracking',
+    ];
+    if (!isLoggedIn && !publicScreens.includes(screen)) {
       navigate('/auth/login');
       return;
     }
@@ -495,9 +570,14 @@ function MainApp() {
         }
         break;
       case 'tool_3d':
-      case 'quote':
-        navigate('/quote');
+      case 'quote': {
+        const mat = payload?.materialId;
+        const params = new URLSearchParams();
+        if (mat) params.set('material', mat);
+        const searchStr = params.toString();
+        navigate(`/quote${searchStr ? `?${searchStr}` : ''}`, { state: payload });
         break;
+      }
       case 'cart':
         navigate('/cart');
         break;
@@ -516,15 +596,17 @@ function MainApp() {
         }
         break;
       case 'order_tracking':
-      case 'tracking':
-        if (payload?.order) {
-          const latestOrder = orders.find((o) => o.id === payload.order.id) || payload.order;
-          setActiveOrder(latestOrder);
-          navigate(`/tracking/${latestOrder.id}`);
+      case 'tracking': {
+        const targetOrderId = payload?.order?.id || payload?.orderId;
+        if (targetOrderId) {
+          const latestOrder = orders.find((o) => o.id === targetOrderId) || payload?.order;
+          if (latestOrder) setActiveOrder(latestOrder);
+          navigate(`/tracking/${targetOrderId}`);
         } else {
           navigate(`/tracking/${activeOrder?.id || 'ORD-2026-8801'}`);
         }
         break;
+      }
       case 'my_orders':
       case 'orders':
         navigate('/orders');
@@ -559,22 +641,8 @@ function MainApp() {
   };
 
   const handleAddToCart = (item: CartItem) => {
-    setCart((prev) => {
-      const existingIdx = prev.findIndex(
-        (i) =>
-          i.productId === item.productId &&
-          i.type === item.type &&
-          i.material === item.material &&
-          i.color === item.color &&
-          i.customText === item.customText
-      );
-      if (existingIdx > -1) {
-        const updated = [...prev];
-        updated[existingIdx].quantity += item.quantity;
-        return updated;
-      }
-      return [...prev, item];
-    });
+    addToCartStore(item);
+    setIsCartDrawerOpen(true);
   };
 
   const handleUpdateQuantity = (id: string, newQty: number) => {
@@ -582,12 +650,17 @@ function MainApp() {
       handleRemoveItem(id);
       return;
     }
-    setCart((prev) => prev.map((item) => (item.id === id ? { ...item, quantity: newQty } : item)));
+    updateQuantityStore(id, newQty);
   };
 
   const handleRemoveItem = (id: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
-    showToast(language === 'vi' ? 'Đã xóa sản phẩm khỏi giỏ hàng' : 'Removed item from cart');
+    const itemToRemove = cart.find((i) => i.id === id);
+    removeItemStore(id);
+    addToast({
+      message: language === 'vi' ? 'Đã xóa sản phẩm khỏi giỏ hàng' : 'Removed item from cart',
+      type: 'info',
+      undoAction: itemToRemove ? () => addToCartStore(itemToRemove) : undefined
+    });
   };
 
   const handleOrderCompleted = (newOrder: Order) => {
@@ -617,7 +690,7 @@ function MainApp() {
       setAssets((prev) => [...newAssets, ...prev]);
     }
 
-    setCart([]);
+    clearCartStore();
   };
 
   // Product Handlers (Synced to Supabase DB & LocalStorage Catalog DB with Rollback)
@@ -704,18 +777,24 @@ function MainApp() {
     );
   };
 
-  const handleUpdateSiteContent = (newContent: SiteContentConfig) => {
+  const handleUpdateSiteContent = async (newContent: SiteContentConfig) => {
     setSiteContent(newContent);
     try {
       localStorage.setItem('vcube_site_content', JSON.stringify(newContent));
     } catch (e) {
       console.warn('Could not save site content to localStorage', e);
     }
-    showToast('Đã lưu và cập nhật cấu hình giao diện website.');
+    const res = await dbService.saveSiteContent(newContent);
+    if (!res.success) {
+      console.warn('Could not save site content to Supabase:', res.error);
+      showToast('Đã lưu cục bộ nhưng lỗi đồng bộ Supabase.', 'warning');
+    } else {
+      showToast('Đã lưu và đồng bộ cấu hình giao diện lên Supabase thành công!', 'success');
+    }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8F9FF] text-[#0B1C30]">
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#091426]">
       {/* Top Header Navbar */}
       <Header
         currentScreen={currentScreen}
@@ -723,11 +802,13 @@ function MainApp() {
         cart={cart}
         siteContent={siteContent}
         onOpenAuth={handleOpenAuth}
+        onOpenCartDrawer={() => setIsCartDrawerOpen(true)}
       />
 
-      {/* Main View Routes */}
+      {/* Main View Routes with React.Suspense Code-Splitting */}
       <main className="flex-1">
-        <Routes>
+        <React.Suspense fallback={<PageSkeleton />}>
+          <Routes>
           {/* Marketplace & Home */}
           <Route
             path="/"
@@ -747,17 +828,15 @@ function MainApp() {
           <Route
             path="/explore"
             element={
-              <ProtectedRoute>
-                <ExploreRoute
-                  products={products}
-                  materials={materials}
-                  pricingConfig={pricingConfig}
-                  onAddToCart={handleAddToCart}
-                  onNavigate={handleNavigate}
-                  onSelectProduct={(p) => handleNavigate('product_detail', { product: p })}
-                  onShowToast={showToast}
-                />
-              </ProtectedRoute>
+              <ExploreRoute
+                products={products}
+                materials={materials}
+                pricingConfig={pricingConfig}
+                onAddToCart={handleAddToCart}
+                onNavigate={handleNavigate}
+                onSelectProduct={(p) => handleNavigate('product_detail', { product: p })}
+                onShowToast={showToast}
+              />
             }
           />
 
@@ -765,46 +844,40 @@ function MainApp() {
           <Route
             path="/products/:productId"
             element={
-              <ProtectedRoute>
-                <ProductDetailRoute
-                  products={products}
-                  materials={materials}
-                  pricingConfig={pricingConfig}
-                  onAddToCart={handleAddToCart}
-                  onNavigate={handleNavigate}
-                  onShowToast={showToast}
-                />
-              </ProtectedRoute>
+              <ProductDetailRoute
+                products={products}
+                materials={materials}
+                pricingConfig={pricingConfig}
+                onAddToCart={handleAddToCart}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
             }
           />
           <Route
             path="/personalize"
             element={
-              <ProtectedRoute>
-                <PersonalizeRoute
-                  products={products}
-                  materials={materials}
-                  pricingConfig={pricingConfig}
-                  onAddToCart={handleAddToCart}
-                  onNavigate={handleNavigate}
-                  onShowToast={showToast}
-                />
-              </ProtectedRoute>
+              <PersonalizeRoute
+                products={products}
+                materials={materials}
+                pricingConfig={pricingConfig}
+                onAddToCart={handleAddToCart}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
             }
           />
           <Route
             path="/personalize/:productId"
             element={
-              <ProtectedRoute>
-                <PersonalizeRoute
-                  products={products}
-                  materials={materials}
-                  pricingConfig={pricingConfig}
-                  onAddToCart={handleAddToCart}
-                  onNavigate={handleNavigate}
-                  onShowToast={showToast}
-                />
-              </ProtectedRoute>
+              <PersonalizeRoute
+                products={products}
+                materials={materials}
+                pricingConfig={pricingConfig}
+                onAddToCart={handleAddToCart}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
             }
           />
 
@@ -812,16 +885,14 @@ function MainApp() {
           <Route
             path="/quote"
             element={
-              <ProtectedRoute>
-                <Tool3DView
-                  materials={materials}
-                  printers={printers}
-                  pricingConfig={pricingConfig}
-                  onAddToCart={handleAddToCart}
-                  onNavigate={handleNavigate}
-                  onShowToast={showToast}
-                />
-              </ProtectedRoute>
+              <Tool3DView
+                materials={materials}
+                printers={printers}
+                pricingConfig={pricingConfig}
+                onAddToCart={handleAddToCart}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
             }
           />
           <Route path="/tool-3d" element={<Navigate to="/quote" replace />} />
@@ -830,29 +901,25 @@ function MainApp() {
           <Route
             path="/cart"
             element={
-              <ProtectedRoute>
-                <CartView
-                  cart={cart}
-                  onUpdateQuantity={handleUpdateQuantity}
-                  onRemoveItem={handleRemoveItem}
-                  onNavigate={handleNavigate}
-                  onShowToast={showToast}
-                />
-              </ProtectedRoute>
+              <CartView
+                cart={cart}
+                onUpdateQuantity={handleUpdateQuantity}
+                onRemoveItem={handleRemoveItem}
+                onNavigate={handleNavigate}
+                onShowToast={showToast}
+              />
             }
           />
           <Route
             path="/checkout"
             element={
-              <ProtectedRoute>
-                <CheckoutView
-                  cart={cart}
-                  appliedDiscount={appliedDiscount}
-                  siteContent={siteContent}
-                  onOrderCompleted={handleOrderCompleted}
-                  onNavigate={handleNavigate}
-                />
-              </ProtectedRoute>
+              <CheckoutView
+                cart={cart}
+                appliedDiscount={appliedDiscount}
+                siteContent={siteContent}
+                onOrderCompleted={handleOrderCompleted}
+                onNavigate={handleNavigate}
+              />
             }
           />
 
@@ -860,55 +927,47 @@ function MainApp() {
           <Route
             path="/order-success"
             element={
-              <ProtectedRoute>
-                <OrderSuccessRoute
-                  orders={orders}
-                  activeOrder={activeOrder}
-                  onNavigate={handleNavigate}
-                  onOpenInvoice={(ord) => setInvoiceOrder(ord)}
-                />
-              </ProtectedRoute>
+              <OrderSuccessRoute
+                orders={orders}
+                activeOrder={activeOrder}
+                onNavigate={handleNavigate}
+                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+              />
             }
           />
           <Route
             path="/order-success/:orderId"
             element={
-              <ProtectedRoute>
-                <OrderSuccessRoute
-                  orders={orders}
-                  activeOrder={activeOrder}
-                  onNavigate={handleNavigate}
-                  onOpenInvoice={(ord) => setInvoiceOrder(ord)}
-                />
-              </ProtectedRoute>
+              <OrderSuccessRoute
+                orders={orders}
+                activeOrder={activeOrder}
+                onNavigate={handleNavigate}
+                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+              />
             }
           />
           <Route
             path="/tracking"
             element={
-              <ProtectedRoute>
-                <OrderTrackingRoute
-                  orders={orders}
-                  activeOrder={activeOrder}
-                  onNavigate={handleNavigate}
-                  onOpenChat={() => setIsChatOpen(true)}
-                  onOpenInvoice={(ord) => setInvoiceOrder(ord)}
-                />
-              </ProtectedRoute>
+              <OrderTrackingRoute
+                orders={orders}
+                activeOrder={activeOrder}
+                onNavigate={handleNavigate}
+                onOpenChat={() => setIsChatOpen(true)}
+                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+              />
             }
           />
           <Route
             path="/tracking/:orderId"
             element={
-              <ProtectedRoute>
-                <OrderTrackingRoute
-                  orders={orders}
-                  activeOrder={activeOrder}
-                  onNavigate={handleNavigate}
-                  onOpenChat={() => setIsChatOpen(true)}
-                  onOpenInvoice={(ord) => setInvoiceOrder(ord)}
-                />
-              </ProtectedRoute>
+              <OrderTrackingRoute
+                orders={orders}
+                activeOrder={activeOrder}
+                onNavigate={handleNavigate}
+                onOpenChat={() => setIsChatOpen(true)}
+                onOpenInvoice={(ord) => setInvoiceOrder(ord)}
+              />
             }
           />
           <Route
@@ -1063,6 +1122,7 @@ function MainApp() {
           {/* 404 Not Found Fallback */}
           <Route path="*" element={<NotFoundView />} />
         </Routes>
+        </React.Suspense>
       </main>
 
       {/* Floating Quick Support Button */}
@@ -1078,18 +1138,58 @@ function MainApp() {
         </span>
       </button>
 
-      {/* Interactive Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-50 bg-[#091426] text-white px-4 py-3 border border-[#57DFFE]/30 shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200 rounded">
-          <span className="material-symbols-outlined text-[#57DFFE] text-xl">check_circle</span>
-          <span className="text-xs font-sans font-semibold">{toastMessage}</span>
-        </div>
-      )}
+      {/* Interactive Toast Notification Queue via useUIStore */}
+      <div className="fixed bottom-6 left-6 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full">
+        {toastQueue.map((toast) => (
+          <div
+            key={toast.id}
+            className={`pointer-events-auto px-4 py-3 border shadow-2xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200 rounded text-white ${
+              toast.type === 'error'
+                ? 'bg-[#1C0A0A] border-[#EF4444]/40 text-[#FCA5A5]'
+                : toast.type === 'warning'
+                ? 'bg-[#1C1608] border-[#F59E0B]/40 text-[#FDE68A]'
+                : toast.type === 'success'
+                ? 'bg-[#091426] border-[#10B981]/40 text-white'
+                : 'bg-[#091426] border-[#57DFFE]/30 text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-lg text-[#57DFFE]">
+                {toast.type === 'error'
+                  ? 'error'
+                  : toast.type === 'warning'
+                  ? 'warning'
+                  : toast.type === 'success'
+                  ? 'check_circle'
+                  : 'info'}
+              </span>
+              <span className="text-xs font-sans font-semibold">{toast.message}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {toast.undoAction && (
+                <button
+                  onClick={toast.undoAction}
+                  className="px-2 py-0.5 bg-white/10 hover:bg-white/20 text-[11px] font-mono rounded text-[#57DFFE] underline cursor-pointer"
+                >
+                  Hoàn tác
+                </button>
+              )}
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+                aria-label="Đóng thông báo"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Auth Modal for Login & Registration */}
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={closeAuthModal}
         initialMode={authModalMode}
         onSuccess={showToast}
       />
@@ -1105,6 +1205,16 @@ function MainApp() {
         order={invoiceOrder}
         isOpen={!!invoiceOrder}
         onClose={() => setInvoiceOrder(null)}
+      />
+
+      {/* Slide-over Cart Drawer */}
+      <CartDrawer
+        isOpen={isCartDrawerOpen}
+        onClose={() => setIsCartDrawerOpen(false)}
+        cart={cart}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemoveItem={handleRemoveItem}
+        onNavigate={handleNavigate}
       />
 
       {/* Industrial Aesthetic Footer with Dynamic Admin Content */}

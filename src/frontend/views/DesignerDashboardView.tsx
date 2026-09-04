@@ -1539,3 +1539,5 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
     </div>
   );
 };
+
+export default DesignerDashboardView;

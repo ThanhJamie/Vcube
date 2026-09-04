@@ -77,6 +77,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         layerProgress: 0,
         timeRemaining: '04h 30m',
         customerType: isLoggedIn ? 'registered' : 'guest',
+        secureAccessToken: !isLoggedIn ? `sec_${Date.now()}_${Math.random().toString(36).substring(2, 10)}` : undefined,
         items: cart.map(item => ({
           id: item.id,
           name: item.name,
@@ -186,19 +187,24 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             </span>
           </div>
         ) : (
-          <div className="bg-white border border-[#CBD5E1] p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#00687A]/10 text-[#00687A] flex items-center justify-center font-bold shrink-0">
-                <span className="material-symbols-outlined text-xl">lock</span>
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                <span className="material-symbols-outlined text-xl">bolt</span>
               </div>
               <div>
-                <p className="font-bold text-xs text-[#091426]">
-                  {isVi ? 'Đăng nhập để theo dõi trực tiếp camera xưởng in' : 'Sign in to access live workshop camera'}
-                </p>
-                <p className="text-[11px] text-[#64748B] font-mono">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-xs text-emerald-950">
+                    {isVi ? 'Chế độ Đặt Hàng Khách Vãng Lai (Guest Checkout)' : 'Guest Checkout Active'}
+                  </p>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 text-[10px] font-mono font-bold">
+                    Không Cần Mật Khẩu
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-800 font-sans mt-0.5">
                   {isVi
-                    ? 'Đăng nhập để tích lũy điểm R&D, tải lại file CAD không giới hạn và xuất hóa đơn VAT nhanh.'
-                    : 'Sign in for unlimited CAD re-downloads and instant VAT invoicing.'}
+                    ? 'Bạn có thể đặt in trực tiếp bằng SĐT & Địa chỉ. Hệ thống tự động cấp Mã Truy Cập Riêng (Access Token) để tra cứu trạng thái đơn hàng.'
+                    : 'Checkout instantly with phone & address. A secure token will be generated to track your fabrication live.'}
                 </p>
               </div>
             </div>
@@ -206,10 +212,10 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             <div className="flex items-center gap-2 shrink-0">
               <Link
                 to="/auth/login?redirectTo=/checkout"
-                className="px-4 py-2 bg-[#00687A] hover:bg-[#005260] text-white rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="px-3.5 py-1.5 bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-sm">login</span>
-                <span>{isVi ? 'Đăng nhập' : 'Sign In'}</span>
+                <span>{isVi ? 'Đăng nhập nếu có tài khoản' : 'Sign In'}</span>
               </Link>
             </div>
           </div>

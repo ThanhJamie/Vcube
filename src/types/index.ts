@@ -79,6 +79,7 @@ export interface Order {
   layerProgress?: number;
   timeRemaining?: string;
   customerType?: 'guest' | 'registered';
+  secureAccessToken?: string;
   items: {
     id: string;
     name: string;
@@ -303,6 +304,8 @@ export interface InkiriCostFormulaConfig {
   // 3. Packaging & Consumables / Đóng gói & Vật tư phụ
   fixedPackagingCost: number; // VND/unit, e.g. 12000
   multiColorPackagingExtra: number; // VND/unit, e.g. 5000
+  ipaSolventCost?: number; // VND/unit, e.g. 8000 Chi phí cồn IPA hoàn thiện & dung môi rửa
+  defaultMachineDepreciationPerHour?: number; // VND/hour, e.g. 4375 Khấu hao máy in cơ sở theo giờ
 
   // 4. Overhead & Management / Mặt bằng & Chi phí quản lý chung
   overheadPerUnit: number; // VND/unit, e.g. 15000
@@ -392,8 +395,9 @@ export interface DetailedCostBreakdown {
   laborHourlyRate: number;
   laborCost: number;
 
-  // 3.5 Accessories & Packaging
+  // 3.5 Accessories & Packaging & IPA Finishing
   accessoriesCost: number; // Inserts, magnets, box, bubble wrap, labels
+  ipaSolventCost?: number; // Chi phí cồn IPA hoàn thiện & dung môi rửa
 
   // 3.6 Overhead Allocation
   overheadPerUnit: number; // Rent, software, licenses, shop utilities
@@ -650,6 +654,15 @@ export interface SiteContentConfig {
   contactEmail: string;
   hanoiWorkshopAddress: string;
   hcmWorkshopAddress: string;
+
+  // SEO & Metadata Management
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
+  seoOgImage?: string;
+  seoCanonicalUrl?: string;
+  seoRobotsIndex?: boolean;
+  seoStructuredData?: string;
 }
 
 export type UserRole = 'customer' | 'designer' | 'admin' | 'lab';
@@ -672,4 +685,291 @@ export interface AppUserProfile {
   };
   createdAt: string;
   lastLoginAt?: string;
+  // KYC & Compliance
+  kycStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+  kycDocumentType?: 'id_card' | 'passport' | 'business_license';
+  kycDocumentNumber?: string;
+  kycDocumentImages?: string[];
+  kycSubmittedAt?: string;
+  kycVerifiedAt?: string;
+  kycRejectionReason?: string;
+  // Account Status & Metrics
+  accountStatus?: 'active' | 'suspended' | 'under_review' | 'flagged';
+  totalOrders?: number;
+  totalSpent?: number;
+  totalRevenue?: number;
+  workshopPartnerId?: string;
+  notes?: string;
 }
+
+// -----------------------------------------------------------------------------
+// 3-SIDED MARKETPLACE DOMAIN TYPES (BUYERS, CREATORS, WORKSHOP MES)
+// -----------------------------------------------------------------------------
+export interface WorkshopPartner {
+  id: string;
+  name: string;
+  region: 'hanoi' | 'danang' | 'hcm';
+  address: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  supportedTechnologies: ('FDM' | 'SLA' | 'SLS')[];
+  maxBuildVolume: { x: number; y: number; z: number };
+  activePrintersCount: number;
+  availablePrintersCount: number;
+  slaRating: number; // 0.0 - 5.0
+  completedJobsCount: number;
+  currentQueueLength: number; // active print hours in queue
+  inStockMaterials: string[];
+  status: 'active' | 'busy' | 'offline';
+}
+
+export interface ProductLicensingConfig {
+  allowDigitalDownload: boolean;
+  priceDigital: number;
+  allowPhysicalManufacturing: boolean;
+  physicalRoyaltyPercent: number; // 5% to 20%
+  exclusiveBuyoutPrice?: number;
+  commercialLicenseFee?: number;
+}
+
+export interface OrderFinancialSplit {
+  orderId: string;
+  orderNumber: string;
+  grossAmount: number;
+  paymentGatewayFee: number; // 2%
+  creatorRoyalty: number;    // Designer physical royalty or 90% digital
+  workshopPayout: number;    // BOM + Machine Time + Labor + 80% rush + personalization
+  platformTakeRate: number;  // VCUBE platform revenue
+  escrowStatus: 'holding' | 'disputed' | 'released';
+  escrowReleaseDate: string; // 7 days after completion
+}
+
+export interface DispatchAssignment {
+  id: string;
+  orderId: string;
+  workshopId: string;
+  workshopName: string;
+  assignedAt: string;
+  responseDeadline: string; // 30 minutes SLA
+  status: 'dispatched' | 'accepted' | 'rejected' | 'auto_rerouted' | 'in_production' | 'completed';
+  assignedPrinterId?: string;
+  printHoursEstimated: number;
+}
+
+export interface QualityControlRecord {
+  id: string;
+  orderId: string;
+  workshopId: string;
+  inspectorName: string;
+  measuredWeightGrams: number;
+  expectedWeightGrams: number;
+  criticalDimensionsToleranceMm: number; // e.g. 0.03
+  isWithinTolerance: boolean;
+  visualDefectCheck: boolean;
+  photoInspectionUrls: string[];
+  inspectionNotes?: string;
+  inspectedAt: string;
+  passed: boolean;
+}
+
+export type AdminNavSection =
+  | 'overview'
+  // Group 0: Overview
+  | 'group0-overview'
+  // Group 1: Workshops
+  | 'workshops'
+  | 'partners'
+  | 'machines'
+  // Group 2: Designers
+  | 'designers'
+  // Group 3: Customers
+  | 'users'
+  | 'customers'
+  // Group 4: Pricing Engine (Inkiri Standard)
+  | 'pricing'
+  | 'pricing-engine'
+  | 'pricing-setup'
+  | 'cost-rules'
+  | 'materials'
+  | 'hardware'
+  | 'quote-calc'
+  // Group 5: Production & MES
+  | 'orders'
+  | 'products'
+  | 'queue'
+  | 'inventory'
+  // Content & System
+  | 'storefront'
+  | 'seo'
+  | 'settings';
+
+export type AdminTab = AdminNavSection;
+
+// ==============================================================================
+// INKIRI COST ENGINE & ROLE PROFILES (MULTI-TENANT VCUBE)
+// ==============================================================================
+
+export interface WorkshopProfile {
+  id: string;
+  userId?: string;
+  partnerId?: string;
+  workshopName: string;
+  address: string;
+  region: 'Bắc' | 'Trung' | 'Nam' | 'hanoi' | 'danang' | 'hcm';
+  totalMachines: number;
+  activeMachinesNow: number;
+  electricityRateOverride?: number;
+  laborRateOverride?: number;
+  verifiedStatus: 'Pending' | 'Verified' | 'Suspended';
+  contactPhone?: string;
+  contactEmail?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WorkshopMachine {
+  id: string;
+  workshopId: string;
+  machineName: string;
+  machineType: 'FDM' | 'SLA' | 'SLS' | 'PolyJet';
+  avgPowerKW: number;        // Average running power in kW (not nameplate peak power)
+  purchasePrice: number;     // Purchase price in VND
+  lifetimeHours: number;     // Expected lifetime in hours
+  status: 'Free' | 'Busy' | 'Maintenance' | 'Offline';
+  currentJobId?: string;
+  buildVolumeMm?: { x: number; y: number; z: number };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WorkshopMaterial {
+  id: string;
+  workshopId: string;
+  materialName: string;
+  materialType: 'PLA' | 'PETG' | 'ABS' | 'ASA' | 'TPU' | 'PC' | 'PA' | 'PVA' | 'Resin';
+  pricePerKg: number;
+  colorHex: string;
+  colorName?: string;
+  density: number;
+  stockStatus: 'Tracking' | 'NotTracking' | 'LowStock' | 'OutOfStock';
+  currentStockGrams: number;
+  lowStockThresholdGrams?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MaterialInventoryLog {
+  id: string;
+  materialId: string;
+  action: 'Import' | 'Export' | 'Adjustment';
+  grams: number;
+  pricePerKgAtTime?: number;
+  supplier?: string;
+  batchCode?: string;
+  note?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface DesignerProfile {
+  id: string;
+  userId: string;
+  displayName: string;
+  bio?: string;
+  avatarUrl?: string;
+  coverUrl?: string;
+  socialLinks?: Record<string, string>;
+  defaultRoyaltyPercent: number; // e.g. 10%
+  licenseMode: 'PrintOnly' | 'CommercialSubscription';
+  badgeTier: 'Standard' | 'TopCreator' | 'VerifiedEngineer' | 'PioneerMaker';
+  payoutBankInfo?: string;
+  totalSalesCount?: number;
+  totalRoyaltiesEarned?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CustomerProfile {
+  id: string;
+  userId: string;
+  defaultShippingAddress?: Record<string, any>;
+  preferredPaymentMethod: 'vietqr' | 'momo' | 'vnpay' | 'cod';
+  companyName?: string;
+  taxId?: string;
+  billingEmail?: string;
+  ndaSigned?: boolean;
+  ndaSignedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PricingGlobalSettings {
+  id: string;
+  electricityRateVndKwh: number;        // e.g. 2850
+  defaultLaborRateVndHour: number;      // e.g. 65000
+  defaultScrapRatePercent: number;      // e.g. 5%
+  profitMode: 'Markup' | 'Margin';      // Markup (on cost) vs Margin (on revenue)
+  defaultProfitPercent: number;         // e.g. 35%
+  marketplaceFeePercent: number;        // e.g. 8%
+  marketplaceFixedFeeVnd: number;       // e.g. 5000
+  overheadMonthlyCost: number;          // e.g. 15,000,000 VND
+  avgProductsSoldPerMonth: number;      // e.g. 300 units
+  enableAccessoriesPricing: boolean;
+  enableMarketplaceFeeMode: boolean;
+  enableAdvancedOverhead: boolean;
+  version: number;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+export interface WorkshopAccessory {
+  id: string;
+  workshopId?: string;
+  name: string;
+  groupName: string; // 'Hardware' | 'Packaging' | 'Fastener' | 'Magnet'
+  qtyPerPack: number;
+  pricePerPack: number;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface InkiriCalculationInput {
+  printHours: number;
+  postProcessingHours?: number;
+  machine: {
+    avgPowerKW: number;
+    purchasePrice: number;
+    lifetimeHours: number;
+  };
+  material: {
+    grams: number;
+    pricePerKg: number;
+  };
+  accessories?: {
+    usedQty: number;
+    packQty: number;
+    packPrice: number;
+  }[];
+  customCosts?: number;
+  globalSettings?: Partial<PricingGlobalSettings>;
+}
+
+export interface InkiriCalculationResult {
+  depreciationPerHour: number;
+  electricityPerHour: number;
+  machineCost: number;
+  materialCost: number;
+  laborCost: number;
+  accessoriesCost: number;
+  allocatedOverhead: number;
+  rawBaseCost: number;
+  scrapReserveCost: number;
+  finalCost: number;
+  sellingPricePreFee: number;
+  marketplaceFeeAmount: number;
+  finalSellingPrice: number;
+  profitMode: 'Markup' | 'Margin';
+  profitPercent: number;
+}
+

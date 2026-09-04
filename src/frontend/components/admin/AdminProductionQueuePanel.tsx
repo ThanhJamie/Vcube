@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Order } from '../../types';
+import { Order, PrinterProfile, WorkshopPartner } from '../../types';
+import { PRINTER_PROFILES, WORKSHOP_PARTNERS } from '../../data/mockData';
 import { useLanguage } from '../../context/LanguageContext';
 
 interface AdminProductionQueuePanelProps {
   orders: Order[];
+  printers?: PrinterProfile[];
+  workshops?: WorkshopPartner[];
   onUpdateOrderStatus: (orderId: string, newStageIndex: number, newStatus: Order['status'], progress?: number) => void;
   onNavigateTracking: (order: Order) => void;
   onShowToast: (message: string) => void;
@@ -11,6 +14,8 @@ interface AdminProductionQueuePanelProps {
 
 export const AdminProductionQueuePanel: React.FC<AdminProductionQueuePanelProps> = ({
   orders,
+  printers = PRINTER_PROFILES,
+  workshops = WORKSHOP_PARTNERS,
   onUpdateOrderStatus,
   onNavigateTracking,
   onShowToast,
@@ -19,6 +24,16 @@ export const AdminProductionQueuePanel: React.FC<AdminProductionQueuePanelProps>
   const isVi = language === 'vi';
 
   const [filterStage, setFilterStage] = useState<string>('all');
+  const [assignedHubs, setAssignedHubs] = useState<Record<string, string>>({
+    'order-1': 'ws-hanoi-hub',
+    'order-2': 'ws-hcm-mega',
+    'order-3': 'ws-danang-lab'
+  });
+  const [assignedPrinters, setAssignedPrinters] = useState<Record<string, string>>({
+    'order-1': 'p-x1c-01',
+    'order-2': 'p-x1c-02',
+    'order-3': 'p-elegoo-s4u'
+  });
   const [operatorNotes, setOperatorNotes] = useState<Record<string, string>>({
     'order-1': 'Đang rửa cồn Isopropyl 99% và chiếu tia cực tím 405nm trong 15 phút.',
     'order-2': 'Bàn in số #04 (Bambu X1C) đang chạy ở tốc độ 250mm/s.',
@@ -203,8 +218,51 @@ export const AdminProductionQueuePanel: React.FC<AdminProductionQueuePanelProps>
                     </span>
                   </div>
 
+                  {/* MES Dispatcher: Trạm Hub & Máy In */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[#545F73] font-bold shrink-0">Trạm Hub:</span>
+                      <select
+                        value={assignedHubs[order.id] || 'ws-hanoi-hub'}
+                        onChange={(e) => {
+                          const newHubId = e.target.value;
+                          setAssignedHubs({ ...assignedHubs, [order.id]: newHubId });
+                          const hub = workshops.find(w => w.id === newHubId);
+                          onShowToast(isVi ? `Đã điều phối đơn ${order.orderNumber} về ${hub?.name || newHubId}` : `Dispatched ${order.orderNumber} to ${hub?.name || newHubId}`);
+                        }}
+                        className="flex-1 px-2 py-1 bg-white border border-[#C5C6CD] rounded text-xs font-semibold text-[#091426] focus:outline-none focus:border-[#00687A]"
+                      >
+                        {workshops.map(w => (
+                          <option key={w.id} value={w.id}>
+                            {w.region.toUpperCase()} - {w.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[#545F73] font-bold shrink-0">Máy in:</span>
+                      <select
+                        value={assignedPrinters[order.id] || printers[0]?.id || ''}
+                        onChange={(e) => {
+                          const newPrinterId = e.target.value;
+                          setAssignedPrinters({ ...assignedPrinters, [order.id]: newPrinterId });
+                          const pr = printers.find(p => p.id === newPrinterId);
+                          onShowToast(isVi ? `Đã gán máy in ${pr?.name || newPrinterId} cho đơn ${order.orderNumber}` : `Assigned printer ${pr?.name || newPrinterId} to ${order.orderNumber}`);
+                        }}
+                        className="flex-1 px-2 py-1 bg-white border border-[#C5C6CD] rounded text-xs font-semibold text-[#091426] focus:outline-none focus:border-[#00687A]"
+                      >
+                        {printers.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.brand} {p.name} ({p.technology})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   {/* Operational Notes */}
-                  <div className="pt-2 text-xs text-[#091426] flex items-center gap-2">
+                  <div className="pt-1 text-xs text-[#091426] flex items-center gap-2">
                     <span className="text-[#545F73] font-bold">Ghi chú xưởng:</span>
                     <input
                       type="text"

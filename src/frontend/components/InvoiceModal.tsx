@@ -14,111 +14,169 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
     window.print();
   };
 
+  const subtotal = order.payment.subtotalPhysical || order.payment.total;
+  const vatAmount = Math.round(subtotal * 0.08);
+  const grandTotal = subtotal + vatAmount;
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white w-full max-w-2xl shadow-2xl border border-black/15 overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Modal Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#1C1C1C] text-white flex items-center justify-between font-sans">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-base">receipt</span>
-            <h3 className="font-bold text-xs uppercase tracking-widest truncate">HÓA ĐƠN GTGT & BIÊN BẢN GIA CÔNG</h3>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-xs">
+      <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl border border-[#CBD5E1] overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
+        {/* Modal Top Control Bar */}
+        <div className="px-5 py-4 bg-[#091426] text-white flex items-center justify-between font-sans shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#00687A] flex items-center justify-center text-white">
+              <span className="material-symbols-outlined text-base">receipt_long</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-xs uppercase tracking-wider">
+                HÓA ĐƠN GTGT & CHỨNG NHẬN GIA CÔNG KỸ THUẬT
+              </h3>
+              <p className="text-[10px] text-[#94A3B8] font-mono">
+                Số HĐ: HD-VCUBE-{order.orderNumber.replace('#', '')} • e-Invoice Validated
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-white text-[#1C1C1C] hover:bg-[#E0DDD5] text-[10px] uppercase tracking-widest font-bold flex items-center gap-1 transition-colors touch-target-btn"
+              className="px-3 py-1.5 bg-[#00687A] hover:bg-[#005260] text-white text-[11px] font-mono uppercase tracking-wider font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
             >
-              <span className="material-symbols-outlined text-xs">print</span>
-              <span className="hidden sm:inline">In Hóa Đơn</span>
+              <span className="material-symbols-outlined text-sm">print</span>
+              <span>In Hóa Đơn</span>
             </button>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-white/10 text-white/70 hover:text-white transition-colors touch-target-btn"
+              className="p-1.5 hover:bg-white/10 text-white/70 hover:text-white rounded-lg transition-colors cursor-pointer"
               aria-label="Đóng hóa đơn"
             >
-              <span className="material-symbols-outlined text-lg">close</span>
+              <span className="material-symbols-outlined text-xl">close</span>
             </button>
           </div>
         </div>
 
         {/* Printable Invoice Body */}
-        <div className="p-4 sm:p-8 overflow-y-auto space-y-6 text-xs text-[#1C1C1C] font-sans bg-[#FAF9F5]">
-          {/* Company & Order Info */}
-          <div className="flex flex-col sm:flex-row justify-between border-b border-black/10 pb-4 sm:pb-6 gap-3">
+        <div className="p-6 sm:p-8 overflow-y-auto space-y-6 text-xs text-[#091426] font-sans bg-[#F8FAFC]">
+          {/* Company & Order Info Header */}
+          <div className="flex flex-col sm:flex-row justify-between border-b border-[#CBD5E1] pb-5 gap-4">
             <div>
-              <h2 className="font-bold text-base sm:text-lg text-[#1C1C1C] font-serif uppercase tracking-wider">VCUBE VIETNAM JSC</h2>
-              <p className="text-[#7D7565] mt-1 font-serif">Nền tảng In 3D Kỹ thuật & Chế tác Công nghiệp</p>
-              <p className="text-[#7D7565]">MST: 0108924881 • Hotline: 1900 6833</p>
-              <p className="text-[#7D7565]">Xưởng in: Khu Công Nghệ Cao Hòa Lạc, Hà Nội</p>
+              <div className="flex items-center gap-2">
+                <span className="font-display font-black text-xl text-[#091426] tracking-tighter">VCUBE</span>
+                <span className="text-xs font-mono font-bold text-[#00687A] bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                  VIETNAM PRECISION FABRICATION
+                </span>
+              </div>
+              <p className="text-[#545F73] mt-1 text-xs">
+                CÔNG TY CỔ PHẦN CÔNG NGHỆ CHẾ TÁC 3D VCUBE VIỆT NAM
+              </p>
+              <p className="text-[#64748B] text-[11px] font-mono mt-0.5">
+                Mã Số Thuế: <strong className="text-[#091426]">0108924881</strong> • Hotline Kỹ Thuật: 1900 6833
+              </p>
+              <p className="text-[#64748B] text-[11px]">
+                Xưởng Chế Tác: Lô E2a-7, Đường D1, Khu CNC Hòa Lạc, Hà Nội
+              </p>
             </div>
-            <div className="text-left sm:text-right space-y-1">
-              <p className="font-tech font-bold text-sm text-[#1C1C1C]">MÃ ĐƠN: {order.orderNumber}</p>
-              <p className="text-[#7D7565]">Ngày lập: {order.date}</p>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-[#1C1C1C]">ĐÃ THANH TOÁN ({order.payment.method})</p>
+
+            <div className="text-left sm:text-right space-y-1 font-mono">
+              <p className="font-bold text-sm text-[#091426]">MÃ ĐƠN: {order.orderNumber}</p>
+              <p className="text-xs text-[#64748B]">Ngày phát hành: {order.date}</p>
+              <span className="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold uppercase">
+                ✓ ĐÃ THANH TOÁN ({order.payment.method})
+              </span>
             </div>
           </div>
 
-          {/* Customer info */}
-          <div className="bg-white p-3.5 sm:p-4 border border-black/10 space-y-1">
-            <p className="font-bold text-[10px] uppercase tracking-widest text-[#7D7565]">KHÁCH HÀNG / KỸ SƯ:</p>
-            <p className="font-serif font-bold text-sm text-[#1C1C1C]">{order.shippingAddress.fullName} ({order.shippingAddress.phone})</p>
-            <p className="text-[#7D7565] font-serif">{order.shippingAddress.address}, {order.shippingAddress.district}, {order.shippingAddress.city}</p>
+          {/* Customer info card */}
+          <div className="bg-white p-4 rounded-xl border border-[#CBD5E1] space-y-1 shadow-2xs">
+            <p className="font-mono font-bold text-[10px] uppercase tracking-widest text-[#00687A]">
+              THÔNG TIN ĐƠN VỊ / KHÁCH HÀNG:
+            </p>
+            <p className="font-bold text-sm text-[#091426]">
+              {order.shippingAddress.fullName}
+              <span className="text-[#64748B] font-mono font-normal ml-2">({order.shippingAddress.phone})</span>
+            </p>
+            <p className="text-[#545F73] text-xs">
+              Địa chỉ nhận: {order.shippingAddress.address}, {order.shippingAddress.district}, {order.shippingAddress.city}
+            </p>
           </div>
 
           {/* Items Table */}
-          <div className="responsive-table-wrapper">
-            <table className="text-left text-xs">
-              <thead className="border-b border-black/10 text-[10px] uppercase tracking-widest text-[#7D7565] pb-2">
+          <div className="bg-white rounded-xl border border-[#CBD5E1] overflow-hidden shadow-2xs">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 border-b border-[#CBD5E1] text-[10px] font-mono font-bold uppercase tracking-wider text-[#64748B]">
                 <tr>
-                  <th className="p-2 font-semibold">STT</th>
-                  <th className="p-2 font-semibold">Tên Linh Kiện / Bản Vẽ</th>
-                  <th className="p-2 font-semibold">Vật Liệu</th>
-                  <th className="p-2 font-semibold text-center">SL</th>
-                  <th className="p-2 font-semibold text-right">Đơn Giá</th>
-                  <th className="p-2 font-semibold text-right">Thành Tiền</th>
+                  <th className="p-3">STT</th>
+                  <th className="p-3">Chi Tiết / Mã Bản Vẽ</th>
+                  <th className="p-3">Vật Liệu & Dung Sai</th>
+                  <th className="p-3 text-center">SL</th>
+                  <th className="p-3 text-right">Đơn Giá</th>
+                  <th className="p-3 text-right">Thành Tiền</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/5 font-sans text-xs">
+              <tbody className="divide-y divide-[#E2E8F0]">
                 {order.items.map((item, idx) => (
-                  <tr key={item.id}>
-                    <td className="p-2 text-[#7D7565] font-tech">{idx + 1}</td>
-                    <td className="p-2 font-serif font-bold text-[#1C1C1C]">{item.name}</td>
-                    <td className="p-2 text-[#7D7565]">{item.material || 'File 3D STL'}</td>
-                    <td className="p-2 text-center font-tech">{item.quantity}</td>
-                    <td className="p-2 text-right font-tech">{item.price.toLocaleString('vi-VN')} đ</td>
-                    <td className="p-2 text-right font-tech font-bold text-[#1C1C1C]">{(item.price * item.quantity).toLocaleString('vi-VN')} đ</td>
+                  <tr key={item.id} className="hover:bg-slate-50/50">
+                    <td className="p-3 text-[#64748B] font-mono">{idx + 1}</td>
+                    <td className="p-3 font-bold text-[#091426]">
+                      {item.name}
+                      {item.customText && (
+                        <span className="block text-[10px] text-[#00687A] font-mono font-normal">
+                          Khắc Laser: "{item.customText}"
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-[#545F73] font-mono text-[11px]">
+                      {item.material || 'PLA Tough Kỹ Thuật'} (±0.05mm)
+                    </td>
+                    <td className="p-3 text-center font-mono font-bold">{item.quantity}</td>
+                    <td className="p-3 text-right font-mono">{item.price.toLocaleString('vi-VN')} ₫</td>
+                    <td className="p-3 text-right font-mono font-bold text-[#091426]">
+                      {(item.price * item.quantity).toLocaleString('vi-VN')} ₫
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Payment summary */}
-          <div className="pt-4 border-t border-black/10 flex justify-end">
-            <div className="w-full sm:w-64 space-y-2 font-sans text-right">
-              <div className="flex justify-between text-[#7D7565]">
+          {/* Payment breakdown & Digital Signature Stamp */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+            {/* Left: Digital Verification Box */}
+            <div className="bg-white p-4 rounded-xl border border-[#CBD5E1] space-y-2 text-[11px] shadow-2xs">
+              <div className="flex items-center gap-2 text-[#00687A] font-mono font-bold">
+                <span className="material-symbols-outlined text-base">verified</span>
+                <span>CHỮ KÝ SỐ DOANH NGHIỆP (SHA-256)</span>
+              </div>
+              <p className="text-[#64748B] font-mono text-[10px] break-all bg-slate-50 p-2 rounded border border-slate-200">
+                SHA256: 8f4b29a613d07e59c2a10bfcae04d78b27341e938924b1050a4980a312fe8924
+              </p>
+              <p className="text-[#64748B] text-[10px]">
+                Ký bởi: VCUBE CA CA-04 • Thời gian ký: {order.date} • Đạt chuẩn tra cứu thuế e-Invoice TCT.
+              </p>
+            </div>
+
+            {/* Right: Amounts Calculation */}
+            <div className="bg-white p-4 rounded-xl border border-[#CBD5E1] space-y-2 font-mono text-xs shadow-2xs">
+              <div className="flex justify-between text-[#64748B]">
                 <span>Tạm tính linh kiện:</span>
-                <span className="font-tech text-[#1C1C1C]">{(order.payment.subtotalPhysical + order.payment.subtotalDigital).toLocaleString('vi-VN')} đ</span>
+                <span>{subtotal.toLocaleString('vi-VN')} ₫</span>
               </div>
-              <div className="flex justify-between text-[#7D7565]">
-                <span>Phí vận chuyển chuyên dụng:</span>
-                <span className="font-tech text-[#1C1C1C]">{order.payment.shippingFee.toLocaleString('vi-VN')} đ</span>
+              <div className="flex justify-between text-[#64748B]">
+                <span>Thuế GTGT (VAT 8%):</span>
+                <span>{vatAmount.toLocaleString('vi-VN')} ₫</span>
               </div>
-              {order.payment.discount > 0 && (
-                <div className="flex justify-between text-[#1C1C1C] font-semibold">
-                  <span>Ưu đãi áp dụng:</span>
-                  <span className="font-tech">-{order.payment.discount.toLocaleString('vi-VN')} đ</span>
-                </div>
-              )}
-              <div className="pt-2 border-t border-black/15 flex justify-between font-bold text-sm text-[#1C1C1C]">
-                <span className="uppercase tracking-wider text-xs">Tổng cộng:</span>
-                <span className="font-tech text-base">{order.payment.total.toLocaleString('vi-VN')} đ</span>
+              <div className="flex justify-between text-[#64748B]">
+                <span>Phí đóng gói & Kiểm định QC:</span>
+                <span className="text-emerald-700 font-bold">MIỄN PHÍ</span>
+              </div>
+              <div className="flex justify-between text-[#64748B]">
+                <span>Phí vận chuyển bọc chống sốc:</span>
+                <span>0 ₫</span>
+              </div>
+              <div className="border-t border-[#CBD5E1] pt-2 flex justify-between font-bold text-sm text-[#091426]">
+                <span>TỔNG CỘNG THANH TOÁN:</span>
+                <span className="text-[#00687A] text-base">{grandTotal.toLocaleString('vi-VN')} ₫</span>
               </div>
             </div>
-          </div>
-
-          <div className="text-[10px] text-[#7D7565] font-serif italic text-center pt-4 border-t border-black/10">
-            Hóa đơn điện tử khởi tạo bởi VCUBE Vietnam • Bảo hành dung sai và kiểm tra chất lượng 100% trước khi xuất xưởng.
           </div>
         </div>
       </div>

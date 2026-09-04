@@ -174,6 +174,93 @@ export const AdminOverviewPanel: React.FC<AdminOverviewPanelProps> = ({
         </div>
       </div>
 
+      {/* 4-Stakeholder Ecosystem Architecture Banner */}
+      <div className="bg-gradient-to-r from-[#091426] to-[#0A2540] rounded-2xl p-5 sm:p-6 text-white shadow-md border border-white/10 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#57DFFE] animate-pulse"></span>
+              <span className="font-tech text-xs uppercase tracking-widest text-[#57DFFE] font-bold">
+                {isVi ? 'HỆ SINH THÁI 4 NHÓM TÁC NHÂN // 4-ROLE STAKEHOLDER MESH' : '4-ROLE STAKEHOLDER PLATFORM'}
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-bold mt-1 text-white">
+              {isVi ? 'Mô Hình Kết Nối Đa Bên: Khách In • Tác Giả • Xưởng In • Quản Trị' : 'Multi-Stakeholder Platform: Customers • Creators • MES Labs • Admin'}
+            </h3>
+          </div>
+          <button
+            onClick={() => onNavigateSection('users')}
+            className="px-3.5 py-1.5 bg-[#57DFFE]/15 hover:bg-[#57DFFE]/25 text-[#57DFFE] text-xs font-bold font-tech rounded-lg border border-[#57DFFE]/30 transition-all flex items-center gap-1.5 shrink-0 self-start sm:self-auto cursor-pointer"
+          >
+            <span>{isVi ? 'Quản Lý 4 Nhóm & KYC' : 'Manage Roles & KYC'}</span>
+            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+          </button>
+        </div>
+
+        {/* 4 Role Telemetry Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 font-sans">
+          {/* 1. Customer */}
+          <div
+            onClick={() => onNavigateSection('orders')}
+            className="p-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-tech font-bold uppercase text-blue-300">Khách Hàng (Customer)</span>
+              <span className="material-symbols-outlined text-base text-blue-400">person</span>
+            </div>
+            <p className="text-xl font-tech font-bold text-white mt-1.5">142 tài khoản</p>
+            <p className="text-[11px] text-slate-300 mt-1 leading-tight">
+              8-Stage tracking • {orders.length} đơn hàng • 98.4% CSAT
+            </p>
+          </div>
+
+          {/* 2. Designer */}
+          <div
+            onClick={() => onNavigateSection('products')}
+            className="p-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-tech font-bold uppercase text-amber-300">Tác Giả 3D (Creator)</span>
+              <span className="material-symbols-outlined text-base text-amber-400">design_services</span>
+            </div>
+            <p className="text-xl font-tech font-bold text-amber-300 mt-1.5">28 Creators</p>
+            <p className="text-[11px] text-slate-300 mt-1 leading-tight">
+              Hoa hồng 85% • {products.length} mã CAD • 124.5M đ Royalty
+            </p>
+          </div>
+
+          {/* 3. MES Lab Hub */}
+          <div
+            onClick={() => onNavigateSection('machines')}
+            className="p-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-tech font-bold uppercase text-emerald-300">Xưởng In 3D (MES Lab)</span>
+              <span className="material-symbols-outlined text-base text-emerald-400">precision_manufacturing</span>
+            </div>
+            <p className="text-xl font-tech font-bold text-emerald-300 mt-1.5">12 Xưởng Hub</p>
+            <p className="text-[11px] text-slate-300 mt-1 leading-tight">
+              {printers.length} máy in • Hà Nội / HCM / ĐN • 99.2% OTD
+            </p>
+          </div>
+
+          {/* 4. Super Admin */}
+          <div
+            onClick={() => onNavigateSection('users')}
+            className="p-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-tech font-bold uppercase text-purple-300">Quản Trị & KYC</span>
+              <span className="material-symbols-outlined text-base text-purple-400">admin_panel_settings</span>
+            </div>
+            <p className="text-xl font-tech font-bold text-purple-300 mt-1.5">4 Chờ Duyệt</p>
+            <p className="text-[11px] text-slate-300 mt-1 leading-tight">
+              Doanh nghiệp & CCCD • Inkiri v3.4 • ISO/ASTM 52900
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Main Grid: Recent Orders & Fleet Status */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Recent Orders Overview */}

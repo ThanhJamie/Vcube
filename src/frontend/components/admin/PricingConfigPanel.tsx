@@ -122,6 +122,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
     laborHourlyRate: formulaForm.laborHourlyRate || 65000,
     laborTotalMinutes: totalLaborMins,
     packagingCost: formulaForm.fixedPackagingCost || 12000,
+    ipaCost: formulaForm.ipaSolventCost ?? 8000,
     overheadCost: formulaForm.overheadPerUnit || 15000,
     failureRatePercent: formulaForm.baseFailureReservePercent || 8,
     markupPercent: simCustomMarkup,
@@ -435,8 +436,33 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
 
               <div className="pt-2 border-t border-[#C5C6CD]/60 space-y-3">
                 <h4 className="font-bold text-xs text-[#091426] flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-sm text-[#00687A]">precision_manufacturing</span>
+                  Khấu Hao Máy In Cơ Sở
+                </h4>
+
+                <div>
+                  <label className="block text-[11px] text-[#545F73] mb-1">Khấu hao máy in cơ sở (VNĐ / giờ)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="250"
+                      min="0"
+                      value={formulaForm.defaultMachineDepreciationPerHour ?? 4375}
+                      onChange={(e) => setFormulaForm({ ...formulaForm, defaultMachineDepreciationPerHour: Number(e.target.value) })}
+                      className="w-full bg-[#F8F9FF] border border-[#C5C6CD] rounded px-3 py-1.5 text-xs font-tech font-bold text-[#091426]"
+                    />
+                    <span className="absolute right-3 top-1.5 text-[11px] text-[#545F73] font-tech">VNĐ/h</span>
+                  </div>
+                  <p className="text-[10px] text-[#545F73] mt-1 italic">
+                    * Mặc định ~4,375 đ/h (Khấu hao máy 35tr trong 8,000 giờ)
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-[#C5C6CD]/60 space-y-3">
+                <h4 className="font-bold text-xs text-[#091426] flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-sm text-[#00687A]">inventory</span>
-                  Đóng Gói & Quản Lý
+                  Đóng Gói &amp; Vật Tư Hoàn Thiện
                 </h4>
                 
                 <div>
@@ -448,6 +474,19 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setFormulaForm({ ...formulaForm, fixedPackagingCost: Number(e.target.value) })}
                     className="w-full bg-[#F8F9FF] border border-[#C5C6CD] rounded px-3 py-1.5 text-xs font-tech font-bold text-[#091426]"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-[#545F73] mb-1">Chi phí cồn IPA &amp; dung môi hoàn thiện / sp (VNĐ)</label>
+                  <input
+                    type="number"
+                    step="500"
+                    min="0"
+                    value={formulaForm.ipaSolventCost ?? 8000}
+                    onChange={(e) => setFormulaForm({ ...formulaForm, ipaSolventCost: Number(e.target.value) })}
+                    className="w-full bg-[#F8F9FF] border border-[#C5C6CD] rounded px-3 py-1.5 text-xs font-tech font-bold text-[#091426]"
+                  />
+                  <p className="text-[10px] text-[#545F73] mt-0.5">Rửa siêu âm, dung môi IPA 99%, sấy UV sạch nhựa</p>
                 </div>
 
                 <div>
@@ -635,16 +674,37 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 <div className="pt-2 border-t border-[#C5C6CD]/60 space-y-2">
                   <div className="grid grid-cols-3 gap-2 text-[10px]">
                     <div>
-                      <span className="text-[#545F73] block">Phí Platform</span>
-                      <span className="font-bold font-tech text-xs text-[#091426]">{formulaForm.platformCommissionPercent}%</span>
+                      <label className="text-[#545F73] block mb-1">Phí Platform (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formulaForm.platformCommissionPercent}
+                        onChange={(e) => setFormulaForm({ ...formulaForm, platformCommissionPercent: Number(e.target.value) })}
+                        className="w-full bg-[#F8F9FF] border border-[#C5C6CD] rounded px-2 py-1 text-xs font-tech font-bold text-[#091426]"
+                      />
                     </div>
                     <div>
-                      <span className="text-[#545F73] block">Cổng TT</span>
-                      <span className="font-bold font-tech text-xs text-[#091426]">{formulaForm.paymentGatewayFeePercent}%</span>
+                      <label className="text-[#545F73] block mb-1">Cổng TT (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formulaForm.paymentGatewayFeePercent}
+                        onChange={(e) => setFormulaForm({ ...formulaForm, paymentGatewayFeePercent: Number(e.target.value) })}
+                        className="w-full bg-[#F8F9FF] border border-[#C5C6CD] rounded px-2 py-1 text-xs font-tech font-bold text-[#091426]"
+                      />
                     </div>
                     <div>
-                      <span className="text-[#545F73] block">Bản quyền 3D</span>
-                      <span className="font-bold font-tech text-xs text-[#091426]">{formulaForm.designerRoyaltyPercent}%</span>
+                      <label className="text-[#545F73] block mb-1">Bản quyền 3D (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formulaForm.designerRoyaltyPercent}
+                        onChange={(e) => setFormulaForm({ ...formulaForm, designerRoyaltyPercent: Number(e.target.value) })}
+                        className="w-full bg-[#F8F9FF] border border-[#C5C6CD] rounded px-2 py-1 text-xs font-tech font-bold text-[#091426]"
+                      />
                     </div>
                   </div>
 

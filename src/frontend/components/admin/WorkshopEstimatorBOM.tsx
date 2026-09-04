@@ -95,6 +95,7 @@ export const WorkshopEstimatorBOM: React.FC<WorkshopEstimatorBOMProps> = ({
     laborHourlyRate: pricingConfig.laborHourlyRate || 65000,
     laborTotalMinutes: totalLaborMins,
     packagingCost: pricingConfig.fixedPackagingCost || 12000,
+    ipaCost: pricingConfig.ipaSolventCost ?? 8000,
     accessoriesCost: totalAccessoriesCostPerPart,
     overheadCost: pricingConfig.overheadPerUnit || 15000,
     failureRatePercent: pricingConfig.baseFailureReservePercent || 8,

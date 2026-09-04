@@ -18,13 +18,19 @@ export class OrderService {
     return await dbService.getOrders(email);
   }
 
-  static async updateOrderStatus(orderId: string, status: OrderStatus): Promise<boolean> {
-    const orders = await dbService.getOrders();
-    const target = orders.find(o => o.id === orderId);
-    if (!target) return false;
-
-    target.status = status;
-    await dbService.saveOrder(target);
-    return true;
+  static async updateOrderStatus(orderId: string, status: OrderStatus, stageIndex?: number, notes?: string): Promise<boolean> {
+    const stageMap: Record<OrderStatus, number> = {
+      pending_payment: 0,
+      processing: 1,
+      printing: 2,
+      post_processing: 3,
+      packaging: 4,
+      shipping: 5,
+      completed: 6,
+      cancelled: 7,
+    };
+    const resolvedStage = stageIndex ?? stageMap[status] ?? 1;
+    const res = await dbService.updateOrderStatus(orderId, resolvedStage, status, notes);
+    return res.success;
   }
 }

@@ -84,7 +84,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
     customMaterials: materials
   });
 
-  const { breakdown, quickEstimateRange, tier, manualReviewReasons } = pricingResult;
+  const { breakdown, quickEstimateRange, tier, manualReviewReasons, volumeDiscount } = pricingResult;
 
   // Effective unit price (either overridden or standard calculated)
   const effectiveUnitPrice = customOverriddenPrice || breakdown.finalSellingPriceRounded;
@@ -141,16 +141,16 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   };
 
   return (
-    <div className="bg-white border border-black/10 p-5 sm:p-7 space-y-6 lg:sticky lg:top-24 shadow-sm rounded-xl">
+    <div className="bg-white border border-[#CBD5E1] p-5 sm:p-7 space-y-6 lg:sticky lg:top-24 shadow-sm rounded-2xl font-sans">
       
       {/* Header & 3-Tier Status */}
-      <div className="border-b border-black/10 pb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="border-b border-[#CBD5E1] pb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <span className="font-sans text-[9px] uppercase tracking-widest text-[#7D7565] font-bold block">
+          <span className="font-mono text-[9px] uppercase tracking-widest text-[#00687A] font-bold block">
             VCUBE PRICING ENGINE // ISO/ASTM 52900
           </span>
-          <h2 className="font-serif font-bold text-base sm:text-lg text-[#1C1C1C] mt-0.5">
-            Bảng Báo Giá Gia Công 3D
+          <h2 className="font-bold text-base sm:text-lg text-[#091426] mt-0.5">
+            Bảng Báo Giá Gia Công 3D Tức Thì
           </h2>
         </div>
 
@@ -158,17 +158,17 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           <button
             type="button"
             onClick={() => setIsMachineModalOpen(true)}
-            className="px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-wider bg-[#F7F6F2] hover:bg-black/10 border border-black/20 text-[#1C1C1C] rounded transition-colors flex items-center gap-1"
+            className="px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider bg-[#F8FAFC] hover:bg-slate-100 border border-[#CBD5E1] text-[#091426] rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
             title="So sánh giữa các máy in tương thích"
           >
-            <span className="material-symbols-outlined text-xs">tune</span>
+            <span className="material-symbols-outlined text-xs text-[#00687A]">tune</span>
             So Sánh Máy
           </button>
 
           <button
             type="button"
             onClick={() => setIsInternalModalOpen(true)}
-            className="px-2.5 py-1 text-[10px] font-sans font-bold uppercase tracking-wider bg-slate-800 hover:bg-black text-cyan-300 rounded transition-colors flex items-center gap-1"
+            className="px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider bg-[#091426] hover:bg-slate-800 text-[#57DFFE] rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
             title="Xem bóc tách giá vốn nội bộ"
           >
             <span className="material-symbols-outlined text-xs">analytics</span>
@@ -177,20 +177,41 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         </div>
       </div>
 
+      {/* Volume Discount Live Banner */}
+      {volumeDiscount ? (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-emerald-900 flex items-center gap-1.5 font-mono">
+              <span className="material-symbols-outlined text-sm text-emerald-600">verified</span>
+              {volumeDiscount.tierLabel}
+            </span>
+            <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+              -{volumeDiscount.discountPercent}% OFF
+            </span>
+          </div>
+          <div className="text-[11px] text-emerald-800 flex justify-between pt-0.5 font-mono">
+            <span>Tiết kiệm đơn này:</span>
+            <strong className="text-emerald-700 font-bold">-{volumeDiscount.totalSavings.toLocaleString('vi-VN')} đ</strong>
+          </div>
+        </div>
+      ) : (
+        <div className="p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl flex items-center justify-between text-[11px] text-slate-600 font-mono">
+          <span>Chiết khấu số lượng:</span>
+          <span className="text-[#00687A] font-bold">Từ 5 cái (-8%) đến 50+ cái (-30%)</span>
+        </div>
+      )}
+
       {/* 1. MỨC 1: GIÁ ƯỚC TÍNH NHANH (Quick Estimate Banner) */}
-      <div className="p-3.5 bg-[#FAF9F5] border border-black/10 rounded-lg space-y-1">
+      <div className="p-3.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl space-y-1">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-[10px] font-sans uppercase tracking-wider font-bold text-[#7D7565] flex items-center gap-1">
-            <span className="material-symbols-outlined text-xs text-[#00687a]">speed</span>
-            1. Giá Ước Tính Nhanh (Geometry Estimate)
+          <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-slate-600 flex items-center gap-1">
+            <span className="material-symbols-outlined text-xs text-[#00687A]">speed</span>
+            1. Ước Tính Hình Học Sơ Bộ:
           </span>
-          <span className="font-tech text-xs font-bold text-[#00687a]">
+          <span className="font-mono text-xs font-bold text-[#00687A]">
             {quickEstimateRange.min.toLocaleString('vi-VN')} – {quickEstimateRange.max.toLocaleString('vi-VN')} đ/cái
           </span>
         </div>
-        <p className="text-[10px] text-[#7D7565] italic">
-          * Dựa trên phân tích thể tích & kích thước hình học sơ bộ. Không dùng làm giá thanh toán cuối cùng.
-        </p>
       </div>
 
       {/* Slicer Config Controls */}
@@ -199,13 +220,13 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         {/* Máy In & Vật Liệu */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-[10px] font-sans uppercase tracking-wider text-[#7D7565] font-bold block">
+            <label className="text-[10px] font-sans uppercase tracking-wider text-[#64748B] font-bold block">
               Máy In Gia Công
             </label>
             <select
               value={selectedPrinterId}
               onChange={(e) => onPrinterChange(e.target.value)}
-              className="w-full bg-[#F7F6F2] border border-black/20 p-2 text-xs text-[#1C1C1C] rounded font-sans focus:outline-none focus:border-[#00687a]"
+              className="w-full bg-[#F8FAFC] border border-[#CBD5E1] p-2 text-xs text-[#091426] rounded-xl font-sans focus:outline-none focus:border-[#00687A]"
             >
               {printers.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -216,13 +237,13 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-sans uppercase tracking-wider text-[#7D7565] font-bold block">
+            <label className="text-[10px] font-sans uppercase tracking-wider text-[#64748B] font-bold block">
               Loại Nhựa Kỹ Thuật
             </label>
             <select
               value={selectedMaterialId}
               onChange={(e) => onMaterialChange(e.target.value)}
-              className="w-full bg-[#F7F6F2] border border-black/20 p-2 text-xs text-[#1C1C1C] rounded font-sans focus:outline-none focus:border-[#00687a]"
+              className="w-full bg-[#F8FAFC] border border-[#CBD5E1] p-2 text-xs text-[#091426] rounded-xl font-sans focus:outline-none focus:border-[#00687A]"
             >
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -236,8 +257,8 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         {/* Infill & Pattern */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <label className="text-[10px] font-sans uppercase tracking-wider text-[#7D7565] font-bold">
-              Độ Đặc Ruột (Infill): <span className="font-tech text-[#00687a]">{infillDensity}% {infillPattern}</span>
+            <label className="text-[10px] font-sans uppercase tracking-wider text-[#64748B] font-bold">
+              Độ Đặc Ruột (Infill): <span className="font-tech text-[#00687A]">{infillDensity}% {infillPattern}</span>
             </label>
             <div className="flex items-center gap-1">
               {['Gyroid', 'Grid', 'Honeycomb'].map((pat) => (
@@ -245,10 +266,10 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
                   key={pat}
                   type="button"
                   onClick={() => onInfillPatternChange(pat)}
-                  className={`px-2 py-0.5 text-[10px] rounded border transition-colors ${
+                  className={`px-2.5 py-1 text-[10px] rounded-lg border font-mono transition-colors ${
                     infillPattern === pat
-                      ? 'bg-[#00687a] text-white border-[#00687a]'
-                      : 'bg-[#F7F6F2] text-[#5A554C] border-black/10'
+                      ? 'bg-[#00687A] text-white border-[#00687A] font-bold shadow-xs'
+                      : 'bg-[#F8FAFC] text-[#64748B] border-[#CBD5E1] hover:text-[#091426]'
                   }`}
                 >
                   {pat}
@@ -263,20 +284,20 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
             step="5"
             value={infillDensity}
             onChange={(e) => onInfillChange(Number(e.target.value))}
-            className="w-full accent-[#00687a] cursor-pointer"
+            className="w-full accent-[#00687A] cursor-pointer"
           />
         </div>
 
         {/* Layer Height & Support */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[10px] font-sans uppercase tracking-wider text-[#7D7565] font-bold block mb-1">
+            <label className="text-[10px] font-sans uppercase tracking-wider text-[#64748B] font-bold block mb-1">
               Độ Dày Lớp In
             </label>
             <select
               value={layerHeight}
               onChange={(e) => onLayerHeightChange(e.target.value)}
-              className="w-full bg-[#F7F6F2] border border-black/20 p-2 text-xs text-[#1C1C1C] rounded focus:outline-none focus:border-[#00687a]"
+              className="w-full bg-[#F8FAFC] border border-[#CBD5E1] p-2 text-xs text-[#091426] rounded-xl focus:outline-none focus:border-[#00687A]"
             >
               <option value="0.08">0.08 mm (Ultra Fine)</option>
               <option value="0.12">0.12 mm (Fine Detail)</option>
@@ -286,13 +307,13 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           </div>
 
           <div>
-            <label className="text-[10px] font-sans uppercase tracking-wider text-[#7D7565] font-bold block mb-1">
+            <label className="text-[10px] font-sans uppercase tracking-wider text-[#64748B] font-bold block mb-1">
               Cấu Hình Support
             </label>
             <select
               value={supportsMode}
               onChange={(e) => onSupportsModeChange(e.target.value as any)}
-              className="w-full bg-[#F7F6F2] border border-black/20 p-2 text-xs text-[#1C1C1C] rounded focus:outline-none focus:border-[#00687a]"
+              className="w-full bg-[#F8FAFC] border border-[#CBD5E1] p-2 text-xs text-[#091426] rounded-xl focus:outline-none focus:border-[#00687A]"
             >
               <option value="tree">Tree Support (Dễ bóc)</option>
               <option value="auto">Auto Grid Standard</option>
@@ -303,7 +324,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
 
         {/* Batch Quantity Selector */}
         <div className="flex items-center justify-between pt-1">
-          <label className="text-xs font-semibold text-[#1C1C1C]">
+          <label className="text-xs font-semibold text-[#091426]">
             Số lượng đặt in (Batch):
           </label>
           <div className="flex items-center gap-1.5">
@@ -312,10 +333,10 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
                 key={qty}
                 type="button"
                 onClick={() => onQuantityChange(qty)}
-                className={`px-3 py-1 text-xs font-tech font-bold rounded border transition-colors ${
+                className={`px-3 py-1 text-xs font-mono font-bold rounded-lg border transition-colors ${
                   quantity === qty
-                    ? 'bg-[#1C1C1C] text-white border-[#1C1C1C]'
-                    : 'bg-[#F7F6F2] text-[#1C1C1C] border-black/15 hover:border-black'
+                    ? 'bg-[#00687A] text-white border-[#00687A] shadow-xs'
+                    : 'bg-[#F8FAFC] text-[#091426] border-[#CBD5E1] hover:border-[#00687A]'
                 }`}
               >
                 x{qty}
@@ -326,13 +347,13 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       </div>
 
       {/* 2. MỨC 2: 3 GÓI BÁO GIÁ CHÍNH XÁC (Customer Packages: Economy, Standard, Express) */}
-      <div className="space-y-3 pt-2 border-t border-black/10">
+      <div className="space-y-3 pt-2 border-t border-[#CBD5E1]">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] font-sans uppercase tracking-wider font-bold text-[#1C1C1C] flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm text-[#00687a]">local_shipping</span>
+          <label className="text-[10px] font-sans uppercase tracking-wider font-bold text-[#091426] flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm text-[#00687A]">local_shipping</span>
             2. Báo Giá Chính Xác Theo Tiến Độ Giao Hàng
           </label>
-          <span className="text-[10px] text-[#7D7565] font-tech">Hiệu lực: {expirationFormatted}</span>
+          <span className="text-[10px] text-[#64748B] font-mono">Hiệu lực: {expirationFormatted}</span>
         </div>
 
         <div className="space-y-2">
@@ -342,10 +363,10 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               <div
                 key={pkg.tier}
                 onClick={() => setSelectedPackageTier(pkg.tier)}
-                className={`p-3.5 border rounded-lg cursor-pointer transition-all ${
+                className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
                   isSelected
-                    ? 'border-[#00687a] bg-cyan-50/40 ring-1 ring-[#00687a]'
-                    : 'border-black/10 hover:border-black/30 bg-[#FAF9F5]'
+                    ? 'border-[#00687A] bg-teal-50/40 ring-1 ring-[#00687A]'
+                    : 'border-[#CBD5E1] hover:border-slate-400 bg-white'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -355,36 +376,36 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
                       name="packageTier"
                       checked={isSelected}
                       onChange={() => setSelectedPackageTier(pkg.tier)}
-                      className="accent-[#00687a]"
+                      className="accent-[#00687A]"
                     />
                     <div>
-                      <div className="font-bold text-xs text-[#1C1C1C] flex items-center gap-1.5">
+                      <div className="font-bold text-xs text-[#091426] flex items-center gap-1.5">
                         <span>{pkg.name}</span>
                         {pkg.isPopular && (
-                          <span className="px-1.5 py-0.2 text-[9px] bg-[#00687a] text-white font-tech uppercase rounded">
+                          <span className="px-1.5 py-0.2 text-[9px] bg-[#00687A] text-white font-mono uppercase rounded">
                             Phổ Biến
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-[#5A554C] mt-0.5">
+                      <div className="text-[10px] text-[#64748B] mt-0.5">
                         Thời gian: <strong>{pkg.leadTimeDays}</strong> (Dự kiến xong: {pkg.completionDate})
                       </div>
                     </div>
                   </div>
 
                   <div className="text-right shrink-0">
-                    <div className="font-tech text-sm sm:text-base font-bold text-[#1C1C1C]">
+                    <div className="font-mono text-sm sm:text-base font-bold text-[#091426]">
                       {pkg.pricePerUnit.toLocaleString('vi-VN')} đ
-                      <span className="text-[10px] font-normal text-[#7D7565]"> /cái</span>
+                      <span className="text-[10px] font-normal text-[#64748B]"> /cái</span>
                     </div>
                     {quantity > 1 && (
-                      <div className="text-[10px] font-tech text-[#00687a] font-semibold">
+                      <div className="text-[10px] font-mono text-[#00687A] font-semibold">
                         Tổng ({quantity} cái): {pkg.totalPrice.toLocaleString('vi-VN')} đ
                       </div>
                     )}
                   </div>
                 </div>
-                <p className="text-[10px] text-[#7D7565] mt-1 pl-5">
+                <p className="text-[10px] text-[#64748B] mt-1 pl-5">
                   {pkg.description}
                 </p>
               </div>
@@ -429,18 +450,18 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       )}
 
       {/* Final Total Summary Bar */}
-      <div className="bg-[#1C1C1C] text-white p-4 rounded-lg space-y-2">
+      <div className="bg-[#091426] text-white p-4 rounded-xl space-y-2 border border-[#334155]/60 shadow-md">
         <div className="flex items-baseline justify-between">
           <div>
-            <span className="text-[10px] uppercase font-sans tracking-widest text-slate-400 block">
+            <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 block">
               Tổng Giá Trị Đơn Hàng ({quantity} cái):
             </span>
-            <span className="text-[11px] text-cyan-300 font-sans">
+            <span className="text-[11px] text-[#57DFFE] font-mono">
               Đã gồm VAT, QC Dung Sai & Gói {selectedPackage.name}
             </span>
           </div>
           <div className="text-right">
-            <span className="font-tech text-2xl font-bold text-cyan-300">
+            <span className="font-mono text-2xl font-bold text-[#57DFFE]">
               {selectedPackage.totalPrice.toLocaleString('vi-VN')} đ
             </span>
           </div>
@@ -448,11 +469,11 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="space-y-2 pt-1">
+      <div className="space-y-2 pt-1 font-mono">
         <button
           type="button"
           onClick={() => onAddToCart(handleBuildCartItem())}
-          className="w-full py-3.5 bg-[#00687a] hover:bg-[#005260] text-white font-sans font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm touch-target-btn rounded"
+          className="w-full py-3.5 bg-[#00687A] hover:bg-[#005260] text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm rounded-xl cursor-pointer"
         >
           <span className="material-symbols-outlined text-base">shopping_cart</span>
           Thêm Đơn Gia Công Vào Giỏ Hàng
@@ -461,9 +482,9 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         <button
           type="button"
           onClick={() => onDirectOrder(handleBuildCartItem())}
-          className="w-full py-3 bg-[#1C1C1C] hover:bg-[#333] text-white font-sans font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 touch-target-btn rounded"
+          className="w-full py-3 bg-[#091426] hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 rounded-xl cursor-pointer border border-[#334155]"
         >
-          <span className="material-symbols-outlined text-base">precision_manufacturing</span>
+          <span className="material-symbols-outlined text-base text-[#57DFFE]">precision_manufacturing</span>
           Đặt In Ngay (Chuyển Đến Thanh Toán)
         </button>
       </div>

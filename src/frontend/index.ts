@@ -10,3 +10,6 @@ export * from './components/NotFoundView';
 export * from './components/ChatSupportModal';
 export * from './components/InvoiceModal';
 export * from './components/ThreeModelViewer';
+export * from './components/CanvasErrorBoundary';
+export * from './stores/useCartStore';
+export * from './stores/useUIStore';

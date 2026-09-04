@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { MATERIALS_CATALOG, DEFAULT_INKIRI_FORMULA_CONFIG } from '../../data/mockData';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
+import { SEOHead } from '../components/SEOHead';
 import { useLanguage } from '../context/LanguageContext';
 
 interface ProductDetailViewProps {
@@ -115,6 +116,32 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#091426] py-6 sm:py-8 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
+      <SEOHead
+        title={product.name}
+        description={product.description || (isVi ? `Chi tiết mô hình CAD và thông số in 3D ${product.name} tại VCUBE.` : `Specifications and 3D printing details for ${product.name} at VCUBE.`)}
+        image={product.thumbnailUrl || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=1200&h=630&fit=crop'}
+        url={typeof window !== 'undefined' ? window.location.href : undefined}
+        type="product"
+        schema={{
+          '@context': 'https://schema.org/',
+          '@type': 'Product',
+          name: product.name,
+          image: product.thumbnailUrl || (product.images && product.images[0]),
+          description: product.description,
+          sku: product.sku || product.id,
+          brand: {
+            '@type': 'Brand',
+            name: 'VCUBE Vietnam'
+          },
+          offers: {
+            '@type': 'Offer',
+            priceCurrency: 'VND',
+            price: product.pricePhysical,
+            availability: 'https://schema.org/InStock'
+          }
+        }}
+      />
+
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         {/* Breadcrumbs & Quick Action Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-[#CBD5E1] shadow-xs">
@@ -672,6 +699,15 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   <span className="material-symbols-outlined text-base">shopping_bag</span>
                   <span>{isAdding ? 'ĐANG XỬ LÝ...' : `ĐẶT GIA CÔNG IN 3D (${(dynamicPricePhysical * quantity).toLocaleString('vi-VN')} đ)`}</span>
                 </button>
+
+                {/* 3D Personalization & Laser Engraving Action */}
+                <button
+                  onClick={() => onNavigate('personalize', { product })}
+                  className="w-full py-3 bg-gradient-to-r from-teal-700 to-[#00687A] hover:from-teal-800 hover:to-[#005260] text-white font-mono font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer touch-target-btn active:scale-95 border border-[#57DFFE]/30"
+                >
+                  <span className="material-symbols-outlined text-base text-[#57DFFE]">draw</span>
+                  <span>TÙY BIẾN 3D & KHẮC LASER RIÊNG</span>
+                </button>
               </div>
 
               {/* Guarantees Badges */}
@@ -746,7 +782,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       </div>
 
       {/* Mobile Sticky Order Bar (< lg screens) */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#CBD5E1] p-3.5 shadow-2xl flex items-center justify-between gap-3">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#CBD5E1] p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] shadow-2xl flex items-center justify-between gap-3">
         <div>
           <span className="text-[9px] uppercase font-mono text-[#64748B] block">
             {isVi ? 'Đơn giá in 3D' : 'Print Price'}

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface StlVs3mfComparisonModalProps {
   isOpen: boolean;
@@ -6,6 +7,20 @@ interface StlVs3mfComparisonModalProps {
 }
 
 export const StlVs3mfComparisonModal: React.FC<StlVs3mfComparisonModalProps> = ({ isOpen, onClose }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const comparisonData = [
@@ -60,22 +75,28 @@ export const StlVs3mfComparisonModal: React.FC<StlVs3mfComparisonModalProps> = (
     }
   ];
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border border-black/20 max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white border border-[#CBD5E1] rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden my-auto">
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-black/10 flex items-center justify-between bg-[#F7F6F2]">
+        <div className="p-5 sm:p-6 border-b border-[#CBD5E1] flex items-center justify-between bg-[#F8FAFC] shrink-0">
           <div>
-            <span className="font-sans text-[10px] uppercase tracking-widest text-[#00687a] font-bold block mb-1">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-[#00687A] font-bold block mb-1">
               Tiêu Chuẩn Sản Xuất Bồi Đắp // 3MF vs STL Benchmark
             </span>
-            <h2 className="font-serif font-bold text-lg sm:text-xl text-[#1C1C1C]">
+            <h2 className="font-sans font-bold text-lg sm:text-xl text-[#091426]">
               So Sánh Kỹ Thuật: Định Dạng STL & 3MF
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-black/5 text-[#7D7565] hover:text-[#1C1C1C] transition-colors rounded"
+            className="p-1.5 hover:bg-slate-200 text-[#64748B] hover:text-[#091426] transition-colors rounded-xl cursor-pointer"
+            title="Đóng (ESC)"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
@@ -129,15 +150,16 @@ export const StlVs3mfComparisonModal: React.FC<StlVs3mfComparisonModalProps> = (
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-5 border-t border-black/10 bg-[#F7F6F2] flex justify-end">
+        <div className="p-4 sm:p-5 border-t border-[#CBD5E1] bg-[#F8FAFC] flex justify-end shrink-0">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 bg-[#1C1C1C] hover:bg-[#333] text-white text-xs font-sans uppercase tracking-widest font-bold transition-colors"
+            className="px-6 py-2.5 bg-[#091426] hover:bg-slate-800 text-white text-xs font-mono uppercase tracking-wider font-bold rounded-xl transition-all shadow-xs cursor-pointer"
           >
             Đã Hiểu Tiêu Chuẩn 3MF
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

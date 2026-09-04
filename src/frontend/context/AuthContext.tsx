@@ -43,6 +43,14 @@ export const DEMO_ACCOUNTS = [
     desc: 'Quản lý kho file số, nhận hoa hồng in 3D, chat yêu cầu CAD',
   },
   {
+    role: 'lab' as UserRole,
+    title: 'Xưởng In MES (Lab Hub)',
+    email: 'mes.hoalac@vcube.vn',
+    name: 'Xưởng In 3D CNC Hòa Lạc',
+    badge: 'Enterprise CNC MES',
+    desc: 'Hàng đợi chế tác, đội máy in Bambu/SLA, nhận thầu gia công linh kiện',
+  },
+  {
     role: 'admin' as UserRole,
     title: 'Quản Trị Viên (Admin)',
     email: 'admin.forge@vcube.vn',
@@ -275,16 +283,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     setProfile((prev) => {
-      const baseName = targetRole === 'admin' ? 'Kỹ Sư Trưởng Tuấn' : targetRole === 'designer' ? 'Lê Thắng CAD/CAM' : 'Nguyễn Văn Minh';
-      const baseEmail = targetRole === 'admin' ? 'admin.forge@vcube.vn' : targetRole === 'designer' ? 'creator.lethang@vcube.vn' : 'khachhang@vcube.vn';
+      const baseName = targetRole === 'admin' 
+        ? 'Kỹ Sư Trưởng Tuấn' 
+        : targetRole === 'designer' 
+        ? 'Lê Thắng CAD/CAM' 
+        : targetRole === 'lab' 
+        ? 'Xưởng In 3D CNC Hòa Lạc' 
+        : 'Nguyễn Văn Minh';
+
+      const baseEmail = targetRole === 'admin' 
+        ? 'admin.forge@vcube.vn' 
+        : targetRole === 'designer' 
+        ? 'creator.lethang@vcube.vn' 
+        : targetRole === 'lab' 
+        ? 'mes.hoalac@vcube.vn' 
+        : 'khachhang@vcube.vn';
 
       const newProf: AppUserProfile = {
-        uid: user ? user.id : (prev?.uid || 'demo-user-id'),
+        uid: user ? user.id : (prev?.uid || `demo-${targetRole}-id`),
         email: user ? (user.email || baseEmail) : baseEmail,
         displayName: baseName,
         role: targetRole,
-        company: 'VCUBE R&D Labs',
-        engineerRank: targetRole === 'admin' ? 'ForgeControl Root Admin' : targetRole === 'designer' ? 'Certified 3D Creator' : 'Customer Account',
+        company: targetRole === 'lab' ? 'MES Hub Hòa Lạc CNC' : targetRole === 'designer' ? 'TechLab 3D Design Studio' : 'VCUBE R&D Labs',
+        engineerRank: targetRole === 'admin' ? 'ForgeControl Root Admin' : targetRole === 'designer' ? 'Master Designer & CAD Modeler' : targetRole === 'lab' ? 'Lead MES Operations Engineer' : 'Pro Engineer Client',
+        kycStatus: 'verified',
         createdAt: prev?.createdAt || new Date().toISOString(),
       };
 

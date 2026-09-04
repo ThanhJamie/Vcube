@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, SiteContentConfig } from '../types';
 import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_INKIRI_FORMULA_CONFIG, DEFAULT_SITE_CONTENT } from '../data/mockData';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
+import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
+import { MaterialComparisonMatrix } from '../components/MaterialComparisonMatrix';
+import { SEOHead } from '../components/SEOHead';
 import { useLanguage } from '../context/LanguageContext';
-import { useAuth } from '../context/AuthContext';
 
 interface HomeViewProps {
   products: Product[];
@@ -28,11 +30,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onShowToast
 }) => {
   const { language, t } = useLanguage();
-  const { isLoggedIn } = useAuth();
   const isVi = language === 'vi';
   const materialsList = materials && materials.length > 0 ? materials : MATERIALS_CATALOG;
   const activeConfig = pricingConfig || DEFAULT_INKIRI_FORMULA_CONFIG;
   const activeContent = siteContent || DEFAULT_SITE_CONTENT;
+
+  // Hero Dropzone Interactive State & File Reference
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
 
   // Active Model in Hero
   const [heroModel, setHeroModel] = useState<'gear' | 'drone' | 'box'>('gear');
@@ -120,40 +125,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const estimatedPrice = Math.round((estimatedRawCost * markupMultiplier * feeSurchargeMultiplier) / 1000) * 1000;
   const estimatedHours = ((estimatedGrams / 35) + 0.8).toFixed(1);
 
-  // Authentication gating helper: ensures clicking action buttons on the landing page redirects to login if unauthenticated
+  // Open Walled Garden: Seamless guest exploration without forced login redirects
   const handleProtectedAction = (action: () => void) => {
-    if (!isLoggedIn) {
-      onNavigate('login');
-      return;
-    }
     action();
   };
 
   const handleSelectProductAction = (product: Product, targetScreen: string = 'product_detail') => {
-    if (!isLoggedIn) {
-      onNavigate('login');
-      return;
-    }
     onSelectProduct(product);
     onNavigate(targetScreen, { product });
   };
 
   const handleOpen3DPreview = (product: Product, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isLoggedIn) {
-      onNavigate('login');
-      return;
-    }
     setQuickViewProduct(product);
     setIsQuickViewOpen(true);
   };
 
   const handleQuickAddDigital = (product: Product, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isLoggedIn) {
-      onNavigate('login');
-      return;
-    }
     if (!onAddToCart) {
       onSelectProduct(product);
       onNavigate('product_detail', { product });
@@ -183,6 +172,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#091426] font-sans relative selection:bg-[#00687A] selection:text-white">
+      {/* SEO & Dynamic Head */}
+      <SEOHead
+        title={activeContent.seoTitle || 'VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì'}
+        description={activeContent.seoDescription || 'Nền tảng sản xuất bồi đắp linh kiện cơ khí và khuôn mẫu kỹ thuật số hàng đầu Việt Nam.'}
+        image={activeContent.seoOgImage}
+        url={activeContent.seoCanonicalUrl}
+        type="website"
+      />
+
       {/* Background Ambient Glowing Radiance (Aligned with Login & Register) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 opacity-70">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#DCE9FF]/60 rounded-full blur-3xl" />
@@ -207,10 +205,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => {
-                  if (!isLoggedIn) {
-                    onNavigate('login');
-                    return;
-                  }
                   if (activeContent.announcementActionTag) {
                     setSelectedTag(activeContent.announcementActionTag);
                   }
@@ -256,7 +250,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               {/* Main CTAs */}
               <div className="pt-2 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center">
                 <button
-                  onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}
+                  onClick={() => onNavigate('quote')}
                   className="h-12 px-7 rounded-xl bg-gradient-to-r from-[#00687A] to-[#0E7490] hover:from-[#005260] hover:to-[#085F75] text-white text-xs sm:text-sm uppercase tracking-wider font-bold transition-all shadow-lg shadow-[#00687A]/25 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-lg">upload_file</span>
@@ -265,10 +259,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                 <button
                   onClick={() => {
-                    if (!isLoggedIn) {
-                      onNavigate('login');
-                      return;
-                    }
                     const el = document.getElementById('browse-cad-catalog');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
@@ -277,6 +267,75 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <span className="material-symbols-outlined text-lg text-[#00687A]">view_in_ar</span>
                   <span>{activeContent.heroCtaCatalogText || 'Khám Phá Kho Mẫu CAD'}</span>
                 </button>
+              </div>
+
+              {/* Instant CAD Dropzone Widget */}
+              <div
+                onClick={() => heroFileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDraggingFile(true);
+                }}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDraggingFile(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDraggingFile(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDraggingFile(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    const file = e.dataTransfer.files[0];
+                    onNavigate('quote', { uploadedFile: file });
+                  } else {
+                    onNavigate('quote');
+                  }
+                }}
+                className={`mt-2 p-3.5 border-2 border-dashed rounded-xl transition-all cursor-pointer shadow-xs group ${
+                  isDraggingFile
+                    ? 'border-[#00687A] bg-[#00687A]/15 scale-[1.02] shadow-md ring-2 ring-[#00687A]/30'
+                    : 'bg-white/80 hover:bg-white border-[#00687A]/40 hover:border-[#00687A]'
+                }`}
+                title="Bấm hoặc kéo thả file STL, 3MF, STEP, OBJ vào đây để nhận báo giá tức thì"
+              >
+                <input
+                  ref={heroFileInputRef}
+                  type="file"
+                  accept=".stl,.3mf,.step,.stp,.obj"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      const file = e.target.files[0];
+                      onNavigate('quote', { uploadedFile: file });
+                    }
+                  }}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-transform ${
+                    isDraggingFile ? 'bg-[#00687A] text-white scale-110' : 'bg-[#00687A]/10 text-[#00687A] group-hover:scale-105'
+                  }`}>
+                    <span className="material-symbols-outlined text-xl">cloud_upload</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-[#091426]">
+                        {isDraggingFile ? 'Thả tệp CAD vào đây để phân tích tức thì!' : 'Kéo thả tệp CAD (STL, 3MF, STEP, OBJ) vào đây hoặc bấm để chọn'}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-mono font-bold">~3s Báo Giá</span>
+                    </div>
+                    <p className="text-[11px] text-[#64748B] truncate">
+                      Tự động tính thể tích, kiểm tra độ kín nước và tính BOM Inkiri trực tiếp không cần chờ đợi.
+                    </p>
+                  </div>
+                  <span className="material-symbols-outlined text-base text-[#00687A] shrink-0">arrow_forward</span>
+                </div>
               </div>
 
               {/* 3 Technical Quality Spec Metrics Cards */}
@@ -370,19 +429,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               </div>
 
-              {/* Floating Metrology QC Note */}
-              <div className="hidden sm:flex absolute -bottom-5 -left-4 bg-white p-3.5 shadow-xl border border-[#CBD5E1] max-w-[280px] z-20 rounded-2xl gap-3 items-center">
-                <div className="w-9 h-9 rounded-xl bg-[#00687A]/10 text-[#00687A] flex items-center justify-center font-bold shrink-0 border border-[#00687A]/20">
-                  <span className="material-symbols-outlined text-lg">verified</span>
+              {/* Clean Metrology QC Strip under 3D viewer */}
+              <div className="w-full mt-3 bg-white p-3 shadow-2xs border border-[#CBD5E1] rounded-xl flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-teal-50 text-[#00687A] flex items-center justify-center shrink-0 border border-teal-200">
+                    <span className="material-symbols-outlined text-base">verified</span>
+                  </div>
+                  <div>
+                    <span className="font-mono text-[9px] uppercase tracking-wider text-[#00687A] font-bold block">
+                      QUANG HỌC MITUTOYO // CALIBRATED
+                    </span>
+                    <p className="text-[11px] font-medium text-[#091426]">
+                      {activeContent.toleranceSpec || 'Dung sai ±0.05mm xác thực bởi thước kẹp điện tử Mitutoyo'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-[#64748B] block font-bold">
-                    QUANG HỌC MITUTOYO
-                  </span>
-                  <p className="text-[11px] font-medium text-[#091426] leading-tight">
-                    {activeContent.toleranceSpec || 'Dung sai ±0.05mm xác thực bởi thước kẹp điện tử'}
-                  </p>
-                </div>
+                <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold shrink-0 hidden sm:inline">
+                  ISO-52900
+                </span>
               </div>
             </div>
           </div>
@@ -497,8 +561,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
             </div>
 
-            {/* Category Filter Pills Matrix */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-1 border-t border-[#CBD5E1]/60">
+            {/* Category Filter Pills Matrix with Smooth Horizontal Scroll */}
+            <HorizontalScrollFilter className="border-t border-[#CBD5E1]/60 pt-2">
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={`px-3 py-1.5 rounded-full text-xs font-sans whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 cursor-pointer touch-target-btn ${
@@ -509,7 +573,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
               >
                 <span className="material-symbols-outlined text-xs">select_all</span>
                 <span>{isVi ? 'Tất cả danh mục' : 'All Categories'}</span>
-                <span className="font-tech text-[10px] opacity-70">({products.length})</span>
+                <span className="font-mono text-[10px] tabular-nums opacity-75 px-1 py-0.2 bg-black/10 rounded-full">
+                  {products.length}
+                </span>
               </button>
 
               {CATEGORIES.filter(c => c.id !== 'all').map((cat) => {
@@ -526,51 +592,59 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   >
                     <span className="material-symbols-outlined text-xs">{cat.icon}</span>
                     <span>{isVi ? cat.name : (cat as any).nameEn || cat.name}</span>
-                    <span className="font-tech text-[10px] opacity-70">({cat.count})</span>
+                    <span className={`font-mono text-[10px] tabular-nums opacity-75 px-1 py-0.2 rounded-full ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                    }`}>
+                      {cat.count}
+                    </span>
                   </button>
                 );
               })}
-            </div>
+            </HorizontalScrollFilter>
 
-            {/* Quick Engineering Tag Pills */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[10px] font-tech font-bold uppercase text-[#7D7565] shrink-0 flex items-center gap-1">
+            {/* Quick Engineering Tag Pills (Smooth Horizontal Scroll - Single Row, No Orphan Wrap) */}
+            <div className="pt-2 flex items-center gap-2">
+              <span className="text-[10px] font-mono font-bold uppercase text-[#64748B] shrink-0 flex items-center gap-1">
                 <span className="material-symbols-outlined text-xs text-[#00687A]">sell</span>
                 {isVi ? 'Tag nhanh:' : 'Tags:'}
               </span>
 
-              {POPULAR_TAGS.map((tag) => {
-                const isActive = selectedTag === tag.id;
-                const is29 = tag.id === '2/9';
+              <div className="flex-1 min-w-0">
+                <HorizontalScrollFilter>
+                  {POPULAR_TAGS.map((tag) => {
+                    const isActive = selectedTag === tag.id;
+                    const is29 = tag.id === '2/9';
 
-                return (
-                  <button
-                    key={tag.id}
-                    onClick={() => setSelectedTag(isActive ? 'all' : tag.id)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-tech whitespace-nowrap shrink-0 transition-all flex items-center gap-1 cursor-pointer ${
-                      isActive
-                        ? is29
-                          ? 'bg-[#990000] text-white font-extrabold shadow-xs'
-                          : 'bg-[#00687A] text-white font-bold shadow-xs'
-                        : is29
-                        ? 'bg-red-50 text-[#990000] border border-red-200 hover:bg-red-100 font-bold'
-                        : 'bg-white text-[#545F73] border border-[#CBD5E1] hover:border-black/30 hover:text-[#1C1C1C]'
-                    }`}
-                  >
-                    <span>#{isVi ? tag.nameVi : tag.nameEn}</span>
-                    {is29 && (
-                      <span className="bg-[#FFD700] text-[#990000] text-[8px] font-bold px-1 rounded-full uppercase">
-                        HOT
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+                    return (
+                      <button
+                        key={tag.id}
+                        onClick={() => setSelectedTag(isActive ? 'all' : tag.id)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-mono whitespace-nowrap shrink-0 transition-all flex items-center gap-1 cursor-pointer ${
+                          isActive
+                            ? is29
+                              ? 'bg-[#990000] text-white font-extrabold shadow-xs'
+                              : 'bg-[#00687A] text-white font-bold shadow-xs'
+                            : is29
+                            ? 'bg-red-50 text-[#990000] border border-red-200 hover:bg-red-100 font-bold'
+                            : 'bg-white text-[#545F73] border border-[#CBD5E1] hover:border-black/30 hover:text-[#1C1C1C]'
+                        }`}
+                      >
+                        <span>#{isVi ? tag.nameVi : tag.nameEn}</span>
+                        {is29 && (
+                          <span className="bg-[#FFD700] text-[#990000] text-[8px] font-bold px-1 rounded-full uppercase">
+                            HOT
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </HorizontalScrollFilter>
+              </div>
 
               {selectedTag !== 'all' && (
                 <button
                   onClick={() => setSelectedTag('all')}
-                  className="text-[10px] text-rose-600 hover:underline font-bold shrink-0 ml-1"
+                  className="text-[10px] font-mono text-rose-600 hover:underline font-bold shrink-0 ml-1 whitespace-nowrap cursor-pointer"
                 >
                   {isVi ? 'Bỏ lọc tag' : 'Clear tag'}
                 </button>
@@ -1004,6 +1078,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
+      {/* 4.5 Technical Material Comparison Matrix */}
+      <section className="py-8 sm:py-12 px-4 sm:px-6 md:px-12 bg-[#F8FAFC]">
+        <div className="max-w-7xl mx-auto">
+          <MaterialComparisonMatrix
+            materials={materialsList}
+            onNavigate={onNavigate}
+          />
+        </div>
+      </section>
+
       {/* 5. Technical Taxonomy & Application Categories */}
       <section className="py-12 sm:py-16 bg-white border-y border-[#CBD5E1] px-4 sm:px-6 md:px-12">
         <div className="max-w-7xl mx-auto">
@@ -1017,7 +1101,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </h2>
             </div>
             <button
-              onClick={() => handleProtectedAction(() => onNavigate('explore'))}
+              onClick={() => onNavigate('explore')}
               className="font-mono text-xs uppercase tracking-wider text-[#00687A] hover:underline font-bold flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
             >
               <span>{isVi ? `Xem toàn bộ kho bản vẽ (${products.length * 20}+)` : `Browse full library (${products.length * 20}+)`}</span>
@@ -1030,10 +1114,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <button
                 key={cat.id}
                 onClick={() => {
-                  if (!isLoggedIn) {
-                    onNavigate('login');
-                    return;
-                  }
                   setSelectedCategory(cat.id);
                   const el = document.getElementById('browse-cad-catalog');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
