@@ -58,26 +58,44 @@ export class PricingEngineService {
 
     const avgPowerKW = Math.max(0.01, input.machine.avgPowerKW || 0.18);
     const electricityPerHour = Math.round(avgPowerKW * electricityRate);
+    const maintenancePerHour = Math.max(0, input.machine.maintenanceCostPerHour || 0);
 
     const totalPrintHours = Math.max(0.1, input.printHours);
-    const machineCost = Math.round((depreciationPerHour + electricityPerHour) * totalPrintHours);
+    const machineCost = Math.round((depreciationPerHour + electricityPerHour + maintenancePerHour) * totalPrintHours);
 
-    // 2. Material Costs
-    const grams = Math.max(1, input.material.grams);
-    const pricePerKg = Math.max(0, input.material.pricePerKg);
-    const materialCost = Math.round((grams / 1000) * pricePerKg);
+    // 2. Material Costs (supports single material or multi-material sum)
+    let materialCost = 0;
+    if (input.materials && input.materials.length > 0) {
+      materialCost = input.materials.reduce((sum, item) => {
+        const g = Math.max(0, item.grams || 0);
+        const price = Math.max(0, item.pricePerKg || 0);
+        return sum + Math.round((g / 1000) * price);
+      }, 0);
+    } else if (input.material) {
+      const grams = Math.max(0, input.material.grams || 0);
+      const pricePerKg = Math.max(0, input.material.pricePerKg || 0);
+      materialCost = Math.round((grams / 1000) * pricePerKg);
+    }
 
     // 3. Labor Costs
-    const postProcessingHours = Math.max(0, input.postProcessingHours || 0);
-    const totalLaborHours = totalPrintHours + postProcessingHours;
+    let totalLaborHours: number;
+    if (input.laborHours !== undefined) {
+      totalLaborHours = Math.max(0, input.laborHours);
+    } else {
+      const setupHours = Math.max(0, input.setupHours || 0);
+      const postProcessingHours = Math.max(0, input.postProcessingHours || 0);
+      totalLaborHours = totalPrintHours + postProcessingHours + setupHours;
+    }
     const laborCost = Math.round(totalLaborHours * laborRate);
 
     // 4. Accessories & Hardware Costs (if enabled)
     let accessoriesCost = 0;
     if (settings.enableAccessoriesPricing && input.accessories && input.accessories.length > 0) {
       accessoriesCost = input.accessories.reduce((acc, item) => {
-        const packQty = Math.max(1, item.packQty);
-        return acc + Math.round((item.usedQty / packQty) * item.packPrice);
+        const packQty = Math.max(1, item.packQty || 1);
+        const usedQty = Math.max(0, item.usedQty || 0);
+        const packPrice = Math.max(0, item.packPrice || 0);
+        return acc + Math.round((usedQty / packQty) * packPrice);
       }, 0);
     }
 
@@ -134,6 +152,53 @@ export class PricingEngineService {
       finalSellingPrice,
       profitMode,
       profitPercent: settings.defaultProfitPercent
+    };
+  }
+
+  /**
+   * Calculates Inkiri cost and signs a cryptographically secure HMAC SHA-256 quote token
+   */
+  static async calculateAndSignQuote(params: {
+    input: InkiriCalculationInput;
+    workpieceMeta: {
+      volumeCm3: number;
+      weightGrams: number;
+      materialId: string;
+      printerId: string;
+      dimensions?: { x: number; y: number; z: number };
+      quantity?: number;
+      infillPercent?: number;
+      layerHeightMm?: number;
+    };
+  }): Promise<{
+    calculation: InkiriCalculationResult;
+    dualQuote: ReturnType<typeof PricingEngineService.generateDualQuote>;
+    signedToken: SignedQuoteToken;
+  }> {
+    const calculation = PricingEngineService.calculateInkiriCost(params.input);
+    const dualQuote = PricingEngineService.generateDualQuote(calculation);
+
+    const qty = Math.max(1, params.workpieceMeta.quantity || 1);
+    const unitPrice = calculation.finalSellingPrice;
+    const totalPrice = unitPrice * qty;
+
+    const signedToken = await QuoteVerifier.createSignedQuoteFromInkiri({
+      unitPrice,
+      totalPrice,
+      quantity: qty,
+      volumeCm3: params.workpieceMeta.volumeCm3,
+      weightGrams: params.workpieceMeta.weightGrams,
+      materialId: params.workpieceMeta.materialId,
+      printerId: params.workpieceMeta.printerId,
+      dimensions: params.workpieceMeta.dimensions,
+      infillPercent: params.workpieceMeta.infillPercent,
+      layerHeightMm: params.workpieceMeta.layerHeightMm
+    });
+
+    return {
+      calculation,
+      dualQuote,
+      signedToken
     };
   }
 

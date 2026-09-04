@@ -937,16 +937,26 @@ export interface WorkshopAccessory {
 export interface InkiriCalculationInput {
   printHours: number;
   postProcessingHours?: number;
+  setupHours?: number;
+  laborHours?: number;
   machine: {
     avgPowerKW: number;
     purchasePrice: number;
     lifetimeHours: number;
+    maintenanceCostPerHour?: number;
   };
   material: {
     grams: number;
     pricePerKg: number;
+    materialName?: string;
   };
+  materials?: {
+    grams: number;
+    pricePerKg: number;
+    materialName?: string;
+  }[];
   accessories?: {
+    name?: string;
     usedQty: number;
     packQty: number;
     packPrice: number;

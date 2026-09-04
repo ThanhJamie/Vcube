@@ -1595,7 +1595,6 @@ export const DEFAULT_SITE_CONTENT: import('../types').SiteContentConfig = {
   hotline: '1900 6833',
   contactEmail: 'contact@vcube.vn',
   hanoiWorkshopAddress: 'Xưởng In 3D VCUBE: Khu Công Nghệ Cao Hòa Lạc, Hà Nội',
-  hcmWorkshopAddress: 'Chi Nhánh Nam: Khu Công Nghệ Cao TP. Thủ Đức, TP. Hồ Chí Minh'
   hcmWorkshopAddress: 'Chi Nhánh Nam: Khu Công Nghệ Cao TP. Thủ Đức, TP. Hồ Chí Minh',
 
   // SEO & Metadata Defaults

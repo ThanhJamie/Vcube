@@ -34,27 +34,38 @@ export interface WorkpieceDataInput {
 // In-memory or fallback secret for development & client/server verification
 const QUOTE_SIGNING_SECRET = 
   (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_QUOTE_SECRET) || 
+  (typeof process !== 'undefined' && process.env && process.env.VITE_QUOTE_SECRET) ||
   'vcube_inkiri_hmac_secret_2026_industrial_fab';
 
 /**
- * Simple web-compatible SHA-256 HMAC generator using Web Crypto API
+ * Universal SHA-256 HMAC generator compatible with Web Crypto API and Node.js
  */
-async function generateHmacSignature(data: string, secret: string): Promise<string> {
-  if (typeof crypto !== 'undefined' && crypto.subtle) {
+export async function generateHmacSignature(data: string, secret: string = QUOTE_SIGNING_SECRET): Promise<string> {
+  const cryptoObj = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined;
+  if (cryptoObj && cryptoObj.subtle) {
     const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
+    const key = await cryptoObj.subtle.importKey(
       'raw',
       encoder.encode(secret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     );
-    const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
+    const signatureBuffer = await cryptoObj.subtle.sign('HMAC', key, encoder.encode(data));
     return Array.from(new Uint8Array(signatureBuffer))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
   }
-  // Fallback hash for environments without Web Crypto
+
+  // Fallback for Node.js if subtle crypto is not directly accessible
+  try {
+    const nodeCrypto = await import('crypto');
+    if (nodeCrypto && nodeCrypto.createHmac) {
+      return nodeCrypto.createHmac('sha256', secret).update(data).digest('hex');
+    }
+  } catch {}
+
+  // Last-resort fallback hash
   let hash = 0;
   const combined = data + secret;
   for (let i = 0; i < combined.length; i++) {
@@ -154,6 +165,67 @@ export class QuoteVerifier {
       infillPercent: input.infillPercent,
       layerHeightMm: input.layerHeightMm,
       quantity: input.quantity,
+      unitPrice,
+      totalPrice,
+      issuedAt: now,
+      expiresAt: now + ttlMs,
+      nonce: Math.random().toString(36).substring(2, 10)
+    };
+
+    const signatureString = JSON.stringify({
+      id: payload.quoteId,
+      unit: payload.unitPrice,
+      total: payload.totalPrice,
+      vol: Number(payload.volumeCm3.toFixed(2)),
+      mat: payload.materialId,
+      printer: payload.printerId,
+      wpHash: payload.workpieceHash,
+      qty: payload.quantity,
+      exp: payload.expiresAt,
+      nonce: payload.nonce
+    });
+
+    const signature = await generateHmacSignature(signatureString, QUOTE_SIGNING_SECRET);
+
+    return {
+      payload,
+      signature
+    };
+  }
+
+  /**
+   * Generates a tamper-proof signed quote directly from Inkiri calculation results
+   */
+  static async createSignedQuoteFromInkiri(params: {
+    unitPrice: number;
+    totalPrice?: number;
+    quantity?: number;
+    volumeCm3: number;
+    weightGrams: number;
+    materialId: string;
+    printerId: string;
+    dimensions?: { x: number; y: number; z: number };
+    infillPercent?: number;
+    layerHeightMm?: number;
+  }): Promise<SignedQuoteToken> {
+    const qty = Math.max(1, params.quantity || 1);
+    const unitPrice = Math.round(params.unitPrice);
+    const totalPrice = Math.round(params.totalPrice !== undefined ? params.totalPrice : (unitPrice * qty));
+    const now = Date.now();
+    const ttlMs = 30 * 60 * 1000; // 30 minutes
+    const workpieceHash = QuoteVerifier.computeWorkpieceHash(params.volumeCm3, params.materialId, params.printerId);
+
+    const payload: SignedQuotePayload = {
+      quoteId: `QUO-INKIRI-${now}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      volumeCm3: params.volumeCm3,
+      weightGrams: params.weightGrams,
+      dimensions: params.dimensions || { x: 50, y: 50, z: 50 },
+      materialId: params.materialId,
+      printerId: params.printerId,
+      workpieceHash,
+      infillPercent: params.infillPercent ?? 20,
+      layerHeightMm: params.layerHeightMm ?? 0.2,
+      quantity: qty,
       unitPrice,
       totalPrice,
       issuedAt: now,

@@ -38,71 +38,116 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [navSearch, setNavSearch] = useState<string>('');
 
+  // Structured in 6 clearly numbered groups + storefront & settings
   const navItems = [
     {
-      group: null,
+      group: isVi ? 'GROUP 0: TỔNG QUAN ĐIỀU HÀNH' : 'GROUP 0: EXECUTIVE OVERVIEW',
       items: [
         {
           id: 'overview' as AdminNavSection,
-          label: isVi ? 'Tổng Quan Điều Hành' : 'Dashboard Overview',
+          label: isVi ? 'Tổng Quan Điều Hành' : 'Executive Overview',
           icon: 'dashboard',
-          badge: null
+          badge: 'KPIs',
+          badgeColor: 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
         }
       ]
     },
     {
-      group: isVi ? 'HỆ SINH THÁI TÁC NHÂN' : 'STAKEHOLDERS & PEOPLE',
+      group: isVi ? 'GROUP 1: QUẢN LÝ XƯỞNG IN (MES HUBS)' : 'GROUP 1: WORKSHOP MES HUBS',
       items: [
-        {
-          id: 'users' as AdminNavSection,
-          label: isVi ? 'Người Dùng & KYC' : 'Users & KYC',
-          icon: 'manage_accounts',
-          badge: '4 Roles',
-          badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-        },
-        {
-          id: 'designers' as AdminNavSection,
-          label: isVi ? 'Quản Lý Designer 3D' : '3D Designers',
-          icon: 'draw',
-          badge: 'Bản Quyền',
-          badgeColor: 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-        },
         {
           id: 'partners' as AdminNavSection,
-          label: isVi ? 'Mạng Lưới Xưởng In MES' : 'Workshop Partner MES',
+          label: isVi ? 'Mạng Lưới Xưởng In MES' : 'Workshop MES Network',
           icon: 'factory',
-          badge: '+Add',
+          badge: '3 Hubs',
           badgeColor: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-        }
-      ]
-    },
-    {
-      group: isVi ? 'VẬN HÀNH SẢN XUẤT' : 'PRODUCTION & ORDERS',
-      items: [
-        {
-          id: 'orders' as AdminNavSection,
-          label: isVi ? 'Đơn Hàng Thương Mại' : 'Orders',
-          icon: 'receipt_long',
-          badge: ordersCount > 0 ? `${ordersCount}` : null,
-          badgeColor: 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-        },
-        {
-          id: 'queue' as AdminNavSection,
-          label: isVi ? 'Hàng Đợi Chế Tác MES' : 'Production Queue',
-          icon: 'precision_manufacturing',
-          badge: activeJobsCount > 0 ? `${activeJobsCount} in` : null,
-          badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
         },
         {
           id: 'machines' as AdminNavSection,
           label: isVi ? 'Đội Máy In 3D (Fleet)' : '3D Printer Fleet',
           icon: 'print',
-          badge: `${printersCount}`,
+          badge: `${printersCount} máy`,
+          badgeColor: 'bg-slate-700 text-slate-300'
+        }
+      ]
+    },
+    {
+      group: isVi ? 'GROUP 2: QUẢN LÝ DESIGNER' : 'GROUP 2: 3D DESIGNERS',
+      items: [
+        {
+          id: 'designers' as AdminNavSection,
+          label: isVi ? 'Nhà Thiết Kế & Bản Quyền' : 'Designers & IP Rights',
+          icon: 'draw',
+          badge: 'Bản Quyền',
+          badgeColor: 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+        }
+      ]
+    },
+    {
+      group: isVi ? 'GROUP 3: QUẢN LÝ KHÁCH HÀNG' : 'GROUP 3: CUSTOMERS & KYC',
+      items: [
+        {
+          id: 'users' as AdminNavSection,
+          label: isVi ? 'Khách Hàng & Hồ Sơ KYC' : 'Customers & Accounts',
+          icon: 'manage_accounts',
+          badge: 'B2B/B2C',
+          badgeColor: 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+        }
+      ]
+    },
+    {
+      group: isVi ? 'GROUP 4: CẤU HÌNH GIÁ INKIRI' : 'GROUP 4: INKIRI PRICING ENGINE',
+      items: [
+        {
+          id: 'pricing' as AdminNavSection,
+          label: isVi ? 'Công Thức Giá Inkiri v3.4' : 'Inkiri Pricing Engine',
+          icon: 'tune',
+          badge: 'v3.4 Inkiri',
+          badgeColor: 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+        },
+        {
+          id: 'materials' as AdminNavSection,
+          label: isVi ? 'Danh Mục Nhựa & Resin' : 'Filaments & Resins',
+          icon: 'layers',
+          badge: `${materialsCount}`,
           badgeColor: 'bg-slate-700 text-slate-300'
         },
         {
+          id: 'hardware' as AdminNavSection,
+          label: isVi ? 'Phụ Kiện, Ốc Cấy & Nam Châm' : 'Hardware & Fasteners',
+          icon: 'extension',
+          badge: `${accessoriesCount}`,
+          badgeColor: 'bg-slate-700 text-slate-300'
+        },
+        {
+          id: 'quote-calc' as AdminNavSection,
+          label: isVi ? 'Báo Giá Dự Toán BOM' : 'BOM Quote Calculator',
+          icon: 'calculate',
+          badge: 'BOM',
+          badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+        }
+      ]
+    },
+    {
+      group: isVi ? 'GROUP 5: VẬN HÀNH SẢN XUẤT (MES)' : 'GROUP 5: PRODUCTION OPERATIONS',
+      items: [
+        {
+          id: 'queue' as AdminNavSection,
+          label: isVi ? 'Hàng Đợi & Kanban 8 Nấc' : '8-Stage MES Kanban',
+          icon: 'precision_manufacturing',
+          badge: activeJobsCount > 0 ? `${activeJobsCount} in` : 'MES',
+          badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+        },
+        {
+          id: 'orders' as AdminNavSection,
+          label: isVi ? 'Đơn Hàng & Điều Phối Hub' : 'Orders & Dispatch',
+          icon: 'receipt_long',
+          badge: ordersCount > 0 ? `${ordersCount}` : null,
+          badgeColor: 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+        },
+        {
           id: 'inventory' as AdminNavSection,
-          label: isVi ? 'Kho Nhựa & Vị Trí Kệ' : 'Warehouse Inventory',
+          label: isVi ? 'Kho Vật Liệu & Vị Trí Kệ' : 'Warehouse Inventory',
           icon: 'shelves',
           badge: lowStockCount > 0 ? `⚠ ${lowStockCount}` : null,
           badgeColor: 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
@@ -110,30 +155,18 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       ]
     },
     {
-      group: isVi ? 'ĐỊNH GIÁ & DỰ TOÁN' : 'PRICING & COST ENGINE',
-      items: [
-        {
-          id: 'pricing' as AdminNavSection,
-          label: isVi ? 'Cấu Hình Giá Inkiri v3.4' : 'Inkiri Pricing Engine',
-          icon: 'tune',
-          badge: 'Inkiri v3.4',
-          badgeColor: 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
-        }
-      ]
-    },
-    {
-      group: isVi ? 'CỬA HÀNG, NỘI DUNG & SEO' : 'STOREFRONT & SEO CMS',
+      group: isVi ? 'CỬA HÀNG & HỆ THỐNG' : 'STOREFRONT & SYSTEM',
       items: [
         {
           id: 'products' as AdminNavSection,
-          label: isVi ? 'Sản Phẩm & Mẫu In 3D' : 'Products & Catalog',
+          label: isVi ? 'Sản Phẩm & Catalog 3D' : 'Products & Catalog',
           icon: 'inventory_2',
           badge: `${productsCount}`,
           badgeColor: 'bg-slate-700 text-slate-300'
         },
         {
           id: 'storefront' as AdminNavSection,
-          label: isVi ? 'Landing Page CMS' : 'Landing Page CMS',
+          label: isVi ? 'Landing Page & CMS' : 'Landing Page CMS',
           icon: 'storefront',
           badge: null
         },
@@ -141,14 +174,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           id: 'seo' as AdminNavSection,
           label: isVi ? 'Quản Trị SEO & Metadata' : 'SEO & Metadata',
           icon: 'travel_explore',
-          badge: 'SERP Sim',
+          badge: 'SERP',
           badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-        }
-      ]
-    },
-    {
-      group: isVi ? 'HỆ THỐNG' : 'SYSTEM',
-      items: [
+        },
         {
           id: 'settings' as AdminNavSection,
           label: isVi ? 'Cài Đặt Xưởng & Cloud' : 'Settings & Cloud',
@@ -198,11 +226,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 <div className="flex items-center gap-1.5">
                   <span className="font-tech font-bold text-sm tracking-wider text-white">VCUBE</span>
                   <span className="text-[9px] font-tech font-bold px-1.5 py-0.2 rounded bg-[#57DFFE]/20 text-[#57DFFE] border border-[#57DFFE]/30">
-                    FORGE
+                    FORGE MES
                   </span>
                 </div>
                 <p className="text-[11px] text-[#94A3B8] font-sans truncate">
-                  {isVi ? 'Quản Trị Hệ Thống Xưởng' : 'Admin & Production OS'}
+                  {isVi ? 'Hệ Điều Hành Xưởng In' : 'Admin & Production OS'}
                 </p>
               </div>
             )}
@@ -228,7 +256,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </button>
         </div>
 
-        {/* Spotlight Quick Search */}
+        {/* Quick Search */}
         {!isCollapsed && (
           <div className="px-3 pt-3 pb-1">
             <div className="relative">
@@ -236,7 +264,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 type="text"
                 value={navSearch}
                 onChange={(e) => setNavSearch(e.target.value)}
-                placeholder={isVi ? 'Tìm nhanh menu (nhập "xưởng", "seo"...)...' : 'Quick find section...'}
+                placeholder={isVi ? 'Tìm nhanh (Group 0-5, máy in, kho...)...' : 'Quick find section...'}
                 className="w-full pl-8 pr-7 py-1.5 bg-[#131F33] border border-[#1E293B] rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#00687A] focus:ring-1 focus:ring-[#00687A] transition-all"
               />
               <span className="material-symbols-outlined text-sm text-slate-400 absolute left-2.5 top-2 pointer-events-none">
@@ -266,7 +294,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <div key={gIdx} className="space-y-1">
               {group.group && !isCollapsed && (
                 <div className="px-3 pb-1 pt-1.5">
-                  <span className="text-[9px] font-tech font-bold uppercase tracking-widest text-[#64748B]">
+                  <span className="text-[9px] font-tech font-bold uppercase tracking-widest text-[#00A8C6]">
                     {group.group}
                   </span>
                 </div>
@@ -276,7 +304,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 <div className="my-2 border-t border-[#1E293B]/60" />
               )}
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const isActive = activeSection === item.id;
                   return (
@@ -354,7 +382,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 Node Asia-SE1
               </span>
-              <span className="font-tech text-[10px]">v3.4.2</span>
+              <span className="font-tech text-[10px]">v3.4.2 MES</span>
             </div>
           )}
         </div>
@@ -362,3 +390,5 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     </>
   );
 };
+
+export default AdminSidebar;
