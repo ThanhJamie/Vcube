@@ -37,7 +37,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
   const isVi = language === 'vi';
 
   const [localContent, setLocalContent] = useState<SiteContentConfig>({ ...siteContent });
-  const [activeTab, setActiveTab] = useState<'hero' | 'announcement' | 'workflow' | 'estimator' | 'facilities'>('hero');
+  const [activeTab, setActiveTab] = useState<'hero' | 'announcement' | 'workflow' | 'estimator' | 'facilities' | 'customIdea'>('hero');
   const [isSaved, setIsSaved] = useState(true);
 
   const handleChange = <K extends keyof SiteContentConfig>(key: K, value: SiteContentConfig[K]) => {
@@ -183,7 +183,19 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
           }`}
         >
           <Icon name="domain" size={18} />
-          <span>Đối Tác & Cơ Sở Xưởng</span>
+          <span>{isVi ? 'Đối Tác & Cơ Sở Xưởng' : 'Partners & Facilities'}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('customIdea')}
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'customIdea'
+              ? 'bg-surface-inverse text-on-inverse shadow-e1'
+              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+          }`}
+        >
+          <Icon name="design_services" size={18} />
+          <span>{isVi ? 'Dịch Vụ Custom 3D' : 'Custom 3D Service'}</span>
         </button>
       </div>
 
@@ -740,6 +752,194 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 <p className="text-xs text-fg-muted">
                   Để trống = CHƯA cấu hình. Nhập 0 nghĩa là không thu phí vận chuyển.
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 6: Custom 3D Model by Idea Section */}
+      {activeTab === 'customIdea' && (
+        <div className="bg-surface rounded-lg p-6 shadow-e1 space-y-6 animate-in fade-in duration-200">
+          <div className="border-b border-line-subtle pb-4">
+            <h3 className="font-bold text-base text-fg flex items-center gap-2">
+              <Icon name="design_services" size={24} className="text-primary" />
+              {isVi ? 'Cấu Hình Dịch Vụ Custom 3D & Dựng Mô Hình Từ Ý Tưởng' : 'Custom 3D CAD Modeling & Idea Service CMS'}
+            </h3>
+            <p className="text-xs text-fg-subtle mt-0.5">
+              {isVi
+                ? 'Tùy chỉnh tiêu đề, thông điệp, quy trình 3 giai đoạn và banner của khối dịch vụ thiết kế theo yêu cầu trên Landing Page.'
+                : 'Customize headline, narrative, 3-stage process workflow, and promotional banner for the custom CAD modeling service on the Landing Page.'}
+            </p>
+          </div>
+
+          {/* Active Toggle */}
+          <div className="flex items-center justify-between p-4 bg-surface-muted rounded-lg border border-line-subtle">
+            <div>
+              <span className="font-bold text-fg text-xs block">
+                {isVi ? 'Bật hiển thị Section trên Trang chủ' : 'Enable Section on Landing Page'}
+              </span>
+              <span className="text-xs text-fg-muted">
+                {isVi
+                  ? 'Cho phép khách hàng xem quy trình và mở form đăng ký tư vấn ý tưởng'
+                  : 'Allow visitors to view the 3-stage process and open the idea submission modal'}
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={localContent.customIdeaActive !== false}
+              onChange={(e) => handleChange('customIdeaActive', e.target.checked)}
+              className="size-5 rounded border-line text-primary focus:ring-primary cursor-pointer"
+            />
+          </div>
+
+          {/* Section Headlines */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+            <div className="space-y-1.5">
+              <label className="font-bold text-fg">{isVi ? 'Badge Trên Cùng' : 'Top Badge'}</label>
+              <input
+                type="text"
+                value={localContent.customIdeaBadge || ''}
+                onChange={(e) => handleChange('customIdeaBadge', e.target.value)}
+                placeholder="CUSTOM CAD // THEO Ý TƯỞNG"
+                className="w-full p-2.5 border border-line rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-bold text-fg">{isVi ? 'Nút Kêu Gọi Hành Động (CTA Text)' : 'CTA Button Label'}</label>
+              <input
+                type="text"
+                value={localContent.customIdeaCtaText || ''}
+                onChange={(e) => handleChange('customIdeaCtaText', e.target.value)}
+                placeholder={isVi ? 'Đăng Ký Dịch Vụ Custom Từ Ý Tưởng' : 'Submit Custom 3D Idea'}
+                className="w-full p-2.5 border border-line rounded-lg text-xs focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            <div className="md:col-span-2 space-y-1.5">
+              <label className="font-bold text-fg">{isVi ? 'Tiêu Đề Chính Section' : 'Main Section Headline'}</label>
+              <input
+                type="text"
+                value={localContent.customIdeaTitle || ''}
+                onChange={(e) => handleChange('customIdeaTitle', e.target.value)}
+                placeholder={isVi ? 'Biến Ý Tưởng Thành Bản Vẽ CAD 3D & Sản Phẩm Thực Tế' : 'Transform Concept Ideas into Precision 3D CAD & Physical Prototypes'}
+                className="w-full p-2.5 border border-line rounded-lg text-xs font-semibold focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            <div className="md:col-span-2 space-y-1.5">
+              <label className="font-bold text-fg">{isVi ? 'Mô Tả Phụ (Subtitle)' : 'Subtitle Description'}</label>
+              <textarea
+                rows={2}
+                value={localContent.customIdeaSubtitle || ''}
+                onChange={(e) => handleChange('customIdeaSubtitle', e.target.value)}
+                placeholder={isVi ? 'Bạn chưa có file CAD 3D? Chỉ cần phác thảo sơ bộ hoặc bài toán thực tế, đội ngũ kỹ sư VCUBE sẽ dựng mô hình CAD chuẩn kỹ thuật và gia công mẫu thử nghiệm bàn giao tận tay.' : 'No 3D CAD file yet? Provide preliminary sketches or functional criteria, and VCUBE engineers will build engineering-grade CAD models and deliver physical prototypes.'}
+                className="w-full p-2.5 border border-line rounded-lg text-xs focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            <div className="md:col-span-2 space-y-1.5">
+              <label className="font-bold text-fg">{isVi ? 'Đường Dẫn Ảnh Banner Đại Diện (Image URL)' : 'Banner Image URL'}</label>
+              <input
+                type="text"
+                value={localContent.customIdeaImageUrl || ''}
+                onChange={(e) => handleChange('customIdeaImageUrl', e.target.value)}
+                placeholder="https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=1200&auto=format&fit=crop&q=80"
+                className="w-full p-2.5 border border-line rounded-lg text-xs font-mono focus:outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+
+          {/* 3-Stage Process Configuration */}
+          <div className="border-t border-line-subtle pt-5 space-y-4">
+            <h4 className="font-bold text-xs uppercase tracking-wider text-primary font-mono">
+              {isVi ? 'CẤU HÌNH QUY TRÌNH 3 GIAI ĐOẠN' : '3-STAGE WORKFLOW CONFIGURATION'}
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
+              {/* Step 1 */}
+              <div className="p-4 rounded-lg bg-surface-muted border border-line space-y-3">
+                <div className="flex items-center gap-2 text-primary font-mono font-bold">
+                  <span className="px-2 py-0.5 rounded bg-primary-tint border border-primary/20">01</span>
+                  <span>{isVi ? 'Giai Đoạn 1' : 'Stage 1'}</span>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-fg block">{isVi ? 'Tiêu đề' : 'Title'}</label>
+                  <input
+                    type="text"
+                    value={localContent.customIdeaStep1Title || ''}
+                    onChange={(e) => handleChange('customIdeaStep1Title', e.target.value)}
+                    placeholder={isVi ? 'Tiếp Nhận Ý Tưởng & Phác Thảo' : 'Idea Intake & Concept Sketching'}
+                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-fg block">{isVi ? 'Nội dung mô tả' : 'Description'}</label>
+                  <textarea
+                    rows={3}
+                    value={localContent.customIdeaStep1Desc || ''}
+                    onChange={(e) => handleChange('customIdeaStep1Desc', e.target.value)}
+                    placeholder={isVi ? 'Cung cấp bản vẽ tay, ảnh chụp mẫu vật hoặc mô tả bài toán công năng. Kỹ sư tiếp nhận, phân tích tính khả thi DFM và lập phương án sơ bộ.' : 'Submit preliminary hand sketches, physical photos, or functional criteria. Engineers assess DFM feasibility and establish design briefs.'}
+                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="p-4 rounded-lg bg-surface-muted border border-line space-y-3">
+                <div className="flex items-center gap-2 text-primary font-mono font-bold">
+                  <span className="px-2 py-0.5 rounded bg-primary-tint border border-primary/20">02</span>
+                  <span>{isVi ? 'Giai Đoạn 2' : 'Stage 2'}</span>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-fg block">{isVi ? 'Tiêu đề' : 'Title'}</label>
+                  <input
+                    type="text"
+                    value={localContent.customIdeaStep2Title || ''}
+                    onChange={(e) => handleChange('customIdeaStep2Title', e.target.value)}
+                    placeholder={isVi ? 'Thiết Kế CAD 3D Chuẩn Kỹ Thuật' : 'Parametric 3D CAD Modeling'}
+                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-fg block">{isVi ? 'Nội dung mô tả' : 'Description'}</label>
+                  <textarea
+                    rows={3}
+                    value={localContent.customIdeaStep2Desc || ''}
+                    onChange={(e) => handleChange('customIdeaStep2Desc', e.target.value)}
+                    placeholder={isVi ? 'Mô hình hoá tham số B-Rep trên phần mềm cơ khí chuyên nghiệp, kiểm tra lắp ghép dung sai ren cấy và tối ưu cho công nghệ in 3D.' : 'Parametric B-Rep solid modeling, tolerance assembly fit checks, and Design for Additive Manufacturing (DFAM) optimization.'}
+                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="p-4 rounded-lg bg-surface-muted border border-line space-y-3">
+                <div className="flex items-center gap-2 text-primary font-mono font-bold">
+                  <span className="px-2 py-0.5 rounded bg-primary-tint border border-primary/20">03</span>
+                  <span>{isVi ? 'Giai Đoạn 3' : 'Stage 3'}</span>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-fg block">{isVi ? 'Tiêu đề' : 'Title'}</label>
+                  <input
+                    type="text"
+                    value={localContent.customIdeaStep3Title || ''}
+                    onChange={(e) => handleChange('customIdeaStep3Title', e.target.value)}
+                    placeholder={isVi ? 'In Mẫu Thử Nghiệm & Bàn Giao' : 'Rapid Prototyping & Handover'}
+                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-fg block">{isVi ? 'Nội dung mô tả' : 'Description'}</label>
+                  <textarea
+                    rows={3}
+                    value={localContent.customIdeaStep3Desc || ''}
+                    onChange={(e) => handleChange('customIdeaStep3Desc', e.target.value)}
+                    placeholder={isVi ? 'Gia công mẫu thử 1:1 bằng vật liệu kỹ thuật thực tế, đo kiểm kích thước và bàn giao bộ tệp nguồn gốc kèm quyền sở hữu bản quyền.' : '1:1 rapid physical prototyping, precision dimensional validation, and complete handover of native CAD files with commercial IP rights.'}
+                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                  />
+                </div>
               </div>
             </div>
           </div>

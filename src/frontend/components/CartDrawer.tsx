@@ -30,12 +30,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const { language } = useLanguage();
   const isVi = language === 'vi';
 
-  // Mã giảm giá đọc từ store — drawer phải khớp với cart page và checkout.
+  // Mã giảm giá đọc từ store
   const appliedDiscount = useCartStore((st) => st.appliedDiscount);
 
-  // Đợt 9 (R1): tỉ lệ VAT là CẤU HÌNH trong `pricing_global_settings` — hết 8% cứng.
-  // Hook đứng TRƯỚC `if (!isOpen) return null;` bên dưới (luật hook của React; A22a từng
-  // gây crash trắng màn hình vì đặt hook sau early return).
+  // Cấu hình tỉ lệ thuế VAT
   const { data: pricingGlobal } = usePricingGlobalSettings();
   const vatRate = vatRateFromPercent(pricingGlobal?.vatPercent);
 
@@ -72,7 +70,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const subtotalDigital = digitalItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
   const subtotal = subtotalPhysical + subtotalDigital;
 
-  // Phí ship từ MỘT nguồn duy nhất (trước đây drawer hardcode 30.000 inline).
+  // Phí vận chuyển từ cấu hình site_content hoặc mặc định
   const freeShippingThreshold = siteContent?.freeShippingThreshold ?? DEFAULT_SALES_RULES.freeShippingThreshold;
   const shippingFee = computeShippingFee(subtotalPhysical, physicalItems.length > 0, siteContent);
   const isFreeShipping = physicalItems.length > 0 && shippingFee === 0;
@@ -81,8 +79,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     ? Math.min(100, Math.round((subtotalPhysical / freeShippingThreshold) * 100))
     : 0;
 
-  // Giá niêm yết chưa gồm VAT; VAT là một dòng riêng, cùng con số với cart/checkout.
-  // `pricing_global_settings.vat_percent` NULL ⇒ `vat === null` ⇒ ẨN dòng VAT.
+  // Tính thuế VAT theo cấu hình
   const afterDiscount = Math.max(0, subtotal + shippingFee - appliedDiscount);
   const vat = computeVat(afterDiscount, vatRate);
   const totalAmount = vat ? vat.total : afterDiscount;
@@ -123,7 +120,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-sm text-fg-muted hover:text-fg hover:bg-line-subtle/60 transition-colors cursor-pointer"
+              className="p-1.5 rounded-md text-fg-muted hover:text-fg hover:bg-line-subtle/60 active:scale-95 transition-all cursor-pointer"
               aria-label="Đóng giỏ hàng"
             >
               <Icon name="close" size={24} />
@@ -183,19 +180,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             ) : (
               <div className="space-y-3.5 divide-y divide-line-subtle">
                 {cart.map((item) => (
-                  <div key={item.id} className="pt-3.5 first:pt-0 flex gap-3 group">
+                  <div key={item.id} className="pt-3.5 first:pt-0 flex gap-3 group hover:bg-surface-muted/50 p-2 rounded-lg -mx-2 transition-all duration-200">
                     {/* Item Thumbnail */}
-                    <div className="w-16 h-16 rounded-lg border border-line bg-surface-inverse shrink-0 overflow-hidden relative">
+                    <div className="w-16 h-16 rounded-lg border border-line bg-surface-muted shrink-0 overflow-hidden relative shadow-e0 group-hover:shadow-e1 transition-shadow">
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300';
                         }}
                       />
                       <span className={`absolute bottom-0 inset-x-0 text-xs font-mono text-center font-bold py-0.2 ${
-                        item.type === 'physical' ? 'bg-primary text-primary-fg' : 'bg-surface-inverse text-on-inverse'
+                        item.type === 'physical' ? 'bg-primary text-primary-fg' : 'bg-surface-muted text-fg border-t border-line'
                       }`}>
                         {item.type === 'physical' ? 'IN 3D' : 'CAD'}
                       </span>
@@ -211,10 +208,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           <button
                             type="button"
                             onClick={() => onRemoveItem(item.id)}
-                            className="text-fg-subtle hover:text-danger transition-colors p-0.5 cursor-pointer shrink-0"
+                            className="text-fg-subtle hover:text-danger hover:bg-danger-tint p-1 rounded-md active:scale-90 transition-all cursor-pointer shrink-0"
                             title="Xóa sản phẩm"
                           >
-                            <Icon name="delete" size={18} />
+                            <Icon name="delete" size={16} />
                           </button>
                         </div>
 
@@ -247,21 +244,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       {/* Quantity & Unit Price */}
                       <div className="flex items-center justify-between mt-2 pt-1">
                         {item.type === 'physical' ? (
-                          <div className="flex items-center border border-line-control rounded-lg bg-surface overflow-hidden font-mono">
+                          <div className="flex items-center border border-line-control rounded-lg bg-surface overflow-hidden font-mono shadow-e0">
                             <button
                               type="button"
                               onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                              className="px-2 py-0.5 hover:bg-surface-muted text-fg-muted transition-colors cursor-pointer text-xs"
+                              className="px-2.5 py-0.5 hover:bg-surface-muted active:scale-90 text-fg-muted transition-all cursor-pointer text-xs select-none"
                             >
                               -
                             </button>
-                            <span className="px-2 text-xs font-bold text-fg">
+                            <span className="px-2 text-xs font-bold text-fg tabular-nums">
                               {item.quantity}
                             </span>
                             <button
                               type="button"
                               onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                              className="px-2 py-0.5 hover:bg-surface-muted text-fg-muted transition-colors cursor-pointer text-xs"
+                              className="px-2.5 py-0.5 hover:bg-surface-muted active:scale-90 text-fg-muted transition-all cursor-pointer text-xs select-none"
                             >
                               +
                             </button>
@@ -272,7 +269,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           </span>
                         )}
 
-                        <span className="font-mono font-bold text-xs text-fg">
+                        <span className="font-mono font-bold text-xs text-fg tabular-nums">
                           {(item.price * item.quantity).toLocaleString('vi-VN')} đ
                         </span>
                       </div>
@@ -290,12 +287,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="space-y-1 text-xs font-mono">
                 <div className="flex items-center justify-between text-fg-muted">
                   <span>{isVi ? 'Tạm tính' : 'Subtotal'}:</span>
-                  <span>{subtotal.toLocaleString('vi-VN')} đ</span>
+                  <span className="tabular-nums">{subtotal.toLocaleString('vi-VN')} đ</span>
                 </div>
                 {physicalItems.length > 0 && (
                   <div className="flex items-center justify-between text-fg-muted">
                     <span>{isVi ? 'Vận chuyển' : 'Shipping'}:</span>
-                    <span className={isFreeShipping ? 'text-positive font-bold' : ''}>
+                    <span className={isFreeShipping ? 'text-positive font-bold' : 'tabular-nums'}>
                       {isFreeShipping
                         ? (isVi ? 'MIỄN PHÍ' : 'FREE')
                         : `${shippingFee.toLocaleString('vi-VN')} đ`}
@@ -305,13 +302,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {appliedDiscount > 0 && (
                   <div className="flex items-center justify-between text-positive font-bold">
                     <span>{isVi ? 'Giảm giá ưu đãi' : 'Discount'}:</span>
-                    <span>- {appliedDiscount.toLocaleString('vi-VN')} đ</span>
+                    <span className="tabular-nums">- {appliedDiscount.toLocaleString('vi-VN')} đ</span>
                   </div>
                 )}
                 {vat ? (
                   <div className="flex items-center justify-between text-fg-muted">
                     <span>{vatLabel(vat.rate)}:</span>
-                    <span>{vat.amount.toLocaleString('vi-VN')} đ</span>
+                    <span className="tabular-nums">{vat.amount.toLocaleString('vi-VN')} đ</span>
                   </div>
                 ) : (
                   <p className="text-xs text-fg-subtle leading-relaxed">{vatNotConfiguredLabel(isVi)}</p>
@@ -319,7 +316,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="flex items-baseline justify-between pt-2 border-t border-line text-fg">
                   <span className="font-extrabold text-sm">{isVi ? 'Tổng thanh toán' : 'Total'}:</span>
                   <div className="text-right">
-                    <span className="font-extrabold text-lg text-primary">
+                    <span className="font-extrabold text-lg text-primary tabular-nums">
                       {totalAmount.toLocaleString('vi-VN')} đ
                     </span>
                     <span className="block text-xs text-fg-subtle font-sans">

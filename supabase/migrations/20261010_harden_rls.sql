@@ -188,7 +188,8 @@ declare
     'payment_transactions','workshop_profiles','workshop_machines','workshop_materials',
     'material_inventory_logs','designer_profiles','customer_profiles',
     'pricing_global_settings','workshop_accessories',
-    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms'
+    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms',
+    'custom_design_requests'
   ];
   v_names text[] := array[
     -- products
@@ -265,7 +266,8 @@ declare
     'payment_transactions','workshop_profiles','workshop_machines','workshop_materials',
     'material_inventory_logs','designer_profiles','customer_profiles',
     'pricing_global_settings','workshop_accessories',
-    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms'
+    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms',
+    'custom_design_requests'
   ];
 begin
   foreach t in array v_tables loop
@@ -288,6 +290,11 @@ begin
       end if;
     end;
   end loop;
+
+  -- Cấp quyền cho custom_design_requests
+  if to_regclass('public.custom_design_requests') is not null then
+    execute 'grant select, insert, update on public.custom_design_requests to authenticated';
+  end if;
 end
 $do$;
 
@@ -722,6 +729,30 @@ begin
   --   * Nếu sau này UI xưởng cần "phần tiền của tôi": tạo VIEW `security_invoker` chỉ phơi
   --     các cột KHÔNG nhạy cảm (id, order_id, product_id, quantity, fulfillment) rồi cấp
   --     select theo `assigned_workshop_id` — việc riêng, cần chốt trước khi làm.
+
+  -- ---------- 5.4l custom_design_requests (Đợt 30 — Studio Designer) ----------
+  -- Yêu cầu CAD tuỳ chỉnh. Khách hàng đọc/nộp/sửa yêu cầu của mình.
+  -- Designer và Admin được đọc và cập nhật tiến độ / trao đổi kỹ thuật / gửi báo giá.
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_customer_select', 'select', array['authenticated'],
+    'customer_id::text = (select auth.uid())::text', null);
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_customer_insert', 'insert', array['authenticated'],
+    null, 'customer_id::text = (select auth.uid())::text');
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_customer_update', 'update', array['authenticated'],
+    'customer_id::text = (select auth.uid())::text',
+    'customer_id::text = (select auth.uid())::text');
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_designer_select', 'select', array['authenticated'],
+    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$, null);
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_designer_update', 'update', array['authenticated'],
+    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$,
+    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$);
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_admin_all', 'all', array['authenticated'],
+    'public.is_admin()', 'public.is_admin()');
 
   -- ---------- 5.5 xưởng in (role lab/workshop) quản lý tài sản của chính mình ----------
   -- workshop_machines / workshop_materials: chủ xưởng hoặc admin
@@ -1249,7 +1280,14 @@ declare
     -- Đợt 25: dòng tiền của đơn
     'vcube_order_items_owner_read','vcube_order_items_admin_all',
     'vcube_workshop_commission_terms_admin_all',
-    'vcube_kyc_owner_read','vcube_kyc_owner_insert','vcube_kyc_admin_all'
+    'vcube_kyc_owner_read','vcube_kyc_owner_insert','vcube_kyc_admin_all',
+    -- Đợt 30: custom_design_requests (Studio Designer)
+    'vcube_custom_design_requests_customer_select',
+    'vcube_custom_design_requests_customer_insert',
+    'vcube_custom_design_requests_customer_update',
+    'vcube_custom_design_requests_designer_select',
+    'vcube_custom_design_requests_designer_update',
+    'vcube_custom_design_requests_admin_all'
   ];
   v_tables text[] := array[
     'products','orders','user_profiles','materials','printer_fleet','pricing_config',
@@ -1257,7 +1295,8 @@ declare
     'payment_transactions','workshop_profiles','workshop_machines','workshop_materials',
     'material_inventory_logs','designer_profiles','customer_profiles',
     'pricing_global_settings','workshop_accessories',
-    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms'
+    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms',
+    'custom_design_requests'
   ];
 begin
   for rec in

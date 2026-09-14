@@ -27,6 +27,10 @@
    Tailwind/CSS sẽ kết thúc comment sớm và nuốt luôn khối @theme bên dưới.
    --------------------------------------------------------------------------- */
 @theme static {
+  /* --- Phông chữ hệ thống (khớp Google Fonts tải tại index.html) --- */
+  --font-sans: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
   /* --- Màu: nền & bề mặt --- */
   --color-canvas: #F8FAFC;
   --color-surface: #FFFFFF;
@@ -269,8 +273,14 @@
     color: var(--color-fg);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     overflow-x: hidden;
     touch-action: manipulation;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.015em;
+    text-wrap: balance;
   }
 }
 

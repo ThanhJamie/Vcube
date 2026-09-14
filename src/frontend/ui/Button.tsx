@@ -127,9 +127,6 @@ export function Button(props: ButtonProps) {
 
   const isDisabled = Boolean(disabled) || loading;
 
-  // Icon-only: nội dung là icon (leadingIcon hoặc children).
-  const content = iconOnly ? leadingIcon ?? children : children;
-
   return (
     <button
       {...rest}
@@ -144,13 +141,23 @@ export function Button(props: ButtonProps) {
         className,
       )}
     >
-      {loading ? (
-        <Loader2 aria-hidden="true" className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
+      {iconOnly ? (
+        loading ? (
+          <Loader2 aria-hidden="true" className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
+        ) : (
+          leadingIcon ?? children
+        )
       ) : (
-        leadingIcon
+        <>
+          {loading ? (
+            <Loader2 aria-hidden="true" className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
+          ) : (
+            leadingIcon
+          )}
+          {loading && loadingLabel ? loadingLabel : children}
+          {!loading ? trailingIcon : null}
+        </>
       )}
-      {loading && !iconOnly && loadingLabel ? loadingLabel : content}
-      {!loading && !iconOnly ? trailingIcon : null}
     </button>
   );
 }

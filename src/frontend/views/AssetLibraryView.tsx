@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DigitalAsset } from '../types';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
 import { supabase } from '../../backend/supabase/client';
-import { Icon } from '@frontend/ui';
+import { Icon, Button } from '@frontend/ui';
 
 interface AssetLibraryViewProps {
   assets: DigitalAsset[];
@@ -133,14 +133,14 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
         </div>
 
         {/* Format Badges */}
-        <div className="flex items-center gap-2 font-sans overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 font-mono overflow-x-auto pb-1">
           {['all', 'STL', '3MF', 'STEP'].map((fmt) => (
             <button
               key={fmt}
               onClick={() => setSelectedFormat(fmt)}
-              className={`px-3.5 sm:px-4 py-2 text-xs uppercase tracking-widest font-bold whitespace-nowrap transition-colors border rounded-full touch-target-btn cursor-pointer ${
+              className={`px-3.5 py-1.5 text-xs uppercase tracking-wider font-bold whitespace-nowrap transition-colors border rounded-md cursor-pointer ${
                 selectedFormat === fmt
-                  ? 'bg-surface-inverse text-on-inverse border-line'
+                  ? 'bg-primary text-primary-fg border-primary shadow-e1'
                   : 'bg-surface text-fg-muted hover:text-fg border-line'
               }`}
             >
@@ -152,7 +152,7 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
         {/* Assets Grid */}
         {filteredAssets.length === 0 ? (
           <div className="bg-surface rounded-lg p-10 sm:p-16 text-center space-y-4 shadow-e1">
-            <div className="w-14 h-14 bg-surface-muted rounded-full flex items-center justify-center mx-auto text-fg-subtle">
+            <div className="w-14 h-14 bg-surface-muted rounded-lg flex items-center justify-center mx-auto text-fg-subtle">
               <Icon name="folder_off" size={30} />
             </div>
             <div>
@@ -166,13 +166,14 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
               </p>
             </div>
             <div className="pt-2">
-              <button
+              <Button
+                variant="primary"
+                size="md"
                 onClick={() => onNavigate('explore')}
-                className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-mono font-bold uppercase tracking-wider rounded-full transition-all shadow-e1 cursor-pointer inline-flex items-center gap-2"
+                leadingIcon={<Icon name="explore" size={18} />}
               >
-                <Icon name="explore" size={18} />
                 Khám phá kho bản vẽ
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -182,21 +183,22 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
               return (
                 <div key={asset.id} className="bg-surface hover:border-primary/50 transition-all flex flex-col justify-between p-4 sm:p-5 space-y-4 rounded-lg shadow-e1" >
                   <div>
-                    <div className="relative responsive-aspect-frame bg-surface-inverse overflow-hidden mb-3 rounded-lg">
+                    <div className="relative responsive-aspect-frame bg-surface-muted overflow-hidden mb-3 rounded-lg border border-line">
                       <img src={asset.image} alt={asset.name} className="responsive-img-cover" />
-                      <span className="absolute top-2.5 left-2.5 bg-surface-inverse text-on-inverse text-xs font-mono font-bold px-2 py-0.5 rounded-sm">
+                      <span className="absolute top-2.5 left-2.5 bg-primary text-primary-fg text-xs font-mono font-bold px-2 py-0.5 rounded-sm shadow-e1">
                         {asset.format}
                       </span>
                       {asset.hasUpdate && (
-                        <span className="absolute top-2.5 right-2.5 bg-surface text-fg text-xs font-sans font-bold uppercase tracking-wider px-2 py-0.5 border border-line rounded-sm">
+                        <span className="absolute top-2.5 right-2.5 bg-surface text-fg text-xs font-sans font-bold uppercase tracking-wider px-2 py-0.5 border border-line rounded-sm shadow-e1">
                           Update {asset.version}
                         </span>
                       )}
                       <button
+                        type="button"
                         onClick={() => setPreviewAsset(asset)}
-                        className="absolute bottom-2.5 right-2.5 bg-surface-inverse/70 hover:bg-surface-inverse text-on-inverse text-xs font-sans uppercase tracking-wider px-2.5 py-1 flex items-center gap-1 touch-target-btn rounded-full cursor-pointer"
+                        className="absolute bottom-2.5 right-2.5 bg-surface/90 hover:bg-surface text-fg text-xs font-mono uppercase tracking-wider px-2.5 py-1 flex items-center gap-1 rounded-md cursor-pointer border border-line shadow-e1 transition-all active:scale-95"
                       >
-                        <Icon name="view_in_ar" size={18} />
+                        <Icon name="view_in_ar" size={16} className="text-primary" />
                         Xem 3D
                       </button>
                     </div>
@@ -227,16 +229,18 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
 
                   <div className="space-y-2 pt-3 border-t border-line font-sans">
                     {downloadable ? (
-                      <button
-                        onClick={() => handleDownloadFile(asset)}
+                      <Button
+                        size="md"
+                        variant="primary"
+                        fullWidth
                         disabled={downloadingId === asset.id}
-                        className="w-full py-2.5 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse text-xs uppercase tracking-widest font-bold transition-colors flex items-center justify-center gap-1.5 touch-target-btn rounded-full cursor-pointer disabled:opacity-60"
+                        onClick={() => handleDownloadFile(asset)}
+                        leadingIcon={<Icon name="download" size={18} />}
                       >
-                        <Icon name="download" size={18} />
                         {downloadingId === asset.id ? 'Đang tạo liên kết...' : 'Tải Về Ngay'}
-                      </button>
+                      </Button>
                     ) : (
-                      <div className="w-full py-2.5 bg-surface-muted border border-line text-fg-subtle text-xs uppercase tracking-widest font-bold flex flex-col items-center justify-center gap-0.5 rounded-lg text-center px-2">
+                      <div className="w-full py-2 bg-surface-muted border border-line text-fg-subtle text-xs uppercase tracking-widest font-bold flex flex-col items-center justify-center gap-0.5 rounded-md text-center px-2">
                         <span className="flex items-center gap-1.5">
                           <Icon name="link_off" size={16} />
                           Chưa hỗ trợ tải trực tiếp
@@ -247,12 +251,15 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
                       </div>
                     )}
 
-                    <button
-                      onClick={() => onNavigate('tool_3d')}
-                      className="w-full py-2 border border-line-control hover:bg-canvas text-fg text-xs uppercase tracking-widest font-bold transition-colors touch-target-btn rounded-full cursor-pointer"
+                    <Button
+                      size="md"
+                      variant="secondary"
+                      fullWidth
+                      onClick={() => onNavigate('quote')}
+                      leadingIcon={<Icon name="precision_manufacturing" size={16} />}
                     >
                       Báo Giá Gia Công
-                    </button>
+                    </Button>
                   </div>
                 </div>
               );
@@ -262,49 +269,53 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
 
         {/* 3D Quick Inspect Modal */}
         {previewAsset && (
-          <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-3 sm:p-6">
-            <div className="bg-surface-inverse border border-surface-inverse-raised w-full max-w-2xl overflow-hidden shadow-e3 space-y-4 p-5 sm:p-8 text-on-inverse rounded-lg">
+          <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-3 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="bg-surface border border-line w-full max-w-2xl overflow-hidden shadow-e3 space-y-4 p-5 sm:p-8 text-fg rounded-lg">
               <div className="flex items-center justify-between border-b border-line pb-4">
                 <div>
-                  <h3 className="font-bold text-base sm:text-lg text-on-inverse">{previewAsset.name}</h3>
-                  <p className="text-xs text-on-inverse/70 font-sans">
+                  <h3 className="font-bold text-base sm:text-lg text-fg">{previewAsset.name}</h3>
+                  <p className="text-xs text-fg-muted font-sans mt-0.5">
                     Xem trước dạng khối minh hoạ — không phải hình học thật của file.
                   </p>
                 </div>
-                <button
+                <Button
+                  iconOnly
+                  variant="ghost"
+                  size="sm"
+                  className="text-fg-muted hover:text-fg hover:bg-surface-muted"
                   onClick={() => setPreviewAsset(null)}
-                  className="p-1 hover:bg-on-inverse/10 text-on-inverse/70 hover:text-on-inverse touch-target-btn rounded-full cursor-pointer"
                   aria-label="Đóng xem trước"
-                >
-                  <Icon name="close" size={24} />
-                </button>
+                  leadingIcon={<Icon name="close" size={20} />}
+                />
               </div>
 
-              <div className="bg-surface-inverse p-2 border border-line rounded-lg">
+              <div className="bg-surface-muted p-2 border border-line rounded-lg">
                 <ThreeModelViewer
                   modelType={previewAsset.model3DType || 'gear'}
-                  color="#E0DDD5"
+                  color="#00687a"
                   className="h-[260px] sm:h-[340px] lg:h-[360px] w-full"
                 />
               </div>
 
               <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 font-sans">
-                <button
+                <Button
+                  variant="secondary"
+                  size="md"
                   onClick={() => setPreviewAsset(null)}
-                  className="px-5 py-2.5 border border-line-control hover:bg-on-inverse/10 text-on-inverse text-xs uppercase tracking-widest font-bold touch-target-btn rounded-full cursor-pointer"
                 >
                   Đóng
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
                   onClick={() => {
                     void handleDownloadFile(previewAsset);
                     setPreviewAsset(null);
                   }}
-                  className="px-6 py-2.5 bg-surface text-fg hover:bg-line-subtle text-xs uppercase tracking-widest font-bold flex items-center justify-center gap-1.5 touch-target-btn rounded-full cursor-pointer"
+                  leadingIcon={<Icon name="download" size={18} />}
                 >
-                  <Icon name="download" size={18} />
                   {canDownload(previewAsset) ? `Tải Tập Tin ${previewAsset.format}` : 'Chưa hỗ trợ tải trực tiếp'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

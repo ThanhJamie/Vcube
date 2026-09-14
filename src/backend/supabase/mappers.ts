@@ -48,6 +48,8 @@
 import type {
   AccessoryItem,
   AppUserProfile,
+  CustomDesignMessage,
+  CustomDesignRequest,
   MaterialProfile,
   Order,
   PrinterProfile,
@@ -544,3 +546,85 @@ export function appSettingsToRow(patch: Partial<AppSettings>): SupabaseRow {
   if (patch.updatedBy !== undefined) row.updated_by = patch.updatedBy;
   return row;
 }
+
+/**
+ * Map dòng bảng `custom_design_requests` → `CustomDesignRequest` của UI.
+ * Tuân thủ Data Honesty: không bịa thông số rỗng, không bịa giá trị.
+ */
+export function rowToCustomDesignRequest(row: SupabaseRow): CustomDesignRequest {
+  const specs = typeof row.target_specs === 'object' && row.target_specs !== null ? row.target_specs : {};
+  const statusRaw = String(row.status || 'pending').toLowerCase();
+  const statusMap: Record<string, CustomDesignRequest['status']> = {
+    pending: 'Pending',
+    in_progress: 'In Progress',
+    quoted: 'Quoted',
+    completed: 'Completed',
+    declined: 'Completed',
+  };
+  const status: CustomDesignRequest['status'] = statusMap[statusRaw] || 'Pending';
+
+  const rawMessages: any[] = Array.isArray(row.messages) ? row.messages : [];
+  const messages: CustomDesignMessage[] = rawMessages.map((m: any) => ({
+    id: String(m.id || `msg-${Date.now()}`),
+    sender: m.sender === 'designer' ? 'designer' : 'client',
+    senderName: String(m.senderName || m.sender_name || '—'),
+    senderInitials: String(m.senderInitials || m.sender_initials || '—'),
+    time: String(m.time || '—'),
+    text: String(m.text || ''),
+    attachment: m.attachment
+      ? {
+          name: String(m.attachment.name || ''),
+          size: String(m.attachment.size || ''),
+          type: m.attachment.type || 'stl',
+        }
+      : undefined,
+    quote: m.quote
+      ? {
+          amount: Number(m.quote.amount) || 0,
+          currency: String(m.quote.currency || 'VND'),
+          description: String(m.quote.description || ''),
+          status: m.quote.status || 'sent',
+        }
+      : undefined,
+  }));
+
+  const lastMessage = messages[messages.length - 1];
+  const clientName = String(row.client_name || '');
+  const clientInitials = String(
+    row.client_initials || (clientName ? clientName.slice(0, 2).toUpperCase() : 'KH')
+  );
+
+  let formattedTime = '—';
+  if (row.updated_at) {
+    try {
+      formattedTime = new Date(row.updated_at).toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      formattedTime = '—';
+    }
+  }
+
+  return {
+    id: String(row.id || ''),
+    clientName,
+    clientInitials,
+    title: String(row.title || ''),
+    previewMessage: lastMessage ? lastMessage.text : String(row.preview_message || ''),
+    time: formattedTime,
+    status,
+    unread: Boolean(row.unread),
+    budget: String(row.budget || '—'),
+    deadline: String(row.deadline || '—'),
+    serviceType: String(row.service_type || 'Thiết kế CAD tùy chỉnh'),
+    targetSpecs: {
+      material: String(specs.material || '—'),
+      infill: String(specs.infill || '—'),
+      nozzle: String(specs.nozzle || '—'),
+    },
+    referenceFiles: Array.isArray(row.reference_files) ? row.reference_files : [],
+    messages,
+  };
+}
+

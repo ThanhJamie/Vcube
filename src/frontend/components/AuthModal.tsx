@@ -236,14 +236,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       {/* Modal Container */}
       <div className="relative bg-surface w-full max-w-2xl shadow-e3 rounded-lg z-sticky overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="bg-surface-inverse text-on-inverse px-6 py-5 border-b border-line shrink-0">
+        <div className="bg-surface text-fg px-6 py-5 border-b border-line shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-md bg-primary flex items-center justify-center text-primary-fg shadow-e2">
                 <Icon name="view_in_ar" size={24} />
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-display font-black text-xl tracking-tight uppercase italic text-on-inverse">VCUBE HUBS</span>
+                <span className="font-display font-black text-xl tracking-tight uppercase italic text-fg">VCUBE HUBS</span>
               </div>
             </div>
 
@@ -262,10 +262,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               )}
               <button
                 onClick={onClose}
-                className="text-on-inverse/70 hover:text-on-inverse transition-colors p-1.5 rounded-full hover:bg-on-inverse/10 cursor-pointer"
+                className="text-fg-muted hover:text-fg transition-colors p-1.5 rounded-full hover:bg-surface-muted cursor-pointer"
                 aria-label="Đóng popup"
               >
-                <Icon name="close" size={28} />
+                <Icon name="close" size={24} />
               </button>
             </div>
           </div>

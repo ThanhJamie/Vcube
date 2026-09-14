@@ -769,6 +769,20 @@ export interface SiteContentConfig {
   seoCanonicalUrl?: string;
   seoRobotsIndex?: boolean;
   seoStructuredData?: string;
+
+  // Custom 3D Model by Idea Section CMS
+  customIdeaActive?: boolean;
+  customIdeaBadge?: string;
+  customIdeaTitle?: string;
+  customIdeaSubtitle?: string;
+  customIdeaCtaText?: string;
+  customIdeaImageUrl?: string;
+  customIdeaStep1Title?: string;
+  customIdeaStep1Desc?: string;
+  customIdeaStep2Title?: string;
+  customIdeaStep2Desc?: string;
+  customIdeaStep3Title?: string;
+  customIdeaStep3Desc?: string;
 }
 
 export type UserRole = 'customer' | 'designer' | 'admin' | 'lab';

@@ -7,6 +7,7 @@ import { SEOHead } from '../components/SEOHead';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { useCartStore } from '../stores/useCartStore';
 import { Icon, Badge, Button, Card, EmptyState, InfoTip, Sheet, Skeleton } from '@frontend/ui';
 import { EMPTY_VALUE } from '@frontend/lib/format';
 
@@ -136,8 +137,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const [visibleCount, setVisibleCount] = useState<number>(12);
   const [hydrationWindowOpen, setHydrationWindowOpen] = useState<boolean>(true);
 
+  const addToCartStore = useCartStore((s) => s.addToCart);
+
   // Quick 3D Preview Modal State
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [quickViewInitialOrderType, setQuickViewInitialOrderType] = useState<'digital' | 'physical'>('digital');
   const [isQuickViewOpen, setIsQuickViewOpen] = useState<boolean>(false);
 
   // Sync if initial props change
@@ -178,16 +182,25 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const handleOpen3DPreview = (product: Product, e: React.MouseEvent) => {
     e.stopPropagation();
     setQuickViewProduct(product);
+    setQuickViewInitialOrderType('digital');
+    setIsQuickViewOpen(true);
+  };
+
+  const handleOpenPhysicalConfig = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!(isNum(product.pricePhysical) && product.pricePhysical > 0)) {
+      onShowToast?.(isVi
+        ? `Sản phẩm "${product.name}" không mở bán kênh in vật lý (giá in không lớn hơn 0) nên chưa thể đặt in.`
+        : `"${product.name}" is not sold as a physical print (its physical price is not greater than 0), so it cannot be ordered.`);
+      return;
+    }
+    setQuickViewProduct(product);
+    setQuickViewInitialOrderType('physical');
     setIsQuickViewOpen(true);
   };
 
   const handleQuickAddDigital = (product: Product, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!onAddToCart) {
-      onSelectProduct(product);
-      onNavigate('product_detail', { product });
-      return;
-    }
     // Data-honesty: `price_digital` không lớn hơn 0 (0 hoặc NULL/NaN) nghĩa là người bán KHÔNG
     // bán kênh file số ⇒ KHÔNG được đẩy vào giỏ một dòng 0đ. Chỉ giá `> 0` mới là CÓ BÁN.
     if (!(isNum(product.priceDigital) && product.priceDigital > 0)) {
@@ -197,7 +210,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       return;
     }
     const item: CartItem = {
-      id: `cart-digital-${Date.now()}-${Math.random()}`,
+      id: `cart-digital-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       productId: product.id,
       type: 'digital',
       name: product.name,
@@ -209,7 +222,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       fileFormat: product.cadFormat ?? undefined,
       licenseType: product.licenseType ?? undefined
     };
-    onAddToCart(item);
+    if (onAddToCart) {
+      onAddToCart(item);
+    } else {
+      addToCartStore(item);
+    }
     if (onShowToast) {
       onShowToast(isVi ? `Đã thêm File CAD "${product.name}" vào giỏ!` : `Added CAD File "${product.name}" to cart!`);
     }
@@ -914,7 +931,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                         key={product.id}
                         as="article"
                         padding="none"
-                        className="group relative flex flex-col overflow-hidden transition-shadow duration-300 hover:shadow-e1"
+                        className="group relative flex flex-col overflow-hidden transition-all duration-300 hover:border-primary/40 hover:shadow-e2 hover:-translate-y-1 active:scale-[0.99]"
                       >
                         {/* Product Image Frame — tỉ lệ cố định 4:3 */}
                         <div className="responsive-aspect-frame">
@@ -1062,7 +1079,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             <div className="flex items-baseline justify-between gap-2 mb-3 font-sans">
                               <div className="min-w-0">
                                 <span className="text-xs text-fg-subtle uppercase tracking-wider block font-medium">
-                                  {isVi ? 'File số' : 'Digital file'}
+                                  {isVi ? 'Giá File CAD' : 'CAD License'}
                                 </span>
                                 <span className="font-mono text-xs text-primary font-bold tabular-nums">
                                   {formatVnd(product.priceDigital, numberLocale)}
@@ -1070,7 +1087,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                               </div>
                               <div className="text-right min-w-0">
                                 <span className="text-xs text-fg-subtle uppercase tracking-wider block font-medium">
-                                  {isVi ? 'Bản in vật lý' : 'Physical print'}
+                                  {isVi ? 'Giá In từ' : 'Print from'}
                                 </span>
                                 <span className="font-mono font-bold text-sm text-fg tabular-nums">
                                   {formatVnd(product.pricePhysical, numberLocale)}
@@ -1087,7 +1104,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                                 onClick={(e) => handleQuickAddDigital(product, e)}
                                 disabled={!(isNum(product.priceDigital) && product.priceDigital > 0)}
                                 title={isNum(product.priceDigital) && product.priceDigital > 0
-                                  ? (isVi ? 'Tải file CAD STL/STEP gốc' : 'Get original CAD file')
+                                  ? (isVi ? 'Thêm File CAD vào giỏ hàng' : 'Add CAD license to cart')
                                   : (isVi ? 'Người bán không mở bán kênh file số.' : 'The seller does not sell this product as a CAD file.')}
                               >
                                 {isNum(product.priceDigital) && product.priceDigital > 0
@@ -1099,12 +1116,13 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                                 variant="secondary"
                                 size="md"
                                 leadingIcon={<Icon name="precision_manufacturing" size={18} />}
-                                onClick={() => {
-                                  onSelectProduct(product);
-                                  onNavigate('product_detail', { product });
-                                }}
+                                onClick={(e) => handleOpenPhysicalConfig(product, e)}
+                                disabled={!(isNum(product.pricePhysical) && product.pricePhysical > 0)}
+                                title={isNum(product.pricePhysical) && product.pricePhysical > 0
+                                  ? (isVi ? 'Cấu hình đặt in 3D nhanh' : 'Quick 3D print config')
+                                  : (isVi ? 'Người bán không mở bán kênh in vật lý.' : 'The seller does not sell this product as a physical print.')}
                               >
-                                {isVi ? 'In 3D' : 'Print'}
+                                {isVi ? 'Đặt In 3D' : 'Print 3D'}
                               </Button>
 
                               {product.isCustomizable && (
@@ -1149,7 +1167,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               <Card padding="none" className="overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs font-sans">
-                    <thead className="bg-surface-inverse text-on-inverse font-mono text-xs uppercase tracking-wider">
+                    <thead className="bg-surface-muted text-fg-muted border-b border-line font-mono text-xs uppercase tracking-wider">
                       <tr>
                         <th className="py-3 px-4">Linh Kiện CAD</th>
                         <th className="py-3 px-3">Danh Mục</th>
@@ -1174,9 +1192,9 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             </InfoTip>
                           </span>
                         </th>
-                        <th className="py-3 px-3">Giá File Số</th>
-                        <th className="py-3 px-3">Giá In Vật Lý</th>
-                        <th className="py-3 px-4 text-right">Thao Tác</th>
+                        <th className="py-3 px-3">{isVi ? 'Giá File CAD' : 'CAD License'}</th>
+                        <th className="py-3 px-3">{isVi ? 'Giá In Từ...' : 'Print From...'}</th>
+                        <th className="py-3 px-4 text-right">{isVi ? 'Thao Tác' : 'Actions'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line-subtle">
@@ -1241,14 +1259,28 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                                   aria-label={isVi ? `Xem trước 3D: ${product.name}` : `3D preview: ${product.name}`}
                                   leadingIcon={<Icon name="3d_rotation" size={18} />}
                                   onClick={(e) => handleOpen3DPreview(product, e)}
+                                  title={isVi ? 'Xem trước 3D' : '3D preview'}
                                 />
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  leadingIcon={<Icon name="precision_manufacturing" size={16} />}
+                                  onClick={(e) => handleOpenPhysicalConfig(product, e)}
+                                  disabled={!(isNum(product.pricePhysical) && product.pricePhysical > 0)}
+                                  title={isNum(product.pricePhysical) && product.pricePhysical > 0
+                                    ? (isVi ? 'Cấu hình đặt in 3D nhanh' : 'Quick 3D print config')
+                                    : (isVi ? 'Người bán không mở bán kênh in vật lý.' : 'The seller does not sell this product as a physical print.')}
+                                >
+                                  {isVi ? 'Đặt In 3D' : 'Print 3D'}
+                                </Button>
                                 <Button
                                   variant="primary"
                                   size="sm"
+                                  leadingIcon={<Icon name="download" size={16} />}
                                   onClick={(e) => handleQuickAddDigital(product, e)}
                                   disabled={!(isNum(product.priceDigital) && product.priceDigital > 0)}
                                   title={isNum(product.priceDigital) && product.priceDigital > 0
-                                    ? (isVi ? 'Tải file CAD STL/STEP gốc' : 'Get original CAD file')
+                                    ? (isVi ? 'Thêm File CAD vào giỏ hàng' : 'Add CAD license to cart')
                                     : (isVi ? 'Người bán không mở bán kênh file số.' : 'The seller does not sell this product as a CAD file.')}
                                 >
                                   {isNum(product.priceDigital) && product.priceDigital > 0
@@ -1298,6 +1330,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       <CadQuickViewModal
         product={quickViewProduct}
         isOpen={isQuickViewOpen}
+        initialOrderType={quickViewInitialOrderType}
         materials={materials}
         pricingConfig={pricingConfig}
         onClose={() => setIsQuickViewOpen(false)}

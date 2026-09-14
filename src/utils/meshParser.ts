@@ -1232,13 +1232,12 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
 }
 
 /**
- * Off-thread binary STL parser running in dedicated Web Worker.
+ * Off-thread CAD & binary STL parser running in dedicated Web Worker.
  *
- * R2 (MP-05): worker trả về HÌNH HỌC đã đọc, hoặc `null` = KHÔNG ĐỌC ĐƯỢC. Bản cũ thay kết quả
- * rỗng của worker bằng `85.0 / 60.0 / 32.0`, `volume 25.0`, `surfaceArea 120.0` rồi báo giá trên
- * những con số đó. Mọi số đo nay được tính lại từ chính `positions` mà worker trả về.
+ * R4: Giải mã tệp STL, STEP, STP, IGES, IGS bằng WebAssembly kernel (occt-import-js) và tính thể tích giải tích.
+ * Worker trả về HÌNH HỌC đã đọc, hoặc `null` = KHÔNG ĐỌC ĐƯỢC. Mọi số đo được tính từ chính hình học đọc được.
  */
-async function parseStlWithWorker(file: File): Promise<THREE.BufferGeometry | null> {
+async function parseCadWithWorker(file: File): Promise<THREE.BufferGeometry | null> {
   if (typeof window === 'undefined' || typeof Worker === 'undefined') return null;
 
   return new Promise((resolve) => {
@@ -1249,7 +1248,7 @@ async function parseStlWithWorker(file: File): Promise<THREE.BufferGeometry | nu
       const timer = setTimeout(() => {
         worker.terminate();
         resolve(null);
-      }, 12000);
+      }, 30000);
 
       worker.onmessage = (e: MessageEvent<any>) => {
         clearTimeout(timer);
@@ -1297,6 +1296,8 @@ async function parseStlWithWorker(file: File): Promise<THREE.BufferGeometry | nu
     }
   });
 }
+
+const parseStlWithWorker = parseCadWithWorker;
 
 /**
  * R2 (MP-12): đo chiều dày cho NHIỀU chi tiết với MỘT ngân sách tia dùng chung.
@@ -1517,11 +1518,10 @@ function measureGroup(
 }
 
 /**
- * Parse an uploaded File (3MF, STL, OBJ, STEP) into real Three.js Geometry/Group and extract exact metrics.
+ * Parse an uploaded File (3MF, STL, OBJ, STEP, IGES) into real Three.js Geometry/Group and extract exact metrics.
  *
- * R2 (MP-02): STEP/STP/IGES và mọi định dạng khác ⇒ NÉM `MeshParseError('unsupported_format')`.
- * Bản cũ trả một khối CAD mô phỏng dựng sẵn (92×72×34 mm, thể tích 54.2, surfaceArea 215, cờ kín
- * gán cứng) và những con số đó đi thẳng vào báo giá.
+ * R4: STEP/STP/IGES được giải mã qua WebAssembly CAD Kernel trong Web Worker.
+ * Mọi định dạng khác chưa có bộ đọc ⇒ NÉM `MeshParseError('unsupported_format')`.
  */
 export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
   const fileName = file.name.toLowerCase();
@@ -1636,13 +1636,68 @@ export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
     return measureGroup(objectGroup, file.name);
   }
 
-  // 4. STEP / IGES / định dạng khác: KHÔNG có bộ đọc hình học ⇒ nói thẳng, không dựng mô hình thay thế.
+  // 4. STEP / IGES LOADER (Off-thread WebAssembly CAD Kernel)
+  if (
+    fileName.endsWith('.step') ||
+    fileName.endsWith('.stp') ||
+    fileName.endsWith('.iges') ||
+    fileName.endsWith('.igs')
+  ) {
+    let rawGeometry: THREE.BufferGeometry | null = null;
+    try {
+      rawGeometry = await parseCadWithWorker(file);
+    } catch (err) {
+      console.warn('Bộ đọc CAD trong Web Worker gặp sự cố:', err);
+    }
+
+    if (!rawGeometry) {
+      throw new MeshParseError(
+        'corrupt_file',
+        file.name,
+        'Không thể giải mã cấu trúc hình học CAD từ tệp STEP/IGES (lỗi kernel WebAssembly hoặc tệp bị hỏng). Hệ thống không dựng hình học thay thế và không tạo báo giá cho tệp này.'
+      );
+    }
+
+    const measured = measureTriangularMesh(rawGeometry, file.name);
+
+    const parts: ModelPart[] = [
+      {
+        id: `part-${Date.now()}`,
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        color: 'Xanh Teal Công Nghiệp',
+        colorHex: '#00687a',
+        materialId: 'pla-basic',
+        visible: true,
+        triangleCount: Math.round(measured.triangleCount),
+        volumeCm3: measured.volume,
+        extruderIndex: 1
+      }
+    ];
+
+    return {
+      geometry: measured.geometry,
+      dimensions: measured.dimensions,
+      volume: measured.volume,
+      surfaceArea: measured.surfaceArea,
+      triangleCount: Math.round(measured.triangleCount),
+      isWatertight: measured.defects.isWatertight,
+      nonManifoldEdges: measured.defects.nonManifoldCount,
+      invertedNormals: measured.defects.invertedNormalsCount,
+      boundaryEdges: measured.defects.boundaryEdges,
+      minWallThickness: measured.defects.minWallThickness,
+      overhangTriangles: measured.defects.overhangTriangles,
+      overhangPercentage: measured.defects.overhangPercentage,
+      parts
+    };
+  }
+
+  // 5. Định dạng khác: KHÔNG có bộ đọc hình học ⇒ nói thẳng, không dựng mô hình thay thế.
   const extension = file.name.includes('.') ? file.name.split('.').pop() : undefined;
   throw new MeshParseError(
     'unsupported_format',
     file.name,
     `Chưa có bộ đọc hình học cho định dạng ${extension ? `".${extension}"` : 'này'} nên KHÔNG có số đo nào cho tệp này. `
       + 'Hệ thống không dựng mô hình mô phỏng thay thế và không tạo báo giá từ tệp chưa đọc được — '
-      + 'vui lòng tải bản tessellation (.stl / .3mf / .obj) hoặc gửi yêu cầu thẩm định thủ công.'
+      + 'vui lòng tải bản (.stl / .3mf / .obj / .step / .stp / .iges / .igs) hoặc gửi yêu cầu thẩm định thủ công.'
   );
 }

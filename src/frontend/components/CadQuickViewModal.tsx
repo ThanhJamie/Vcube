@@ -21,6 +21,7 @@ const vnd = (v: unknown, locale: string): string =>
 interface CadQuickViewModalProps {
   product: Product | null;
   isOpen: boolean;
+  initialOrderType?: 'digital' | 'physical';
   materials?: MaterialProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
   onClose: () => void;
@@ -32,6 +33,7 @@ interface CadQuickViewModalProps {
 export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
   product,
   isOpen,
+  initialOrderType = 'digital',
   materials = MATERIALS_CATALOG,
   pricingConfig,
   onClose,
@@ -49,7 +51,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
     hex: '#008099',
     available: true
   });
-  const [orderType, setOrderType] = useState<'digital' | 'physical'>('digital');
+  const [orderType, setOrderType] = useState<'digital' | 'physical'>(initialOrderType);
   const [quantity, setQuantity] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -63,8 +65,18 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
         setSelectedMaterial(product.supportedMaterials[0]);
       }
       setQuantity(1);
+      if (initialOrderType) {
+        setOrderType(initialOrderType);
+      }
     }
-  }, [product]);
+  }, [product, initialOrderType]);
+
+  // Sync order type when modal opens with initialOrderType
+  useEffect(() => {
+    if (isOpen && initialOrderType) {
+      setOrderType(initialOrderType);
+    }
+  }, [isOpen, initialOrderType]);
 
   // Lock scroll & handle Escape key
   useEffect(() => {
@@ -191,21 +203,21 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center p-2 sm:p-4 bg-surface-inverse/70 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className={`bg-surface-inverse text-on-inverse border border-primary/50 rounded-lg shadow-e3 overflow-hidden flex flex-col transition-all duration-300 ${
+        className={`bg-surface text-fg border border-line rounded-lg shadow-e3 overflow-hidden flex flex-col transition-all duration-300 ${
           isFullscreen
             ? 'w-full max-w-7xl h-[95vh]'
             : 'w-full max-w-4xl max-h-[92vh]'
         }`}
       >
         {/* Modal Header */}
-        <div className="px-5 py-3.5 border-b border-line flex items-center justify-between bg-surface-inverse-raised">
+        <div className="px-5 py-3.5 border-b border-line flex items-center justify-between bg-surface-muted">
           <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse"></span>
-            <span className="font-mono text-xs uppercase tracking-widest text-accent font-bold">
+            <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
+            <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold">
               CAD MESH INSPECTOR // 360° PREVIEW
             </span>
-            <span className="hidden sm:inline text-on-inverse/30">•</span>
-            <span className="hidden sm:inline font-mono text-xs text-on-inverse/60">
+            <span className="hidden sm:inline text-fg-muted/40">•</span>
+            <span className="hidden sm:inline font-mono text-xs text-fg-muted">
               SKU: {product.sku || '—'}
             </span>
           </div>
@@ -216,7 +228,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                 onClose();
                 onNavigate('product_detail', { product });
               }}
-              className="text-xs font-mono text-accent hover:text-on-inverse flex items-center gap-1 px-3 py-1 bg-on-inverse/10 hover:bg-on-inverse/20 rounded-lg transition-all cursor-pointer border border-line"
+              className="text-xs font-mono text-primary hover:text-primary-hover flex items-center gap-1 px-3 py-1 bg-surface hover:bg-surface-muted rounded-md transition-all cursor-pointer border border-line"
               title="Xem trang sản phẩm chi tiết"
             >
               <span>{isVi ? 'Chi tiết đầy đủ' : 'Full Page'}</span>
@@ -225,7 +237,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
 
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="text-on-inverse/60 hover:text-on-inverse w-8 h-8 rounded-sm flex items-center justify-center hover:bg-on-inverse/10 transition-colors cursor-pointer"
+              className="text-fg-muted hover:text-fg w-8 h-8 rounded-sm flex items-center justify-center hover:bg-surface-muted transition-colors cursor-pointer"
               title={isFullscreen ? 'Thu nhỏ' : 'Mở rộng toàn màn hình'}
             >
               <Icon name={isFullscreen ? 'fullscreen_exit' : 'fullscreen'} size={18} />
@@ -233,7 +245,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
 
             <button
               onClick={onClose}
-              className="text-on-inverse/60 hover:text-on-inverse w-8 h-8 rounded-sm flex items-center justify-center hover:bg-on-inverse/10 transition-colors cursor-pointer"
+              className="text-fg-muted hover:text-fg w-8 h-8 rounded-sm flex items-center justify-center hover:bg-surface-muted transition-colors cursor-pointer"
               aria-label="Close CAD inspector"
             >
               <Icon name="close" size={20} />
@@ -285,44 +297,44 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
           </div>
 
           {/* Right Product Specs & Purchase Options */}
-          <div className="lg:col-span-5 p-5 sm:p-6 flex flex-col justify-between space-y-4 bg-surface-inverse">
+          <div className="lg:col-span-5 p-5 sm:p-6 flex flex-col justify-between space-y-4 bg-surface text-fg">
             <div>
               <div className="flex items-center gap-2 mb-1.5 font-mono">
-                <span className="px-2 py-0.5 bg-primary text-primary-fg text-xs font-bold rounded-sm uppercase">
+                <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 text-xs font-bold rounded-sm uppercase">
                   {product.category}
                 </span>
-                <span className="text-xs text-accent font-bold flex items-center gap-1">
+                <span className="text-xs text-warning-strong font-bold flex items-center gap-1">
                   ★ {product.rating} ({product.reviewsCount} {isVi ? 'đánh giá' : 'reviews'})
                 </span>
               </div>
 
-              <h2 className="font-extrabold text-base sm:text-lg text-on-inverse leading-snug">
+              <h2 className="font-extrabold text-base sm:text-lg text-fg leading-snug">
                 {product.name}
               </h2>
               <p className="text-xs text-fg-subtle font-mono mt-0.5">
-                {isVi ? 'Kỹ sư thiết kế:' : 'Designed by:'} <strong className="text-on-inverse">{product.designer}</strong>
+                {isVi ? 'Kỹ sư thiết kế:' : 'Designed by:'} <strong className="text-fg">{product.designer}</strong>
               </p>
 
-              <p className="text-xs text-line mt-2 line-clamp-2 leading-relaxed">
+              <p className="text-xs text-fg-muted mt-2 line-clamp-2 leading-relaxed">
                 {product.description}
               </p>
 
               {/* Order Mode Selector Toggle */}
-              <div className="mt-4 p-1 bg-surface-inverse-raised rounded-lg border border-line grid grid-cols-2 gap-1 font-mono">
+              <div className="mt-4 p-1 bg-surface-muted rounded-lg border border-line grid grid-cols-2 gap-1 font-mono">
                 <button
                   type="button"
                   onClick={() => setOrderType('digital')}
                   className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex flex-col items-center justify-center cursor-pointer ${
                     orderType === 'digital'
                       ? 'bg-primary text-primary-fg shadow-e1'
-                      : 'text-on-inverse/60 hover:text-on-inverse'
+                      : 'text-fg-muted hover:text-fg hover:bg-surface'
                   }`}
                 >
                   <div className="flex items-center gap-1">
                     <Icon name="download" size={18} />
                     <span className="text-xs">{isVi ? 'Tải File CAD' : 'Buy CAD'}</span>
                   </div>
-                  <span className="text-xs mt-0.5 font-extrabold text-accent">
+                  <span className={`text-xs mt-0.5 font-extrabold ${orderType === 'digital' ? 'text-primary-fg' : 'text-primary'}`}>
                     {vnd(digitalPrice, locale)}
                   </span>
                 </button>
@@ -333,14 +345,14 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                   className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex flex-col items-center justify-center cursor-pointer ${
                     orderType === 'physical'
                       ? 'bg-primary text-primary-fg shadow-e1'
-                      : 'text-on-inverse/60 hover:text-on-inverse'
+                      : 'text-fg-muted hover:text-fg hover:bg-surface'
                   }`}
                 >
                   <div className="flex items-center gap-1">
                     <Icon name="precision_manufacturing" size={18} />
                     <span className="text-xs">{isVi ? 'In 3D Vật Lý' : 'Print 3D'}</span>
                   </div>
-                  <span className="text-xs mt-0.5 font-extrabold text-accent">
+                  <span className={`text-xs mt-0.5 font-extrabold ${orderType === 'physical' ? 'text-primary-fg' : 'text-primary'}`}>
                     {vnd(physicalTotal, locale)}
                   </span>
                 </button>
@@ -348,19 +360,19 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
 
               {/* Dynamic Options based on Selected Mode */}
               {orderType === 'digital' ? (
-                <div className="mt-3.5 space-y-2 text-xs bg-surface-inverse-raised p-3.5 rounded-lg border border-line font-mono">
-                  <div className="flex items-center justify-between text-xs text-on-inverse/70">
+                <div className="mt-3.5 space-y-2 text-xs bg-surface-muted p-3.5 rounded-lg border border-line font-mono">
+                  <div className="flex items-center justify-between text-xs text-fg-muted">
                     <span>Định dạng file:</span>
-                    <strong className="text-on-inverse">{product.cadFormat || 'STL, STEP, 3MF'}</strong>
+                    <strong className="text-fg">{product.cadFormat || 'STL, STEP, 3MF'}</strong>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-on-inverse/70">
+                  <div className="flex items-center justify-between text-xs text-fg-muted">
                     <span>Bản quyền:</span>
-                    <strong className="text-accent">{product.licenseType || '— (người bán chưa khai báo)'}</strong>
+                    <strong className="text-primary">{product.licenseType || '— (người bán chưa khai báo)'}</strong>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-on-inverse/70">
+                  <div className="flex items-center justify-between text-xs text-fg-muted">
                     <span>Kiểm định hình học:</span>
                     <span
-                      className="text-on-inverse/70 font-bold"
+                      className="text-fg-subtle font-bold"
                       title="Chưa có hồ sơ kiểm định hình học cho sản phẩm này"
                     >
                       — Chưa có hồ sơ kiểm định
@@ -368,14 +380,14 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="mt-3.5 space-y-3 bg-surface-inverse-raised p-3.5 rounded-lg border border-line font-mono text-xs">
+                <div className="mt-3.5 space-y-3 bg-surface-muted p-3.5 rounded-lg border border-line font-mono text-xs">
                   {/* Material dropdown */}
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-on-inverse/70">Vật liệu:</span>
+                    <span className="text-xs text-fg-muted">Vật liệu:</span>
                     <select
                       value={selectedMaterial}
                       onChange={(e) => setSelectedMaterial(e.target.value)}
-                      className="bg-surface-inverse-raised border border-line-control text-on-inverse text-xs px-2.5 py-1 rounded-lg focus:outline-none focus:border-accent cursor-pointer"
+                      className="bg-surface border border-line-control text-fg text-xs px-2.5 py-1 rounded-md focus:outline-none focus:border-primary cursor-pointer"
                     >
                       {product.supportedMaterials.map((m) => (
                         <option key={m} value={m}>
@@ -387,16 +399,16 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
 
                   {/* Đơn giá nhựa THẬT đã khai (đ/g) + minh bạch: giá bán KHÔNG gồm chênh lệch vật liệu */}
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-on-inverse/70">
+                    <span className="text-xs text-fg-muted">
                       {isVi ? 'Đơn giá nhựa đã khai:' : 'Declared material rate:'}
                     </span>
-                    <strong className="text-on-inverse">
+                    <strong className="text-fg">
                       {materialPricePerGram === null
                         ? EMPTY_VALUE
                         : `${formatNumber(materialPricePerGram, { locale })} đ/g`}
                     </strong>
                   </div>
-                  <p className="text-xs text-on-inverse/60 leading-relaxed">
+                  <p className="text-xs text-fg-subtle leading-relaxed">
                     {isVi
                       ? 'Giá in theo giá niêm yết của sản phẩm — chưa gồm chênh lệch vật liệu (xưởng xác nhận khi báo giá).'
                       : 'The print price is the product list price — material price differences are not included (the workshop confirms them in the quote).'}
@@ -404,7 +416,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
 
                   {/* Color Swatches picker syncing to 3D Canvas */}
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-on-inverse/70">Màu sắc:</span>
+                    <span className="text-xs text-fg-muted">Màu sắc:</span>
                     <div className="flex items-center gap-1.5">
                       {(product.colors || [{ name: 'Đen Kỹ Thuật', hex: '#1C1C1C', available: true }]).map((c) => (
                         <button
@@ -412,7 +424,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                           onClick={() => setSelectedColor(c)}
                           className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
                             selectedColor.name === c.name
-                              ? 'border-accent scale-115 ring-2 ring-accent/40 shadow-e1'
+                              ? 'border-primary scale-115 ring-2 ring-primary/40 shadow-e1'
                               : 'border-line-control hover:scale-105'
                           }`}
                           style={{ backgroundColor: c.hex }}
@@ -424,20 +436,20 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
 
                   {/* Quantity Counter */}
                   <div className="flex items-center justify-between pt-1 border-t border-line">
-                    <span className="text-xs text-on-inverse/70">Số lượng:</span>
-                    <div className="flex items-center border border-line-control rounded-lg bg-surface-inverse-raised overflow-hidden">
+                    <span className="text-xs text-fg-muted">Số lượng:</span>
+                    <div className="flex items-center border border-line-control rounded-md bg-surface overflow-hidden">
                       <button
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        className="px-2.5 py-0.5 text-on-inverse hover:bg-on-inverse/10 font-bold touch-target-btn cursor-pointer"
+                        className="px-2.5 py-0.5 text-fg hover:bg-surface-muted font-bold touch-target-btn cursor-pointer"
                       >
                         -
                       </button>
-                      <span className="px-3 py-0.5 text-xs font-bold text-on-inverse border-x border-line">
+                      <span className="px-3 py-0.5 text-xs font-bold text-fg border-x border-line">
                         {quantity}
                       </span>
                       <button
                         onClick={() => setQuantity(quantity + 1)}
-                        className="px-2.5 py-0.5 text-on-inverse hover:bg-on-inverse/10 font-bold touch-target-btn cursor-pointer"
+                        className="px-2.5 py-0.5 text-fg hover:bg-surface-muted font-bold touch-target-btn cursor-pointer"
                       >
                         +
                       </button>
@@ -451,7 +463,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                 {product.tags.slice(0, 4).map((tg) => (
                   <span
                     key={tg}
-                    className="text-xs font-mono px-2 py-0.5 rounded-sm bg-on-inverse/5 text-on-inverse/60 border border-line"
+                    className="text-xs font-mono px-2 py-0.5 rounded-sm bg-surface-muted text-fg-muted border border-line"
                   >
                     #{tg}
                   </span>
@@ -475,13 +487,13 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                 <span>
                   {orderType === 'digital'
                     ? digitalPrice === null
-                      ? (isVi ? 'Không bán file số' : 'File not sold')
-                      : (isVi ? 'Thêm File CAD Vào Giỏ' : 'Add CAD to Cart')
+                    ? (isVi ? 'Không bán file số' : 'File not sold')
+                    : (isVi ? 'Thêm File CAD Vào Giỏ' : 'Add CAD to Cart')
                     : physicalTotal === null
-                      ? (isVi ? 'Không bán bản in 3D' : 'Print not sold')
-                      : (isVi
-                          ? `Đặt In 3D (${vnd(physicalTotal, locale)})`
-                          : `Order 3D Print (${vnd(physicalTotal, locale)})`)}
+                    ? (isVi ? 'Không bán bản in 3D' : 'Print not sold')
+                    : (isVi
+                        ? `Đặt In 3D (${vnd(physicalTotal, locale)})`
+                        : `Order 3D Print (${vnd(physicalTotal, locale)})`)}
                 </span>
               </button>
 
@@ -491,7 +503,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                     onClose();
                     onNavigate('personalize', { product });
                   }}
-                  className="py-3 px-3.5 bg-on-inverse/10 hover:bg-on-inverse/20 text-on-inverse font-mono font-bold text-xs uppercase tracking-wider rounded-full transition-colors flex items-center justify-center gap-1.5 cursor-pointer touch-target-btn active:scale-95"
+                  className="py-3 px-4 bg-surface hover:bg-surface-muted text-fg border border-line-control font-mono font-bold text-xs uppercase tracking-wider rounded-full transition-colors flex items-center justify-center gap-1.5 cursor-pointer touch-target-btn active:scale-95 shadow-e1"
                   title={isVi ? 'Khắc tên / Tùy biến tham số' : 'Personalize dimensions'}
                 >
                   <Icon name="tune" size={18} />

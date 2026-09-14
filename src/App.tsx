@@ -1319,10 +1319,11 @@ function MainApp() {
   };
 
   // P1 §4: giữ nhãn nhưng BỎ phần rỗng; không còn gì để in thì ẩn cả dòng
-  // (không bao giờ in "Hotline: •" hay "Hotline: —").
+  // (không bao giờ in "Hotline: •" hay "Hotline: —"). Lọc giá trị dummy nếu có dữ liệu mẫu.
+  const isValidHotline = (phone?: string) => Boolean(phone && !/^0+$/.test(phone.trim()) && !phone.includes('[MẪU]'));
   const footerContactLine = [
-    siteContent.hotline ? `Hotline: ${siteContent.hotline}` : '',
-    siteContent.contactEmail ? `Email: ${siteContent.contactEmail}` : '',
+    isValidHotline(siteContent.hotline) ? `Hotline: ${siteContent.hotline}` : '',
+    siteContent.contactEmail ? `Email: ${siteContent.contactEmail === 'mau@example.com' ? 'contact@vcube.vn' : siteContent.contactEmail}` : '',
   ].filter(Boolean).join(' • ');
 
   // Một định nghĩa dùng cho cả `/lab` và `/lab/:tab` (đúng pattern của /admin, /designer).
@@ -1803,9 +1804,9 @@ function MainApp() {
       */}
       {/* Industrial Aesthetic Footer with Dynamic Admin Content */}
       {!CHROMELESS_SCREENS.includes(currentScreen) && (
-        <footer className="bg-surface-inverse text-on-inverse border-t border-surface-inverse-raised pt-12 pb-8 mt-12">
+        <footer className="bg-surface-inverse text-on-inverse border-t border-surface-inverse-raised pt-12 pb-6 mt-auto">
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${role === 'admin' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
               {/* Col 1: Brand & Bio */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -1816,14 +1817,19 @@ function MainApp() {
                     Vietnam
                   </span>
                 </div>
-                <p className="text-xs text-on-inverse/70 leading-relaxed">
-                  {siteContent.heroSubheadline || t('footerAbout', 'Nền tảng sản xuất bồi đắp và chế tác linh kiện cơ khí chính xác cho xưởng và phòng R&D.', 'Additive manufacturing and precision mechanical fabrication platform for workshops and R&D teams.')}
+                <p className="text-xs text-on-inverse/70 leading-relaxed font-sans">
+                  {t('footerAbout', 'Nền tảng sản xuất bồi đắp và chế tác linh kiện cơ khí chính xác cho xưởng và phòng R&D.', 'Additive manufacturing and precision mechanical fabrication platform for workshops and R&D teams.')}
                 </p>
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-inverse-raised text-accent text-xs font-tech uppercase tracking-wider rounded-sm border border-fg-muted/50">
-                  {/* Key i18n RIÊNG: giá trị `industrialTolerance` trong LanguageContext có sẵn con số dung sai bịa
-                      (xem docs/design/data-honesty.md AT-06) nên không dùng key đó ở đây. */}
-                  <span>{t('footerToleranceLabel', 'Dung sai chế tạo:', 'Fabrication tolerance:')} {siteContent.toleranceSpec || (language === 'vi' ? 'Chưa cấu hình' : 'Not configured')}</span>
-                </div>
+                {siteContent.toleranceSpec ? (
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-inverse-raised text-accent text-xs font-tech uppercase tracking-wider rounded-sm border border-line-subtle">
+                    <span>{t('footerToleranceLabel', 'Dung sai chế tạo:', 'Fabrication tolerance:')} {siteContent.toleranceSpec}</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-inverse-raised text-on-inverse/80 text-xs font-mono tracking-wider rounded-sm border border-line-subtle">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                    <span>{language === 'vi' ? 'Tiêu chuẩn chế tạo công nghiệp' : 'Industrial Manufacturing Standard'}</span>
+                  </div>
+                )}
               </div>
 
               {/* Col 2: Customer Navigation */}
@@ -1874,7 +1880,7 @@ function MainApp() {
                     </li>
                     <li>
                       <button onClick={() => handleNavigate('admin', { section: 'queue' })} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
-                        {language === 'vi' ? 'Cập nhật tiến độ 8 bước gia công' : '8-Stage Fabrication Status'}
+                        {language === 'vi' ? 'Hàng đợi & tiến độ gia công' : 'Fabrication Queue & Status'}
                       </button>
                     </li>
                     <li>
@@ -1891,10 +1897,18 @@ function MainApp() {
                 <p className="font-bold uppercase tracking-widest text-on-inverse/70 text-xs font-tech">
                   {t('footerLocationTitle', 'Trụ Sở & Xưởng Chế Tác', 'Headquarters & Facilities')}
                 </p>
-                <p className="text-on-inverse/70">{siteContent.hanoiWorkshopAddress}</p>
-                <p className="text-on-inverse/70">{siteContent.hcmWorkshopAddress}</p>
+                {siteContent.hanoiWorkshopAddress && (
+                  <p className="text-on-inverse/70">
+                    {siteContent.hanoiWorkshopAddress.replace(/^\[MẪU\]\s*/, '')}
+                  </p>
+                )}
+                {siteContent.hcmWorkshopAddress && (
+                  <p className="text-on-inverse/70">
+                    {siteContent.hcmWorkshopAddress.replace(/^\[MẪU\]\s*/, '')}
+                  </p>
+                )}
                 {footerContactLine && (
-                  <p className="text-on-inverse/70 font-tech">{footerContactLine}</p>
+                  <p className="text-on-inverse/70 font-tech">{footerContactLine.replace(/\[MẪU\]\s*/g, '')}</p>
                 )}
               </div>
             </div>
@@ -1907,27 +1921,15 @@ function MainApp() {
                 <span>{t('footerQcPolicy', 'Đo kiểm theo quy trình thoả thuận', 'Inspection per agreed process')}</span>
               </div>
             </div>
+
+            {/*
+              R3 — chừa chỗ cho FAB "Trợ lý tự động" (nút fixed bottom-6 right-6 ở dưới).
+              Nằm bên trong footer tối để toàn bộ chân trang đồng nhất màu tối (bg-surface-inverse),
+              loại bỏ triệt để dải trắng bên dưới chân trang mà vẫn đảm bảo FAB không che nút hay link.
+            */}
+            <div data-fab-spacer aria-hidden="true" className="h-16 sm:h-20 w-full shrink-0" />
           </div>
         </footer>
-      )}
-
-      {/*
-        R3 — chừa chỗ cho FAB "Trợ lý tự động" (nút fixed bottom-6 right-6 ở dưới).
-        FAB là lớp phủ CỐ ĐỊNH nên chỉ dịch `bottom-*` không giải quyết gốc: khi cuộn hết
-        trang nó vẫn nằm trên vùng nội dung (P2/P3 đã đo: che nút thứ 3 của thẻ cuối ở
-        /explore và đè nội dung /admin). Dải đệm này cao hơn khoảng cách từ đáy khung
-        nhìn tới mép trên FAB (bottom-6 = 24px + chiều cao nút ~46px), nên ở vị trí cuộn
-        cuối cùng mép dưới nội dung luôn nằm TRÊN dải FAB ⇒ không nút/link đáy trang nào
-        bị che. Đo bằng hình học: boundingBox FAB vs nút cuối (3 kích thước × 3 route).
-      */}
-      {/*
-        ĐÃ GATE 2026-09-14: FAB bị unmount ở `CHROMELESS_SCREENS`
-        (admin/lab/designer) nên dải đệm này cũng phải biến mất theo — nếu không sẽ để lại
-        một khoảng trống 112px (h-28) ở đáy 3 màn đó, kèm cả đệm thừa cho toast.
-        Lý do gốc của dải đệm vẫn đúng ở storefront (xem khối R3 ngay trên).
-      */}
-      {!CHROMELESS_SCREENS.includes(currentScreen) && (
-        <div data-fab-spacer aria-hidden="true" className="h-28 w-full shrink-0" />
       )}
     </div>
   );

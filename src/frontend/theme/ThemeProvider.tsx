@@ -23,8 +23,8 @@ import { THEME_STORAGE_KEY, type ThemeMode } from './tokens';
 /** Sự kiện nội bộ phát khi URL đổi — ai đó có thể tự dispatch để báo provider. */
 export const ROUTE_CHANGE_EVENT = 'vcube:routechange';
 
-/** Route family dark-first. So khớp theo đoạn đường dẫn (`/lab` khớp `/lab/x`, không khớp `/laboratory`). */
-export const DARK_ROUTE_PREFIXES = ['/quote', '/admin', '/lab', '/designer'] as const;
+/** Route family dark-first (đồng bộ toàn bộ platform sang light-first SaaS hiện đại). */
+export const DARK_ROUTE_PREFIXES: readonly string[] = [] as const;
 
 export type ResolvedTheme = 'light' | 'dark';
 

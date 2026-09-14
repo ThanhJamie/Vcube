@@ -65,7 +65,23 @@ const mapOrderRow = rowToOrder;
  * tác dụng gì (im lặng). Xem `saveSiteContent` để biết vì sao cách ghi mới KHÔNG xoá khoá
  * của người khác.
  */
-const SITE_CONTENT_EXTRA_KEYS = ['standardShippingFee', 'freeShippingThreshold', 'toleranceSpec'] as const;
+const SITE_CONTENT_EXTRA_KEYS = [
+  'standardShippingFee',
+  'freeShippingThreshold',
+  'toleranceSpec',
+  'customIdeaActive',
+  'customIdeaBadge',
+  'customIdeaTitle',
+  'customIdeaSubtitle',
+  'customIdeaCtaText',
+  'customIdeaImageUrl',
+  'customIdeaStep1Title',
+  'customIdeaStep1Desc',
+  'customIdeaStep2Title',
+  'customIdeaStep2Desc',
+  'customIdeaStep3Title',
+  'customIdeaStep3Desc',
+] as const;
 
 function readSiteContentExtras(settings: unknown): Partial<SiteContentConfig> {
   if (!settings || typeof settings !== 'object') return {};
@@ -76,6 +92,21 @@ function readSiteContentExtras(settings: unknown): Partial<SiteContentConfig> {
   if (j.standardShippingFee !== undefined && Number.isFinite(fee)) out.standardShippingFee = fee;
   if (j.freeShippingThreshold !== undefined && Number.isFinite(threshold)) out.freeShippingThreshold = threshold;
   if (typeof j.toleranceSpec === 'string') out.toleranceSpec = j.toleranceSpec;
+
+  // Custom 3D Model by Idea Section settings
+  if (typeof j.customIdeaActive === 'boolean') out.customIdeaActive = j.customIdeaActive;
+  if (typeof j.customIdeaBadge === 'string') out.customIdeaBadge = j.customIdeaBadge;
+  if (typeof j.customIdeaTitle === 'string') out.customIdeaTitle = j.customIdeaTitle;
+  if (typeof j.customIdeaSubtitle === 'string') out.customIdeaSubtitle = j.customIdeaSubtitle;
+  if (typeof j.customIdeaCtaText === 'string') out.customIdeaCtaText = j.customIdeaCtaText;
+  if (typeof j.customIdeaImageUrl === 'string') out.customIdeaImageUrl = j.customIdeaImageUrl;
+  if (typeof j.customIdeaStep1Title === 'string') out.customIdeaStep1Title = j.customIdeaStep1Title;
+  if (typeof j.customIdeaStep1Desc === 'string') out.customIdeaStep1Desc = j.customIdeaStep1Desc;
+  if (typeof j.customIdeaStep2Title === 'string') out.customIdeaStep2Title = j.customIdeaStep2Title;
+  if (typeof j.customIdeaStep2Desc === 'string') out.customIdeaStep2Desc = j.customIdeaStep2Desc;
+  if (typeof j.customIdeaStep3Title === 'string') out.customIdeaStep3Title = j.customIdeaStep3Title;
+  if (typeof j.customIdeaStep3Desc === 'string') out.customIdeaStep3Desc = j.customIdeaStep3Desc;
+
   return out;
 }
 

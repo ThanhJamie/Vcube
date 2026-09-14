@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Order } from '../../types';
 import { useLanguage } from '../context/LanguageContext';
-import { Icon } from '@frontend/ui';
+import { Icon, Button } from '@frontend/ui';
 import { EMPTY_VALUE, formatDateTime } from '../lib/format';
 
 /**
@@ -89,17 +89,18 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
                 <code className="px-3 py-1.5 bg-surface border border-positive/30 rounded-lg text-xs font-mono font-bold text-positive select-all flex-1 truncate">
                   {order.secureAccessToken}
                 </code>
-                <button
+                <Button
+                  size="sm"
+                  variant="primary"
                   onClick={() => {
                     navigator.clipboard?.writeText(order.secureAccessToken!);
                     setCopiedToken(true);
                     setTimeout(() => setCopiedToken(false), 2000);
                   }}
-                  className="px-3 py-1.5 bg-positive hover:bg-positive text-primary-fg rounded-full text-xs font-mono font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                  leadingIcon={<Icon name={copiedToken ? 'check' : 'content_copy'} size={16} />}
                 >
-                  <Icon name={copiedToken ? 'check' : 'content_copy'} size={18} />
                   <span>{copiedToken ? 'Đã chép' : 'Sao chép'}</span>
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -181,35 +182,40 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
                   </p>
                 </div>
               </div>
-              <button
+              <Button
+                size="md"
+                variant="primary"
                 onClick={() => onNavigate('assets')}
-                className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg font-mono text-xs font-bold rounded-full transition-all shadow-e1 flex items-center gap-1.5 shrink-0 cursor-pointer"
+                leadingIcon={<Icon name="download" size={18} />}
               >
-                <Icon name="download" size={18} />
                 <span>Mở Kho Tệp CAD</span>
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-2 font-mono">
             {hasPhysicalItems && (
-              <button
+              <Button
+                size="lg"
+                variant="primary"
+                className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider font-bold"
                 onClick={() => onNavigate('tracking', { orderId: order.id })}
-                className="w-full sm:w-auto px-6 py-3.5 bg-surface-inverse hover:bg-primary text-primary-fg text-xs uppercase tracking-wider font-bold rounded-full shadow-e2 transition-all flex items-center justify-center gap-2 cursor-pointer touch-target-btn active:scale-95"
+                leadingIcon={<Icon name="sensors" size={18} />}
               >
-                <Icon name="sensors" size={18} />
                 <span>{isVi ? 'THEO DÕI TIẾN ĐỘ ĐƠN HÀNG' : 'TRACK ORDER PROGRESS'}</span>
-              </button>
+              </Button>
             )}
 
-            <button
+            <Button
+              size="lg"
+              variant="secondary"
+              className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider font-bold"
               onClick={() => onOpenInvoice(order)}
-              className="w-full sm:w-auto px-5 py-3.5 border border-line-control hover:border-primary hover:bg-canvas text-fg text-xs uppercase tracking-wider font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer touch-target-btn shadow-e0"
+              leadingIcon={<Icon name="receipt_long" size={18} />}
             >
-              <Icon name="receipt_long" size={18} />
               <span>{isVi ? 'Xem / In hoá đơn' : 'View / print invoice'}</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -227,7 +233,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
                   <img
                     src={item.image}
                     alt={item.name}
-                    className="w-12 h-12 rounded-md object-cover border border-line bg-surface-inverse shrink-0"
+                    className="w-12 h-12 rounded-md object-cover border border-line bg-surface-muted shrink-0"
                   />
                   <div className="truncate">
                     <h3 className="font-bold text-xs text-fg truncate">{item.name}</h3>

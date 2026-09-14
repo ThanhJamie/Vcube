@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Order } from '../types';
 import { OrderProgress } from '../components/OrderProgress';
-import { Icon } from '@frontend/ui';
+import { Icon, Button, Badge } from '@frontend/ui';
 
 interface MyOrdersViewProps {
   orders: Order[];
@@ -114,7 +114,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
       case 'shipping':
         return { label: 'Đang Giao Hàng', bg: 'bg-info-tint border-info/30 text-info', dot: 'bg-info' };
       case 'completed':
-        return { label: 'Hoàn Thành Xuất Sắc', bg: 'bg-positive-tint border-positive/30 text-positive', dot: 'bg-positive' };
+        return { label: 'Đã Hoàn Thành', bg: 'bg-positive-tint border-positive/30 text-positive', dot: 'bg-positive' };
       case 'pending_payment':
         return { label: 'Chờ Thanh Toán', bg: 'bg-warning-tint border-warning/30 text-warning', dot: 'bg-warning' };
       case 'cancelled':
@@ -163,15 +163,15 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveFilter(tab.id)}
-                className={`px-3 sm:px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 border cursor-pointer ${
+                className={`px-3 sm:px-3.5 py-1.5 text-xs font-mono font-bold rounded-md whitespace-nowrap transition-all flex items-center gap-1.5 border cursor-pointer ${
                   isActive
-                    ? 'bg-surface-inverse text-on-inverse border-line shadow-e1'
+                    ? 'bg-primary text-primary-fg border-primary shadow-e1'
                     : 'bg-surface text-fg-muted hover:text-fg hover:bg-canvas border-line'
                 }`}
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`text-xs font-mono px-1.5 py-0.2 rounded-full ${
+                  className={`text-xs font-mono px-1.5 py-0.2 rounded-sm tabular-nums ${
                     isActive ? 'bg-primary-fg/20 text-primary-fg' : 'bg-surface-muted text-fg-subtle'
                   }`}
                 >
@@ -185,7 +185,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
         {/* Orders Listing */}
         {filteredOrders.length === 0 ? (
           <div className="bg-surface rounded-lg p-10 sm:p-16 text-center space-y-4 shadow-e1">
-            <div className="w-14 h-14 bg-surface-muted rounded-full flex items-center justify-center mx-auto text-fg-subtle">
+            <div className="w-14 h-14 bg-surface-muted rounded-lg flex items-center justify-center mx-auto text-fg-subtle">
               <Icon name="receipt_long" size={30} />
             </div>
             <div>
@@ -195,13 +195,14 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
               </p>
             </div>
             <div className="pt-2">
-              <button
-                onClick={() => onNavigate('tool_3d')}
-                className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-mono font-bold uppercase tracking-wider rounded-full transition-all shadow-e1 cursor-pointer inline-flex items-center gap-2"
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => onNavigate('quote')}
+                leadingIcon={<Icon name="add" size={18} />}
               >
-                <Icon name="add" size={18} />
                 Tạo Báo Giá In 3D Mới
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -312,42 +313,46 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
 
                     <div className="flex flex-wrap items-center gap-2 font-mono">
                       {/* Đi tới trang tiến độ đơn hàng */}
-                      <button
+                      <Button
+                        size="sm"
+                        variant="secondary"
                         onClick={() => onNavigate('order_tracking', { order: ord })}
-                        className="flex-1 sm:flex-initial px-3.5 py-2 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse text-xs uppercase font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-e1"
+                        leadingIcon={<Icon name="sensors" size={16} className="text-primary" />}
                       >
-                        <Icon name="sensors" size={18} className="text-accent" />
-                        <span>Tiến Độ MES</span>
-                      </button>
+                        <span>Tiến Độ</span>
+                      </Button>
 
                       {/* VAT Invoice */}
-                      <button
+                      <Button
+                        size="sm"
+                        variant="secondary"
                         onClick={() => onOpenInvoice(ord)}
-                        className="flex-1 sm:flex-initial px-3.5 py-2 border border-line-control bg-surface hover:bg-canvas text-fg text-xs uppercase font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-e0"
+                        leadingIcon={<Icon name="receipt_long" size={16} />}
                       >
-                        <Icon name="receipt_long" size={18} />
                         <span>Hóa Đơn</span>
-                      </button>
+                      </Button>
 
                       {/* Tolerance Warranty Claim */}
-                      <button
+                      <Button
+                        size="sm"
+                        variant="secondary"
                         onClick={() => handleOpenWarranty(ord)}
-                        className="flex-1 sm:flex-initial px-3 py-2 border border-primary/30 bg-primary-tint/70 hover:bg-primary/15 text-primary text-xs uppercase font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        leadingIcon={<Icon name="verified_user" size={16} />}
                         title="Gửi yêu cầu kiểm tra sai lệch kích thước / bề mặt"
                       >
-                        <Icon name="verified_user" size={18} />
-                        <span>Yêu Cầu Kiểm Tra</span>
-                      </button>
+                        <span>Kiểm Tra</span>
+                      </Button>
 
                       {/* 1-Click Reorder */}
-                      <button
+                      <Button
+                        size="sm"
+                        variant="primary"
                         onClick={() => handleReorder(ord)}
                         disabled={reorderSuccessId === ord.id}
-                        className="flex-1 sm:flex-initial px-3.5 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs uppercase font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-75"
+                        leadingIcon={<Icon name={reorderSuccessId === ord.id ? 'check_circle' : 'replay'} size={16} />}
                       >
-                        <Icon name={reorderSuccessId === ord.id ? 'check_circle' : 'replay'} size={18} />
                         <span>{reorderSuccessId === ord.id ? 'Đang Chuyển...' : 'In Lại'}</span>
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -361,21 +366,24 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
       {warrantyModal.isOpen && (
         <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-4 backdrop-blur-xs">
           <div className="bg-surface rounded-lg max-w-lg w-full border border-line shadow-e3 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 bg-surface-inverse text-on-inverse flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Icon name="verified_user" size={24} className="text-accent" />
+            <div className="px-6 py-4 bg-surface text-fg flex items-center justify-between border-b border-line">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-md bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                  <Icon name="verified_user" size={20} />
+                </div>
                 <div>
-                  <h3 className="font-bold text-sm">YÊU CẦU BẢO HÀNH DUNG SAI KỸ THUẬT</h3>
-                  <p className="text-xs text-on-inverse/70 font-mono">
+                  <h3 className="font-bold text-sm text-fg">YÊU CẦU BẢO HÀNH DUNG SAI KỸ THUẬT</h3>
+                  <p className="text-xs text-fg-muted font-mono">
                     Ghi nhận sai lệch kích thước / bề mặt để xưởng kiểm tra
                   </p>
                 </div>
               </div>
-              <button aria-label="Đóng"
+              <button
+                aria-label="Đóng"
                 onClick={() => setWarrantyModal(prev => ({ ...prev, isOpen: false }))}
-                className="text-on-inverse/70 hover:text-on-inverse p-1 rounded-full cursor-pointer"
+                className="text-fg-muted hover:text-fg p-1.5 rounded-full hover:bg-surface-muted cursor-pointer transition-colors"
               >
-                <Icon name="close" size={20} />
+                <Icon name="close" size={18} />
               </button>
             </div>
 
@@ -456,19 +464,21 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                 </div>
 
                 <div className="pt-2 flex items-center justify-end gap-3 font-mono">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="md"
                     onClick={() => setWarrantyModal(prev => ({ ...prev, isOpen: false }))}
-                    className="px-4 py-2 border border-line-control text-fg-subtle hover:text-fg font-bold rounded-full cursor-pointer"
                   >
                     Đóng
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
-                    className="px-5 py-2 bg-primary hover:bg-primary-hover text-primary-fg font-bold rounded-full cursor-pointer shadow-e1"
+                    variant="primary"
+                    size="md"
                   >
                     Gửi Hồ Sơ Khiếu Nại
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}

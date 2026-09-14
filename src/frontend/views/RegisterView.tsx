@@ -152,7 +152,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
 
         {/* Top Header Banner */}
         <div className="px-6 sm:px-10 pt-8 pb-6 border-b border-line-subtle bg-canvas text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-surface-inverse text-accent mb-3 shadow-e2">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary text-primary-fg mb-3 shadow-e2">
             <Icon name="person_add" size={26} />
           </div>
           <div className="font-mono text-xs font-bold text-fg-muted uppercase tracking-wider mb-1">

@@ -88,13 +88,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
     <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-3 sm:p-4 backdrop-blur-xs">
       <div className="bg-surface w-full max-w-3xl rounded-lg shadow-e3 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Top Control Bar */}
-        <div className="px-5 py-4 bg-surface-inverse text-on-inverse flex items-center justify-between font-sans shrink-0">
+        <div className="px-5 py-4 bg-surface text-fg flex items-center justify-between font-sans shrink-0 border-b border-line">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-sm bg-primary flex items-center justify-center text-primary-fg">
               <Icon name="receipt_long" size={18} />
             </div>
             <div>
-              <h3 className="font-bold text-xs uppercase tracking-wider">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-fg">
                 HÓA ĐƠN GTGT & CHỨNG NHẬN GIA CÔNG KỸ THUẬT
               </h3>
               <p className="text-xs text-fg-subtle font-mono">
@@ -112,10 +112,10 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-on-inverse/10 text-on-inverse/70 hover:text-on-inverse rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 hover:bg-surface-muted text-fg-muted hover:text-fg rounded-lg transition-colors cursor-pointer"
               aria-label="Đóng hóa đơn"
             >
-              <Icon name="close" size={24} />
+              <Icon name="close" size={20} />
             </button>
           </div>
         </div>

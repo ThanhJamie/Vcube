@@ -424,8 +424,29 @@ const SITE_CONTENT_COLUMNS = [
   'announcement_enabled',
 ] as const;
 
+export const SITE_CONTENT_EXTRA_KEYS = [
+  'standardShippingFee',
+  'freeShippingThreshold',
+  'toleranceSpec',
+  'customIdeaActive',
+  'customIdeaBadge',
+  'customIdeaTitle',
+  'customIdeaSubtitle',
+  'customIdeaCtaText',
+  'customIdeaImageUrl',
+  'customIdeaStep1Title',
+  'customIdeaStep1Desc',
+  'customIdeaStep2Title',
+  'customIdeaStep2Desc',
+  'customIdeaStep3Title',
+  'customIdeaStep3Desc',
+] as const;
+
 /** Domain → row cho `site_content`; phần mở rộng nằm trong cột `settings` (jsonb). */
-function siteContentToRow(patch: Partial<SiteContentConfig>): SupabaseRow {
+function siteContentToRow(patch: Partial<SiteContentConfig>): {
+  row: SupabaseRow;
+  extras: Record<string, unknown>;
+} {
   const row: SupabaseRow = {};
   if (patch.heroBadge !== undefined) row.hero_badge = patch.heroBadge;
   if (patch.heroHeadline !== undefined) row.hero_title = patch.heroHeadline;
@@ -439,9 +460,9 @@ function siteContentToRow(patch: Partial<SiteContentConfig>): SupabaseRow {
 
   // Các trường CHƯA có cột riêng → cột `settings` jsonb (xem baseline).
   const extras: Record<string, unknown> = {};
-  if (patch.standardShippingFee !== undefined) extras['standardShippingFee'] = patch.standardShippingFee;
-  if (patch.freeShippingThreshold !== undefined) extras['freeShippingThreshold'] = patch.freeShippingThreshold;
-  if (patch.toleranceSpec !== undefined) extras['toleranceSpec'] = patch.toleranceSpec;
+  for (const key of SITE_CONTENT_EXTRA_KEYS) {
+    if ((patch as any)[key] !== undefined) extras[key] = (patch as any)[key];
+  }
   return { row, extras };
 }
 
@@ -453,6 +474,21 @@ function siteContentExtras(settings: unknown): Partial<SiteContentConfig> {
   if (numOrNull(j.standardShippingFee) !== null) out.standardShippingFee = Number(j.standardShippingFee);
   if (numOrNull(j.freeShippingThreshold) !== null) out.freeShippingThreshold = Number(j.freeShippingThreshold);
   if (typeof j.toleranceSpec === 'string') out.toleranceSpec = j.toleranceSpec;
+
+  // Custom 3D Model by Idea Section settings
+  if (typeof j.customIdeaActive === 'boolean') out.customIdeaActive = j.customIdeaActive;
+  if (typeof j.customIdeaBadge === 'string') out.customIdeaBadge = j.customIdeaBadge;
+  if (typeof j.customIdeaTitle === 'string') out.customIdeaTitle = j.customIdeaTitle;
+  if (typeof j.customIdeaSubtitle === 'string') out.customIdeaSubtitle = j.customIdeaSubtitle;
+  if (typeof j.customIdeaCtaText === 'string') out.customIdeaCtaText = j.customIdeaCtaText;
+  if (typeof j.customIdeaImageUrl === 'string') out.customIdeaImageUrl = j.customIdeaImageUrl;
+  if (typeof j.customIdeaStep1Title === 'string') out.customIdeaStep1Title = j.customIdeaStep1Title;
+  if (typeof j.customIdeaStep1Desc === 'string') out.customIdeaStep1Desc = j.customIdeaStep1Desc;
+  if (typeof j.customIdeaStep2Title === 'string') out.customIdeaStep2Title = j.customIdeaStep2Title;
+  if (typeof j.customIdeaStep2Desc === 'string') out.customIdeaStep2Desc = j.customIdeaStep2Desc;
+  if (typeof j.customIdeaStep3Title === 'string') out.customIdeaStep3Title = j.customIdeaStep3Title;
+  if (typeof j.customIdeaStep3Desc === 'string') out.customIdeaStep3Desc = j.customIdeaStep3Desc;
+
   return out;
 }
 

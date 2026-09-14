@@ -45,13 +45,13 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
     <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex justify-end">
       <div className="bg-surface w-full max-w-md h-full flex flex-col shadow-e3 text-fg">
         {/* Header */}
-        <div className="p-4 sm:p-5 bg-surface-inverse text-on-inverse flex items-center justify-between">
+        <div className="p-4 sm:p-5 bg-surface text-fg flex items-center justify-between border-b border-line">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-on-inverse/10 text-on-inverse flex items-center justify-center rounded-full">
+            <div className="w-9 h-9 bg-primary/10 text-primary flex items-center justify-center rounded-full border border-primary/20">
               <Icon name="smart_toy" size={20} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-on-inverse">
+              <h3 className="font-bold text-sm text-fg">
                 {t('supportAssistant', 'Trợ lý tự động', 'Automated assistant')}
               </h3>
               <p className="text-xs text-fg-muted font-sans">Phản hồi tự động • Không phải kỹ sư trực ca</p>
@@ -59,7 +59,7 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-on-inverse/10 text-on-inverse/70 hover:text-on-inverse transition-colors touch-target-btn"
+            className="p-1.5 rounded-full hover:bg-surface-muted text-fg-muted hover:text-fg transition-colors touch-target-btn cursor-pointer"
             aria-label="Đóng trò chuyện"
           >
             <Icon name="close" size={20} />

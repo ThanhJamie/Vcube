@@ -121,20 +121,22 @@ export const CartView: React.FC<CartViewProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
-            <button
+            <Button
+              variant="primary"
+              size="lg"
+              leadingIcon={<Icon name="explore" size={18} />}
               onClick={() => onNavigate('explore')}
-              className="px-6 py-3.5 bg-primary hover:bg-primary-hover text-primary-fg font-mono text-xs uppercase tracking-wider font-bold rounded-full transition-all shadow-e1 flex items-center justify-center gap-2 cursor-pointer touch-target-btn"
             >
-              <Icon name="explore" size={18} />
-              <span>{isVi ? 'Khám Phá Bản Vẽ CAD' : 'Explore CAD Catalog'}</span>
-            </button>
-            <button
+              {isVi ? 'Khám Phá Bản Vẽ CAD' : 'Explore CAD Catalog'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              leadingIcon={<Icon name="upload_file" size={18} />}
               onClick={() => onNavigate('tool_3d')}
-              className="px-6 py-3.5 border border-line-control hover:border-primary hover:bg-canvas text-fg font-mono text-xs uppercase tracking-wider font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer touch-target-btn shadow-e0"
             >
-              <Icon name="upload_file" size={18} />
-              <span>{isVi ? 'Báo Giá Mesh STL' : 'Instant Quote STL'}</span>
-            </button>
+              {isVi ? 'Báo Giá Mesh STL' : 'Instant Quote STL'}
+            </Button>
           </div>
         </div>
       </div>
@@ -160,13 +162,14 @@ export const CartView: React.FC<CartViewProps> = ({
             </h1>
           </div>
 
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
+            leadingIcon={<Icon name="arrow_back" size={18} />}
             onClick={() => onNavigate('explore')}
-            className="text-xs font-mono font-bold text-primary hover:text-primary-hover flex items-center gap-1.5 self-start sm:self-auto px-3.5 py-2 rounded-full bg-surface border border-line-control shadow-e0 hover:border-primary transition-colors cursor-pointer"
           >
-            <Icon name="arrow_back" size={18} />
-            <span>{isVi ? 'Tiếp tục chọn bản vẽ' : 'Continue Shopping'}</span>
-          </button>
+            {isVi ? 'Tiếp tục chọn bản vẽ' : 'Continue Shopping'}
+          </Button>
         </div>
 
         {/* Free Shipping Progress Banner for Physical Orders */}
@@ -227,7 +230,7 @@ export const CartView: React.FC<CartViewProps> = ({
                         <img
                           src={item.image}
                           alt={item.name}
-                          className="w-14 h-14 rounded-lg object-cover border border-line bg-surface-inverse shrink-0"
+                          className="w-14 h-14 rounded-lg object-cover border border-line bg-surface-muted shrink-0"
                         />
                         <div className="space-y-1">
                           <span className="text-xs font-mono text-primary font-bold uppercase tracking-wider block">
@@ -250,13 +253,16 @@ export const CartView: React.FC<CartViewProps> = ({
                           <span className="text-xs text-fg-subtle">Bản quyền vĩnh viễn</span>
                         </div>
 
-                        <button
-                          onClick={() => onRemoveItem(item.id)}
-                          className="p-2 text-fg-subtle hover:text-danger hover:bg-danger-tint rounded-full transition-colors cursor-pointer touch-target-btn"
+                        <Button
+                          iconOnly
+                          variant="ghost"
+                          size="sm"
+                          className="text-fg-subtle hover:text-danger hover:bg-danger-tint"
                           title="Xóa khỏi giỏ hàng"
-                        >
-                          <Icon name="delete" size={20} />
-                        </button>
+                          aria-label="Xóa khỏi giỏ hàng"
+                          onClick={() => onRemoveItem(item.id)}
+                          leadingIcon={<Icon name="delete" size={18} />}
+                        />
                       </div>
                     </div>
                   ))}
@@ -286,7 +292,7 @@ export const CartView: React.FC<CartViewProps> = ({
                         <img
                           src={item.image}
                           alt={item.name}
-                          className="w-16 h-16 rounded-lg object-cover border border-line bg-surface-inverse shrink-0"
+                          className="w-16 h-16 rounded-lg object-cover border border-line bg-surface-muted shrink-0"
                         />
                         <div className="space-y-1">
                           <span className="text-xs font-mono text-primary font-bold uppercase tracking-wider block">
@@ -326,16 +332,16 @@ export const CartView: React.FC<CartViewProps> = ({
                         <div className="flex items-center border border-line rounded-lg bg-canvas overflow-hidden shadow-e0">
                           <button
                             onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                            className="px-3 py-1.5 hover:bg-surface-muted text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-colors"
+                            className="px-3 py-1.5 hover:bg-surface-muted active:scale-90 text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-all select-none"
                           >
                             -
                           </button>
-                          <span className="px-3.5 py-1.5 font-mono text-xs font-bold text-fg bg-surface border-x border-line">
+                          <span className="px-3.5 py-1.5 font-mono text-xs font-bold text-fg bg-surface border-x border-line tabular-nums">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                            className="px-3 py-1.5 hover:bg-surface-muted text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-colors"
+                            className="px-3 py-1.5 hover:bg-surface-muted active:scale-90 text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-all select-none"
                           >
                             +
                           </button>
@@ -343,7 +349,7 @@ export const CartView: React.FC<CartViewProps> = ({
 
                         {/* Price Breakdown */}
                         <div className="text-right font-mono min-w-[90px]">
-                          <span className="font-extrabold text-sm text-fg block">
+                          <span className="font-extrabold text-sm text-fg block tabular-nums">
                             {(item.price * item.quantity).toLocaleString('vi-VN')} đ
                           </span>
                           <span className="text-xs text-fg-subtle">
@@ -351,14 +357,16 @@ export const CartView: React.FC<CartViewProps> = ({
                           </span>
                         </div>
 
-                        {/* Remove item */}
-                        <button
-                          onClick={() => onRemoveItem(item.id)}
-                          className="p-2 text-fg-subtle hover:text-danger hover:bg-danger-tint rounded-full transition-colors cursor-pointer touch-target-btn"
+                        <Button
+                          iconOnly
+                          variant="ghost"
+                          size="sm"
+                          className="text-fg-subtle hover:text-danger hover:bg-danger-tint"
                           title="Xóa linh kiện này"
-                        >
-                          <Icon name="delete" size={20} />
-                        </button>
+                          aria-label="Xóa linh kiện này"
+                          onClick={() => onRemoveItem(item.id)}
+                          leadingIcon={<Icon name="delete" size={18} />}
+                        />
                       </div>
                     </div>
                   ))}
@@ -389,13 +397,14 @@ export const CartView: React.FC<CartViewProps> = ({
                   placeholder={isVi ? 'Nhập mã ưu đãi...' : 'Enter promo code...'}
                   className="flex-1 bg-canvas border border-line-control rounded-lg px-3.5 py-2 text-xs font-mono uppercase text-fg focus:outline-none focus:border-primary"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="md"
                   onClick={() => handleApplyPromo()}
-                  className="px-4 py-2 bg-surface-inverse hover:bg-primary text-primary-fg font-mono text-xs uppercase font-bold rounded-full transition-all cursor-pointer touch-target-btn shadow-e0"
                 >
                   {isVi ? 'Áp dụng' : 'Apply'}
-                </button>
+                </Button>
               </div>
 
               {/* KHÔNG còn "mã gợi ý": các mã cũ (VCUBE10 / TECH3D / VN3DHUN) không có
@@ -478,12 +487,15 @@ export const CartView: React.FC<CartViewProps> = ({
               </div>
 
               {/* Primary Checkout Action */}
-              <Button size="lg" fullWidth className="font-mono"
+              <Button
+                size="lg"
+                fullWidth
+                variant="primary"
+                className="font-mono"
                 onClick={() => onNavigate('checkout')}
-                
+                trailingIcon={<Icon name="arrow_forward" size={18} />}
               >
                 <span>{isVi ? 'TIẾN HÀNH THANH TOÁN' : 'PROCEED TO CHECKOUT'}</span>
-                <Icon name="arrow_forward" size={18} />
               </Button>
 
               {/* Guarantee badges */}

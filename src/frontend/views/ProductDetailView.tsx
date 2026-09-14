@@ -3,6 +3,7 @@ import { Star, Minus } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { MATERIALS_CATALOG } from '../../data/mockData';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
+import { MaterialTechnicalAdvisory } from '../components/material/MaterialTechnicalAdvisory';
 import { SEOHead } from '../components/SEOHead';
 import { useLanguage } from '../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber } from '@frontend/lib/format';
@@ -336,20 +337,20 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
             {/* Viewer Display Frame */}
             {viewMode === '3d' ? (
-              <Card padding="md" className="bg-surface-inverse text-on-inverse border-line-subtle shadow-e3 relative flex flex-col justify-between h-[420px] sm:h-[480px]">
+              <Card padding="md" className="bg-surface text-fg border border-line shadow-e2 relative flex flex-col justify-between h-[420px] sm:h-[480px]">
                 {/* HUD Top Bar */}
-                <div className="w-full flex items-center justify-between z-sticky text-on-inverse/70 font-mono text-xs uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5 bg-surface-inverse-raised px-2.5 py-1 rounded-md border border-line">
-                    <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
-                    <span>WebGL 360° Inspection</span>
+                <div className="w-full flex items-center justify-between z-sticky text-fg-muted font-mono text-xs uppercase tracking-wider mb-2">
+                  <span className="flex items-center gap-1.5 bg-surface-muted px-2.5 py-1 rounded-md border border-line">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                    <span className="font-bold text-fg">WebGL 360° Inspection</span>
                   </span>
-                  <span className="bg-surface-inverse-raised px-2.5 py-1 rounded-md border border-line text-accent truncate ml-2">
+                  <span className="bg-surface-muted px-2.5 py-1 rounded-md border border-line text-primary font-bold truncate ml-2">
                     Vật liệu: {selectedMaterial || EMPTY_VALUE}
                   </span>
                 </div>
 
                 {/* 3D Model Rendering Canvas */}
-                <div className="flex-1 w-full h-full relative">
+                <div className="flex-1 w-full h-full relative rounded-md overflow-hidden">
                   <ThreeModelViewer
                     modelType={modelGeometryType}
                     color={selectedColor?.hex}
@@ -359,14 +360,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 </div>
 
                 {/* HUD Bottom Bar */}
-                <div className="w-full flex items-center justify-between z-sticky text-on-inverse/70 font-mono text-xs uppercase tracking-widest bg-surface-inverse-raised px-3 py-1.5 rounded-md border border-line">
+                <div className="w-full flex items-center justify-between z-sticky text-fg-muted font-mono text-xs uppercase tracking-widest bg-surface-muted px-3 py-1.5 rounded-md border border-line mt-2">
                   <span>Xoay: Kéo chuột • Zoom: Cuộn bánh xe</span>
                   <span className="font-bold">{isVi ? 'Lưới (watertight): —' : 'Mesh (watertight): —'}</span>
                 </div>
               </Card>
             ) : (
               <div className="space-y-3">
-                <div className="relative aspect-4/3 bg-surface-inverse border border-line-subtle rounded-lg overflow-hidden flex items-center justify-center">
+                <div className="relative aspect-4/3 bg-surface-muted border border-line rounded-lg overflow-hidden flex items-center justify-center">
                   {imageList.length > 0 ? (
                     <img
                       src={imageList[selectedImageIndex]}
@@ -374,12 +375,12 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-xs font-mono text-on-inverse/70">
+                    <span className="text-xs font-mono text-fg-subtle">
                       {isVi ? 'Người bán chưa tải ảnh lên' : 'Seller has not uploaded images'}
                     </span>
                   )}
                   {imageList.length > 0 && (
-                    <span className="absolute bottom-3 right-3 bg-surface-inverse-raised text-on-inverse text-xs font-mono px-2.5 py-1 rounded-md border border-line tabular-nums">
+                    <span className="absolute bottom-3 right-3 bg-surface/90 text-fg text-xs font-mono px-2.5 py-1 rounded-md border border-line tabular-nums shadow-e1">
                       Ảnh {selectedImageIndex + 1} / {imageList.length}
                     </span>
                   )}
@@ -715,6 +716,12 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     </div>
                   )}
                 </div>
+
+                {/* Khuyến nghị kỹ thuật cho vật liệu cao cấp (R3) */}
+                <MaterialTechnicalAdvisory
+                  materialName={selectedMaterial}
+                  isVi={isVi}
+                />
 
                 {/* Data-honesty: không cộng chênh lệch vật liệu, và cũng KHÔNG bịa hệ số nào — nói rõ. */}
                 <p className="text-xs text-fg-muted mt-2 leading-relaxed">

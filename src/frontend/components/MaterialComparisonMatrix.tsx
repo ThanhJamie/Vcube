@@ -231,12 +231,12 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
                         -> badge quay lai dung quy tac "nen tint + chu mau dac"; khong con can ban va cuc bo
                         bang `bg-surface-muted`. Luat nay duoc giu boi scripts/check-contrast-combos.mjs. */}
                     <td className="py-3.5 px-2 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded-sm font-mono font-bold text-xs ${
+                      <span className={`inline-flex items-center justify-center whitespace-nowrap px-2.5 py-0.5 rounded-full font-mono font-bold text-xs tabular-nums border ${
                         mat.heatResistanceTemp >= 100
-                          ? 'bg-danger-tint text-danger border border-danger/30'
+                          ? 'bg-danger-tint text-danger border-danger/30'
                           : mat.heatResistanceTemp >= 75
-                          ? 'bg-warning-tint text-warning border border-warning/30'
-                          : 'bg-surface-muted text-fg-muted'
+                          ? 'bg-warning-tint text-warning border-warning/30'
+                          : 'bg-surface-muted text-fg-muted border-line-subtle'
                       }`}>
                         {mat.heatResistanceTemp}°C
                       </span>

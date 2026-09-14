@@ -267,7 +267,7 @@ const ParseFailurePanel: React.FC<{
       <button
         type="button"
         onClick={onRequestManualReview}
-        className="px-3.5 py-2 bg-surface-inverse text-on-inverse hover:bg-primary hover:text-primary-fg text-xs font-bold uppercase tracking-wider rounded-md transition-colors flex items-center gap-1.5 cursor-pointer"
+        className="px-4 py-2 bg-surface hover:bg-surface-muted text-fg border border-line-control text-xs font-bold uppercase tracking-wider rounded-full transition-colors flex items-center gap-1.5 cursor-pointer shadow-e1"
       >
         <Icon name="send" size={18} />
         Gửi yêu cầu thẩm định thủ công
@@ -900,13 +900,14 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0 font-mono">
-            <button
+            <Button
+              variant="secondary"
+              size="md"
               onClick={() => setIs3mfVsStlModalOpen(true)}
-              className="px-4 py-2.5 bg-surface hover:bg-primary-tint border border-primary/40 text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-e1 transition-colors rounded-full cursor-pointer"
+              leadingIcon={<Icon name="compare_arrows" size={18} />}
             >
-              <Icon name="compare_arrows" size={18} />
               So Sánh STL vs 3MF
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -926,13 +927,13 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
             {/* Đợt S (#2): nhãn suy từ khổ bàn THẬT của máy tìm được, không viết cứng "420mm".
                 Không tìm được máy nào đo được khổ bàn ⇒ không hiện nút. */}
             {biggerPrinter && (
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => setSelectedPrinterId(biggerPrinter.id)}
-                className="px-4 py-2 bg-danger hover:bg-danger text-primary-fg text-xs font-bold uppercase tracking-wider rounded-full shrink-0 transition-colors shadow-e1 cursor-pointer"
               >
                 Đổi Sang {biggerPrinter.name} ({bedText(biggerPrinter)})
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -982,7 +983,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 {['STL', '3MF', 'OBJ'].map(fmt => (
                   <span
                     key={fmt}
-                    className="px-2.5 py-1 rounded-lg bg-surface-inverse text-accent font-bold border border-primary/40 shadow-e1 text-xs"
+                    className="px-2.5 py-1 rounded-md bg-primary-tint text-primary font-bold border border-primary/20 shadow-e0 text-xs"
                   >
                     {fmt}
                   </span>
@@ -996,7 +997,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               </p>
 
               <div className="pt-1 font-mono">
-                <label className="inline-block px-6 py-2.5 bg-surface-inverse hover:bg-primary text-primary-fg text-xs uppercase tracking-wider font-bold cursor-pointer transition-colors rounded-md shadow-e1">
+                <label className="inline-block px-6 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs uppercase tracking-wider font-bold cursor-pointer transition-colors rounded-full shadow-e1">
                   <span>Chọn File Từ Máy Tính</span>
                   <input
                     type="file"
@@ -1038,7 +1039,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               key={sample.id}
               type="button"
               onClick={() => handleSelectSample(sample)}
-              className={`px-3 py-1.5 text-xs rounded-full border transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 text-xs rounded-md border transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
                 selectedFile.id === sample.id
                   ? 'bg-primary text-primary-fg border-primary shadow-e1'
                   : 'bg-surface hover:bg-surface-muted border-line text-fg'
@@ -1082,8 +1083,8 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   }`}>
                     {selectedFile.format} Standard
                   </span>
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-surface-inverse text-accent text-xs font-mono font-bold border border-primary/40 shadow-e0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-primary-tint text-primary text-xs font-mono font-bold border border-primary/20 shadow-e0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                     <span>VCUBE MESH ENGINE v2.6</span>
                   </span>
                 </div>
@@ -1229,7 +1230,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                         key={pat}
                         type="button"
                         onClick={() => setInfillPattern(pat)}
-                        className={`px-2.5 py-1 rounded-full border transition-all cursor-pointer font-bold ${
+                        className={`px-2.5 py-1 rounded-md border transition-all cursor-pointer font-bold ${
                           infillPattern === pat
                             ? 'bg-primary text-primary-fg border-primary shadow-e1'
                             : 'bg-canvas text-fg-muted border-line hover:bg-surface-muted'
@@ -1297,10 +1298,10 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                       key={qty}
                       type="button"
                       onClick={() => setQuantity(qty)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md border transition-all cursor-pointer ${
                         quantity === qty
-                          ? 'bg-surface-inverse text-accent border-line shadow-e1'
-                          : 'bg-canvas text-fg-muted border-line hover:bg-line-subtle'
+                          ? 'bg-primary text-primary-fg border-primary shadow-e1'
+                          : 'bg-canvas text-fg-muted border-line hover:bg-surface-muted'
                       }`}
                     >
                       x{qty}
@@ -1479,7 +1480,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <button
                     type="button"
                     onClick={handleAutoFixMesh}
-                    className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg rounded-full font-bold uppercase text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-e1"
+                    className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg rounded-md font-bold uppercase text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-e1"
                   >
                     <Icon name="auto_fix_high" size={18} />
                     Tự Động Sửa Lưới Mesh
@@ -1488,7 +1489,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowDefects(!showDefects)}
-                    className={`px-3 py-1.5 rounded-full border font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-md border font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer ${
                       showDefects
                         ? 'bg-warning text-primary-fg border-warning'
                         : 'bg-surface text-fg-muted border-line hover:bg-surface-muted'
@@ -1505,7 +1506,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setCompareMode('normal')}
-                    className={`px-2 py-0.5 rounded-full font-bold transition-colors cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
                       compareMode === 'normal' ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:text-fg'
                     }`}
                   >
@@ -1514,7 +1515,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setCompareMode('before')}
-                    className={`px-2 py-0.5 rounded-full font-bold transition-colors cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
                       compareMode === 'before' ? 'bg-danger text-primary-fg' : 'text-fg-muted hover:text-fg'
                     }`}
                   >
@@ -1523,7 +1524,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setCompareMode('after')}
-                    className={`px-2 py-0.5 rounded-full font-bold transition-colors cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
                       compareMode === 'after' ? 'bg-positive text-primary-fg' : 'text-fg-muted hover:text-fg'
                     }`}
                   >
@@ -1754,10 +1755,10 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                     <td className="p-3 text-right font-mono">
                       <button
                         onClick={() => handleSelectSample(file)}
-                        className={`px-3 py-1 text-xs uppercase tracking-wider rounded-full border transition-all cursor-pointer font-bold ${
+                        className={`px-3 py-1 text-xs uppercase tracking-wider rounded-md border transition-all cursor-pointer font-bold ${
                           selectedFile.id === file.id
                             ? 'bg-primary text-primary-fg border-primary shadow-e1'
-                            : 'bg-surface hover:bg-surface-inverse hover:text-on-inverse border-line text-fg'
+                            : 'bg-surface hover:bg-surface-muted hover:text-primary border-line text-fg'
                         }`}
                       >
                         {selectedFile.id === file.id ? 'Đang Xem' : 'Phân Tích'}

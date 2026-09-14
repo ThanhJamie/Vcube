@@ -4,6 +4,8 @@ import { disposeHierarchy } from '../../three/dispose';
 import { ModelPart, TransformState, MeasurementResult, PlateInfo } from '../../types';
 import { Icon } from '@frontend/ui';
 
+export type WebGLRecoveryState = 'ACTIVE' | 'CONTEXT_LOST' | 'RECOVERING';
+
 export interface ModelViewer3DProps {
   fileName?: string;
   modelType?: string;
@@ -100,6 +102,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   const [fps, setFps] = useState<number>(60);
   const [localBoundingBox, setLocalBoundingBox] = useState<boolean>(showBoundingBox);
   const [localMeasurementActive, setLocalMeasurementActive] = useState<boolean>(measurementActive);
+
+  // WebGL Context Loss Recovery FSM (R5)
+  const [webglState, setWebglState] = useState<WebGLRecoveryState>('ACTIVE');
+  const [contextEpoch, setContextEpoch] = useState<number>(0);
 
   // Sync props to local state
   useEffect(() => {
@@ -689,17 +695,22 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     domEl.addEventListener('touchend', onTouchEnd);
     domEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    // WebGL Context Loss & Restoration Listeners
+    // WebGL Context Loss & Restoration Listeners (R5)
     const handleContextLost = (event: Event) => {
       event.preventDefault();
       console.warn('WebGL context lost detected in ModelViewer3D. Preventing engine crash...');
+      isLoopRunning = false;
       if (animationFrameIdRef.current !== null) {
         cancelAnimationFrame(animationFrameIdRef.current);
+        animationFrameIdRef.current = null;
       }
+      setWebglState('CONTEXT_LOST');
     };
 
     const handleContextRestored = () => {
-      console.info('WebGL context restored in ModelViewer3D. Rebuilding render queue...');
+      console.info('WebGL context restored in ModelViewer3D. Rebuilding render queue and scene graph...');
+      setWebglState('RECOVERING');
+      setContextEpoch((prev) => prev + 1);
     };
 
     domEl.addEventListener('webglcontextlost', handleContextLost, false);
@@ -773,6 +784,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     };
 
     animationFrameIdRef.current = requestAnimationFrame(renderLoop);
+    setWebglState('ACTIVE');
 
     return () => {
       isLoopRunning = false;
@@ -798,7 +810,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       disposeHierarchy(scene);
       renderer.dispose();
     };
-  }, [bed?.x, bed?.y, bed?.z]);
+  }, [bed?.x, bed?.y, bed?.z, contextEpoch]);
 
   // Separate Camera Mode Switcher (changes active camera without destroying WebGL context)
   useEffect(() => {
@@ -1159,7 +1171,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         console.warn('Camera auto-fit notice:', fitErr);
       }
     }
-  }, [customGeometry, customObjectGroup, modelType, parts.length]);
+  }, [customGeometry, customObjectGroup, modelType, parts.length, contextEpoch]);
 
   // ---------------------------------------------------------------------------------
   // 3. TRANSFORM & BOUNDING BOX UNIFORMS (Updates matrix without scene destruction)
@@ -1241,7 +1253,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     }
 
     requestRender();
-  }, [transform, isBoundingBoxActive, isBedOverflow, requestRender]);
+  }, [transform, isBoundingBoxActive, isBedOverflow, requestRender, contextEpoch]);
 
   // ---------------------------------------------------------------------------------
   // 4. MATERIAL & PLATE VISIBILITY UNIFORMS (No geometry rebuild)
@@ -1291,7 +1303,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
     capMaterialRef.current.color.setHex(showDefects ? 0xf59e0b : 0x008ba3);
     requestRender();
-  }, [wireframe, showDefects, compareMode, selectedPartId, parts, activePlateIndex, requestRender]);
+  }, [wireframe, showDefects, compareMode, selectedPartId, parts, activePlateIndex, requestRender, contextEpoch]);
 
   // ---------------------------------------------------------------------------------
   // 5. SLICER & STENCIL CROSS-SECTION CAPPING (Updates clip plane & cap position)
@@ -1560,6 +1572,37 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   };
 
   const displayName = fileName || (modelType === 'gear' ? 'Planetary_Gear_Set.3mf' : modelType === 'box' ? 'Arduino_Enclosure.stl' : 'Quadcopter_Frame.stl');
+  // Dev hook for simulating WebGL context loss & recovery (R5)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__simulateContextLoss = () => {
+        const renderer = rendererRef.current;
+        if (!renderer) {
+          console.warn('[ModelViewer3D] Không tìm thấy WebGLRenderer để mô phỏng mất ngữ cảnh.');
+          return false;
+        }
+        const gl = renderer.getContext();
+        const ext = gl.getExtension('WEBGL_lose_context');
+        if (!ext) {
+          console.warn('[ModelViewer3D] Trình duyệt không hỗ trợ extension WEBGL_lose_context.');
+          return false;
+        }
+        console.warn('[ModelViewer3D] Đang kích hoạt mất ngữ cảnh WebGL (simulateContextLoss)...');
+        ext.loseContext();
+        setTimeout(() => {
+          console.info('[ModelViewer3D] Đang khôi phục ngữ cảnh WebGL (restoreContext)...');
+          ext.restoreContext();
+        }, 1200);
+        return true;
+      };
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).__simulateContextLoss;
+      }
+    };
+  }, []);
+
   const scaleMultiplier = (transform.scaleUniform / 100) * (transform.unit === 'inch' ? 25.4 : 1.0);
 
   return (
@@ -1591,6 +1634,40 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           <Icon name="upload_file" size={48} className="animate-bounce text-accent" />
           <p className="font-mono text-sm font-bold mt-2 uppercase tracking-wider">Thả tập tin 3D (3MF / STL / OBJ / STEP) vào đây</p>
           <span className="text-xs text-primary-fg font-mono">Hệ thống sẽ bóc tách cấu trúc 3D tự động</span>
+        </div>
+      )}
+
+      {/* WebGL Context Loss Recovery Overlay (R5) */}
+      {webglState !== 'ACTIVE' && (
+        <div className="absolute inset-0 z-modal bg-surface-inverse/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center select-none">
+          <div className="w-16 h-16 rounded-2xl bg-surface-inverse-raised/80 border border-surface-inverse-raised flex items-center justify-center mb-4 shadow-e2">
+            <Icon name="sync" size={32} className="animate-spin text-accent" />
+          </div>
+          <h3 className="text-base font-bold text-on-inverse tracking-wide mb-1.5 font-mono">
+            Đang khôi phục tài nguyên đồ họa 3D...
+          </h3>
+          <p className="text-xs text-on-inverse/70 max-w-md mb-4 font-mono leading-relaxed">
+            Ngữ cảnh WebGL đang được thiết lập lại từ bộ nhớ đệm hình học. Quá trình này diễn ra tự động mà không làm mất trạng thái của mô hình.
+          </p>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-inverse-raised/60 border border-surface-inverse-raised/80 text-[11px] font-mono text-accent mb-4">
+            <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+            <span>
+              {webglState === 'CONTEXT_LOST'
+                ? 'Trạng thái: Mất ngữ cảnh GPU (Đang chờ khôi phục)'
+                : 'Trạng thái: Đang tái cấu trúc Scene & Buffer'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setWebglState('RECOVERING');
+              setContextEpoch((prev) => prev + 1);
+            }}
+            className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-mono font-bold rounded-lg border border-accent/40 shadow-e2 transition-all cursor-pointer inline-flex items-center gap-2"
+          >
+            <Icon name="refresh" size={16} />
+            <span>Khôi phục thủ công ngay</span>
+          </button>
         </div>
       )}
 

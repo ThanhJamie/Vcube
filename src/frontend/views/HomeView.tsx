@@ -4,8 +4,10 @@ import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, SiteConten
 import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_SITE_CONTENT } from '../data/mockData';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
+import { CustomIdeaRequestModal } from '../components/custom/CustomIdeaRequestModal';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
 import { MaterialComparisonMatrix } from '../components/MaterialComparisonMatrix';
+import { ServiceShowcaseSection } from '../components/services/ServiceShowcaseSection';
 import { SEOHead } from '../components/SEOHead';
 import { useLanguage } from '../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber, formatPercent } from '@frontend/lib/format';
@@ -37,6 +39,65 @@ const vnd = (v: unknown, locale: string): string =>
 const hasRating = (product: Product): boolean =>
   isNum(product.rating) && product.rating > 0 && isNum(product.reviewsCount) && product.reviewsCount > 0;
 
+interface HeroChassisModel {
+  id: 'gear' | 'drone' | 'box' | 'arch';
+  labelVi: string;
+  labelEn: string;
+  titleVi: string;
+  titleEn: string;
+  dims: string;
+  material: string;
+  color: string;
+  icon: string;
+}
+
+const HERO_CHASSIS_MODELS: HeroChassisModel[] = [
+  {
+    id: 'gear',
+    labelVi: 'Bánh Răng',
+    labelEn: 'Spur Gear',
+    titleVi: 'Bánh Răng Truyền Động (Module 2.5)',
+    titleEn: 'Mechanical Spur Gear (Module 2.5)',
+    dims: '95 × 95 × 22 mm',
+    material: 'PA12-CF / Nylon',
+    color: '#00687a',
+    icon: 'settings',
+  },
+  {
+    id: 'drone',
+    labelVi: 'Khung Drone',
+    labelEn: 'Drone Arm',
+    titleVi: 'Cánh Tay Drone Gia Cường Carbon',
+    titleEn: 'Carbon-Reinforced Drone Arm',
+    dims: '160 × 42 × 18 mm',
+    material: 'Carbon Fiber PLA',
+    color: '#38bdf8',
+    icon: 'flight',
+  },
+  {
+    id: 'box',
+    labelVi: 'Vỏ Hộp IoT',
+    labelEn: 'IoT Case',
+    titleVi: 'Vỏ Hộp Điện Tử IoT Kháng Nước IP65',
+    titleEn: 'Water-Resistant IP65 IoT Enclosure',
+    dims: '115 × 80 × 38 mm',
+    material: 'PETG Chịu Lực',
+    color: '#10b981',
+    icon: 'inventory_2',
+  },
+  {
+    id: 'arch',
+    labelVi: 'Cấu Trúc Vòm',
+    labelEn: 'Arch Truss',
+    titleVi: 'Cấu Trúc Vòm Chịu Lực FEM',
+    titleEn: 'FEM Topology Load Arch Bracket',
+    dims: '130 × 65 × 50 mm',
+    material: 'Resin High-Temp',
+    color: '#f59e0b',
+    icon: 'view_in_ar',
+  },
+];
+
 export const HomeView: React.FC<HomeViewProps> = ({
   products,
   materials = MATERIALS_CATALOG,
@@ -63,8 +124,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Active Model in Hero
-  const [heroModel, setHeroModel] = useState<'gear' | 'drone' | 'box'>('gear');
+  // Active Model in Hero 3D Chassis
+  const [heroModel, setHeroModel] = useState<'gear' | 'drone' | 'box' | 'arch'>('gear');
+  const activeHeroModelMeta = HERO_CHASSIS_MODELS.find((m) => m.id === heroModel) || HERO_CHASSIS_MODELS[0];
 
   // CAD Catalog Filter & Browse State
   const [cadSearch, setCadSearch] = useState<string>('');
@@ -76,10 +138,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState<boolean>(false);
 
-  // Quick Calculator State
-  const [calcMaterialId, setCalcMaterialId] = useState<string>(materialsList[0]?.id || 'pla-tough');
-  const [calcInfill, setCalcInfill] = useState<number>(30);
-  const [calcPartSize, setCalcPartSize] = useState<'small' | 'medium' | 'large'>('medium');
+  // Custom 3D Idea Request Modal State
+  const [isCustomIdeaModalOpen, setIsCustomIdeaModalOpen] = useState<boolean>(false);
 
   // Filter products based on Category, Tag, Search, and Pricing Mode
   const displayedProducts = useMemo(() => {
@@ -137,77 +197,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       return true;
     });
   }, [products, cadSearch, selectedCategory, selectedTag]);
-
-  // Fast calculations for simulator from dynamic Admin config
-  // A11 GUARD: `MATERIALS_CATALOG` (fixture) đã bị rỗng hoá ⇒ `materialsList[0]` là `undefined`
-  // và dòng tính gram ngay dưới ném TypeError (trang chủ trắng). Không bịa tỉ trọng/đơn giá:
-  // thiếu vật liệu ⇒ hiện `—` + nói rõ nguyên nhân và nơi nhập (xem JSX bên dưới).
-  const activeMaterial = materialsList.find(m => m.id === calcMaterialId) || materialsList[0];
-  const baseWeight = calcPartSize === 'small' ? 35 : calcPartSize === 'medium' ? 85 : 190;
-  /**
-   * D8 (bỏ default bịa): `density` (g/cm³) và `pricePerGram` là DỮ LIỆU ĐO ĐƯỢC, không phải
-   * hằng số để đoán. Vật liệu chưa khai (NULL, hoặc NaN) ⇒ trả `null` để JSX hiện `—`,
-   * KHÔNG mượn tỉ trọng/đơn giá mặc định nào để nấu ra một con số trông như thật.
-   */
-  const density = activeMaterial && isNum(activeMaterial.density) && activeMaterial.density > 0 ? activeMaterial.density : null;
-  const pricePerGram = activeMaterial && isNum(activeMaterial.pricePerGram) && activeMaterial.pricePerGram > 0 ? activeMaterial.pricePerGram : null;
-  const estimatedGrams = activeMaterial && density !== null
-    ? Math.round(baseWeight * (0.5 + (calcInfill / 100) * 0.7) * (density / 1.24))
-    : null;
-  const estimatedHours = estimatedGrams === null ? null : ((estimatedGrams / 35) + 0.8).toFixed(1);
-
-  /**
-   * Bộ tính nhanh chỉ được trả một con số khi MỌI thông số của nó có nguồn thật.
-   * Trước đây dòng dưới rơi về `8 / 2.5 / 5` (số Inkiri) ⇒ khách nhìn thấy phụ phí 15,5%
-   * không ai cấu hình. Nay thiếu ⇒ `null` ⇒ `—` + InfoTip nêu tên thông số.
-   */
-  const estimatorBaseOverhead: number | null = (() => {
-    if (!cfg) return null;
-    if (isNum(cfg.fastEstimatorBaseOverhead)) return cfg.fastEstimatorBaseOverhead;
-    const packaging = isNum(cfg.fixedPackagingCost) ? cfg.fixedPackagingCost : null;
-    const overhead = isNum(cfg.overheadPerUnit) ? cfg.overheadPerUnit : null;
-    const labor = isNum(cfg.laborHourlyRate) ? cfg.laborHourlyRate : null;
-    if (packaging === null || overhead === null || labor === null) return null;
-    return packaging + overhead + Math.round((labor * 20) / 60);
-  })();
-  const markupPercent = cfg && isNum(cfg.defaultMarkupPercent) ? cfg.defaultMarkupPercent : null;
-  const markupMultiplier = markupPercent === null ? null : 1 + markupPercent / 100;
-
-  const feeParams: { key: string; value: number | null }[] = [
-    { key: 'platformCommissionPercent', value: cfg && isNum(cfg.platformCommissionPercent) ? cfg.platformCommissionPercent : null },
-    { key: 'paymentGatewayFeePercent', value: cfg && isNum(cfg.paymentGatewayFeePercent) ? cfg.paymentGatewayFeePercent : null },
-    { key: 'designerRoyaltyPercent', value: cfg && isNum(cfg.designerRoyaltyPercent) ? cfg.designerRoyaltyPercent : null },
-  ];
-  const missingFeeParams = feeParams.filter((p) => p.value === null).map((p) => p.key);
-  const feeSurchargePercent = missingFeeParams.length === 0
-    ? feeParams.reduce((sum, p) => sum + (p.value as number), 0)
-    : null;
-  const feeSurchargeMultiplier = feeSurchargePercent === null ? null : 1 + feeSurchargePercent / 100;
-
-  const estimatedRawCost =
-    activeMaterial && estimatedGrams !== null && pricePerGram !== null && estimatorBaseOverhead !== null
-      ? estimatedGrams * pricePerGram + estimatorBaseOverhead
-      : null;
-
-  /** Làm tròn theo `roundingRule` thật; chưa khai ⇒ KHÔNG làm tròn (không mượn mốc 1.000đ). */
-  const roundingStep = cfg?.roundingRule === '5000' ? 5000 : cfg?.roundingRule === '10000' ? 10000 : cfg?.roundingRule === '1000' ? 1000 : 0;
-  const estimatedPrice =
-    estimatedRawCost === null || markupMultiplier === null || feeSurchargeMultiplier === null
-      ? null
-      : (() => {
-          const raw = estimatedRawCost * markupMultiplier * feeSurchargeMultiplier;
-          return roundingStep > 0 ? Math.round(raw / roundingStep) * roundingStep : Math.round(raw);
-        })();
-
-  /** Tên các thông số giá còn thiếu (nêu đích danh, không đoán hộ). */
-  const missingEstimatorParams: string[] = [];
-  if (!cfg) missingEstimatorParams.push('pricing_configs (chưa nạp cấu hình giá)');
-  if (estimatedGrams === null) missingEstimatorParams.push('materials.density');
-  if (pricePerGram === null) missingEstimatorParams.push('materials.pricePerGram');
-  if (estimatorBaseOverhead === null) missingEstimatorParams.push('fastEstimatorBaseOverhead / fixedPackagingCost + overheadPerUnit + laborHourlyRate');
-  if (markupMultiplier === null) missingEstimatorParams.push('defaultMarkupPercent');
-  missingEstimatorParams.push(...missingFeeParams);
-
   // Open Walled Garden: Seamless guest exploration without forced login redirects
   const handleProtectedAction = (action: () => void) => {
     action();
@@ -271,11 +260,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   ];
   // P1 §5: cả 3 chỉ số rỗng ⇒ gộp thành MỘT DÒNG MẢNH thay vì một hàng 3 thẻ trống.
   const heroMetricsFilled = heroMetrics.filter((m) => m.value);
-  // P1 §4: dòng hỗ trợ ở CTA cuối trang — bỏ giá trị rỗng, hết dữ liệu thì ẩn cả khối.
-  const supportLine = [
-    activeContent.hotline ? `Hotline: ${activeContent.hotline}` : '',
-    activeContent.contactEmail ? `Email: ${activeContent.contactEmail}` : '',
-  ].filter(Boolean).join(' • ');
   const toleranceSpec = (activeContent.toleranceSpec || '').trim();
 
   return (
@@ -353,7 +337,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className="flex gap-4 sm:gap-6 items-start max-w-xl">
                 <div className="w-1.5 h-14 bg-primary rounded-full flex-shrink-0 mt-1" />
                 <p className="text-sm sm:text-base text-fg-muted leading-relaxed font-sans font-normal">
-                  {activeContent.heroSubheadline}
+                  {(!activeContent.heroSubheadline || activeContent.heroSubheadline.includes('Dữ liệu mẫu để kiểm thử') || activeContent.heroSubheadline.includes('--remove'))
+                    ? (isVi ? 'Nền tảng sản xuất bồi đắp linh kiện cơ khí, vỏ hộp IoT và khuôn mẫu kỹ thuật số.' : 'Additive manufacturing platform for precision parts, IoT enclosures, and rapid tooling.')
+                    : activeContent.heroSubheadline}
                 </p>
               </div>
 
@@ -490,50 +476,92 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             {/* Right: Interactive 3D Showcase with Modern Chassis */}
             <div className="lg:col-span-5 relative flex flex-col items-center justify-center pt-2 lg:pt-0">
-              <Card padding="lg" className="w-full bg-surface-inverse text-on-inverse border-line shadow-e3 relative flex flex-col justify-between overflow-hidden">
-                {/* Top header on 3D Box */}
-                <div className="w-full flex items-center justify-between z-sticky text-on-inverse/70 font-mono text-xs uppercase tracking-wider">
-                  <span className="font-bold text-accent flex items-center gap-1.5">
+              <div className="w-full rounded-2xl bg-surface-inverse text-on-inverse border border-line-subtle shadow-2xl relative flex flex-col overflow-hidden">
+                {/* Tech Accent Top Edge */}
+                <div className="h-0.5 w-full bg-gradient-to-r from-primary via-accent to-primary" />
+
+                {/* Top Header on 3D Chassis */}
+                <div className="px-4 py-3 bg-surface-inverse/90 border-b border-line-subtle flex items-center justify-between z-10">
+                  <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                    CHASSIS // 3D VIEWER
-                  </span>
-                  <div className="flex items-center gap-1 bg-surface-inverse-raised p-1 rounded-md border border-line">
-                    {([['gear', 'Bánh Răng'], ['drone', 'Khung Drone'], ['box', 'Vỏ Hộp IoT']] as const).map(([id, label]) => (
-                      <button
-                        key={id}
-                        onClick={() => setHeroModel(id)}
-                        className={`px-2.5 py-1 text-xs rounded-md font-mono font-bold transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                          heroModel === id ? 'bg-primary text-primary-fg' : 'text-on-inverse/70 hover:text-on-inverse'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                    <span className="font-mono text-xs font-bold text-accent tracking-wider uppercase">
+                      CHASSIS // 3D VIEWER
+                    </span>
                   </div>
-                </div>
-
-                {/* 3D Canvas Viewer */}
-                <div className="w-full h-[280px] sm:h-[320px] relative my-3">
-                  <ThreeModelViewer
-                    modelType={heroModel}
-                    color={heroModel === 'gear' ? '#00687a' : heroModel === 'drone' ? '#38bdf8' : '#e2e8f0'}
-                    className="h-full w-full"
-                  />
-                </div>
-
-                {/* Bottom Footer on 3D Box */}
-                <div className="w-full flex items-center justify-between z-sticky pt-3 border-t border-line">
-                  <span className="font-mono text-xs text-accent flex items-center gap-1.5">
-                    <Icon name="360" size={16} className="animate-spin" />
-                    XOAY 3D 360° TƯƠNG TÁC
-                  </span>
-                  <div className="text-right">
-                    <span className="block font-mono text-xs text-on-inverse/70 uppercase tracking-widest">
-                      {(activeContent.hanoiWorkshopAddress || '').split(':')[0] || 'XƯỞNG VCUBE'}
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-surface-inverse-raised text-[10px] font-mono text-on-inverse/70 border border-line-subtle">
+                      WebGL 2.0
+                    </span>
+                    <span className="hidden sm:inline-flex px-2 py-0.5 rounded bg-surface-inverse-raised text-[10px] font-mono text-accent/80 border border-line-subtle">
+                      INTERACTIVE
                     </span>
                   </div>
                 </div>
-              </Card>
+
+                {/* Model Selector Tabs */}
+                <div className="px-3 pt-2 pb-2 bg-surface-inverse/70 border-b border-line-subtle/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  {HERO_CHASSIS_MODELS.map((item) => {
+                    const isSelected = heroModel === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setHeroModel(item.id)}
+                        className={`px-2.5 py-1.5 text-xs rounded-md font-mono font-bold transition-all duration-150 shrink-0 cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                          isSelected
+                            ? 'bg-primary text-primary-fg shadow-sm'
+                            : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised/60'
+                        }`}
+                      >
+                        <Icon name={item.icon} size={14} className={isSelected ? 'text-primary-fg' : 'text-accent/70'} />
+                        <span>{isVi ? item.labelVi : item.labelEn}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* 3D Canvas Viewer Stage */}
+                <div className="w-full h-[320px] sm:h-[360px] relative bg-[#070d16]">
+                  <ThreeModelViewer
+                    modelType={heroModel}
+                    color={activeHeroModelMeta.color}
+                    showGrid={true}
+                    autoRotate={true}
+                    className="h-full w-full border-0 rounded-none"
+                  />
+
+                  {/* Telemetry HUD Overlay (Bottom Left) */}
+                  <div className="absolute bottom-3 left-3 pointer-events-none z-10">
+                    <div className="bg-surface-inverse/85 backdrop-blur-md px-3 py-2 rounded-lg border border-line-subtle shadow-e2 space-y-0.5">
+                      <p className="font-mono text-xs font-bold text-accent truncate max-w-[220px]">
+                        {isVi ? activeHeroModelMeta.titleVi : activeHeroModelMeta.titleEn}
+                      </p>
+                      <div className="flex items-center gap-2 text-[11px] font-mono text-on-inverse/70">
+                        <span>{activeHeroModelMeta.dims}</span>
+                        <span>•</span>
+                        <span className="text-on-inverse/90">{activeHeroModelMeta.material}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Footer Action Bar on 3D Chassis */}
+                <div className="px-4 py-3 bg-surface-inverse/95 border-t border-line-subtle flex flex-col sm:flex-row items-center justify-between gap-3 z-10">
+                  <div className="flex items-center gap-2 text-xs font-mono text-on-inverse/70">
+                    <Icon name="touch_app" size={16} className="text-accent shrink-0" />
+                    <span>
+                      {isVi ? 'Kéo chuột để xoay 360° • Cuộn để thu phóng' : 'Drag to rotate 360° • Scroll to zoom'}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => onNavigate('quote')}
+                    leadingIcon={<Icon name="upload_file" size={16} />}
+                    className="shrink-0 w-full sm:w-auto shadow-md shadow-primary/20"
+                  >
+                    <span>{isVi ? 'Báo Giá Mẫu Này' : 'Quote This Model'}</span>
+                  </Button>
+                </div>
+              </div>
 
               {/* Dải dung sai cam kết — CHỈ hiện khi có dữ liệu thật.
                   P1 §5: rỗng thì bỏ hẳn panel rời rạc "lạc lõng"; thông tin đã nằm
@@ -557,6 +585,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
       </section>
+
+      {/* 2.5 CORE ENGINEERING SERVICES SHOWCASE // INTERACTIVE 3D & POPUPS */}
+      <ServiceShowcaseSection
+        onNavigate={onNavigate}
+        onOpenCustomIdeaModal={() => setIsCustomIdeaModalOpen(true)}
+      />
 
       {/* 3. BROWSE CAD CATALOG - MAIN SHOWCASE HUB (OPTIMIZED UI/UX) */}
       <section id="browse-cad-catalog" className="py-20 sm:py-24 bg-surface px-4 sm:px-6 md:px-12 scroll-mt-16">
@@ -763,11 +797,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   key={product.id}
                   as="article"
                   padding="none"
-                  className="group flex flex-col overflow-hidden transition-shadow duration-150 hover:shadow-e1"
+                  className="group flex flex-col overflow-hidden transition-all duration-300 hover:shadow-e2 hover:-translate-y-1 rounded-lg border border-line bg-surface"
                 >
                   {/* Card Image Area with Quick 3D Inspect Overlay */}
                   <div
-                    className="relative aspect-4/3 bg-surface-inverse cursor-pointer overflow-hidden"
+                    className="relative aspect-4/3 bg-surface-muted border-b border-line cursor-pointer overflow-hidden"
                     onClick={() => handleSelectProductAction(product, 'product_detail')}
                   >
                     <img
@@ -781,7 +815,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <span className={`absolute top-3 left-3 text-xs font-tech uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold shadow-e2 ${
                         product.badge.includes('2/9')
                           ? 'bg-danger text-primary-fg'
-                          : 'bg-surface-inverse text-accent border border-accent/30'
+                          : 'bg-primary text-primary-fg shadow-e1'
                       }`}>
                         {product.badge}
                       </span>
@@ -938,7 +972,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <Card padding="none" className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-surface-inverse text-on-inverse font-tech text-xs uppercase tracking-wider">
+                  <thead className="bg-surface-muted text-fg-muted border-b border-line font-tech text-xs uppercase tracking-wider">
                     <tr>
                       <th className="py-3 px-4">Linh Kiện CAD</th>
                       <th className="py-3 px-3">Danh Mục</th>
@@ -1029,177 +1063,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* 4. Live 3D Quoting Cost Simulator Widget — band tối (§2.3 "khối khác biệt") */}
-      <section className="bg-surface-inverse py-20 sm:py-24 px-4 sm:px-6 md:px-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-on-inverse">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-              {/* Left: Info & Values */}
-              <div className="lg:col-span-5 space-y-4">
-                <span className="font-mono text-xs uppercase tracking-[0.25em] text-accent font-bold block">
-                  {activeContent.estimatorBadge || 'VCUBE FAST ESTIMATOR // LIVE QUOTE'}
-                </span>
-                <h2 className="text-2xl sm:text-4xl font-extrabold text-on-inverse tracking-tight">
-                  {activeContent.estimatorTitle || 'Mô Phỏng & Ước Tính Chi Phí In 3D Trực Tiếp'}
-                </h2>
-                <p className="text-xs sm:text-sm text-on-inverse/80 leading-relaxed font-sans">
-                  {activeContent.estimatorSubtitle || 'Chọn vật liệu kỹ thuật, độ đặc infill và kích cỡ mẫu để mô phỏng tức thì chi phí gia công theo bảng giá xưởng VCUBE.'}
-                </p>
-
-                <div className="pt-2 space-y-2.5 text-xs text-on-inverse/80 font-sans">
-                  <div className="flex items-center gap-2.5">
-                    <Icon name="check_circle" size={16} className="text-accent" />
-                    <span>{activeContent.estimatorBenefit1 || 'Tự động tính toán theo tỉ trọng vật liệu g/cm³ chuẩn xác'}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <Icon name="check_circle" size={16} className="text-accent" />
-                    <span>{activeContent.estimatorBenefit2 || 'Miễn phí gọt support & rửa cồn siêu âm xử lý bề mặt UV'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Interactive Controls & Instant Price Display Card */}
-              <Card padding="lg" className="lg:col-span-7">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
-                  {/* Material Selection */}
-                  <div>
-                    <label className="text-xs font-mono uppercase font-bold text-fg-muted block mb-2">
-                      {t('calcMaterial', 'Loại vật liệu:', 'Material:')}
-                    </label>
-                    <select
-                      value={calcMaterialId}
-                      onChange={(e) => setCalcMaterialId(e.target.value)}
-                      className="w-full bg-canvas border border-line-control p-2.5 text-sm text-fg font-bold rounded-md focus:outline-none focus:border-primary cursor-pointer"
-                    >
-                      {materialsList.length === 0 && (
-                        <option value="">— Chưa có vật liệu trong hệ thống —</option>
-                      )}
-                      {materialsList.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.strength ? `${m.name} (${m.strength})` : m.name}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-fg-muted mt-1">
-                      {activeMaterial
-                        ? activeMaterial.desc || EMPTY_VALUE
-                        : 'Chưa có vật liệu nào trong hệ thống nên không tính được chi phí. Quản trị viên nhập danh mục nhựa ở /admin, mục Cấu hình giá, Danh Mục Nhựa & Resin.'}
-                    </p>
-                  </div>
-
-                  {/* Part Scale Selector */}
-                  <div>
-                    <label className="text-xs font-mono uppercase font-bold text-fg-muted block mb-2">
-                      {isVi ? 'Kích thước linh kiện:' : 'Part scale:'}
-                    </label>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(['small', 'medium', 'large'] as const).map((sz) => (
-                        <button
-                          key={sz}
-                          type="button"
-                          onClick={() => setCalcPartSize(sz)}
-                          className={`py-2 text-xs font-bold rounded-md transition-colors duration-150 uppercase cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            calcPartSize === sz
-                              ? 'bg-primary text-primary-fg'
-                              : 'bg-surface-muted text-fg-muted border border-line-control hover:text-fg'
-                          }`}
-                        >
-                          {sz === 'small' ? (isVi ? 'Nhỏ (<5cm)' : 'Small') : sz === 'medium' ? (isVi ? 'Vừa (<10cm)' : 'Medium') : (isVi ? 'Lớn (<20cm)' : 'Large')}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Infill Slider */}
-                  <div className="sm:col-span-2">
-                    <div className="flex justify-between items-center mb-1.5">
-                      <label className="text-xs font-mono uppercase font-bold text-fg-muted">
-                        {t('calcInfill', 'Độ đặc Infill:', 'Infill Density:')}
-                      </label>
-                      <span className="font-mono font-bold text-xs text-primary tabular-nums">{calcInfill}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="15"
-                      max="100"
-                      step="5"
-                      value={calcInfill}
-                      onChange={(e) => setCalcInfill(Number(e.target.value))}
-                      className="w-full accent-primary cursor-pointer"
-                    />
-                    <div className="flex justify-between text-xs font-mono text-fg-muted mt-0.5">
-                      <span>15% (Trưng bày/Vỏ)</span>
-                      <span>50% (Cơ khí chịu lực)</span>
-                      <span>100% (Đặc hoàn toàn)</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dynamic Live Estimation Result Strip */}
-                <Card padding="md" className="bg-surface-muted flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
-                  <div className="grid grid-cols-2 gap-4 text-center sm:text-left w-full sm:w-auto">
-                    <div>
-                      <span className="text-xs text-fg-muted uppercase block font-medium">{t('calcEstWeight', 'Trọng lượng:', 'Weight:')}</span>
-                      <span className="font-mono text-sm font-bold text-fg tabular-nums">
-                        {estimatedGrams === null ? EMPTY_VALUE : `~${formatNumber(estimatedGrams, { locale, maximumFractionDigits: 0 })}g`}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-xs text-fg-muted uppercase block font-medium">{t('calcEstTime', 'Thời gian in:', 'Print time:')}</span>
-                      <span className="font-mono text-sm font-bold text-fg tabular-nums">
-                        {estimatedHours === null ? EMPTY_VALUE : `~${estimatedHours}h`}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="text-center sm:text-right w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-line-subtle">
-                    <span className="text-xs text-fg-muted uppercase block font-medium flex items-center justify-center sm:justify-end gap-1">
-                      {t('calcEstPrice', 'Chi phí ước tính:', 'Estimated cost:')}
-                      {estimatedPrice === null && missingEstimatorParams.length > 0 && (
-                        <InfoTip label={isVi ? 'Vì sao chưa ra được giá?' : 'Why no price yet?'}
-                          title={isVi ? 'Thiếu thông số giá' : 'Missing pricing parameters'}>
-                          {isVi
-                            ? `Hệ thống không đoán hộ. Cần cấu hình: ${missingEstimatorParams.join(' · ')}. Nhập ở /admin, mục Cấu hình giá.`
-                            : `Nothing is guessed. Required configuration: ${missingEstimatorParams.join(' · ')}. Set it in /admin, Pricing configuration.`}
-                        </InfoTip>
-                      )}
-                    </span>
-                    <span className="font-mono text-xl font-bold text-primary tabular-nums block">
-                      {estimatedPrice !== null && estimatedPrice > 0 ? `${formatNumber(estimatedPrice, { locale, maximumFractionDigits: 0 })} đ` : EMPTY_VALUE}
-                    </span>
-                    {/* Dòng phụ phí CHỈ hiện khi cả 3 thông số phí đều có nguồn thật.
-                        Thiếu ⇒ ẩn hẳn (trước đây hiển thị 15,5% bằng số Inkiri). */}
-                    {feeSurchargePercent !== null && (
-                      <span className="text-xs text-fg-muted font-sans block mt-0.5">
-                        {isVi
-                          ? `Đã gồm phụ phí nền tảng · cổng thanh toán · bản quyền: ${formatPercent(feeSurchargePercent, { locale })}`
-                          : `Includes platform · gateway · royalty fees: ${formatPercent(feeSurchargePercent, { locale })}`}
-                      </span>
-                    )}
-                    {markupPercent !== null && (
-                      <span className="text-xs text-fg-muted font-sans block">
-                        {isVi ? `Biên lợi nhuận mục tiêu: ${formatPercent(markupPercent, { locale })}` : `Target margin: ${formatPercent(markupPercent, { locale })}`}
-                      </span>
-                    )}
-                  </div>
-                </Card>
-
-                {/* Call to Action to full 3D Upload */}
-                <Button size="lg" fullWidth
-                  onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}
-                  leadingIcon={<Icon name="upload_file" size={16} />}
-                  trailingIcon={<Icon name="arrow_forward" size={16} />}
-                >
-                  <span>{activeContent.estimatorCtaText || 'Tải File STL Lên Để Báo Giá Chi Tiết'}</span>
-                </Button>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4.5 Technical Material Comparison Matrix */}
-      <section className="py-20 sm:py-24 px-4 sm:px-6 md:px-12 bg-canvas">
+      {/* 4. Technical Material Comparison Matrix */}
+      <section id="material-comparison-matrix" className="py-20 sm:py-24 px-4 sm:px-6 md:px-12 bg-canvas border-t border-line">
         <div className="max-w-7xl mx-auto">
           <MaterialComparisonMatrix
             materials={materialsList}
@@ -1208,154 +1073,89 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </section>
 
-      {/* 5. Technical Taxonomy & Application Categories */}
-      <section className="py-20 sm:py-24 bg-surface px-4 sm:px-6 md:px-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-line gap-3">
-            <div>
-              <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary block mb-1 font-bold">
-                {t('sectionTaxonomyPre', 'TAXONOMY // PHÂN LOẠI', 'TAXONOMY // CATEGORIES')}
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-fg tracking-tight">
-                {t('sectionTaxonomyTitle', 'Danh Mục Ứng Dụng Kỹ Thuật', 'Engineering Application Categories')}
-              </h2>
+      {/* 5. Modern High-Conversion Callout Card (Light-first container with glowing dark conversion card) */}
+      <section className="py-16 sm:py-20 px-4 sm:px-6 md:px-12 bg-canvas">
+        <div className="max-w-7xl mx-auto rounded-3xl bg-gradient-to-b from-surface-inverse to-[#08111d] text-on-inverse p-8 sm:p-12 lg:p-16 border border-line-subtle shadow-2xl relative overflow-hidden">
+          {/* Subtle Ambient Tech Glow */}
+          <div
+            aria-hidden="true"
+            className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary/20 blur-3xl pointer-events-none"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-accent/15 blur-3xl pointer-events-none"
+          />
+
+          <div className="relative z-10 max-w-3xl mx-auto text-center space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-inverse-raised/80 border border-line-subtle rounded-full text-xs uppercase font-mono tracking-[0.2em] text-accent font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              <span>{isVi ? 'SẴN SÀNG SẢN XUẤT // RAPID FABRICATION' : 'READY TO MANUFACTURE // ON DEMAND'}</span>
             </div>
-            <Button variant="ghost" size="sm" className="text-primary self-start sm:self-auto"
-              onClick={() => onNavigate('explore')}
-              trailingIcon={<Icon name="arrow_forward" size={16} />}
-            >
-              <span>{isVi ? `Xem toàn bộ kho bản vẽ (${products.length})` : `Browse full library (${products.length})`}</span>
-            </Button>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            {CATEGORIES.filter(c => c.id !== 'all').map((cat, idx) => {
-              const count = products.filter((p) => p.category === cat.id).length;
-              return (
-                <Card
-                  key={cat.id}
-                  as="button"
-                  interactive
-                  padding="lg"
-                  className="text-left flex flex-col justify-between min-h-[160px] gap-4"
-                  onClick={() => {
-                    setSelectedCategory(cat.id);
-                    const el = document.getElementById('browse-cad-catalog');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="font-mono text-xs text-fg-muted font-bold tabular-nums">0{idx + 1}</span>
-                    <Icon name={cat.icon} size={28} className="text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-fg leading-snug">
-                      {isVi ? cat.name : (cat as any).nameEn || cat.name}
-                    </h3>
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-line-subtle font-mono text-xs">
-                      <span className="text-primary font-bold tabular-nums">{count} files</span>
-                      <Icon name="arrow_forward" size={16} className="text-fg-muted" />
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* 6. 3-Step Precision Manufacturing Process Chronicle */}
-      <section className="py-20 sm:py-24 px-4 sm:px-6 md:px-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-10 sm:mb-14 text-center max-w-xl mx-auto space-y-2">
-            <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary block font-bold">
-              {activeContent.workflowBadge || 'CHRONICLE // QUY TRÌNH XƯỞNG'}
-            </span>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-fg tracking-tight">
-              {activeContent.workflowTitle || 'Quy Trình Gia Công 3 Bước Chuẩn Xác'}
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-on-inverse tracking-tight leading-tight">
+              {isVi ? 'Hiện Thực Hoá Mô Hình 3D Của Bạn' : 'Bring Your 3D Designs to Life'}
             </h2>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-            {[
-              {
-                phase: 'PHASE 01',
-                title: activeContent.workflowStep1Title || 'Tải Lên & Khảo Sát Mesh STL',
-                desc: activeContent.workflowStep1Desc || 'Thuật toán quét hình học của chính tệp bạn tải lên để đo kích thước, thể tích vật liệu và dựng mô hình 3D trong trình xem.',
-              },
-              {
-                phase: 'PHASE 02',
-                title: activeContent.workflowStep2Title || 'Cắt Lớp & In Nhiệt Chuẩn Xác',
-                desc: activeContent.workflowStep2Desc || 'Gia công trên hệ thống máy in của xưởng với các loại vật liệu kỹ thuật đã khai báo trong hệ thống.',
-              },
-              {
-                phase: 'PHASE 03',
-                title: activeContent.workflowStep3Title || 'Kiểm Định QC & Bàn Giao',
-                desc: activeContent.workflowStep3Desc || 'Đo kiểm theo quy trình và mục tiêu dung sai đã thoả thuận với khách hàng, đóng gói chống sốc và giao hàng toàn quốc.',
-              },
-            ].map((step, idx) => (
-              <Card key={step.phase} padding="lg" className="relative flex flex-col justify-between">
-                {/* Chữ số bước là chữ HIỂN THỊ ⇒ dùng màu đạt ngưỡng chữ lớn (>= 3:1). */}
-                <span aria-hidden="true" className="font-mono text-5xl font-black text-line-control absolute top-5 right-5 select-none pointer-events-none tabular-nums">
-                  0{idx + 1}
-                </span>
-                <div className="relative z-sticky space-y-2">
-                  <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary block font-bold">{step.phase}</span>
-                  <h3 className="font-bold text-lg text-fg">{step.title}</h3>
-                  <p className="text-xs text-fg-muted leading-relaxed font-sans">{step.desc}</p>
-                </div>
-                <div className="w-10 h-1 bg-primary rounded-full mt-6" />
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+            <p className="text-sm sm:text-base text-on-inverse/70 max-w-2xl mx-auto font-sans leading-relaxed">
+              {isVi
+                ? 'Tải file CAD để nhận báo giá tức thì, phân tích lưới in 3D tự động và kết nối trực tiếp với mạng lưới xưởng in công nghiệp đạt chuẩn.'
+                : 'Upload your CAD models for instant quoting, automated mesh inspection, and direct manufacturing with certified industrial workshops.'}
+            </p>
 
-      {/* 7. Band kết — surface-inverse cho CTA cuối (§2.3). Khối thành tích chỉ hiện khi có dữ liệu. */}
-      <section className="py-20 sm:py-24 bg-surface-inverse px-4 sm:px-6 md:px-12">
-        <div className="max-w-7xl mx-auto text-center space-y-5">
-          {hasPartners && (
-            <>
-              <span className="text-xs uppercase font-mono font-bold text-on-inverse/70 tracking-widest block">
-                {activeContent.trustPartnersTitle || 'Đơn Vị Đồng Hành Cùng VCUBE'}
-              </span>
-              <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 font-mono text-xs font-bold text-on-inverse">
-                {partnersList.map((partner, pIdx) => (
-                  <span
-                    key={pIdx}
-                    className="px-4 py-2 bg-surface-inverse-raised rounded-sm transition-all"
-                  >
-                    {partner}
-                  </span>
-                ))}
+            {/* Feature Guarantees */}
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 pt-2 text-xs font-mono text-on-inverse/80">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-line-subtle">
+                <Icon name="verified_user" size={16} className="text-accent" />
+                <span>{isVi ? 'Bảo mật dữ liệu chuẩn NDA' : 'Strict NDA Protection'}</span>
               </div>
-            </>
-          )}
-
-          <div className="pt-2 flex justify-center">
-            <Button size="lg" onClick={() => onNavigate('quote')}
-              leadingIcon={<Icon name="upload_file" size={20} />}
-            >
-              <span>{isVi ? 'Báo Giá File 3D Của Bạn' : 'Quote Your 3D File'}</span>
-            </Button>
-          </div>
-
-          {/* Workshop Contact Details Strip */}
-          <div className="pt-6 border-t border-line grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-on-inverse/70">
-            <div>
-              <strong className="text-on-inverse block font-bold mb-0.5">Xưởng Bắc:</strong>
-              <span>{activeContent.hanoiWorkshopAddress || EMPTY_VALUE}</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-line-subtle">
+                <Icon name="straighten" size={16} className="text-accent" />
+                <span>{isVi ? 'Kiểm soát dung sai kỹ thuật' : 'Rigorous Tolerance QC'}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-line-subtle">
+                <Icon name="local_shipping" size={16} className="text-accent" />
+                <span>{isVi ? 'Giao hàng nhanh toàn quốc' : 'Nationwide Fast Delivery'}</span>
+              </div>
             </div>
-            <div>
-              <strong className="text-on-inverse block font-bold mb-0.5">Xưởng Nam:</strong>
-              <span>{activeContent.hcmWorkshopAddress || EMPTY_VALUE}</span>
+
+            {/* Actions */}
+            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                size="lg"
+                onClick={() => onNavigate('quote')}
+                leadingIcon={<Icon name="upload_file" size={20} />}
+                className="w-full sm:w-auto shadow-lg shadow-primary/25"
+              >
+                <span>{isVi ? 'Báo Giá File 3D Của Bạn' : 'Quote Your 3D File'}</span>
+              </Button>
+
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={() => setIsCustomIdeaModalOpen(true)}
+                leadingIcon={<Icon name="lightbulb" size={20} className="text-primary" />}
+                className="w-full sm:w-auto bg-surface-inverse-raised text-on-inverse border-line-subtle hover:bg-surface-inverse-raised/80"
+              >
+                <span>{isVi ? 'Tư Vấn & Custom Theo Ý Tưởng' : 'Custom Service by Idea'}</span>
+              </Button>
             </div>
-            {supportLine && (
-              <div>
-                <strong className="text-on-inverse block font-bold mb-0.5">
-                  {isVi ? 'Hỗ Trợ Kỹ Thuật:' : 'Technical Support:'}
-                </strong>
-                <span>{supportLine}</span>
+
+            {/* Partner Network (if present) */}
+            {hasPartners && (
+              <div className="pt-8 border-t border-line-subtle/50 mt-8 space-y-3">
+                <span className="text-xs uppercase font-mono font-bold text-on-inverse/60 tracking-widest block">
+                  {activeContent.trustPartnersTitle || (isVi ? 'Đơn Vị Đồng Hành Cùng VCUBE' : 'Trusted by Leading Partners')}
+                </span>
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 font-mono text-xs font-bold text-on-inverse/80">
+                  {partnersList.map((partner, pIdx) => (
+                    <span
+                      key={pIdx}
+                      className="px-3 py-1.5 bg-surface-inverse-raised/70 rounded border border-line-subtle text-on-inverse/90"
+                    >
+                      {partner}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1369,6 +1169,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onClose={() => setIsQuickViewOpen(false)}
         onAddToCart={onAddToCart}
         onNavigate={onNavigate}
+        onShowToast={onShowToast}
+      />
+
+      {/* Custom Idea Request Modal */}
+      <CustomIdeaRequestModal
+        isOpen={isCustomIdeaModalOpen}
+        onClose={() => setIsCustomIdeaModalOpen(false)}
         onShowToast={onShowToast}
       />
     </div>

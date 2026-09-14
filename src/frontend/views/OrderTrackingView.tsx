@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Order } from '../types';
 import { OrderProgress } from '../components/OrderProgress';
 import { dbService } from '../../backend/supabase/database';
-import { Icon } from '@frontend/ui';
+import { Icon, Button } from '@frontend/ui';
 
 interface OrderTrackingViewProps {
   order?: Order;
@@ -125,13 +125,14 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
       <div className="min-h-screen bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="flex items-start sm:items-center gap-3">
-            <button
+            <Button
+              iconOnly
+              variant="secondary"
+              size="md"
               onClick={() => onNavigate('my_orders')}
-              className="p-2 border border-line-control bg-surface hover:bg-surface-muted text-fg rounded-full transition-colors shrink-0 cursor-pointer shadow-e0"
               aria-label="Quay lại danh sách đơn hàng"
-            >
-              <Icon name="arrow_back" size={20} />
-            </button>
+              leadingIcon={<Icon name="arrow_back" size={20} />}
+            />
             <h1 className="text-2xl sm:text-3xl font-extrabold text-fg tracking-tight">
               Tra Cứu Đơn Hàng
             </h1>
@@ -202,13 +203,16 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               </div>
 
               <div className="sm:col-span-2 flex items-end">
-                <button
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="md"
+                  fullWidth
                   disabled={lookupState === 'searching'}
-                  className="w-full py-2.5 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse font-mono font-bold text-xs uppercase rounded-full transition-all cursor-pointer shadow-e1 disabled:opacity-60"
+                  className="font-mono font-bold text-xs uppercase"
                 >
                   {lookupState === 'searching' ? 'Đang tra...' : 'Tra Cứu'}
-                </button>
+                </Button>
               </div>
             </form>
 
@@ -243,13 +247,14 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
         {/* Top Breadcrumb & Return Bar */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 pb-6 border-b border-line">
           <div className="flex items-start sm:items-center gap-3">
-            <button
+            <Button
+              iconOnly
+              variant="secondary"
+              size="md"
               onClick={() => onNavigate('my_orders')}
-              className="p-2 border border-line-control bg-surface hover:bg-surface-muted text-fg rounded-full transition-colors shrink-0 mt-1 sm:mt-0 cursor-pointer shadow-e0"
               aria-label="Quay lại danh sách đơn hàng"
-            >
-              <Icon name="arrow_back" size={20} />
-            </button>
+              leadingIcon={<Icon name="arrow_back" size={20} />}
+            />
             <div>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
                 {/* OT-04: bỏ badge "Live Telemetry" khi không có nhịp tim từ MES. */}
@@ -257,7 +262,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-line-control"></span>
                   Không có tín hiệu MES
                 </span>
-                <span className="px-2.5 py-0.5 bg-surface-inverse text-on-inverse text-xs font-mono font-bold rounded-lg shrink-0">
+                <span className="px-2.5 py-0.5 bg-primary-tint text-primary border border-primary/20 text-xs font-mono font-bold rounded-md shrink-0">
                   {currentOrder.orderNumber}
                 </span>
                 {currentOrder.customerType === 'guest' && (
@@ -281,27 +286,30 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
 
           {/* Quick Action Controls */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto font-mono">
-            <button
+            <Button
+              size="md"
+              variant="secondary"
               onClick={() => setIsGuestSearchMode(!isGuestSearchMode)}
-              className="px-3 py-2 border border-line-control bg-surface hover:bg-canvas text-fg-muted hover:text-fg text-xs uppercase font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-e0"
+              leadingIcon={<Icon name="search" size={18} />}
             >
-              <Icon name="search" size={18} />
               <span>{isGuestSearchMode ? 'Xem Đơn Hiện Tại' : 'Tra Cứu Mã Khác'}</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              size="md"
+              variant="primary"
               onClick={onOpenChat}
-              className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs uppercase font-bold rounded-full shadow-e1 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              leadingIcon={<Icon name="support_agent" size={18} />}
             >
-              <Icon name="support_agent" size={18} />
               <span>Hỗ Trợ</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              size="md"
+              variant="secondary"
               onClick={() => onOpenInvoice(currentOrder)}
-              className="px-4 py-2 border border-line-control bg-surface hover:bg-canvas text-fg text-xs uppercase font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-e0"
+              leadingIcon={<Icon name="receipt_long" size={18} />}
             >
-              <Icon name="receipt_long" size={18} />
               <span>Hoá Đơn</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -348,13 +356,16 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                 />
               </div>
               <div className="sm:col-span-2 flex items-end">
-                <button
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="md"
+                  fullWidth
                   disabled={lookupState === 'searching'}
-                  className="w-full py-2.5 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse font-mono font-bold text-xs uppercase rounded-full transition-all cursor-pointer shadow-e1 disabled:opacity-60"
+                  className="font-mono font-bold text-xs uppercase"
                 >
                   {lookupState === 'searching' ? 'Đang tra...' : 'Tra Cứu'}
-                </button>
+                </Button>
               </div>
             </form>
 

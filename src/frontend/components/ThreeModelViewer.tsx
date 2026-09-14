@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { UnifiedCadToolbar } from './tool3d/UnifiedCadToolbar';
 import { Icon } from '@frontend/ui';
+import { useInViewport } from '../hooks/useInViewport';
+import { disposeHierarchy } from '../three/dispose';
 
 interface ThreeModelViewerProps {
   modelType?: 'gear' | 'box' | 'drone' | 'arch' | 'vase' | string;
@@ -23,11 +25,16 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
   autoRotate: initialAutoRotate = true,
   showLayerSlicer = false,
   showTitleBadge = false,
-  className = 'h-96 w-full'
+  className = 'h-96 w-full',
+  onLayerChange
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const isInViewport = useInViewport(wrapperRef, { rootMargin: '100px', threshold: 0 });
+
   const [wireframe, setWireframe] = useState(initialWireframe);
   const [isRotating, setIsRotating] = useState(initialAutoRotate);
+  const isRotatingRef = useRef(initialAutoRotate);
   const [currentSlice, setCurrentSlice] = useState(100);
   const [activeAngle, setActiveAngle] = useState<'iso' | 'top' | 'front' | 'side'>('iso');
 
@@ -37,6 +44,11 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
   const clipPlaneRef = useRef<THREE.Plane | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const materialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+
+  // Sync isRotating state with ref for animation loop
+  useEffect(() => {
+    isRotatingRef.current = isRotating;
+  }, [isRotating]);
 
   // Sync wireframe prop changes
   useEffect(() => {
@@ -86,11 +98,11 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
   }, [setCameraAngle]);
 
   // -------------------------------------------------------------------------
-  // Main Three.js Scene Setup (Mounts once per container)
+  // Main Three.js Scene Setup (Lazy loaded: only runs when in viewport ±100px)
   // -------------------------------------------------------------------------
   useEffect(() => {
-    if (!containerRef.current) return;
-    const container = containerRef.current;
+    if (!isInViewport || !canvasContainerRef.current) return;
+    const container = canvasContainerRef.current;
     const width = container.clientWidth || 600;
     const height = container.clientHeight || 400;
 
@@ -100,13 +112,25 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
     sceneRef.current = scene;
 
     // 2. Clipping plane for layer slicing
-    const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 25);
+    const maxY = 30;
+    const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), (currentSlice / 100) * maxY);
     clipPlaneRef.current = clipPlane;
 
     // 3. Camera
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(45, 35, 45);
-    camera.lookAt(0, 5, 0);
+    if (activeAngle === 'top') {
+      camera.position.set(0, 65, 0.001);
+      camera.lookAt(0, 0, 0);
+    } else if (activeAngle === 'front') {
+      camera.position.set(0, 10, 60);
+      camera.lookAt(0, 10, 0);
+    } else if (activeAngle === 'side') {
+      camera.position.set(60, 10, 0);
+      camera.lookAt(0, 10, 0);
+    } else {
+      camera.position.set(45, 35, 45);
+      camera.lookAt(0, 5, 0);
+    }
     cameraRef.current = camera;
 
     // 4. Renderer with pixelRatio clamped to 2
@@ -202,6 +226,31 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
       const lid = new THREE.Mesh(lidGeo, material);
       lid.position.y = 15;
       meshGroup.add(lid);
+    } else if (modelType === 'arch') {
+      // Topological Arch / Cấu trúc vòm chịu lực FEM
+      const archGroup = new THREE.Group();
+      const torusGeo = new THREE.TorusGeometry(13, 2.4, 16, 48, Math.PI);
+      const torus = new THREE.Mesh(torusGeo, material);
+      torus.rotation.x = Math.PI / 2;
+      torus.rotation.z = Math.PI;
+      torus.position.y = 3;
+      archGroup.add(torus);
+
+      const baseGeo = new THREE.BoxGeometry(6, 3, 6);
+      const base1 = new THREE.Mesh(baseGeo, material);
+      base1.position.set(-13, 1.5, 0);
+      archGroup.add(base1);
+
+      const base2 = new THREE.Mesh(baseGeo, material);
+      base2.position.set(13, 1.5, 0);
+      archGroup.add(base2);
+
+      const nodeGeo = new THREE.CylinderGeometry(4, 4, 3.5, 24);
+      const node = new THREE.Mesh(nodeGeo, material);
+      node.position.set(0, 16, 0);
+      archGroup.add(node);
+
+      meshGroup.add(archGroup);
     } else {
       // Default: Precision Industrial Gear
       const gearGroup = new THREE.Group();
@@ -280,7 +329,7 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
     let animId: number;
     const animate = () => {
       animId = requestAnimationFrame(animate);
-      if (isRotating && meshGroupRef.current) {
+      if (isRotatingRef.current && meshGroupRef.current) {
         meshGroupRef.current.rotation.y += 0.008;
       }
       renderer.render(scene, camera);
@@ -315,22 +364,18 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
       }
 
       // Safe GPU VRAM release & WebGL context destruction
-      const gl = renderer.getContext();
-      scene.traverse((obj) => {
-        const mesh = obj as THREE.Mesh;
-        if (mesh.geometry) mesh.geometry.dispose();
-        if (mesh.material) {
-          if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((m) => m.dispose());
-          } else {
-            mesh.material.dispose();
-          }
-        }
-      });
+      disposeHierarchy(scene);
       renderer.dispose();
-      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      renderer.getContext().getExtension('WEBGL_lose_context')?.loseContext();
+
+      sceneRef.current = null;
+      rendererRef.current = null;
+      meshGroupRef.current = null;
+      clipPlaneRef.current = null;
+      cameraRef.current = null;
+      materialRef.current = null;
     };
-  }, [modelType, showGrid]); // Scene only rebuilds if fundamental model geometry type changes
+  }, [isInViewport, modelType, showGrid]);
 
   // Slicer change handler
   const handleSliceChange = (val: number) => {
@@ -339,45 +384,62 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
       const maxY = 30;
       clipPlaneRef.current.constant = (val / 100) * maxY;
     }
+    onLayerChange?.(val);
   };
 
   return (
     <div
+      ref={wrapperRef}
       className={`relative bg-surface-inverse select-none rounded-lg overflow-hidden border border-surface-inverse-raised flex flex-col font-sans ${className}`}
     >
+      {/* Standby placeholder when scrolled out of viewport */}
+      {!isInViewport && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-inverse text-on-inverse/60 font-mono text-xs z-10 select-none">
+          <Icon name="view_in_ar" size={28} className="mb-2 text-accent/60 animate-pulse" />
+          <span className="font-bold tracking-wider uppercase text-on-inverse/80">
+            WebGL Standby (±100px)
+          </span>
+          <span className="text-[11px] text-on-inverse/50 mt-1">
+            Cuộn vào khung nhìn để hiển thị mô hình 3D
+          </span>
+        </div>
+      )}
+
       {/* 3D Canvas container */}
-      <div ref={containerRef} className="w-full flex-1 cursor-grab active:cursor-grabbing" />
+      <div ref={canvasContainerRef} className="w-full flex-1 cursor-grab active:cursor-grabbing" />
 
       {/* Optional Minimal Model Badge */}
       {showTitleBadge && (
-        <div className="absolute top-3 left-3 flex items-center gap-2 bg-surface-inverse/85 backdrop-blur-md px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2">
+        <div className="absolute top-3 left-3 flex items-center gap-2 bg-surface-inverse/85 backdrop-blur-md px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2 z-10">
           <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
-          <span className="font-mono text-xs font-bold text-fg-subtle uppercase">
+          <span className="font-mono text-xs font-bold text-on-inverse/90 uppercase tracking-wider">
             {modelType}
           </span>
         </div>
       )}
 
       {/* Top Right: Unified Clean CAD Toolbar */}
-      <div className="absolute top-3 right-3 z-panel pointer-events-auto">
-        <UnifiedCadToolbar
-          isRotating={isRotating}
-          onToggleRotate={() => setIsRotating(!isRotating)}
-          wireframe={wireframe}
-          onToggleWireframe={() => setWireframe(!wireframe)}
-          onResetView={resetView}
-          showAnglePresets={true}
-          activeAngle={activeAngle}
-          onSelectAngle={setCameraAngle}
-        />
-      </div>
+      {isInViewport && (
+        <div className="absolute top-3 right-3 z-panel pointer-events-auto">
+          <UnifiedCadToolbar
+            isRotating={isRotating}
+            onToggleRotate={() => setIsRotating(!isRotating)}
+            wireframe={wireframe}
+            onToggleWireframe={() => setWireframe(!wireframe)}
+            onResetView={resetView}
+            showAnglePresets={true}
+            activeAngle={activeAngle}
+            onSelectAngle={setCameraAngle}
+          />
+        </div>
+      )}
 
       {/* Layer Slicer Slider Bar (Only when explicitly enabled) */}
-      {showLayerSlicer && (
-        <div className="absolute bottom-3 left-3 right-3 bg-surface-inverse/90 backdrop-blur-md px-3.5 py-2 rounded-lg border border-surface-inverse-raised/60 flex items-center justify-between gap-4 text-on-inverse shadow-e3">
+      {isInViewport && showLayerSlicer && (
+        <div className="absolute bottom-3 left-3 right-3 bg-surface-inverse/90 backdrop-blur-md px-3.5 py-2 rounded-lg border border-surface-inverse-raised/60 flex items-center justify-between gap-4 text-on-inverse shadow-e3 z-10">
           <div className="flex items-center gap-2 shrink-0">
             <Icon name="layers" size={18} className="text-accent" />
-            <span className="font-mono text-xs text-fg-subtle">LỚP IN: {currentSlice}%</span>
+            <span className="font-mono text-xs font-bold text-on-inverse/90">LỚP IN: {currentSlice}%</span>
           </div>
           <input
             type="range"
@@ -387,9 +449,11 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
             onChange={(e) => handleSliceChange(Number(e.target.value))}
             className="w-full h-1.5 bg-surface-inverse-raised rounded-full appearance-none cursor-pointer accent-accent"
           />
-          <span className="font-mono text-xs text-fg-subtle shrink-0">0.16mm Layer</span>
+          <span className="font-mono text-xs text-on-inverse/70 shrink-0">0.16mm Layer</span>
         </div>
       )}
     </div>
   );
 };
+
+export default ThreeModelViewer;

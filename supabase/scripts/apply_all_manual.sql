@@ -31,7 +31,7 @@
 --   a) Xem kết quả PHẦN 5 ngay dưới đáy file này (chỉ đọc, in ra PASS/FAIL từng mục).
 --   b) Trong SQL Editor: chạy supabase/diagnostics/verify_admin_settings.sql
 --   c) Trong repo:  node scripts/inspect-db.mjs   (phải đủ 31/31 mục trong
---                   DANH SÁCH ĐỐI CHIẾU của chính script đó; hiện phủ 30 bảng khai báo
+--                   DANH SÁCH ĐỐI CHIẾU của chính script đó; hiện phủ 31 bảng khai báo
 --                   trong 20260901_baseline_schema.sql, cộng view pricing_config)
 --                   node scripts/verify-rls.mjs   (0 FAIL)
 --
@@ -1211,6 +1211,31 @@ comment on column public.order_items.designer_id is
   'uuid của user designer (giống digital_assets.designer_id), chỉ có nghĩa khi seller_type = ''designer''. Không FK.';
 comment on column public.order_items.platform_fee_amount is
   'Phí nền tảng của DÒNG này. Công thức đã chốt: tính trên tiền hàng TRƯỚC thuế, KHÔNG gồm shipping_fee, KHÔNG gồm VAT.';
+
+-- custom_design_requests — Yêu cầu thiết kế CAD tùy chỉnh từ khách hàng gửi tới tác giả
+create table if not exists public.custom_design_requests (
+    id                text primary key default ('req_' || replace(gen_random_uuid()::text, '-', '')),
+    customer_id       uuid references auth.users(id) on delete set null,
+    designer_id       uuid references auth.users(id) on delete set null,
+    title             text not null default '',
+    client_name       text not null default '',
+    client_initials   text not null default '',
+    status            text not null default 'pending'
+                      check (status in ('pending', 'quoted', 'in_progress', 'completed', 'declined')),
+    budget            text not null default '',
+    deadline          text not null default '',
+    service_type      text not null default 'custom_cad',
+    target_specs      jsonb not null default '{"material":"","infill":"","nozzle":""}'::jsonb,
+    reference_files   jsonb not null default '[]'::jsonb,
+    messages          jsonb not null default '[]'::jsonb,
+    unread            boolean not null default false,
+    created_at        timestamptz not null default now(),
+    updated_at        timestamptz not null default now()
+);
+
+comment on table public.custom_design_requests is
+  'Yêu cầu thiết kế CAD tùy chỉnh và luồng trao đổi kỹ thuật, báo giá giữa khách hàng và tác giả.';
+
 -- ==============================================================================
 -- 6. INDEX
 -- ==============================================================================
@@ -1284,7 +1309,9 @@ create index if not exists idx_order_items_product  on public.order_items(produc
 create unique index if not exists uq_kyc_records_one_pending
   on public.kyc_records(user_id) where status = 'pending';
 
-
+create index if not exists idx_custom_design_requests_customer on public.custom_design_requests(customer_id);
+create index if not exists idx_custom_design_requests_designer on public.custom_design_requests(designer_id);
+create index if not exists idx_custom_design_requests_status   on public.custom_design_requests(status);
 
 -- ==============================================================================
 -- 7. BẬT RLS (policy do 20261010_harden_rls.sql tạo)
@@ -1299,7 +1326,8 @@ declare
     'user_profiles','kyc_records','designer_profiles','customer_profiles',
     'workshop_profiles','workshop_machines','workshop_materials',
     'material_inventory_logs','workshop_accessories',
-    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','order_items','workshop_commission_terms'
+    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','order_items','workshop_commission_terms',
+    'custom_design_requests'
   ];
 begin
   foreach t in array v_tables loop
@@ -1396,6 +1424,9 @@ revoke all on public.order_items from anon;
 -- KHÔNG public-read, KHÔNG anon — khác hẳn `workshop_partners` (catalog công khai).
 grant select, insert, update, delete on public.workshop_commission_terms to authenticated;
 revoke all on public.workshop_commission_terms from anon;
+-- custom_design_requests (Đợt 30 — Studio Designer): yêu cầu CAD tuỳ chỉnh.
+grant select, insert, update on public.custom_design_requests to authenticated;
+revoke all on public.custom_design_requests from anon;
 
 
 -- ==============================================================================
@@ -1650,7 +1681,8 @@ declare
 begin
   foreach t in array array['products','materials','printer_fleet','site_content',
                            'pricing_configs','orders','accessories',
-                           'app_settings','pricing_global_settings','order_files'] loop
+                           'app_settings','pricing_global_settings','order_files',
+                           'custom_design_requests'] loop
     begin
       execute format('alter publication supabase_realtime add table public.%I', t);
     exception
@@ -1861,7 +1893,7 @@ commit;
 
 -- ##############################################################################
 -- PHẦN 3/4 — supabase/migrations/20261010_harden_rls.sql
--- HARDEN RLS — toàn bộ policy (84 policy bảng + 6 policy storage). Tự dọn policy cũ/lạ.
+-- HARDEN RLS — toàn bộ policy (90 policy bảng + 6 policy storage). Tự dọn policy cũ/lạ.
 -- ##############################################################################
 
 -- ==============================================================================
@@ -2054,7 +2086,8 @@ declare
     'payment_transactions','workshop_profiles','workshop_machines','workshop_materials',
     'material_inventory_logs','designer_profiles','customer_profiles',
     'pricing_global_settings','workshop_accessories',
-    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms'
+    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms',
+    'custom_design_requests'
   ];
   v_names text[] := array[
     -- products
@@ -2131,7 +2164,8 @@ declare
     'payment_transactions','workshop_profiles','workshop_machines','workshop_materials',
     'material_inventory_logs','designer_profiles','customer_profiles',
     'pricing_global_settings','workshop_accessories',
-    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms'
+    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms',
+    'custom_design_requests'
   ];
 begin
   foreach t in array v_tables loop
@@ -2154,6 +2188,11 @@ begin
       end if;
     end;
   end loop;
+
+  -- Cấp quyền cho custom_design_requests
+  if to_regclass('public.custom_design_requests') is not null then
+    execute 'grant select, insert, update on public.custom_design_requests to authenticated';
+  end if;
 end
 $do$;
 
@@ -2588,6 +2627,30 @@ begin
   --   * Nếu sau này UI xưởng cần "phần tiền của tôi": tạo VIEW `security_invoker` chỉ phơi
   --     các cột KHÔNG nhạy cảm (id, order_id, product_id, quantity, fulfillment) rồi cấp
   --     select theo `assigned_workshop_id` — việc riêng, cần chốt trước khi làm.
+
+  -- ---------- 5.4l custom_design_requests (Đợt 30 — Studio Designer) ----------
+  -- Yêu cầu CAD tuỳ chỉnh. Khách hàng đọc/nộp/sửa yêu cầu của mình.
+  -- Designer và Admin được đọc và cập nhật tiến độ / trao đổi kỹ thuật / gửi báo giá.
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_customer_select', 'select', array['authenticated'],
+    'customer_id::text = (select auth.uid())::text', null);
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_customer_insert', 'insert', array['authenticated'],
+    null, 'customer_id::text = (select auth.uid())::text');
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_customer_update', 'update', array['authenticated'],
+    'customer_id::text = (select auth.uid())::text',
+    'customer_id::text = (select auth.uid())::text');
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_designer_select', 'select', array['authenticated'],
+    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$, null);
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_designer_update', 'update', array['authenticated'],
+    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$,
+    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$);
+  perform public._vcube_make_policy(
+    'custom_design_requests', 'vcube_custom_design_requests_admin_all', 'all', array['authenticated'],
+    'public.is_admin()', 'public.is_admin()');
 
   -- ---------- 5.5 xưởng in (role lab/workshop) quản lý tài sản của chính mình ----------
   -- workshop_machines / workshop_materials: chủ xưởng hoặc admin
@@ -3115,7 +3178,14 @@ declare
     -- Đợt 25: dòng tiền của đơn
     'vcube_order_items_owner_read','vcube_order_items_admin_all',
     'vcube_workshop_commission_terms_admin_all',
-    'vcube_kyc_owner_read','vcube_kyc_owner_insert','vcube_kyc_admin_all'
+    'vcube_kyc_owner_read','vcube_kyc_owner_insert','vcube_kyc_admin_all',
+    -- Đợt 30: custom_design_requests (Studio Designer)
+    'vcube_custom_design_requests_customer_select',
+    'vcube_custom_design_requests_customer_insert',
+    'vcube_custom_design_requests_customer_update',
+    'vcube_custom_design_requests_designer_select',
+    'vcube_custom_design_requests_designer_update',
+    'vcube_custom_design_requests_admin_all'
   ];
   v_tables text[] := array[
     'products','orders','user_profiles','materials','printer_fleet','pricing_config',
@@ -3123,7 +3193,8 @@ declare
     'payment_transactions','workshop_profiles','workshop_machines','workshop_materials',
     'material_inventory_logs','designer_profiles','customer_profiles',
     'pricing_global_settings','workshop_accessories',
-    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms'
+    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms',
+    'custom_design_requests'
   ];
 begin
   for rec in
@@ -3295,11 +3366,11 @@ select id, email, role, kyc_status
 -- nghĩa là migration đã áp đủ. Script này CHỈ ĐỌC: chỉ select trên catalog + đếm.
 -- ⚠️ Các con số "kỳ vọng" bên dưới được TÍNH ĐỘNG lúc sinh file (đếm lệnh create table
 -- if not exists trong 20260901 + đọc allowlist v_keep/v_ok của 20261010), KHÔNG hardcode:
--- tại thời điểm Đợt 10 (W2) là 30 bảng · 84 policy bảng ·
+-- tại thời điểm Đợt 10 (W2) là 31 bảng · 90 policy bảng ·
 -- 6 policy storage. Nếu số khi bạn dán KHÁC "kỳ vọng" ở đây thì
 -- migration CHƯA được áp đủ (hoặc còn policy lạ), KHÔNG phải lỗi của file này.
 
--- 5.1 — Tổng số bảng thật trong schema public (kỳ vọng 30)
+-- 5.1 — Tổng số bảng thật trong schema public (kỳ vọng 31)
 select count(*) as so_bang_public
   from information_schema.tables
  where table_schema = 'public' and table_type = 'BASE TABLE';
@@ -3354,7 +3425,7 @@ select c.relname as bang_chua_bat_rls
   join pg_namespace n on n.oid = c.relnamespace
  where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
--- 5.8 — Số policy đang có (kỳ vọng 84 policy bảng + 6 policy storage)
+-- 5.8 — Số policy đang có (kỳ vọng 90 policy bảng + 6 policy storage)
 select count(*) as so_policy_bang from pg_policies where schemaname = 'public';
 select count(*) as so_policy_storage from pg_policies where schemaname = 'storage';
 

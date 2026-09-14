@@ -44,7 +44,7 @@ export const UnifiedCadToolbar: React.FC<UnifiedCadToolbarProps> = ({
               key={ang}
               type="button"
               onClick={() => onSelectAngle(ang)}
-              className={`px-2 py-0.5 rounded-sm uppercase font-bold transition-colors cursor-pointer ${
+              className={`px-2 py-0.5 rounded-sm uppercase font-bold transition-all active:scale-95 select-none cursor-pointer ${
                 activeAngle === ang
                   ? 'bg-primary text-primary-fg shadow-e1'
                   : 'text-on-inverse/70 hover:text-on-inverse'
@@ -67,7 +67,7 @@ export const UnifiedCadToolbar: React.FC<UnifiedCadToolbarProps> = ({
               ? 'Chuyển sang Phối cảnh (Perspective)'
               : 'Chuyển sang Trục đo phẳng (Orthographic)'
           }
-          className={`p-1.5 rounded-sm hover:bg-surface-inverse-raised transition-colors cursor-pointer ${
+          className={`p-1.5 rounded-md hover:bg-surface-inverse-raised transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
             cameraMode === 'orthographic'
               ? 'text-accent bg-primary/30'
               : 'text-on-inverse/70 hover:text-on-inverse'
@@ -83,7 +83,7 @@ export const UnifiedCadToolbar: React.FC<UnifiedCadToolbarProps> = ({
         type="button"
         onClick={onToggleRotate}
         title={isRotating ? 'Dừng xoay 360°' : 'Bật xoay 360° tự động'}
-        className={`p-1.5 rounded-sm hover:bg-surface-inverse-raised transition-colors cursor-pointer ${
+        className={`p-1.5 rounded-md hover:bg-surface-inverse-raised transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
           isRotating ? 'text-accent bg-primary/30' : 'text-on-inverse/70 hover:text-on-inverse'
         }`}
         aria-label="Toggle auto rotate"
@@ -96,7 +96,7 @@ export const UnifiedCadToolbar: React.FC<UnifiedCadToolbarProps> = ({
         type="button"
         onClick={onToggleWireframe}
         title={wireframe ? 'Chế độ Đặc (Solid)' : 'Chế độ Khung dây (Wireframe)'}
-        className={`p-1.5 rounded-sm hover:bg-surface-inverse-raised transition-colors cursor-pointer ${
+        className={`p-1.5 rounded-md hover:bg-surface-inverse-raised transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
           wireframe ? 'text-accent bg-primary/30' : 'text-on-inverse/70 hover:text-on-inverse'
         }`}
         aria-label="Toggle wireframe"
@@ -109,7 +109,7 @@ export const UnifiedCadToolbar: React.FC<UnifiedCadToolbarProps> = ({
         type="button"
         onClick={onResetView}
         title="Đặt lại góc nhìn chuẩn (Center Focus)"
-        className="p-1.5 rounded-sm hover:bg-surface-inverse-raised text-on-inverse/70 hover:text-on-inverse transition-colors cursor-pointer"
+        className="p-1.5 rounded-md hover:bg-surface-inverse-raised text-on-inverse/70 hover:text-on-inverse transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         aria-label="Reset camera"
       >
         <Icon name="center_focus_strong" size={18} />
@@ -121,7 +121,7 @@ export const UnifiedCadToolbar: React.FC<UnifiedCadToolbarProps> = ({
           type="button"
           onClick={onToggleFullscreen}
           title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Xem toàn màn hình'}
-          className="p-1.5 rounded-sm hover:bg-surface-inverse-raised text-on-inverse/70 hover:text-on-inverse transition-colors cursor-pointer"
+          className="p-1.5 rounded-md hover:bg-surface-inverse-raised text-on-inverse/70 hover:text-on-inverse transition-all active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           aria-label="Toggle fullscreen"
         >
           <Icon name={isFullscreen ? 'fullscreen_exit' : 'fullscreen'} size={18} />

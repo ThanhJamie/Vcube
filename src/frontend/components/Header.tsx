@@ -201,7 +201,7 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-pressed={language === 'vi'}
                 className={`px-2.5 py-1 rounded-full transition-all leading-none cursor-pointer ${
                   language === 'vi'
-                    ? 'bg-surface-inverse text-on-inverse shadow-e1'
+                    ? 'bg-primary text-primary-fg shadow-e1'
                     : 'text-fg-muted hover:text-fg hover:bg-surface'
                 }`}
               >
@@ -215,7 +215,7 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-pressed={language === 'en'}
                 className={`px-2.5 py-1 rounded-full transition-all leading-none cursor-pointer ${
                   language === 'en'
-                    ? 'bg-surface-inverse text-on-inverse shadow-e1'
+                    ? 'bg-primary text-primary-fg shadow-e1'
                     : 'text-fg-muted hover:text-fg hover:bg-surface'
                 }`}
               >
@@ -372,7 +372,7 @@ export const Header: React.FC<HeaderProps> = ({
                   aria-pressed={language === 'vi'}
                   className={`py-2 px-3 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                     language === 'vi'
-                      ? 'bg-surface-inverse text-on-inverse'
+                      ? 'bg-primary text-primary-fg shadow-e1'
                       : 'bg-surface text-fg hover:bg-canvas'
                   }`}
                 >
@@ -384,7 +384,7 @@ export const Header: React.FC<HeaderProps> = ({
                   aria-pressed={language === 'en'}
                   className={`py-2 px-3 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                     language === 'en'
-                      ? 'bg-surface-inverse text-on-inverse'
+                      ? 'bg-primary text-primary-fg shadow-e1'
                       : 'bg-surface text-fg hover:bg-canvas'
                   }`}
                 >
@@ -460,7 +460,7 @@ export const Header: React.FC<HeaderProps> = ({
                               onClick={() => handleDemoRoleSwitch(r)}
                               className={`py-1.5 text-xs font-bold rounded-full uppercase tracking-wider transition-all ${
                                 role === r
-                                  ? 'bg-surface-inverse text-on-inverse shadow-e0'
+                                  ? 'bg-primary text-primary-fg shadow-e0'
                                   : 'bg-surface text-fg-muted hover:bg-canvas'
                               }`}
                             >

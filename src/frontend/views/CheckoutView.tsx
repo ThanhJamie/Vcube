@@ -8,7 +8,7 @@ import { useCartStore } from '../stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
-import { Icon } from '@frontend/ui';
+import { Icon, Button } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
 import { OrderService } from '../../backend/services/orderService';
 
@@ -683,7 +683,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-12 h-12 rounded-md object-cover border border-line bg-surface-inverse shrink-0"
+                      className="w-12 h-12 rounded-md object-cover border border-line bg-surface-muted shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-fg truncate text-xs">{item.name}</p>
@@ -761,14 +761,17 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               )}
 
               {/* Submit Button */}
-              <button
+              <Button
                 type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
                 disabled={isProcessing}
-                className="w-full py-4 bg-primary hover:bg-primary-hover text-primary-fg font-mono font-bold text-xs uppercase tracking-wider rounded-full transition-all shadow-e2 flex items-center justify-center gap-2 cursor-pointer touch-target-btn active:scale-95 disabled:opacity-50"
+                className="font-mono font-bold text-xs uppercase tracking-wider shadow-e2"
+                leadingIcon={<Icon name={isProcessing ? 'hourglass_top' : 'check_circle'} size={18} />}
               >
-                <Icon name={isProcessing ? 'hourglass_top' : 'check_circle'} size={18} />
                 <span>{isProcessing ? 'ĐANG KHỞI TẠO ĐƠN HÀNG...' : 'XÁC NHẬN & TẠO ĐƠN HÀNG'}</span>
-              </button>
+              </Button>
 
               <p className="text-xs font-mono text-center text-fg-subtle leading-snug">
                 Bằng việc xác nhận đặt hàng, bạn đồng ý với Điều khoản Chế tác & Bản quyền thương mại của VCUBE.

@@ -1106,6 +1106,31 @@ comment on column public.order_items.designer_id is
   'uuid của user designer (giống digital_assets.designer_id), chỉ có nghĩa khi seller_type = ''designer''. Không FK.';
 comment on column public.order_items.platform_fee_amount is
   'Phí nền tảng của DÒNG này. Công thức đã chốt: tính trên tiền hàng TRƯỚC thuế, KHÔNG gồm shipping_fee, KHÔNG gồm VAT.';
+
+-- custom_design_requests — Yêu cầu thiết kế CAD tùy chỉnh từ khách hàng gửi tới tác giả
+create table if not exists public.custom_design_requests (
+    id                text primary key default ('req_' || replace(gen_random_uuid()::text, '-', '')),
+    customer_id       uuid references auth.users(id) on delete set null,
+    designer_id       uuid references auth.users(id) on delete set null,
+    title             text not null default '',
+    client_name       text not null default '',
+    client_initials   text not null default '',
+    status            text not null default 'pending'
+                      check (status in ('pending', 'quoted', 'in_progress', 'completed', 'declined')),
+    budget            text not null default '',
+    deadline          text not null default '',
+    service_type      text not null default 'custom_cad',
+    target_specs      jsonb not null default '{"material":"","infill":"","nozzle":""}'::jsonb,
+    reference_files   jsonb not null default '[]'::jsonb,
+    messages          jsonb not null default '[]'::jsonb,
+    unread            boolean not null default false,
+    created_at        timestamptz not null default now(),
+    updated_at        timestamptz not null default now()
+);
+
+comment on table public.custom_design_requests is
+  'Yêu cầu thiết kế CAD tùy chỉnh và luồng trao đổi kỹ thuật, báo giá giữa khách hàng và tác giả.';
+
 -- ==============================================================================
 -- 6. INDEX
 -- ==============================================================================
@@ -1179,7 +1204,9 @@ create index if not exists idx_order_items_product  on public.order_items(produc
 create unique index if not exists uq_kyc_records_one_pending
   on public.kyc_records(user_id) where status = 'pending';
 
-
+create index if not exists idx_custom_design_requests_customer on public.custom_design_requests(customer_id);
+create index if not exists idx_custom_design_requests_designer on public.custom_design_requests(designer_id);
+create index if not exists idx_custom_design_requests_status   on public.custom_design_requests(status);
 
 -- ==============================================================================
 -- 7. BẬT RLS (policy do 20261010_harden_rls.sql tạo)
@@ -1194,7 +1221,8 @@ declare
     'user_profiles','kyc_records','designer_profiles','customer_profiles',
     'workshop_profiles','workshop_machines','workshop_materials',
     'material_inventory_logs','workshop_accessories',
-    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','order_items','workshop_commission_terms'
+    'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','order_items','workshop_commission_terms',
+    'custom_design_requests'
   ];
 begin
   foreach t in array v_tables loop
@@ -1291,6 +1319,9 @@ revoke all on public.order_items from anon;
 -- KHÔNG public-read, KHÔNG anon — khác hẳn `workshop_partners` (catalog công khai).
 grant select, insert, update, delete on public.workshop_commission_terms to authenticated;
 revoke all on public.workshop_commission_terms from anon;
+-- custom_design_requests (Đợt 30 — Studio Designer): yêu cầu CAD tuỳ chỉnh.
+grant select, insert, update on public.custom_design_requests to authenticated;
+revoke all on public.custom_design_requests from anon;
 
 
 -- ==============================================================================
@@ -1545,7 +1576,8 @@ declare
 begin
   foreach t in array array['products','materials','printer_fleet','site_content',
                            'pricing_configs','orders','accessories',
-                           'app_settings','pricing_global_settings','order_files'] loop
+                           'app_settings','pricing_global_settings','order_files',
+                           'custom_design_requests'] loop
     begin
       execute format('alter publication supabase_realtime add table public.%I', t);
     exception
