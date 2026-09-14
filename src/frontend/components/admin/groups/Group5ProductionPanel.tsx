@@ -87,10 +87,11 @@ const orderToProductionJob = (order: Order): ProductionJob => {
   const address = order.shippingAddress || ({} as Order['shippingAddress']);
   const stageIndex = stageIndexOf(order);
   const stage = KANBAN_STAGES[stageIndex];
+  // `orders.items` là jsonb: cột nào thiếu thì hiện `—`, không để chuỗi "undefined" lọt lên thẻ.
   const summary = items.length
     ? `${items
         .slice(0, 3)
-        .map((i) => `${i.name} ×${i.quantity}`)
+        .map((i) => `${i.name || EMPTY_VALUE} ×${typeof i.quantity === 'number' ? i.quantity : EMPTY_VALUE}`)
         .join(', ')}${items.length > 3 ? ` +${items.length - 3}` : ''}`
     : null;
   const firstInfill = items.find((i) => (i.infill || '').trim());
