@@ -1,11 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth, DEMO_ACCOUNTS } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
+import { Icon } from '@frontend/ui';
+
+/**
+ * Chuc nang "Quen mat khau" TAM AN.
+ *
+ * Ly do: repo chua co dich vu gui mail; `resetPasswordForEmail` phu thuoc SMTP cua
+ * Supabase Auth (Dashboard -> Authentication -> Email) va chua duoc xac nhan.
+ * Bat lai: cau hinh SMTP trong Dashboard, roi doi co nay thanh `true`.
+ * Quyet dinh + audit: docs/plans/09-admin-settings.md SS8.
+ */
+export const ENABLE_PASSWORD_RESET = false;
+
+/**
+ * D7 — Google OAuth TAM GAC. Project CHUA bat Google provider trong Supabase Dashboard,
+ * nen bam nut Google se di vao cho loi. Nut VAN CON trong code (khong xoa) nhung bi chan
+ * boi co nay. Bat lai: cau hinh provider Google, roi doi co nay thanh `true`.
+ * Quyet dinh: docs/plans/22-backlog-and-decisions.md (D7).
+ */
+export const ENABLE_GOOGLE_OAUTH = false;
+
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialMode?: 'signin' | 'signup' | 'role_select' | 'account';
+  initialMode?: 'signin' | 'signup' | 'account';
   onSuccess?: (msg: string) => void;
 }
 
@@ -15,25 +35,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   initialMode = 'signin',
   onSuccess,
 }) => {
-  const { 
+  const {
     user,
     profile,
     role: currentRole,
     isLoggedIn,
-    signInWithEmail, 
-    signUpWithEmail, 
-    signInWithGoogle, 
-    switchDemoRole, 
+    signInWithEmail,
+    signUpWithEmail,
+    signInWithGoogle,
     sendPasswordReset,
-    logout 
+    logout
   } = useAuth();
 
-  const [mode, setMode] = useState<'signin' | 'signup' | 'role_select' | 'account' | 'forgot_password'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'account' | 'forgot_password'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('customer');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +65,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setError(null);
       setSuccessInfo(null);
       setShowLogoutConfirm(false);
+      // Bản phát hành KHÔNG có công cụ đổi góc nhìn: nút demo và màn chọn vai trò đã bị
+      // xoá hẳn (N3), nên không còn nhánh nào render danh sách vai trò.
       if (initialMode === 'account' || (isLoggedIn && initialMode === 'signin')) {
         setMode('account');
       } else {
@@ -68,20 +88,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (onSuccess) onSuccess('Đăng nhập thành công vào hệ thống VCUBE!');
       onClose();
     } catch (err: any) {
-      console.error('Sign in error:', err);
-      if (
-        err.code === 'auth/user-not-found' ||
-        err.code === 'auth/wrong-password' ||
-        err.code === 'auth/invalid-credential'
-      ) {
-        setError('Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.');
-      } else if (err.code === 'auth/too-many-requests') {
-        setError('Quá nhiều lần thử không thành công. Vui lòng thử lại sau vài phút.');
-      } else if (err.code === 'auth/operation-not-allowed') {
-        setError('Nhà cung cấp xác thực đang được cấu hình. Đã tự động kích hoạt phiên demo an toàn.');
-      } else {
-        setError(err.message || 'Đăng nhập không thành công. Vui lòng thử lại.');
-      }
+      // signInWithEmail đã dịch lỗi Supabase sang thông báo tiếng Việt; giữ nguyên nó.
+      setError(err?.message || 'Đăng nhập không thành công. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -107,18 +115,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setLoading(true);
     try {
-      await signUpWithEmail(email, password, fullName, selectedRole);
-      if (onSuccess) onSuccess(`Đăng ký thành công với quyền ${selectedRole.toUpperCase()}!`);
-      onClose();
-    } catch (err: any) {
-      console.error('Sign up error:', err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError('Địa chỉ email này đã được sử dụng. Vui lòng chọn email khác hoặc đăng nhập.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('Mật khẩu quá yếu. Vui lòng bổ sung thêm chữ số hoặc ký tự đặc biệt.');
+      // Vai trò KHÔNG do người đăng ký chọn: trigger fn_create_profile_for_new_user()
+      // luôn tạo 'customer' trong public.user_profiles.role (SQL là nơi quyết định quyền).
+      const result = await signUpWithEmail(email, password, fullName);
+      if (result.hasSession) {
+        // Có phiên thật ⇒ mới được nói "đã đăng nhập".
+        if (onSuccess) onSuccess('Đăng ký thành công — bạn đã được đăng nhập.');
+        onClose();
       } else {
-        setError(err.message || 'Có lỗi xảy ra trong quá trình tạo tài khoản.');
+        // Không có phiên (dự án bật xác nhận email) ⇒ KHÔNG hứa đã có quyền/đã đăng nhập.
+        setSuccessInfo('Đã gửi yêu cầu đăng ký — kiểm tra email để xác nhận rồi đăng nhập.');
+        setPassword('');
+        setConfirmPassword('');
       }
+    } catch (err: any) {
+      setError(err?.message || 'Có lỗi xảy ra trong quá trình tạo tài khoản.');
     } finally {
       setLoading(false);
     }
@@ -149,30 +160,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessInfo(null);
     setLoading(true);
     try {
-      await signInWithGoogle(selectedRole);
-      if (onSuccess) onSuccess('Đăng nhập bằng Google ID thành công!');
+      await signInWithGoogle();
+      if (onSuccess) onSuccess('Đang chuyển sang Google để xác thực…');
       onClose();
     } catch (err: any) {
-      console.error('Google login error:', err);
       setError(err.message || 'Không thể đăng nhập bằng Google.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectQuickDemo = async (targetRole: UserRole) => {
-    setLoading(true);
-    setError(null);
-    try {
-      await switchDemoRole(targetRole);
-      if (onSuccess) onSuccess(`Đã chuyển phiên làm việc sang: ${targetRole.toUpperCase()}`);
-      onClose();
-    } catch (err: any) {
-      setError('Lỗi khi chuyển vai trò thử nghiệm.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleLogout = async () => {
     setLoading(true);
@@ -187,18 +184,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setEmail('');
       setPassword('');
     } catch (err: any) {
-      console.error('Logout error:', err);
       setError('Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
-  };
-
-  // Quick helper to fill demo credentials in login box
-  const handleQuickFill = (accEmail: string, accPass: string = 'Password123!@') => {
-    setEmail(accEmail);
-    setPassword(accPass);
-    setError(null);
   };
 
   const getRoleBadgeInfo = (r: UserRole) => {
@@ -206,23 +195,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       case 'admin':
         return {
           label: 'Quản Trị Viên (Admin)',
-          badgeClass: 'bg-purple-100 text-purple-800 border-purple-200',
+          badgeClass: 'bg-info-tint text-info',
           icon: 'admin_panel_settings',
-          color: 'text-purple-700',
+          color: 'text-info',
         };
       case 'designer':
         return {
           label: 'Tác Giả 3D (Creator)',
-          badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
+          badgeClass: 'bg-warning-tint text-warning',
           icon: 'design_services',
-          color: 'text-amber-700',
+          color: 'text-warning',
+        };
+      case 'lab':
+        return {
+          label: 'Xưởng In MES (Lab Hub)',
+          badgeClass: 'bg-positive-tint text-positive',
+          icon: 'precision_manufacturing',
+          color: 'text-positive',
         };
       default:
         return {
           label: 'Khách Hàng (Customer)',
-          badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
+          badgeClass: 'bg-primary-tint text-primary',
           icon: 'person',
-          color: 'text-blue-700',
+          color: 'text-primary',
         };
     }
   };
@@ -230,24 +226,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const activeRoleBadge = getRoleBadgeInfo(currentRole);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-modal flex items-center justify-center p-3 sm:p-4">
       {/* Backdrop */}
-      <div 
-        onClick={onClose} 
-        className="fixed inset-0 bg-[#091426]/75 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+      <div
+        onClick={onClose}
+        className="fixed inset-0 bg-surface-inverse/75 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
       />
 
       {/* Modal Container */}
-      <div className="relative bg-white border border-[#CBD5E1] w-full max-w-2xl shadow-2xl rounded-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
+      <div className="relative bg-surface w-full max-w-2xl shadow-e3 rounded-lg z-sticky overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="bg-[#091426] text-white px-6 py-5 border-b border-[#1E293B] shrink-0">
+        <div className="bg-surface-inverse text-on-inverse px-6 py-5 border-b border-line shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00687A] to-[#0E7490] flex items-center justify-center font-bold text-white shadow-md">
-                <span className="material-symbols-outlined text-xl">view_in_ar</span>
+              <div className="w-9 h-9 rounded-md bg-primary flex items-center justify-center text-primary-fg shadow-e2">
+                <Icon name="view_in_ar" size={24} />
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-display font-black text-xl tracking-tight uppercase italic text-white">VCUBE HUBS</span>
+                <span className="font-display font-black text-xl tracking-tight uppercase italic text-on-inverse">VCUBE HUBS</span>
               </div>
             </div>
 
@@ -258,30 +254,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   type="button"
                   onClick={() => setShowLogoutConfirm(true)}
                   title="Đăng xuất khỏi tài khoản"
-                  className="px-3 py-1.5 text-xs font-bold text-rose-300 hover:text-white bg-rose-950/50 hover:bg-rose-700/80 border border-rose-800/60 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer mr-1"
+                  className="px-3 py-1.5 text-xs font-bold text-danger bg-danger-tint hover:bg-canvas rounded-full flex items-center gap-1.5 transition-colors cursor-pointer mr-1"
                 >
-                  <span className="material-symbols-outlined text-sm">logout</span>
+                  <Icon name="logout" size={18} />
                   <span className="hidden sm:inline">Đăng Xuất</span>
                 </button>
               )}
               <button
                 onClick={onClose}
-                className="text-[#94A3B8] hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
+                className="text-on-inverse/70 hover:text-on-inverse transition-colors p-1.5 rounded-full hover:bg-on-inverse/10 cursor-pointer"
                 aria-label="Đóng popup"
               >
-                <span className="material-symbols-outlined text-2xl">close</span>
+                <Icon name="close" size={28} />
               </button>
             </div>
           </div>
 
           {/* Active Logged-in Mini Status Bar */}
           {isLoggedIn && (
-            <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-xs bg-white/5 px-3.5 py-2 rounded-lg">
+            <div className="mt-3.5 pt-2.5 border-t border-line flex items-center justify-between text-xs bg-on-inverse/5 px-3.5 py-2 rounded-lg">
               <div className="flex items-center gap-2 truncate">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                <span className="text-[#94A3B8] text-xs">Đang đăng nhập:</span>
-                <span className="font-bold text-white truncate text-xs">{profile?.displayName || user?.user_metadata?.full_name || 'Thành viên'}</span>
-                <span className={`text-[9px] font-tech uppercase px-2 py-0.5 rounded font-bold border ${activeRoleBadge.badgeClass}`}>
+                <span className="w-2 h-2 rounded-full bg-positive animate-pulse shrink-0"></span>
+                <span className="text-on-inverse/70 text-xs">Đang đăng nhập:</span>
+                <span className="font-bold text-on-inverse truncate text-xs">{profile?.displayName || user?.user_metadata?.full_name || 'Thành viên'}</span>
+                <span className={`text-xs font-tech uppercase px-2 py-0.5 rounded-full font-bold ${activeRoleBadge.badgeClass}`}>
                   {currentRole}
                 </span>
               </div>
@@ -291,7 +287,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   setMode(mode === 'account' ? 'signin' : 'account');
                   setError(null);
                 }}
-                className="text-xs text-[#57DFFE] hover:underline font-bold shrink-0 ml-2 cursor-pointer"
+                className="text-xs text-accent hover:underline font-bold shrink-0 ml-2 cursor-pointer"
               >
                 {mode === 'account' ? 'Đổi tài khoản' : 'Xem tài khoản'}
               </button>
@@ -300,19 +296,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Mode Tabs */}
-        <div className="px-6 pt-5 pb-0 bg-white shrink-0">
-          <div className="flex p-1 bg-[#F1F5F9] rounded-xl text-xs font-sans font-bold">
+        <div className="px-6 pt-5 pb-0 bg-surface shrink-0">
+          <div className="flex p-1 bg-surface-muted rounded-full text-xs font-sans font-bold">
             {isLoggedIn && (
               <button
                 type="button"
                 onClick={() => { setMode('account'); setError(null); setSuccessInfo(null); }}
-                className={`flex-1 py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  mode === 'account' 
-                    ? 'bg-white text-[#00687A] shadow-xs font-bold' 
-                    : 'text-[#64748B] hover:text-[#091426]'
+                className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  mode === 'account'
+                    ? 'bg-surface text-primary shadow-e1 font-bold'
+                    : 'text-fg-subtle hover:text-fg'
                 }`}
               >
-                <span className="material-symbols-outlined text-base">account_circle</span>
+                <Icon name="account_circle" size={18} />
                 <span>Tài Khoản</span>
               </button>
             )}
@@ -320,26 +316,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               onClick={() => { setMode('signin'); setError(null); setSuccessInfo(null); }}
-              className={`flex-1 py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                mode === 'signin' 
-                  ? 'bg-white text-[#00687A] shadow-xs font-bold' 
-                  : 'text-[#64748B] hover:text-[#091426]'
+              className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                mode === 'signin'
+                  ? 'bg-surface text-primary shadow-e1 font-bold'
+                  : 'text-fg-subtle hover:text-fg'
               }`}
             >
-              <span className="material-symbols-outlined text-base">login</span>
+              <Icon name="login" size={18} />
               <span>{isLoggedIn ? 'Đổi Tài Khoản' : 'Đăng Nhập'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => { setMode('signup'); setError(null); setSuccessInfo(null); }}
-              className={`flex-1 py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                mode === 'signup' 
-                  ? 'bg-white text-[#00687A] shadow-xs font-bold' 
-                  : 'text-[#64748B] hover:text-[#091426]'
+              className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                mode === 'signup'
+                  ? 'bg-surface text-primary shadow-e1 font-bold'
+                  : 'text-fg-subtle hover:text-fg'
               }`}
             >
-              <span className="material-symbols-outlined text-base">person_add</span>
+              <Icon name="person_add" size={18} />
               <span>Đăng Ký</span>
             </button>
           </div>
@@ -349,33 +345,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="p-6 sm:p-8 overflow-y-auto flex-1 space-y-5">
           {/* Notifications */}
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-md flex items-start gap-2 animate-in fade-in duration-150">
-              <span className="material-symbols-outlined text-base shrink-0 mt-0.5 text-rose-600">error</span>
+            <div className="p-3 bg-danger-tint text-danger text-xs rounded-md flex items-start gap-2 animate-in fade-in duration-150">
+              <Icon name="error" size={18} className="shrink-0 mt-0.5 text-danger" />
               <div className="flex-1 leading-relaxed">{error}</div>
-              <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-700">
-                <span className="material-symbols-outlined text-sm">close</span>
+              <button aria-label="Đóng" onClick={() => setError(null)} className="text-danger/70 hover:text-danger cursor-pointer">
+                <Icon name="close" size={18} />
               </button>
             </div>
           )}
 
           {successInfo && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-md flex items-start gap-2 animate-in fade-in duration-150">
-              <span className="material-symbols-outlined text-base shrink-0 mt-0.5 text-emerald-600">check_circle</span>
+            <div className="p-3 bg-positive-tint text-positive text-xs rounded-md flex items-start gap-2 animate-in fade-in duration-150">
+              <Icon name="check_circle" size={18} className="shrink-0 mt-0.5 text-positive" />
               <div className="flex-1 leading-relaxed">{successInfo}</div>
-              <button onClick={() => setSuccessInfo(null)} className="text-emerald-500 hover:text-emerald-800">
-                <span className="material-symbols-outlined text-sm">close</span>
+              <button aria-label="Đóng" onClick={() => setSuccessInfo(null)} className="text-positive hover:text-positive cursor-pointer">
+                <Icon name="close" size={18} />
               </button>
             </div>
           )}
 
           {/* LOGOUT CONFIRMATION MODAL / PANEL */}
           {showLogoutConfirm && (
-            <div className="p-4 bg-rose-50/90 border border-rose-300 rounded-lg space-y-3 animate-in zoom-in-95 duration-150">
-              <div className="flex items-center gap-2.5 text-rose-900 font-bold text-sm">
-                <span className="material-symbols-outlined text-rose-600">warning</span>
+            <div className="p-4 bg-danger-tint rounded-lg space-y-3 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-2.5 text-danger font-bold text-sm">
+                <Icon name="warning" size={24} className="text-danger" />
                 <span>Xác nhận đăng xuất tài khoản</span>
               </div>
-              <p className="text-xs text-rose-800 leading-relaxed">
+              <p className="text-xs text-danger leading-relaxed">
                 Bạn có chắc chắn muốn đăng xuất khỏi tài khoản{' '}
                 <strong className="font-semibold">{profile?.displayName || user?.user_metadata?.full_name || 'hiện tại'}</strong>{' '}
                 ({profile?.email || user?.email})?
@@ -385,19 +381,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   type="button"
                   onClick={handleLogout}
                   disabled={loading}
-                  className="flex-1 py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs uppercase tracking-wider rounded transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                  className="flex-1 py-2 px-3 bg-danger hover:bg-danger text-on-inverse font-bold text-xs uppercase tracking-wider rounded-full transition-colors flex items-center justify-center gap-1.5 shadow-e1 cursor-pointer"
                 >
                   {loading ? (
-                    <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+                    <Icon name="sync" size={18} className="animate-spin" />
                   ) : (
-                    <span className="material-symbols-outlined text-sm">logout</span>
+                    <Icon name="logout" size={18} />
                   )}
                   Đăng Xuất Ngay
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowLogoutConfirm(false)}
-                  className="px-4 py-2 bg-white border border-rose-300 hover:bg-rose-100/50 text-rose-800 font-semibold text-xs rounded transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-surface hover:bg-canvas text-fg font-semibold text-xs rounded-full transition-colors cursor-pointer"
                 >
                   Hủy bỏ
                 </button>
@@ -411,49 +407,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {mode === 'account' && (
             <div className="space-y-4 animate-in fade-in duration-150">
               {/* Profile Card */}
-              <div className="p-4 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] space-y-3">
+              <div className="p-4 rounded-lg bg-surface-muted space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-lg text-white shadow-xs ${
-                      currentRole === 'admin' ? 'bg-purple-800' : currentRole === 'designer' ? 'bg-amber-600' : 'bg-[#00687A]'
-                    }`}>
+                    <div className="w-12 h-12 rounded-md flex items-center justify-center font-bold text-lg text-primary-fg shadow-e1 bg-primary">
                       {profile?.displayName ? profile.displayName.charAt(0).toUpperCase() : 'V'}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-sm text-[#091426]">
-                          {profile?.displayName || user?.user_metadata?.full_name || 'Khách Mua Hàng'}
+                        <h4 className="font-bold text-sm text-fg">
+                          {profile?.displayName || user?.user_metadata?.full_name || 'Thành viên VCUBE'}
                         </h4>
-                        <span className={`text-[9px] font-tech uppercase px-2 py-0.5 rounded font-bold border ${activeRoleBadge.badgeClass}`}>
+                        <span className={`text-xs font-tech uppercase px-2 py-0.5 rounded-full font-bold ${activeRoleBadge.badgeClass}`}>
                           {activeRoleBadge.label}
                         </span>
                       </div>
-                      <p className="text-xs text-[#64748B] font-mono mt-0.5">
-                        {profile?.email || user?.email || 'guest@vcube.vn'}
+                      <p className="text-xs text-fg-subtle font-mono mt-0.5">
+                        {profile?.email || user?.email || '—'}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E2E8F0] text-[11px]">
-                  <div className="p-2 rounded bg-white border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block text-[10px] uppercase font-tech">Phương thức xác thực:</span>
-                    <span className="font-semibold text-[#091426]">
-                      {user?.app_metadata?.provider === 'google' ? 'Google OAuth' : user ? 'Supabase Auth' : 'Phiên làm việc nội bộ'}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line-subtle text-xs">
+                  <div className="p-2 rounded-sm bg-surface">
+                    <span className="text-fg-subtle block text-xs uppercase font-tech">Phương thức xác thực:</span>
+                    <span className="font-semibold text-fg">
+                      {user?.app_metadata?.provider === 'google' ? 'Google OAuth' : user ? 'Supabase Auth' : '—'}
                     </span>
                   </div>
-                  <div className="p-2 rounded bg-white border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block text-[10px] uppercase font-tech">Trạng thái tài khoản:</span>
-                    <span className="font-semibold text-emerald-700 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <div className="p-2 rounded-sm bg-surface">
+                    <span className="text-fg-subtle block text-xs uppercase font-tech">Trạng thái tài khoản:</span>
+                    <span className="font-semibold text-positive flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-positive"></span>
                       Đang hoạt động (Active)
                     </span>
                   </div>
                 </div>
 
                 {profile?.company && (
-                  <p className="text-[11px] text-[#64748B] italic">
-                    Tổ chức / Đơn vị: <strong className="text-[#091426] not-italic">{profile.company}</strong>
+                  <p className="text-xs text-fg-subtle italic">
+                    Tổ chức / Đơn vị: <strong className="text-fg not-italic">{profile.company}</strong>
                   </p>
                 )}
               </div>
@@ -464,9 +458,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowLogoutConfirm(true)}
-                  className="w-full py-2.5 px-4 bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 text-rose-700 hover:text-white font-sans text-xs font-bold uppercase tracking-wider rounded-md transition-all flex items-center justify-center gap-2 shadow-xs group cursor-pointer"
+                  className="w-full py-2.5 px-4 bg-danger-tint hover:bg-danger text-danger hover:text-on-inverse font-sans text-xs font-bold uppercase tracking-wider rounded-full transition-all flex items-center justify-center gap-2 shadow-e1 group cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-base group-hover:text-white transition-colors">logout</span>
+                  <Icon name="logout" size={18} className="group-hover:text-on-inverse transition-colors" />
                   <span>Đăng Xuất Khỏi Thiết Bị Này</span>
                 </button>
 
@@ -474,9 +468,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <button
                     type="button"
                     onClick={() => { setMode('signin'); setError(null); }}
-                    className="w-full py-2 px-3 border border-[#CBD5E1] hover:border-[#00687A] hover:bg-[#F8FAFC] text-xs font-bold text-[#091426] rounded-md transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2 px-3 bg-surface hover:bg-surface-muted text-xs font-bold text-fg rounded-full transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-sm text-[#00687A]">swap_horiz</span>
+                    <Icon name="swap_horiz" size={18} className="text-primary" />
                     <span>Đổi Tài Khoản Khác</span>
                   </button>
                 </div>
@@ -491,15 +485,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="space-y-4 animate-in fade-in duration-150">
               {/* Notice if already logged in */}
               {isLoggedIn && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 text-amber-900">
-                    <span className="material-symbols-outlined text-amber-600 text-base">info</span>
+                <div className="p-3 bg-warning-tint rounded-md flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-warning">
+                    <Icon name="info" size={18} className="text-warning" />
                     <span>Bạn đang đăng nhập: <strong>{profile?.displayName}</strong></span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowLogoutConfirm(true)}
-                    className="text-rose-600 hover:text-rose-800 font-bold underline text-[11px] cursor-pointer"
+                    className="text-danger hover:text-danger font-bold underline text-xs cursor-pointer"
                   >
                     Đăng xuất
                   </button>
@@ -508,69 +502,70 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <form onSubmit={handleSignInSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#334155] mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-fg-muted mb-2">
                     Email hoặc Mã định danh
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3.5 top-3 text-[#64748B] text-[20px]">
-                      account_circle
-                    </span>
+                    <Icon name="account_circle" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
                     <input
                       type="text"
                       required
                       placeholder="name@domain.vn hoặc UID-xxxxx"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00687A] focus:ring-2 focus:ring-[#00687A]/15 outline-none transition font-sans"
+                      className="w-full pl-11 pr-4 py-3 bg-surface-muted border border-line-subtle rounded-md text-sm text-fg placeholder-fg-subtle focus:bg-surface focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition font-sans"
                     />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#334155]">
+                    <label className="text-xs font-bold uppercase tracking-wider text-fg-muted">
                       Mật khẩu
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => { setMode('forgot_password'); setError(null); }}
-                      className="text-xs text-[#00687A] hover:underline font-semibold cursor-pointer"
-                    >
-                      Quên mật khẩu?
-                    </button>
+                    {ENABLE_PASSWORD_RESET && (
+                      <button
+                        type="button"
+                        onClick={() => { setMode('forgot_password'); setError(null); }}
+                        className="text-xs text-primary hover:underline font-semibold cursor-pointer"
+                      >
+                        Quên mật khẩu?
+                      </button>
+                    )}
+                    {/* Cờ reset đang tắt ⇒ chữ tĩnh thay nút, không link/alert, không hotline bịa. */}
+                    {!ENABLE_PASSWORD_RESET && (
+                      <span className="text-fg-muted text-xs">Quên mật khẩu? Liên hệ hỗ trợ</span>
+                    )}
                   </div>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3.5 top-3 text-[#64748B] text-[20px]">
-                      lock
-                    </span>
+                    <Icon name="lock" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
                       placeholder="Nhập mật khẩu truy cập"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-11 pr-11 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00687A] focus:ring-2 focus:ring-[#00687A]/15 outline-none transition font-sans"
+                      className="w-full pl-11 pr-11 py-3 bg-surface-muted border border-line-subtle rounded-md text-sm text-fg placeholder-fg-subtle focus:bg-surface focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition font-sans"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-3 text-[#64748B] hover:text-[#0F172A] transition cursor-pointer"
+                      className="absolute right-3.5 top-3 text-fg-subtle hover:text-fg transition cursor-pointer"
                       title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                     >
-                      <span className="material-symbols-outlined text-[20px]">
-                        {showPassword ? 'visibility_off' : 'visibility'}
-                      </span>
+                      <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={20} />
                     </button>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-[#334155] font-medium">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-fg-muted font-medium">
                     <input
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded text-[#00687A] border-[#CBD5E1] focus:ring-[#00687A] cursor-pointer"
+                      className="w-4 h-4 rounded-sm text-primary border-line focus:ring-primary cursor-pointer"
                     />
                     <span>Ghi nhớ đăng nhập</span>
                   </label>
@@ -579,60 +574,63 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 px-5 bg-[#091426] hover:bg-[#1E293B] text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group mt-2 disabled:opacity-60 cursor-pointer"
+                  className="w-full py-3.5 px-5 bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm rounded-full shadow-e2 transition-all flex items-center justify-center gap-2 group mt-2 disabled:opacity-60 cursor-pointer"
                 >
                   {loading ? (
                     <>
-                      <span className="material-symbols-outlined text-sm animate-spin text-[#57DFFE]">sync</span>
+                      <Icon name="sync" size={18} className="animate-spin text-primary-fg" />
                       <span>Đang xác thực...</span>
                     </>
                   ) : (
                     <>
                       <span>Đăng nhập</span>
-                      <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">
-                        arrow_forward
-                      </span>
+                      <Icon name="arrow_forward" size={18} className="group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
                 </button>
 
-                <div className="relative my-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-[#E2E8F0]" />
+            {/* D7 — Google OAuth tam gac: xem `ENABLE_GOOGLE_OAUTH` o AuthModal.tsx */}
+            {ENABLE_GOOGLE_OAUTH && (
+              <>
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-line-subtle" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-surface px-3 text-fg-subtle font-mono text-xs uppercase">
+                        Hoặc tiếp tục với
+                      </span>
+                    </div>
                   </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="bg-white px-3 text-[#64748B] font-mono text-[11px] uppercase">
-                      Hoặc tiếp tục với
-                    </span>
-                  </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={loading}
-                  className="w-full py-3 px-4 bg-white hover:bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-xs font-bold text-[#0F172A] transition flex items-center justify-center gap-2.5 cursor-pointer shadow-xs disabled:opacity-60"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
-                  </svg>
-                  <span>Đăng nhập với Google</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
+                    className="w-full py-3 px-4 bg-surface hover:bg-surface-muted border border-line-subtle rounded-full text-xs font-bold text-fg transition flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      />
+                    </svg>
+                    <span>Đăng nhập với Google</span>
+                  </button>
+              </>
+            )}
               </form>
             </div>
           )}
@@ -642,112 +640,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* ======================================================== */}
           {mode === 'signup' && (
             <form onSubmit={handleSignUpSubmit} className="space-y-4 animate-in fade-in duration-150">
-              {/* Role Selector: 3 options (Customer, Designer, Lab) - Modern Cards */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#334155] mb-2">
-                  Vai trò đăng ký
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('customer')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                      selectedRole === 'customer'
-                        ? 'border-[#00687A] bg-[#00687A]/5 ring-2 ring-[#00687A] text-[#00687A]'
-                        : 'border-[#CBD5E1] bg-[#F8FAFC] hover:bg-white hover:border-[#94A3B8] text-[#334155]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-2">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        selectedRole === 'customer' ? 'bg-[#00687A] text-white' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        <span className="material-symbols-outlined text-lg">person</span>
-                      </div>
-                      {selectedRole === 'customer' && (
-                        <span className="w-2 h-2 rounded-full bg-[#00687A]"></span>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold block">Khách hàng</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('designer')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                      selectedRole === 'designer'
-                        ? 'border-[#00687A] bg-[#00687A]/5 ring-2 ring-[#00687A] text-[#00687A]'
-                        : 'border-[#CBD5E1] bg-[#F8FAFC] hover:bg-white hover:border-[#94A3B8] text-[#334155]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-2">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        selectedRole === 'designer' ? 'bg-[#00687A] text-white' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        <span className="material-symbols-outlined text-lg">draw</span>
-                      </div>
-                      {selectedRole === 'designer' && (
-                        <span className="w-2 h-2 rounded-full bg-[#00687A]"></span>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold block">Thiết kế CAD</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole('lab')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                      selectedRole === 'lab'
-                        ? 'border-[#00687A] bg-[#00687A]/5 ring-2 ring-[#00687A] text-[#00687A]'
-                        : 'border-[#CBD5E1] bg-[#F8FAFC] hover:bg-white hover:border-[#94A3B8] text-[#334155]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-2">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        selectedRole === 'lab' ? 'bg-[#00687A] text-white' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        <span className="material-symbols-outlined text-lg">precision_manufacturing</span>
-                      </div>
-                      {selectedRole === 'lab' && (
-                        <span className="w-2 h-2 rounded-full bg-[#00687A]"></span>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold block">Xưởng in 3D</span>
-                  </button>
+              {/* Vai trò: nói đúng sự thật — đăng ký luôn là Khách hàng, quyền khác do VCUBE duyệt */}
+              <div className="p-3.5 rounded-md bg-info-tint flex items-start gap-2.5 text-xs text-info">
+                <Icon name="info" size={18} className="text-info shrink-0 mt-0.5" />
+                <div className="leading-relaxed font-medium space-y-0.5">
+                  <p className="font-bold">Tài khoản mới có vai trò Khách hàng.</p>
+                  <p>
+                    Vai trò được đọc từ hồ sơ trên máy chủ (user_profiles.role). Muốn trở thành
+                    Tác giả 3D hoặc Xưởng in, hãy gửi yêu cầu để VCUBE duyệt sau khi đăng nhập.
+                  </p>
                 </div>
               </div>
 
               {/* 2-Column: Full Name and Email */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#334155] mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-fg-muted mb-2">
                     Họ và Tên
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3.5 top-3 text-[#64748B] text-lg">person</span>
+                    <Icon name="person" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
                     <input
                       type="text"
                       required
                       placeholder="Nguyễn Văn Minh"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00687A] focus:ring-2 focus:ring-[#00687A]/15 outline-none transition font-sans"
+                      className="w-full pl-11 pr-4 py-3 bg-surface-muted border border-line-subtle rounded-md text-sm text-fg placeholder-fg-subtle focus:bg-surface focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition font-sans"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#334155] mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-fg-muted mb-2">
                     Địa chỉ Email
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3.5 top-3 text-[#64748B] text-lg">mail</span>
+                    <Icon name="mail" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
                     <input
                       type="email"
                       required
-                      placeholder="engineer@vcube.vn"
+                      placeholder="contact@doanhnghiep.vn"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00687A] focus:ring-2 focus:ring-[#00687A]/15 outline-none transition font-sans"
+                      className="w-full pl-11 pr-4 py-3 bg-surface-muted border border-line-subtle rounded-md text-sm text-fg placeholder-fg-subtle focus:bg-surface focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition font-sans"
                     />
                   </div>
                 </div>
@@ -756,68 +692,71 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* 2-Column: Password and Confirm Password */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#334155] mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-fg-muted mb-2">
                     Mật khẩu
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3.5 top-3 text-[#64748B] text-lg">lock</span>
+                    <Icon name="lock" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
                       placeholder="Ít nhất 6 ký tự"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00687A] focus:ring-2 focus:ring-[#00687A]/15 outline-none transition font-sans"
+                      className="w-full pl-11 pr-4 py-3 bg-surface-muted border border-line-subtle rounded-md text-sm text-fg placeholder-fg-subtle focus:bg-surface focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition font-sans"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#334155] mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-fg-muted mb-2">
                     Xác nhận mật khẩu
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3.5 top-3 text-[#64748B] text-lg">lock_reset</span>
+                    <Icon name="lock_reset" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
                       placeholder="Nhập lại mật khẩu"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00687A] focus:ring-2 focus:ring-[#00687A]/15 outline-none transition font-sans"
+                      className="w-full pl-11 pr-4 py-3 bg-surface-muted border border-line-subtle rounded-md text-sm text-fg placeholder-fg-subtle focus:bg-surface focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition font-sans"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-[#64748B] pt-1">
+              <div className="flex items-center justify-between text-xs text-fg-subtle pt-1">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={showPassword}
                     onChange={(e) => setShowPassword(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#00687A] border-[#CBD5E1] focus:ring-[#00687A] cursor-pointer"
+                    className="w-4 h-4 rounded-sm text-primary border-line focus:ring-primary cursor-pointer"
                   />
                   <span>Hiện mật khẩu</span>
                 </label>
-                <span className="font-medium text-[11px]">Mật khẩu: {password.length >= 8 ? '🟢 Mạnh' : password.length >= 6 ? '🟡 Hợp lệ' : '⚪ Tối thiểu 6 ký tự'}</span>
+                <span className="font-medium text-xs">
+                  Mật khẩu:{' '}
+                  <span className={password.length >= 8 ? 'text-positive font-bold' : password.length >= 6 ? 'text-warning font-bold' : 'text-fg-subtle'}>
+                    {password.length >= 8 ? 'Mạnh' : password.length >= 6 ? 'Hợp lệ' : 'Tối thiểu 6 ký tự'}
+                  </span>
+                </span>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 px-5 bg-[#091426] hover:bg-[#1E293B] text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group mt-3 disabled:opacity-60 cursor-pointer"
+                className="w-full py-3.5 px-5 bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm rounded-full shadow-e2 transition-all flex items-center justify-center gap-2 group mt-3 disabled:opacity-60 cursor-pointer"
               >
                 {loading ? (
                   <>
-                    <span className="material-symbols-outlined text-sm animate-spin text-[#57DFFE]">sync</span>
+                    <Icon name="sync" size={18} className="animate-spin text-primary-fg" />
                     <span>Đang tạo tài khoản...</span>
                   </>
                 ) : (
                   <>
                     <span>Tạo tài khoản ngay</span>
-                    <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">
-                      arrow_forward
-                    </span>
+                    <Icon name="arrow_forward" size={18} className="group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
               </button>
@@ -827,21 +766,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* ======================================================== */}
           {/* 4. FORGOT PASSWORD VIEW                                   */}
           {/* ======================================================== */}
-          {mode === 'forgot_password' && (
+          {ENABLE_PASSWORD_RESET && mode === 'forgot_password' && (
             <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 animate-in fade-in duration-150">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#334155] mb-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-fg-muted mb-2">
                   Địa chỉ Email đã đăng ký
                 </label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3.5 top-3 text-[#64748B] text-lg">mail</span>
+                  <Icon name="mail" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
                   <input
                     type="email"
                     required
                     placeholder="engineer@vcube.vn"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00687A] focus:ring-2 focus:ring-[#00687A]/15 outline-none transition font-sans"
+                    className="w-full pl-11 pr-4 py-3 bg-surface-muted border border-line-subtle rounded-md text-sm text-fg placeholder-fg-subtle focus:bg-surface focus:border-primary focus:ring-2 focus:ring-primary/15 outline-none transition font-sans"
                   />
                 </div>
               </div>
@@ -850,101 +789,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 py-3.5 px-4 bg-[#091426] hover:bg-[#1E293B] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                  className="flex-1 py-3.5 px-4 bg-primary hover:bg-primary-hover text-primary-fg font-bold text-xs uppercase tracking-wider rounded-full transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-e2 cursor-pointer"
                 >
-                  {loading && <span className="material-symbols-outlined text-sm animate-spin text-[#57DFFE]">sync</span>}
+                  {loading && <Icon name="sync" size={18} className="animate-spin text-primary-fg" />}
                   <span>Gửi Hướng Dẫn Đặt Lại</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => { setMode('signin'); setError(null); setSuccessInfo(null); }}
-                  className="px-5 py-3.5 border border-[#CBD5E1] hover:bg-[#F8FAFC] text-xs font-bold text-[#0F172A] rounded-xl transition-colors cursor-pointer"
+                  className="px-5 py-3.5 bg-surface hover:bg-surface-muted text-xs font-bold text-fg rounded-full transition-colors cursor-pointer"
                 >
                   Quay lại
                 </button>
               </div>
             </form>
           )}
-
-          {/* ======================================================== */}
-          {/* 5. DEMO RBAC MODE SWITCHER                                */}
-          {/* ======================================================== */}
-          {mode === 'role_select' && (
-            <div className="space-y-3 animate-in fade-in duration-150">
-              <div className="p-3 bg-[#EFF4FF] border border-[#CBD5E1] rounded-md text-xs">
-                <p className="font-bold text-[#091426] mb-1">Kiểm thử phân quyền RBAC tức thì:</p>
-                <p className="text-[#64748B] leading-relaxed">
-                  Nhấp vào một vai trò bất kỳ để chuyển quyền ngay lập tức trên toàn bộ giao diện (Khách Hàng, Tác Giả 3D, Admin) mà không cần mật khẩu.
-                </p>
-              </div>
-
-              <div className="space-y-2.5">
-                {DEMO_ACCOUNTS.map((acc) => {
-                  const isCurrent = currentRole === acc.role;
-                  return (
-                    <div
-                      key={acc.role}
-                      onClick={() => handleSelectQuickDemo(acc.role)}
-                      className={`p-3.5 border rounded-lg cursor-pointer transition-all hover:border-[#00687A] ${
-                        isCurrent 
-                          ? 'border-[#00687A] bg-[#00687A]/5 ring-1 ring-[#00687A]' 
-                          : 'border-[#CBD5E1] bg-white hover:bg-[#F8FAFC]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`material-symbols-outlined text-lg ${
-                            acc.role === 'admin' ? 'text-purple-600' : acc.role === 'designer' ? 'text-amber-600' : 'text-blue-600'
-                          }`}>
-                            {acc.role === 'admin' ? 'admin_panel_settings' : acc.role === 'designer' ? 'design_services' : 'person'}
-                          </span>
-                          <span className="font-bold text-xs text-[#091426]">{acc.title}</span>
-                        </div>
-                        <span className={`text-[9px] font-tech uppercase tracking-wider px-2 py-0.5 rounded font-bold ${
-                          acc.role === 'admin' ? 'bg-purple-100 text-purple-800' : acc.role === 'designer' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {acc.badge}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[#64748B] font-sans mb-1.5">{acc.desc}</p>
-                      <div className="flex items-center justify-between text-[10px] font-tech text-[#94A3B8] border-t border-[#E2E8F0] pt-1.5">
-                        <span>Email: {acc.email}</span>
-                        {isCurrent ? (
-                          <span className="font-bold text-[#00687A] flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#00687A]"></span>
-                            Đang hoạt động
-                          </span>
-                        ) : (
-                          <span className="text-[#00687A] hover:underline font-bold">Nhấp để kích hoạt →</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Quick Logout button in demo mode */}
-              {isLoggedIn && (
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowLogoutConfirm(true)}
-                    className="w-full py-2 px-3 border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-md flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-sm">logout</span>
-                    <span>Đăng xuất tài khoản</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Footer info */}
-        <div className="bg-[#F8FAFC] px-4 sm:px-5 py-3 border-t border-[#CBD5E1] text-[11px] text-[#64748B] flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="bg-canvas px-4 sm:px-5 py-3 border-t border-line text-xs text-fg-subtle flex flex-wrap items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm text-[#00687A]">lock</span>
-            <span>Bảo mật AES-256 Cloud</span>
+            <Icon name="lock" size={18} className="text-primary" />
+            <span>Phiên đăng nhập do Supabase Auth quản lý</span>
           </div>
 
           <div className="flex items-center gap-3 font-semibold">
@@ -952,7 +818,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="button"
                 onClick={() => { setMode('signup'); setError(null); }}
-                className="text-[#00687A] hover:underline cursor-pointer"
+                className="text-primary hover:underline cursor-pointer"
               >
                 Chưa có tài khoản? Đăng ký ngay
               </button>
@@ -962,17 +828,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="button"
                 onClick={() => { setMode('signin'); setError(null); }}
-                className="text-[#00687A] hover:underline cursor-pointer"
+                className="text-primary hover:underline cursor-pointer"
               >
                 Đã có tài khoản? Đăng nhập
               </button>
             )}
 
-            {mode === 'forgot_password' && (
+            {ENABLE_PASSWORD_RESET && mode === 'forgot_password' && (
               <button
                 type="button"
                 onClick={() => { setMode('signin'); setError(null); }}
-                className="text-[#00687A] hover:underline cursor-pointer"
+                className="text-primary hover:underline cursor-pointer"
               >
                 Quay lại màn hình đăng nhập
               </button>
@@ -982,7 +848,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}
-                className="text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
+                className="text-danger hover:text-danger font-bold hover:underline cursor-pointer"
               >
                 Đăng xuất tài khoản
               </button>

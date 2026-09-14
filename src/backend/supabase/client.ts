@@ -1,24 +1,39 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+﻿import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vcxarjwzbihvurpkcufa.supabase.co';
-const supabaseAnonKey = 
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjeGFyand6YmlodnVycGtjdWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzOTgzNTcsImV4cCI6MjEwMzk3NDM1N30.t-uhe5zcg6NpRRb8GdbMMEmP-fKFp8qv8SF5ZvLtao0';
+// KHÔNG hardcode URL/khoá tại đây. Giá trị được Vite inject từ .env
+// (VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY) qua `define` trong vite.config.ts.
+// Khoá publishable là khoá công khai (đi kèm RLS); khoá secret chỉ dùng server-side.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  !supabaseUrl.includes('your-project-id')
+  supabaseUrl &&
+    supabaseAnonKey &&
+    !supabaseUrl.includes('your-project-id') &&
+    !supabaseAnonKey.includes('your-anon-key')
 );
 
-// Initialize client
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-});
+if (!isSupabaseConfigured) {
+  // Không throw: app có đường lui sang dữ liệu mock/localStorage. Nhưng phải ồn ào.
+  console.error(
+    '[vcube] Supabase CHƯA được cấu hình (thiếu NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY). ' +
+      'App đang chạy bằng dữ liệu mock. Xem .env.example và docs/security/rls-runbook.md.'
+  );
+}
+
+// Khi chưa cấu hình, dùng URL giả để không ném lỗi lúc import; mọi truy vấn sẽ
+// thất bại và rơi vào nhánh fallback mock của từng service.
+export const supabase: SupabaseClient = createClient(
+  isSupabaseConfigured ? supabaseUrl : 'http://localhost:54321',
+  isSupabaseConfigured ? supabaseAnonKey : 'unconfigured',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  }
+);
 
 export function createBrowserClient(): SupabaseClient {
   return supabase;

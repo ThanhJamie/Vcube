@@ -69,15 +69,24 @@ export interface CartItem {
   }[];
 }
 
+/**
+ * Trạng thái thanh toán của đơn. `awaiting_payment` = đã tạo đơn nhưng CHƯA nhận
+ * được tiền; chỉ một cổng thanh toán đã kiểm chứng hoặc người vận hành mới được
+ * chuyển sang `paid` (xem `docs/design/data-honesty.md` PC-03).
+ */
+export type OrderPaymentStatus = 'awaiting_payment' | 'paid' | 'cod' | 'cancelled' | 'unpaid';
+
 export interface Order {
   id: string;
   orderNumber: string;
   date: string;
   estimatedDelivery: string;
   status: 'pending_payment' | 'processing' | 'printing' | 'post_processing' | 'packaging' | 'shipping' | 'completed' | 'cancelled';
-  statusStageIndex: number; // 0 to 7
-  layerProgress?: number;
-  timeRemaining?: string;
+  /** null = chưa có dữ liệu từ xưởng/MES. UI phải render `—`, không được mặc định. */
+  statusStageIndex: number | null; // 0 to 7
+  /** null = chưa có dữ liệu từ máy in. UI phải render `—`, không mặc định 64. */
+  layerProgress?: number | null;
+  timeRemaining?: string | null;
   customerType?: 'guest' | 'registered';
   secureAccessToken?: string;
   items: {
@@ -111,15 +120,32 @@ export interface Order {
   };
   payment: {
     method: string;
+    /** '' = chưa ghi nhận thời điểm thanh toán. UI render `—`. */
     paidDate: string;
     subtotalPhysical: number;
     subtotalDigital: number;
     shippingFee: number;
     discount: number;
+    /** VAT tách riêng, KHÔNG gộp vào `total` (giá niêm yết chưa gồm VAT). */
     tax: number;
+    /** Tỉ lệ VAT đã áp dụng, ví dụ 0.08. 0 = không xuất hoá đơn VAT. */
+    vatRate?: number;
     total: number;
     isPaid?: boolean;
+    status?: OrderPaymentStatus;
   };
+}
+
+/** Một dòng VAT dùng chung cho cart / checkout / order summary / hoá đơn. */
+export interface VatLine {
+  /** Tỉ lệ VAT, ví dụ 0.08. */
+  rate: number;
+  /** Tiền hàng trước VAT (chưa gồm VAT, đã trừ giảm giá). */
+  taxableAmount: number;
+  /** Tiền VAT làm tròn. */
+  amount: number;
+  /** Tổng phải trả = taxableAmount + amount. */
+  total: number;
 }
 
 export interface DigitalAsset {
@@ -137,6 +163,12 @@ export interface DigitalAsset {
   image: string;
   hasUpdate?: boolean;
   model3DType?: 'gear' | 'box' | 'arch' | 'skull';
+  /**
+   * Đường dẫn trong bucket Supabase Storage `cad-files` do dữ liệu ĐÃ MUA quyết định.
+   * undefined = chưa có bảng `order_files` nên không suy ra được ⇒ UI phải nói rõ
+   * "chưa hỗ trợ tải trực tiếp", KHÔNG được hiện link giả.
+   */
+  storagePath?: string;
 }
 
 export interface FilamentPaletteItem {
@@ -210,12 +242,24 @@ export interface ValidationIssue {
 }
 
 export interface PrintabilityAnalysis {
-  printabilityScore: number; // 0 to 100
-  level: 'good' | 'warning' | 'critical';
+  /**
+   * R4 (data-honesty MP-04): `null` = **CHƯA CHẤM ĐIỂM vì THIẾU SỐ ĐO** — KHÁC HẲN `0`
+   * (đã chấm và được 0 điểm). Bộ đọc lưới trả `null` cho mọi phép đo khi lưới vượt trần
+   * phân tích (`meshParser.MAX_TOPOLOGY_TRIANGLES`), khi đó KHÔNG có gì để chấm.
+   * Tầng hiển thị in `—` + "Chưa chấm điểm" (kèm lý do), KHÔNG in một con số, và `null`
+   * KHÔNG được làm thay đổi giá.
+   */
+  printabilityScore: number | null; // 0..100 khi đã chấm; `null` = thiếu số đo
+  /** R4: `null` đi cùng `printabilityScore === null` — chưa đủ số đo để xếp mức. */
+  level: 'good' | 'warning' | 'critical' | null;
   issues: ValidationIssue[];
   recommendedOrientation: string;
   bedFit: boolean;
-  overhangPercentage: number;
+  /**
+   * R2 (data-honesty MP-07): `null` = CHƯA ĐO ĐƯỢC góc nhô (khác hẳn `0` = đo được và bằng 0).
+   * Trước đây `number` bắt buộc nên tầng view phải ép kiểu cục bộ để biểu diễn "chưa đo".
+   */
+  overhangPercentage: number | null;
 }
 
 export interface TransformState {
@@ -244,14 +288,19 @@ export interface MaterialProfile {
   id: string;
   name: string;
   brand?: string;
-  density: number; // g/cm3
+  /**
+   * Đợt Q: các cột dưới đây là **nullable trong DB** (baseline đã gỡ default bịa) ⇒
+   * `null` = CHƯA CẤU HÌNH, KHÁC HẲN `0`. Mọi nơi đọc PHẢI kiểm `Number.isFinite` trước khi
+   * tính toán/hiển thị (engine sẽ CHẶN tính giá nếu thiếu — xem `pricingEngine`).
+   */
+  density: number | null; // g/cm3
   strength: string;
   heatResistance: string;
   flexibility: string;
-  costPerKg: number; // VND/kg
-  pricePerGram: number; // VND/g
-  unitPriceMultiplier: number;
-  spoolWeightGrams?: number;
+  costPerKg: number | null; // VND/kg
+  pricePerGram: number | null; // VND/g
+  unitPriceMultiplier: number | null;
+  spoolWeightGrams?: number | null;
   extruderTempMin?: number;
   extruderTempMax?: number;
   bedTemp?: number;
@@ -260,6 +309,13 @@ export interface MaterialProfile {
   recommendedFor: string;
   inStock?: boolean;
   stockRollsCount?: number;
+  /**
+   * Đợt P (P3): phụ phí dự phòng in hỏng RIÊNG cho vật liệu này (%).
+   * Thay cho luật cũ `id.includes('nylon' | 'resin' | 'pa-cf')` — luật đó nhận diện vật liệu
+   * khó bằng CHUỖI CON TRONG `id`, nên trên nền tảng có id khác nó **im lặng không chạy**.
+   * `null`/bỏ trống = KHÔNG cộng thêm gì (KHÔNG mượn số 4% của Inkiri).
+   */
+  failureExtraPercent?: number | null;
 }
 
 export interface AccessoryItem {
@@ -272,7 +328,7 @@ export interface AccessoryItem {
   sellingPrice: number; // Giá bán lẻ / tính vào báo giá (VNĐ)
   sku: string; // SKU quản lý kho
   stockCount: number; // Số lượng tồn kho thực tế
-  lowStockThreshold: number; // Ngưỡng cảnh báo sắp hết hàng
+  lowStockThreshold: number | null; // Ngưỡng cảnh báo sắp hết hàng — `null` = chưa cấu hình
   warehouseLocation?: string; // Vị trí kệ kho (Kệ A1, Ngăn B3...)
   supplier?: string; // Nhà cung cấp
   description?: string;
@@ -290,16 +346,24 @@ export interface VolumeDiscountTier {
 
 export interface InkiriCostFormulaConfig {
   // 1. Electricity / Điện năng
-  electricityRatePerKWh: number; // VND/kWh, e.g. 2850
+  /**
+   * ⚠️ KHÔNG còn là nguồn giá trị (Đợt 9/R1 + Đợt P). Engine đọc giá điện từ
+   * `pricing_global_settings.electricity_rate_vnd`; ô này chỉ còn để đọc được cấu hình cũ.
+   * Ô nhập tương ứng trong /admin đã bị VÔ HIỆU + ghi rõ nguồn thật.
+   */
+  electricityRatePerKWh: number; // VND/kWh — không còn dùng để tính giá
 
   // 2. Labor & Operations / Nhân công kỹ thuật
-  laborHourlyRate: number; // VND/hour, e.g. 65000
-  fileReviewLaborMinutes: number; // default 4 mins
-  setupLaborMinutes: number; // default 5 mins
-  supportRemovalMinutes: number; // default 8 mins
-  postProcessingLaborMinutes: number; // default 6 mins
-  qcLaborMinutes: number; // default 4 mins
-  packagingLaborMinutes: number; // default 3 mins
+  /** ⚠️ KHÔNG còn là nguồn giá trị: nguồn thật là `pricing_global_settings.labor_hourly_rate_vnd`. */
+  laborHourlyRate: number; // VND/hour — không còn dùng để tính giá
+  fileReviewLaborMinutes: number; // Kiểm tra slicing & mesh (phút)
+  setupLaborMinutes: number; // Chuẩn bị máy, xịt keo (phút)
+  supportRemovalMinutes: number; // Bóc support (phút)
+  /** Đợt P (mới): phút bóc support khi đơn KHÔNG dùng support (trước đây cứng `2`). */
+  noSupportRemovalMinutes?: number;
+  postProcessingLaborMinutes: number; // Mài nhẵn / deburring (phút)
+  qcLaborMinutes: number; // Đo kiểm kích thước (phút)
+  packagingLaborMinutes: number; // Đóng gói (phút)
 
   // 3. Packaging & Consumables / Đóng gói & Vật tư phụ
   fixedPackagingCost: number; // VND/unit, e.g. 12000
@@ -311,17 +375,37 @@ export interface InkiriCostFormulaConfig {
   overheadPerUnit: number; // VND/unit, e.g. 15000
 
   // 5. Failure Contingency / Dự phòng rủi ro in lỗi
-  baseFailureReservePercent: number; // %, e.g. 8%
-  lowPrintabilityExtraPercent: number; // %, e.g. 6%
-  multiColorExtraPercent: number; // %, e.g. 5%
-  difficultMaterialExtraPercent: number; // %, e.g. 4%
+  baseFailureReservePercent: number; // Dự phòng in hỏng cơ bản (%)
+  lowPrintabilityExtraPercent: number; // Cộng thêm khi điểm khả in thấp (%)
+  multiColorExtraPercent: number; // Cộng thêm khi in nhiều màu (%)
+  /**
+   * ⚠️ KHÔNG còn được engine đọc (Đợt P/P3). Luật "vật liệu khó" nay khai theo TỪNG vật liệu
+   * qua `MaterialProfile.failureExtraPercent` — vì luật cũ nhận diện bằng chuỗi con trong `id`
+   * nên không bao giờ chạy đúng trên nền tảng có id khác mà cũng không báo lỗi.
+   */
+  difficultMaterialExtraPercent?: number; // không còn dùng để tính giá (xem ghi chú trên)
 
   // 6. Pricing & Margins / Biên lợi nhuận & Chiết khấu
-  defaultMarkupPercent: number; // %, e.g. 35%
-  platformCommissionPercent: number; // %, e.g. 8%
+  /**
+   * Đợt P (mới): `'markup'` = lãi trên giá vốn (công thức hiện tại), `'margin'` = lãi trên giá
+   * bán. Engine hiện CHỈ có Markup — chọn `'margin'` sẽ bị CHẶN (`PricingUnavailableError`)
+   * chứ không âm thầm tính bằng markup, vì đó là ĐỔI CÔNG THỨC (ngoài phạm vi đợt này).
+   */
+  profitMode?: 'markup' | 'margin';
+  defaultMarkupPercent: number; // Tỷ lệ lợi nhuận mục tiêu (%)
+  /**
+   * ⚠️ KHÔNG còn được engine đọc (Đợt Q / #4). Phí nền tảng nay có MỘT nguồn duy nhất là
+   * `pricing_global_settings.marketplace_fee_percent` (mục 0 trong /admin) — hai nguồn cho cùng
+   * một con số là lỗi "hai nguồn sự thật". Giữ trường để đọc lại cấu hình cũ.
+   */
+  platformCommissionPercent?: number; // không còn dùng để tính giá
   paymentGatewayFeePercent: number; // %, e.g. 2.5%
   designerRoyaltyPercent: number; // %, e.g. 5%
   roundingRule: '1000' | '5000' | '10000' | 'none';
+  /** Đợt P (mới): ngưỡng cảnh báo "đơn lớn" theo SỐ LƯỢNG (chiếc) — trước đây cứng `50`. */
+  bulkOrderQuantityThreshold?: number;
+  /** Đợt P (mới): ngưỡng cảnh báo "đơn lớn" theo SỐ TIỀN (đ) — trước đây cứng `15.000.000`. */
+  bulkOrderAmountThresholdVnd?: number;
 
   // 7. Quantity Discounts / Chiết khấu theo số lượng
   volumeDiscounts: VolumeDiscountTier[];
@@ -339,21 +423,27 @@ export interface InkiriCostFormulaConfig {
   brimRaftGrams?: number; // Grams, e.g. 6g vành brim bám dính
   multiColorToolChangeMins?: number; // Phút, e.g. 1.5 phút/lần đổi màu AMS
   multiColorPurgeWasteGrams?: number; // Grams, e.g. 28g tháp xả mỗi màu thêm
-  fastEstimatorBaseOverhead?: number; // VND, e.g. 45000 chi phí cơ sở cho bộ tính nhanh
+  /**
+   * Chi phí cơ sở cho bộ tính nhanh (đ).
+   * ⚠️ CHỈ được `HomeView` đọc (`HomeView.tsx:128`), engine KHÔNG đọc. Ô nhập vẫn nằm ở
+   * /admin vì nó ảnh hưởng con số khách nhìn thấy ở trang chủ.
+   */
+  fastEstimatorBaseOverhead?: number;
 }
 
 export interface PrinterProfile {
   id: string;
   name: string;
   brand: string;
-  bedDimensions: { x: number; y: number; z: number }; // mm
-  nozzleDiameter: number; // mm e.g. 0.4
+  /** Đợt Q: nullable thật — `null` = CHƯA ĐO ĐƯỢC (xem `MaterialProfile`). */
+  bedDimensions: { x: number | null; y: number | null; z: number | null } | null; // mm
+  nozzleDiameter: number | null; // mm e.g. 0.4
   technology: 'FDM' | 'SLA' | 'SLS';
-  powerKW: number; // Average power e.g. 0.18 kW
-  acquisitionCost: number; // VND e.g. 35,000,000
-  expectedLifetimeHours: number; // e.g. 8000 hours
-  consumablesHourlyRate: number; // VND / hour (nozzle, plate, belt)
-  hourlyRate: number; // VND per hour legacy/general
+  powerKW: number | null; // Average power e.g. 0.18 kW
+  acquisitionCost: number | null; // VND e.g. 35,000,000
+  expectedLifetimeHours: number | null; // e.g. 8000 hours
+  consumablesHourlyRate: number | null; // VND / hour (nozzle, plate, belt)
+  hourlyRate: number | null; // VND per hour legacy/general
   maxPrintSpeedMmS?: number; // mm/s e.g. 500
   heatedBedMaxTemp?: number; // °C e.g. 120
   hasEnclosure?: boolean;
@@ -480,10 +570,17 @@ export interface AnalysisFile {
   triangleCount: number;
   partsCount: number;
   parts: ModelPart[];
-  isWatertight: boolean;
-  nonManifoldEdges: number;
-  invertedNormals: number;
-  minWallThickness: number; // mm
+  /**
+   * R2: các trường dưới đây là SỐ ĐO của bộ đọc lưới (`src/utils/meshParser.ts`).
+   * `null` = CHƯA ĐO ĐƯỢC (ví dụ lưới vượt trần phân tích cạnh, hoặc không dò được chiều dày) —
+   * KHÁC HẲN `0` = đã đo và bằng 0. Tầng hiển thị phải in "—"/"chưa đo", không được suy diễn.
+   */
+  isWatertight: boolean | null;
+  nonManifoldEdges: number | null;
+  invertedNormals: number | null;
+  minWallThickness: number | null; // mm
+  /** Số cạnh chỉ có 1 mặt (biên hở) — MP-10 tách riêng khỏi "pháp tuyến nghịch". */
+  boundaryEdges?: number | null;
   recommendedTech: string;
   requiresSupport: boolean;
   printability: PrintabilityAnalysis;
@@ -648,14 +745,23 @@ export interface SiteContentConfig {
 
   // Facilities, Specifications & Shipping
   toleranceSpec: string;
-  standardShippingFee: number;
-  freeShippingThreshold: number;
+  // ⚠️ `?` CÓ CHỦ Ý (data-honesty AT-06): phí ship và ngưỡng freeship là do chủ shop
+  // cấu hình ở /admin → "Nội dung site". CHƯA TỪNG cấu hình ⇒ khoá VẮNG MẶT.
+  // `undefined` = "chưa cấu hình" — KHÁC HẲN `0` = "miễn phí vận chuyển thật".
+  // Khai bắt buộc `number` từng buộc thượng nguồn phải bịa 25.000 / 300.000 để thoả kiểu;
+  // hai số bịa đó bị màn admin HIỂN THỊ như thể đã cấu hình rồi bị GHI vào
+  // `site_content.settings` ngay khi admin sửa một ô bất kỳ.
+  standardShippingFee?: number;
+  freeShippingThreshold?: number;
   hotline: string;
   contactEmail: string;
   hanoiWorkshopAddress: string;
   hcmWorkshopAddress: string;
 
   // SEO & Metadata Management
+  // ⚠️ VẮNG MẶT = CHƯA CẤU HÌNH (W3-A: cùng luật với phí ship ở trên): KHÔNG có giá trị
+  // mặc định nào thay thế. Tầng hiển thị phải nói rõ "chưa cấu hình" (hoặc không phát thẻ
+  // meta nào), TUYỆT ĐỐI không bịa tiêu đề, mô tả, ảnh OG, canonical hay JSON-LD.
   seoTitle?: string;
   seoDescription?: string;
   seoKeywords?: string;
@@ -833,9 +939,17 @@ export interface WorkshopMachine {
   workshopId: string;
   machineName: string;
   machineType: 'FDM' | 'SLA' | 'SLS' | 'PolyJet';
-  avgPowerKW: number;        // Average running power in kW (not nameplate peak power)
-  purchasePrice: number;     // Purchase price in VND
-  lifetimeHours: number;     // Expected lifetime in hours
+  /**
+   * D2(A) — BA trường dưới đây **không có cột nào** trong `workshop_machines`
+   * (`20260901_baseline_schema.sql`) nên KHÔNG lưu được: wizard xưởng đã ngừng thu thập.
+   * Giữ ở dạng `?` để các call site cũ (admin panel / store / seed service) không gãy;
+   * nơi nào cần chi phí máy thì dùng `hourlyRate` — cột CÓ THẬT.
+   */
+  avgPowerKW?: number;       // Average running power in kW (không có cột trong DB)
+  purchasePrice?: number;    // Purchase price in VND (không có cột trong DB)
+  lifetimeHours?: number;    // Expected lifetime in hours (không có cột trong DB)
+  /** `workshop_machines.hourly_rate` — đơn giá giờ máy xưởng tự khai. `null` = chưa khai. */
+  hourlyRate?: number | null;
   status: 'Free' | 'Busy' | 'Maintenance' | 'Offline';
   currentJobId?: string;
   buildVolumeMm?: { x: number; y: number; z: number };

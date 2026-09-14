@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Icon } from '@frontend/ui';
 
 interface Props {
   children: ReactNode;
@@ -19,7 +20,7 @@ export class CanvasErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, errorMessage: error.message || 'WebGL Context or Shader Exception' };
+    return { hasError: true, errorMessage: error.message };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -36,7 +37,7 @@ export class CanvasErrorBoundary extends Component<Props, State> {
         <div
           className={`w-full ${
             this.props.fallbackHeight || 'h-[360px]'
-          } bg-[#091426] border border-[#1E293B] rounded-2xl flex flex-col items-center justify-center p-6 text-center text-white relative overflow-hidden font-sans`}
+          } bg-surface-inverse border border-surface-inverse-raised rounded-lg flex flex-col items-center justify-center p-6 text-center text-on-inverse relative overflow-hidden font-sans`}
         >
           {/* Subtle grid background */}
           <div
@@ -48,41 +49,40 @@ export class CanvasErrorBoundary extends Component<Props, State> {
           />
 
           {/* Top Engine HUD Overlay */}
-          <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-xs font-mono pointer-events-none z-20">
-            <div className="bg-[#091426]/90 border border-white/10 px-3 py-1 rounded-lg flex items-center gap-2 text-[#57DFFE]">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+          <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-xs font-mono pointer-events-none z-panel">
+            <div className="bg-surface-inverse/90 border border-line px-3 py-1 rounded-lg flex items-center gap-2 text-accent">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
               <span className="font-bold">VCUBE MESH ENGINE v2.6</span>
-              <span className="text-slate-500">//</span>
-              <span className="text-amber-400 text-[10px] font-semibold uppercase">Auto-Recovery Mode</span>
+              <span className="text-fg-subtle">//</span>
+              <span className="text-warning text-xs font-semibold uppercase">Render Error</span>
             </div>
-            <span className="text-[10px] text-slate-500 font-mono">ISO/ASTM 52900</span>
           </div>
 
-          <div className="w-14 h-14 rounded-2xl bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-[#57DFFE] mb-3 relative z-10 shadow-lg">
-            <span className="material-symbols-outlined text-3xl">view_in_ar</span>
+          <div className="w-14 h-14 rounded-lg bg-primary-tint border border-primary/30 flex items-center justify-center text-accent mb-3 relative z-sticky shadow-e2">
+            <Icon name="view_in_ar" size={30} />
           </div>
 
-          <h3 className="font-extrabold text-base text-white tracking-tight mb-1 relative z-10">
-            {this.props.fallbackTitle || 'Không Gian 3D Đang Tự Động Phục Hồi'}
+          <h3 className="font-extrabold text-base text-on-inverse tracking-tight mb-1 relative z-sticky">
+            {this.props.fallbackTitle || 'Không dựng được khung 3D — thử tải lại'}
           </h3>
 
-          <p className="text-xs text-slate-400 max-w-md mx-auto mb-3 leading-relaxed relative z-10">
-            Hệ thống phát hiện tệp 3D vừa nạp cần chuẩn hóa cấu trúc lưới Mesh hoặc bộ nhớ đệm GPU cần cấp phát lại.
+          <p className="text-xs text-fg-subtle max-w-md mx-auto mb-3 leading-relaxed relative z-sticky">
+            Khung nhìn 3D gặp lỗi khi dựng. Phần còn lại của trang vẫn dùng bình thường; bấm nút bên dưới để dựng lại khung 3D.
           </p>
 
           {this.state.errorMessage && (
-            <div className="mb-4 px-3 py-1 bg-black/40 border border-white/10 rounded-lg text-[11px] font-mono text-cyan-300 max-w-sm truncate relative z-10">
+            <div className="mb-4 px-3 py-1 bg-surface-inverse/70 border border-line rounded-lg text-xs font-mono text-accent max-w-sm truncate relative z-sticky">
               Mã lỗi: {this.state.errorMessage}
             </div>
           )}
 
-          <div className="flex items-center gap-3 relative z-10">
+          <div className="flex items-center gap-3 relative z-sticky">
             <button
               type="button"
               onClick={this.handleRetry}
-              className="px-5 py-2.5 bg-[#00687A] hover:bg-[#005260] text-white text-xs font-mono font-bold uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-cyan-900/30 flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-mono font-bold uppercase tracking-wider rounded-full transition-all shadow-e2 hover:shadow-e2 flex items-center gap-2 cursor-pointer"
             >
-              <span className="material-symbols-outlined text-sm">refresh</span>
+              <Icon name="refresh" size={18} />
               <span>Kích Hoạt Lại Engine 3D</span>
             </button>
           </div>

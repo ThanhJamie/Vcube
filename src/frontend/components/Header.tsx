@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CartItem, SiteContentConfig, UserRole } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, DEMO_ROLE_SWITCHER_ENABLED } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserAvatarMenu } from './auth/UserAvatarMenu';
+import { Icon } from '@frontend/ui';
 
 interface HeaderProps {
   currentScreen: string;
@@ -11,7 +12,7 @@ interface HeaderProps {
   cart: CartItem[];
   siteContent?: SiteContentConfig;
   onOpenSearch?: () => void;
-  onOpenAuth?: (mode?: 'signin' | 'signup' | 'role_select' | 'account') => void;
+  onOpenAuth?: (mode?: 'signin' | 'signup' | 'account') => void;
   onOpenCartDrawer?: () => void;
   onShowToast?: (message: string) => void;
 }
@@ -29,29 +30,63 @@ export const Header: React.FC<HeaderProps> = ({
   const { language, setLanguage, t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickSearchQuery, setQuickSearchQuery] = useState('');
+  const navRef = useRef<HTMLElement | null>(null);
 
   const cartItemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  // Navigation Items - dynamically filtered by login status and user role
+  // `role` khai theo `UserRole` (chưa có 'workshop') nhưng DB CHECK cho phép cả 'workshop'
+  // lẫn 'lab' (supabase/migrations/20260901_baseline_schema.sql:460) và vai trò được đọc
+  // thẳng từ DB ⇒ so sánh qua `string` để không bỏ sót tài khoản xưởng.
+  const roleName: string = role;
+
+  // Navigation Items - dynamically filtered by login status and user role.
+  // P1: KHÔNG gắn chip jargon `CREATOR`/`FORGE` lên nav storefront (Đợt 8, 16-dot8-briefs §P1.3).
   const navItems = [
     { id: 'explore', label: t('navExplore', 'Khám Phá', 'Marketplace'), icon: 'storefront' },
     { id: 'tool_3d', label: t('navLab3D', 'Báo Giá In 3D', '3D Quoting'), icon: 'view_in_ar' },
     ...(isLoggedIn ? [{ id: 'my_orders', label: t('navOrders', 'Đơn Hàng', 'Orders'), icon: 'receipt_long' }] : []),
-    ...(isLoggedIn && (role === 'designer' || role === 'admin') ? [{ 
-      id: 'designer', 
-      label: t('navDesignerStudio', 'Studio Thiết Kế', 'Designer Studio'), 
-      icon: 'design_services',
-      badge: 'CREATOR',
-      badgeColor: 'bg-amber-100 text-amber-800'
+    ...(isLoggedIn && (roleName === 'lab' || roleName === 'workshop' || roleName === 'admin') ? [{
+      id: 'lab',
+      label: t('navPrintLab', 'Xưởng in', 'Print Lab'),
+      icon: 'precision_manufacturing',
     }] : []),
-    ...(isLoggedIn && role === 'admin' ? [{ 
-      id: 'admin', 
-      label: t('navAdmin', 'Quản Trị Admin', 'Admin Console'), 
+    ...(isLoggedIn && (role === 'designer' || role === 'admin') ? [{
+      id: 'designer',
+      label: t('navDesignerStudio', 'Studio Thiết Kế', 'Designer Studio'),
+      icon: 'design_services',
+    }] : []),
+    ...(isLoggedIn && role === 'admin' ? [{
+      id: 'admin',
+      label: t('navAdmin', 'Quản Trị Admin', 'Admin Console'),
       icon: 'admin_panel_settings',
-      badge: 'FORGE',
-      badgeColor: 'bg-purple-100 text-purple-700'
     }] : []),
   ];
+
+  /**
+   * P1: nav desktop co `overflow-x-auto` (không đẩy tràn trang ở bất kỳ bề rộng nào).
+   * Khi nav phải cuộn, mục ĐANG ACTIVE phải luôn nằm trong tầm nhìn — nếu không thì
+   * mục cuối (Quản Trị Admin) bị cắt khỏi màn hình trên chính trang admin.
+   */
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const active = nav.querySelector<HTMLElement>('[data-nav-active="true"]');
+    if (!active) return;
+    const delta = active.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+    if (delta < 0 || delta + active.offsetWidth > nav.clientWidth) {
+      nav.scrollLeft = Math.max(0, nav.scrollLeft + delta - 12);
+    }
+  }, [currentScreen, language, isLoggedIn, role]);
+
+  /** Drawer mobile: đóng bằng Escape (a11y — drawer trước đây không có đường thoát bàn phím). */
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [mobileMenuOpen]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,22 +101,45 @@ export const Header: React.FC<HeaderProps> = ({
     setMobileMenuOpen(false);
   };
 
+  /**
+   * P1: chỉ còn chạy khi bộ đổi góc nhìn KHẢ DỤNG (DEV). Bản phát hành không render
+   * nút này, và nếu hàm ném lỗi thì toast chỉ báo lỗi — KHÔNG báo "đã đổi vai trò".
+   */
+  const handleDemoRoleSwitch = async (nextRole: UserRole) => {
+    try {
+      await switchDemoRole(nextRole);
+      if (onShowToast) {
+        onShowToast(
+          nextRole === 'admin' ? 'Đã đổi: Super Admin' :
+          nextRole === 'designer' ? 'Đã đổi: Designer Pro' :
+          nextRole === 'lab' ? 'Đã đổi: Xưởng MES' : 'Đã đổi: Khách Hàng'
+        );
+      }
+    } catch (err: any) {
+      if (onShowToast) {
+        onShowToast(err?.message || 'Không thể đổi góc nhìn vai trò.');
+      }
+    }
+  };
+
+  const searchPlaceholder = t('searchPlaceholder', 'Tìm linh kiện, STL...', 'Search parts, STL...');
+
   return (
     <>
       {/* Top Site Announcement Banner from Admin Content Config */}
       {siteContent?.announcementActive && siteContent?.announcementText && (
-        <div className="bg-[#091426] text-white py-1.5 px-4 text-center text-[11px] font-sans font-medium flex items-center justify-center gap-2 border-b border-black/20">
+        <div className="bg-surface-inverse text-on-inverse py-1.5 px-4 text-center text-xs font-sans font-medium flex items-center justify-center gap-2 border-b border-line">
           <span className="truncate">{siteContent.announcementText}</span>
           <button
             onClick={() => onNavigate(isLoggedIn ? 'tool_3d' : 'login')}
-            className="text-[#57DFFE] hover:underline font-bold text-[10px] uppercase font-tech shrink-0 hidden sm:inline ml-1 cursor-pointer"
+            className="text-accent hover:underline font-bold text-xs uppercase font-tech shrink-0 hidden sm:inline ml-1 cursor-pointer"
           >
             {language === 'vi' ? 'Báo giá ngay →' : 'Get Quote →'}
           </button>
         </div>
       )}
 
-      <header className="sticky top-0 z-40 bg-[#F8F9FF]/95 backdrop-blur-md border-b border-[#C5C6CD] px-4 sm:px-6 md:px-12 py-3 transition-all">
+      <header className="sticky top-0 z-header bg-surface-muted/95 backdrop-blur-md border-b border-line px-4 sm:px-6 md:px-12 py-3 transition-all">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-3 sm:gap-6">
           {/* Zone 1: Brand Title */}
           <button
@@ -89,35 +147,39 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-baseline gap-1.5 focus-visible:outline-none group shrink-0 cursor-pointer"
             aria-label="VCUBE Home"
           >
-            <span className="font-display text-2xl sm:text-[26px] font-bold tracking-tighter leading-none uppercase italic text-[#091426]">
+            <span className="font-display text-2xl sm:text-2xl font-bold tracking-tighter leading-none uppercase italic text-fg">
               VCUBE
             </span>
-            <span className="text-[#00687A] font-semibold text-xs uppercase tracking-wider">
+            <span className="text-primary font-semibold text-xs uppercase tracking-wider">
               Vietnam
             </span>
           </button>
 
-          {/* Zone 2: Navigation Links - visible to ALL visitors */}
-          <nav className="hidden md:flex items-center gap-4 lg:gap-6 font-sans text-xs uppercase tracking-wider font-bold">
+          {/*
+            Zone 2: Navigation Links — desktop/tablet ngang (>= lg).
+            `flex-1 min-w-0 overflow-x-auto`: nav là vùng DUY NHẤT được co lại, nên
+            thanh header không bao giờ đẩy `scrollWidth` vượt `clientWidth` (P1 §1).
+          */}
+          <nav
+            ref={navRef}
+            aria-label={language === 'vi' ? 'Điều hướng chính' : 'Main navigation'}
+            className="hidden lg:flex flex-1 min-w-0 items-center gap-4 xl:gap-6 font-sans text-xs uppercase tracking-wider font-bold overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {navItems.map((item) => {
               const isActive = currentScreen === item.id;
               return (
                 <button
                   key={item.id}
+                  data-nav-active={isActive ? 'true' : undefined}
                   onClick={() => handleNavClick(item.id)}
-                  className={`pb-1 transition-all whitespace-nowrap shrink-0 border-b-2 flex items-center gap-1 touch-target-btn cursor-pointer ${
+                  className={`pb-1 transition-all whitespace-nowrap shrink-0 border-b-2 flex items-center gap-1.5 touch-target-btn cursor-pointer ${
                     isActive
-                      ? 'border-[#00687A] text-[#00687A] font-extrabold'
-                      : 'border-transparent text-[#545F73] hover:text-[#091426] hover:border-black/30'
+                      ? 'border-primary text-primary font-extrabold'
+                      : 'border-transparent text-fg-muted hover:text-fg hover:border-line'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-sm">{item.icon}</span>
+                  <Icon name={item.icon} size={18} />
                   {item.label}
-                  {(item as any).badge && (
-                    <span className={`text-[8px] px-1 py-0.2 rounded font-tech font-bold ml-0.5 ${(item as any).badgeColor || 'bg-slate-100 text-slate-700'}`}>
-                      {(item as any).badge}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -125,9 +187,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Zone 3: Primary Actions */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Language Switcher */}
-            <div 
-              className="flex items-center bg-[#E5EEFF] border border-[#CBD5E1] p-0.5 rounded text-[11px] font-tech font-bold"
+            {/* Language Switcher — chữ VIE | ENG, không dùng emoji cờ (§2.5).
+                < lg: nằm trong drawer (P1 §1). */}
+            <div
+              className="hidden lg:flex items-center bg-surface-muted p-0.5 rounded-full text-xs font-tech font-bold"
               role="group"
               aria-label="Language selector"
             >
@@ -135,41 +198,58 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={() => setLanguage('vi')}
                 title="Chuyển sang Tiếng Việt"
-                className={`px-2 py-1 rounded-xs transition-all flex items-center gap-1 leading-none cursor-pointer ${
+                aria-pressed={language === 'vi'}
+                className={`px-2.5 py-1 rounded-full transition-all leading-none cursor-pointer ${
                   language === 'vi'
-                    ? 'bg-[#091426] text-white shadow-xs'
-                    : 'text-[#545F73] hover:text-[#091426] hover:bg-white/50'
+                    ? 'bg-surface-inverse text-on-inverse shadow-e1'
+                    : 'text-fg-muted hover:text-fg hover:bg-surface'
                 }`}
               >
-                <span>🇻🇳</span>
-                <span className="hidden sm:inline">VIE</span>
+                VIE
               </button>
+              <span aria-hidden="true" className="px-0.5 text-fg-subtle">|</span>
               <button
                 type="button"
                 onClick={() => setLanguage('en')}
                 title="Switch to English"
-                className={`px-2 py-1 rounded-xs transition-all flex items-center gap-1 leading-none cursor-pointer ${
+                aria-pressed={language === 'en'}
+                className={`px-2.5 py-1 rounded-full transition-all leading-none cursor-pointer ${
                   language === 'en'
-                    ? 'bg-[#091426] text-white shadow-xs'
-                    : 'text-[#545F73] hover:text-[#091426] hover:bg-white/50'
+                    ? 'bg-surface-inverse text-on-inverse shadow-e1'
+                    : 'text-fg-muted hover:text-fg hover:bg-surface'
                 }`}
               >
-                <span>🇺🇸</span>
-                <span className="hidden sm:inline">ENG</span>
+                ENG
               </button>
             </div>
 
-            {/* Quick Search on Desktop (visible to all visitors) */}
-            <div className="relative hidden lg:block">
+            {/*
+              Quick Search — desktop ngang (>= lg), ẩn ở mobile/tablet (nằm trong drawer).
+              P1 §2: `w-64` (256px) là bề rộng TỐI THIỂU để placeholder hiện đủ ở 12px
+              (đo được: placeholder cần 254px, trước đây hộp chỉ 240px ở 1440px ⇒ bị cụt).
+            */}
+            {/* P1: dải lg–xl không đủ chỗ cho ô tìm kiếm inline (nav bị bóp còn ~16px)
+                ⇒ dùng nút mở drawer (drawer đã có ô tìm kiếm thật). */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:flex xl:hidden p-2 text-fg hover:bg-surface rounded-full transition-colors touch-target-btn cursor-pointer"
+              aria-label={language === 'vi' ? 'Mở tìm kiếm' : 'Open search'}
+            >
+              <Icon name="search" size={24} />
+            </button>
+
+            <div className="relative hidden xl:block shrink-0">
               <form onSubmit={handleSearchSubmit}>
-                <div className="flex items-center bg-white border border-[#CBD5E1] rounded px-3 py-1.5 focus-within:border-[#00687A] transition-all">
-                  <span className="material-symbols-outlined text-[#75777D] text-base mr-1.5">search</span>
+                <div className="flex items-center bg-surface border border-line-subtle rounded-md px-3 py-1.5 focus-within:border-primary transition-all">
+                  <Icon name="search" size={18} className="text-fg-subtle mr-1.5" />
                   <input
                     type="text"
-                    placeholder={t('searchPlaceholder', 'Tìm linh kiện, STL...', 'Search parts, STL...')}
+                    aria-label={language === 'vi' ? 'Tìm kiếm nhanh' : 'Quick search'}
+                    placeholder={searchPlaceholder}
                     value={quickSearchQuery}
                     onChange={(e) => setQuickSearchQuery(e.target.value)}
-                    className="bg-transparent text-xs text-[#091426] placeholder-[#8590A6] focus:outline-none w-44 xl:w-60 font-sans"
+                    className="bg-transparent text-xs text-fg placeholder-fg-subtle focus:outline-none w-64 2xl:w-72 font-sans text-ellipsis"
                   />
                 </div>
               </form>
@@ -184,50 +264,55 @@ export const Header: React.FC<HeaderProps> = ({
                   handleNavClick('cart');
                 }
               }}
-              className="relative p-2 text-[#091426] hover:bg-black/5 rounded transition-colors focus-visible:outline-none touch-target-btn cursor-pointer"
+              className="relative p-2 text-fg hover:bg-surface rounded-full transition-colors focus-visible:outline-none touch-target-btn cursor-pointer"
               aria-label={t('cartTitle', 'Giỏ hàng VCUBE', 'VCUBE Cart')}
             >
-              <span className="material-symbols-outlined text-2xl">shopping_cart</span>
+              <Icon name="shopping_cart" size={28} />
               {cartItemsCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-[#00687A] text-white text-[9px] font-tech font-bold rounded-full flex items-center justify-center">
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-primary text-primary-fg text-xs font-tech font-bold rounded-full flex items-center justify-center">
                   {cartItemsCount}
                 </span>
               )}
             </button>
 
-            {/* Authentication Buttons / User Account Dropdown */}
+            {/* Authentication / User Account — < lg nằm trong drawer (P1 §1) */}
             {isLoggedIn ? (
-              <UserAvatarMenu
-                onNavigate={handleNavClick}
-                onOpenCart={onOpenCartDrawer || (() => handleNavClick('cart'))}
-                onShowToast={onShowToast}
-              />
+              <div className="hidden lg:block">
+                <UserAvatarMenu
+                  onNavigate={handleNavClick}
+                  onOpenCart={onOpenCartDrawer || (() => handleNavClick('cart'))}
+                  onShowToast={onShowToast}
+                />
+              </div>
             ) : (
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="hidden lg:flex items-center gap-2">
                 <Link
                   to="/auth/login"
-                  className="px-3 sm:px-3.5 py-1.5 text-xs font-bold text-[#091426] hover:text-[#00687A] hover:bg-[#EFF4FF] rounded-lg border border-[#CBD5E1] transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs font-sans"
+                  className="px-3.5 py-1.5 text-xs font-bold text-fg hover:bg-surface border border-line-subtle rounded-full transition-all flex items-center gap-1.5 cursor-pointer font-sans"
                 >
-                  <span className="material-symbols-outlined text-[16px]">login</span>
+                  <Icon name="login" size={18} />
                   <span>{language === 'vi' ? 'Đăng nhập' : 'Sign In'}</span>
                 </Link>
+                {/* CTA chính duy nhất của header */}
                 <Link
                   to="/auth/register"
-                  className="px-3 sm:px-3.5 py-1.5 text-xs font-bold text-white bg-[#00687A] hover:bg-[#005260] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-xs font-sans"
+                  className="px-3.5 py-1.5 text-xs font-bold text-primary-fg bg-primary hover:bg-primary-hover rounded-full transition-all flex items-center gap-1.5 cursor-pointer shadow-e1 font-sans"
                 >
-                  <span className="material-symbols-outlined text-[16px]">person_add</span>
+                  <Icon name="person_add" size={18} />
                   <span>{language === 'vi' ? 'Đăng ký' : 'Sign Up'}</span>
                 </Link>
               </div>
             )}
 
-            {/* Mobile Hamburger Toggle (visible to all visitors) */}
+            {/* Mobile Hamburger Toggle (< lg: nav + tìm kiếm + VIE|ENG + tài khoản) */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 text-[#091426] hover:bg-black/5 rounded transition-colors touch-target-btn cursor-pointer"
+              className="lg:hidden p-2 text-fg hover:bg-surface rounded-full transition-colors touch-target-btn cursor-pointer"
               aria-label="Mở menu điều hướng"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="vcube-mobile-nav"
             >
-              <span className="material-symbols-outlined text-2xl">menu</span>
+              <Icon name="menu" size={28} />
             </button>
           </div>
         </div>
@@ -240,48 +325,69 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setMobileMenuOpen(false)}
             className="mobile-nav-backdrop"
           />
-          <div className="mobile-nav-panel p-6 space-y-6 bg-white">
-            <div className="flex items-center justify-between pb-4 border-b border-[#C5C6CD]">
-              <span className="font-display text-xl font-bold tracking-tight text-[#091426] italic">
-                VCUBE <span className="font-sans text-xs not-italic text-[#00687A]">Vietnam</span>
+          <div
+            id="vcube-mobile-nav"
+            role="dialog"
+            aria-modal="true"
+            aria-label={language === 'vi' ? 'Menu điều hướng' : 'Navigation menu'}
+            className="mobile-nav-panel p-6 space-y-6 bg-surface"
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-line-subtle">
+              <span className="font-display text-xl font-bold tracking-tight text-fg italic">
+                VCUBE <span className="font-sans text-xs not-italic text-primary">Vietnam</span>
               </span>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-1.5 text-[#091426] hover:bg-black/10 rounded"
+                className="p-1.5 text-fg hover:bg-surface-muted rounded-full cursor-pointer"
                 aria-label="Đóng menu"
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <Icon name="close" size={24} />
               </button>
             </div>
 
+            {/* Quick Search (mobile/tablet — bản desktop bị ẩn dưới `lg`) */}
+            <form onSubmit={handleSearchSubmit}>
+              <div className="flex items-center bg-surface border border-line-subtle rounded-md px-3 py-2 focus-within:border-primary transition-all">
+                <Icon name="search" size={18} className="text-fg-subtle mr-1.5" />
+                <input
+                  type="text"
+                  aria-label={language === 'vi' ? 'Tìm kiếm nhanh' : 'Quick search'}
+                  placeholder={searchPlaceholder}
+                  value={quickSearchQuery}
+                  onChange={(e) => setQuickSearchQuery(e.target.value)}
+                  className="bg-transparent text-xs text-fg placeholder-fg-subtle focus:outline-none w-full font-sans text-ellipsis"
+                />
+              </div>
+            </form>
+
             {/* Language Selector */}
-            <div className="p-3 bg-[#F1F5F9] border border-[#CBD5E1] rounded space-y-1.5">
-              <span className="text-[10px] font-tech uppercase font-bold text-[#545F73] block">
+            <div className="p-3 bg-surface-muted rounded-lg space-y-1.5">
+              <span className="text-xs font-tech uppercase font-bold text-fg-muted block">
                 Ngôn ngữ / Language:
               </span>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setLanguage('vi')}
-                  className={`py-2 px-3 rounded text-xs font-bold flex items-center justify-center gap-2 border transition-all ${
+                  aria-pressed={language === 'vi'}
+                  className={`py-2 px-3 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                     language === 'vi'
-                      ? 'bg-[#091426] text-white border-[#091426]'
-                      : 'bg-white text-[#091426] border-[#CBD5E1]'
+                      ? 'bg-surface-inverse text-on-inverse'
+                      : 'bg-surface text-fg hover:bg-canvas'
                   }`}
                 >
-                  <span>🇻🇳</span>
                   <span>Tiếng Việt</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setLanguage('en')}
-                  className={`py-2 px-3 rounded text-xs font-bold flex items-center justify-center gap-2 border transition-all ${
+                  aria-pressed={language === 'en'}
+                  className={`py-2 px-3 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                     language === 'en'
-                      ? 'bg-[#091426] text-white border-[#091426]'
-                      : 'bg-white text-[#091426] border-[#CBD5E1]'
+                      ? 'bg-surface-inverse text-on-inverse'
+                      : 'bg-surface text-fg hover:bg-canvas'
                   }`}
                 >
-                  <span>🇺🇸</span>
                   <span>English</span>
                 </button>
               </div>
@@ -293,84 +399,77 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className={`w-full text-left px-3 py-3 rounded text-xs font-sans uppercase tracking-wider font-bold flex items-center justify-between transition-colors ${
+                  className={`w-full text-left px-3 py-3 rounded-full text-xs font-sans uppercase tracking-wider font-bold flex items-center justify-between transition-colors cursor-pointer ${
                     currentScreen === item.id
-                      ? 'bg-[#00687A] text-white'
-                      : 'text-[#091426] hover:bg-[#EFF4FF]'
+                      ? 'bg-primary-tint text-primary'
+                      : 'text-fg hover:bg-surface-muted'
                   }`}
                 >
                   <span className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-base">{item.icon}</span>
+                    <Icon name={item.icon} size={18} />
                     {item.label}
                   </span>
                 </button>
               ))}
             </nav>
 
-            <div className="pt-4 border-t border-[#C5C6CD] space-y-3">
+            <div className="pt-4 border-t border-line-subtle space-y-3">
               {isLoggedIn ? (
                 <>
                   {/* User Profile Card for Mobile */}
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                  <div className="p-3 bg-surface-muted rounded-lg space-y-2.5">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-linear-to-tr from-[#00687A] to-[#57DFFE] p-0.5 flex-shrink-0">
-                        <div className="w-full h-full rounded-full bg-[#091426] flex items-center justify-center text-white font-bold text-sm">
+                      <div className="w-10 h-10 rounded-full bg-surface-inverse p-0.5 flex-shrink-0">
+                        <div className="w-full h-full rounded-full flex items-center justify-center text-on-inverse font-bold text-sm">
                           {profile?.displayName ? profile.displayName.charAt(0).toUpperCase() : 'U'}
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-xs text-[#091426] truncate">
+                          <span className="font-bold text-xs text-fg truncate">
                             {profile?.displayName || user?.email?.split('@')[0]}
                           </span>
-                          <span className={`text-[9px] font-tech font-bold uppercase px-1.5 py-0.5 rounded border ${
+                          <span className={`text-xs font-tech font-bold uppercase px-2 py-0.5 rounded-full ${
                             role === 'admin'
-                              ? 'bg-purple-50 text-purple-700 border-purple-200'
+                              ? 'bg-info-tint text-info'
                               : role === 'designer'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              ? 'bg-warning-tint text-warning'
                               : role === 'lab'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                              ? 'bg-positive-tint text-positive'
+                              : 'bg-primary-tint text-primary'
                           }`}>
                             {role === 'admin' ? 'Admin' : role === 'designer' ? 'Creator' : role === 'lab' ? 'MES Hub' : 'Customer'}
                           </span>
                         </div>
-                        <span className="text-[11px] text-slate-500 truncate block font-mono">
+                        <span className="text-xs text-fg-subtle truncate block font-mono">
                           {user?.email}
                         </span>
                       </div>
                     </div>
 
-                    {/* Mobile Quick Role Switcher */}
-                    <div className="pt-2 border-t border-slate-200">
-                      <span className="text-[10px] font-tech uppercase font-bold text-slate-400 block mb-1.5">
-                        {language === 'vi' ? 'Góc nhìn vai trò (Demo Switcher):' : 'Role Perspective (Demo):'}
-                      </span>
-                      <div className="grid grid-cols-4 gap-1">
-                        {(['customer', 'designer', 'lab', 'admin'] as UserRole[]).map((r) => (
-                          <button
-                            key={r}
-                            onClick={() => {
-                              switchDemoRole(r);
-                              if (onShowToast) {
-                                onShowToast(
-                                  r === 'admin' ? 'Đã đổi: Super Admin' :
-                                  r === 'designer' ? 'Đã đổi: Designer Pro' :
-                                  r === 'lab' ? 'Đã đổi: Xưởng MES' : 'Đã đổi: Khách Hàng'
-                                );
-                              }
-                            }}
-                            className={`py-1.5 text-[10px] font-bold rounded uppercase tracking-wider transition-all border ${
-                              role === r
-                                ? 'bg-[#091426] text-white border-[#091426] shadow-2xs'
-                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            {r === 'customer' ? 'Khách' : r === 'designer' ? 'Design' : r === 'lab' ? 'MES' : 'Admin'}
-                          </button>
-                        ))}
+                    {/* Mobile Quick Role Switcher — CHỈ tồn tại ở DEV (P1: bản phát hành không có) */}
+                    {DEMO_ROLE_SWITCHER_ENABLED && (
+                      <div className="pt-2 border-t border-line-subtle">
+                        <span className="text-xs font-tech uppercase font-bold text-fg-subtle block mb-1.5">
+                          {language === 'vi' ? 'Góc nhìn vai trò (Demo Switcher):' : 'Role Perspective (Demo):'}
+                        </span>
+                        <div className="grid grid-cols-4 gap-1">
+                          {(['customer', 'designer', 'lab', 'admin'] as UserRole[]).map((r) => (
+                            <button
+                              key={r}
+                              onClick={() => handleDemoRoleSwitch(r)}
+                              className={`py-1.5 text-xs font-bold rounded-full uppercase tracking-wider transition-all ${
+                                role === r
+                                  ? 'bg-surface-inverse text-on-inverse shadow-e0'
+                                  : 'bg-surface text-fg-muted hover:bg-canvas'
+                              }`}
+                            >
+                              {r === 'customer' ? 'Khách' : r === 'designer' ? 'Design' : r === 'lab' ? 'MES' : 'Admin'}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <button
@@ -378,7 +477,7 @@ export const Header: React.FC<HeaderProps> = ({
                       setMobileMenuOpen(false);
                       if (onOpenAuth) onOpenAuth('account');
                     }}
-                    className="w-full py-2.5 bg-[#00687A] hover:bg-[#005463] text-white text-xs font-bold uppercase rounded-lg text-center block transition-colors cursor-pointer shadow-xs"
+                    className="w-full py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full text-center block transition-colors cursor-pointer shadow-e1"
                   >
                     {t('switchAccount', 'Tài Khoản & Thông Tin', 'Account & Details')}
                   </button>
@@ -387,9 +486,9 @@ export const Header: React.FC<HeaderProps> = ({
                       setMobileMenuOpen(false);
                       logout();
                     }}
-                    className="w-full py-2.5 border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold uppercase rounded-lg text-center flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="w-full py-2.5 bg-danger-tint hover:bg-canvas text-danger text-xs font-bold uppercase rounded-full text-center flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-sm">logout</span>
+                    <Icon name="logout" size={18} />
                     <span>{t('signOut', 'Đăng Xuất Khỏi Thiết Bị', 'Sign Out')}</span>
                   </button>
                 </>
@@ -398,17 +497,17 @@ export const Header: React.FC<HeaderProps> = ({
                   <Link
                     to="/auth/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="py-2.5 px-3 border border-[#C5C6CD] hover:border-[#00687A] text-[#091426] hover:bg-[#EFF4FF] text-xs font-bold uppercase rounded text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    className="py-2.5 px-3 bg-surface border border-line-subtle hover:bg-canvas text-fg text-xs font-bold uppercase rounded-full text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-sm">login</span>
+                    <Icon name="login" size={18} />
                     <span>{language === 'vi' ? 'Đăng nhập' : 'Sign In'}</span>
                   </Link>
                   <Link
                     to="/auth/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="py-2.5 px-3 bg-[#091426] hover:bg-[#00687A] text-white text-xs font-bold uppercase rounded text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                    className="py-2.5 px-3 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-e1"
                   >
-                    <span className="material-symbols-outlined text-sm">person_add</span>
+                    <Icon name="person_add" size={18} />
                     <span>{language === 'vi' ? 'Đăng ký' : 'Sign Up'}</span>
                   </Link>
                 </div>

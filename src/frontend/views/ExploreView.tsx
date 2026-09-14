@@ -1,11 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Star } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../types';
-import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_INKIRI_FORMULA_CONFIG } from '../data/mockData';
+import { CATEGORIES, POPULAR_TAGS } from '../data/mockData';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { SEOHead } from '../components/SEOHead';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { Icon, Badge, Button, Card, EmptyState, InfoTip, Sheet, Skeleton } from '@frontend/ui';
+import { EMPTY_VALUE } from '@frontend/lib/format';
 
 interface ExploreViewProps {
   products: Product[];
@@ -20,10 +23,89 @@ interface ExploreViewProps {
   onShowToast?: (msg: string) => void;
 }
 
+type PricePreset = 'all' | 'under100' | '100to250' | '250to500' | 'above500';
+
+/**
+ * Cửa sổ chờ catalog ngay sau lần vẽ đầu tiên.
+ *
+ * `App.tsx` đọc `products` từ Supabase rồi chỉ truyền xuống MẢNG kết quả — view không nhận
+ * được cờ "đang tải". Nếu dựng empty state ngay lập tức, khách sẽ đọc thấy "kho trống" trong
+ * lúc lượt đọc đầu còn đang bay. Vì vậy giữ skeleton trong một cửa sổ ngắn: có sản phẩm thật
+ * ⇒ skeleton tắt ngay; hết cửa sổ mà vẫn rỗng ⇒ mới hiện empty state thật.
+ */
+const CATALOG_HYDRATION_WINDOW_MS = 1200;
+
+/** Skeleton khớp lưới 1/2/3 cột: 6 thẻ = 2 hàng đầy ở desktop. */
+const SKELETON_CARD_COUNT = 6;
+
+/** Bậc giá nhanh — chỉ là tiêu chí lọc, không phải số liệu về kho. */
+const PRICE_PRESETS: { id: PricePreset; vi: string; en: string }[] = [
+  { id: 'under100', vi: '< 100k đ', en: '< 100k' },
+  { id: '100to250', vi: '100k - 250k', en: '100k - 250k' },
+  { id: '250to500', vi: '250k - 500k', en: '250k - 500k' },
+  { id: 'above500', vi: '> 500k đ', en: '> 500k' },
+];
+
+/**
+ * Nhận diện số hữu hạn do DB trả về. `NULL` được map thành 0 và chuỗi lạ KHÔNG phải giá.
+ * Cùng quy ước với `HomeView`/`ProductDetailView`: chỉ giá kênh `> 0` mới là CÓ BÁN.
+ */
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** Giá chưa có/chưa cấu hình ⇒ `—`, KHÔNG in "0 đ" như một mức giá thật. */
+const formatVnd = (value: number, locale: string): string =>
+  Number.isFinite(value) && value > 0 ? `${value.toLocaleString(locale)} đ` : EMPTY_VALUE;
+
+/**
+ * `rating`/`reviewsCount` là dữ liệu THẬT của DB (cột đã gỡ default ⇒ có thể NULL).
+ * Chỉ khi CÓ cả điểm > 0 và lượt đánh giá > 0 mới được hiện sao. Mọi trường hợp còn lại
+ * (NULL, 0, NaN, chuỗi lạ) ⇒ "Chưa có đánh giá" — KHÔNG "★ 0", KHÔNG "NaN".
+ */
+const ratingOf = (product: Product): { value: number; count: number } | null => {
+  const value = Number(product?.rating);
+  const count = Number(product?.reviewsCount);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  if (!Number.isFinite(count) || count <= 0) return null;
+  return { value, count };
+};
+
+/**
+ * `license_type` NULL ⇒ nói thẳng người bán chưa khai báo. KHÔNG đoán hộ "Commercial"
+ * (gate `check-fabricated.mjs` mục `fake-license-fallback`).
+ */
+const licenseLabel = (license?: string | null): string => {
+  const value = typeof license === 'string' ? license.trim() : '';
+  return value ? value : `${EMPTY_VALUE} (người bán chưa khai báo)`;
+};
+
+/** Thẻ xương đúng layout thẻ thật (khung ảnh 4:3, 2 dòng tiêu đề, dòng giá, 2 nút). */
+const ProductCardSkeleton: React.FC = () => (
+  <Card padding="none" className="flex flex-col overflow-hidden">
+    <div className="aspect-[4/3] w-full overflow-hidden">
+      <Skeleton variant="rect" rounded="lg" height="100%" className="h-full w-full" />
+    </div>
+    <div className="flex flex-col gap-2.5 p-4">
+      <Skeleton variant="text" width="45%" />
+      <Skeleton variant="text" lines={2} />
+      <Skeleton variant="text" width="70%" />
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <Skeleton variant="text" width="6ch" />
+        <Skeleton variant="text" width="7ch" />
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <Skeleton variant="rect" rounded="md" height="2.5rem" className="flex-1" />
+        <Skeleton variant="rect" rounded="md" height="2.5rem" width="5.5rem" />
+      </div>
+    </div>
+  </Card>
+);
+
 export const ExploreView: React.FC<ExploreViewProps> = ({
   products,
-  materials = MATERIALS_CATALOG,
-  pricingConfig = DEFAULT_INKIRI_FORMULA_CONFIG,
+  materials = [],
+  // KHÔNG mặc định về bộ số mẫu: thiếu cấu hình ⇒ view này không tự bịa thông số giá.
+  // (`pricingConfig` chỉ được chuyển tiếp xuống `CadQuickViewModal`.)
+  pricingConfig,
   initialCategory = 'all',
   initialSearch = '',
   initialTag = 'all',
@@ -32,24 +114,27 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   onSelectProduct,
   onShowToast
 }) => {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const { role } = useAuth();
   const isVi = language === 'vi';
   const isAdmin = role === 'admin';
+  const numberLocale = isVi ? 'vi-VN' : 'en-US';
 
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
   const [searchQuery, setSearchQuery] = useState<string>(initialSearch);
   const [selectedTag, setSelectedTag] = useState<string>(initialTag);
   const [selectedMaterial, setSelectedMaterial] = useState<string>('all');
-  const [pricePreset, setPricePreset] = useState<'all' | 'under100' | '100to250' | '250to500' | 'above500'>('all');
-  const [priceMax, setPriceMax] = useState<number>(600000);
+  const [pricePreset, setPricePreset] = useState<PricePreset>('all');
+  /** `null` = chưa đặt trần giá; trần thật được suy từ giá sản phẩm (xem `priceRange`). */
+  const [priceMax, setPriceMax] = useState<number | null>(null);
   const [onlyCustomizable, setOnlyCustomizable] = useState<boolean>(false);
-  const [onlyWatertight, setOnlyWatertight] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating' | 'popular'>('featured');
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(['prod-arduino-case']);
+  // Không khởi tạo sẵn bản vẽ "đã lưu" nào — đó phải là dữ liệu của chính khách.
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [mobileFilterOpen, setMobileFilterOpen] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'tech-table' | 'compact'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'tech-table'>('grid');
   const [visibleCount, setVisibleCount] = useState<number>(12);
+  const [hydrationWindowOpen, setHydrationWindowOpen] = useState<boolean>(true);
 
   // Quick 3D Preview Modal State
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
@@ -67,6 +152,16 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   useEffect(() => {
     if (initialTag) setSelectedTag(initialTag);
   }, [initialTag]);
+
+  // Skeleton chỉ giữ trong cửa sổ chờ đầu tiên; có sản phẩm thật ⇒ tắt ngay.
+  useEffect(() => {
+    if (products.length > 0) {
+      setHydrationWindowOpen(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setHydrationWindowOpen(false), CATALOG_HYDRATION_WINDOW_MS);
+    return () => window.clearTimeout(timer);
+  }, [products.length]);
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -93,17 +188,26 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       onNavigate('product_detail', { product });
       return;
     }
+    // Data-honesty: `price_digital` không lớn hơn 0 (0 hoặc NULL/NaN) nghĩa là người bán KHÔNG
+    // bán kênh file số ⇒ KHÔNG được đẩy vào giỏ một dòng 0đ. Chỉ giá `> 0` mới là CÓ BÁN.
+    if (!(isNum(product.priceDigital) && product.priceDigital > 0)) {
+      onShowToast?.(isVi
+        ? `Sản phẩm "${product.name}" không mở bán kênh file số (giá file số không lớn hơn 0) nên chưa thể mua.`
+        : `"${product.name}" is not sold as a CAD file (its CAD price is not greater than 0), so it cannot be purchased.`);
+      return;
+    }
     const item: CartItem = {
       id: `cart-digital-${Date.now()}-${Math.random()}`,
       productId: product.id,
       type: 'digital',
       name: product.name,
       designer: product.designer,
-      image: product.images[0],
+      image: product.images?.[0] || product.thumbnailUrl || '',
       price: product.priceDigital,
       quantity: 1,
-      fileFormat: 'STL + STEP',
-      licenseType: product.licenseType || 'Commercial'
+      // Data-honesty (P3b): KHONG doan ho giay phep/dinh dang tep khi san pham chua khai.
+      fileFormat: product.cadFormat ?? undefined,
+      licenseType: product.licenseType ?? undefined
     };
     onAddToCart(item);
     if (onShowToast) {
@@ -111,23 +215,47 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
     }
   };
 
-  // Live count per category
+  /** Tập sản phẩm vai trò hiện tại thực sự được thấy — MỌI con số hiển thị tính trên tập này. */
+  const catalogProducts = useMemo(
+    () => (isAdmin ? products : products.filter((p) => (p.status || 'published').toLowerCase() === 'published')),
+    [products, isAdmin]
+  );
+
+  // Số lượng theo danh mục: đếm từ sản phẩm thật. Danh mục không có bản vẽ ⇒ không hiện số.
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: products.length };
-    products.forEach(p => {
+    const counts: Record<string, number> = {};
+    catalogProducts.forEach((p) => {
       counts[p.category] = (counts[p.category] || 0) + 1;
     });
     return counts;
-  }, [products]);
+  }, [catalogProducts]);
 
-  // Handle Preset Price Selection
-  const handleSelectPricePreset = (preset: 'all' | 'under100' | '100to250' | '250to500' | 'above500') => {
+  // Vật liệu lấy từ bảng `materials` thật; rỗng ⇒ ẩn cả nhóm lọc.
+  const materialOptions = useMemo(() => {
+    const names = new Set<string>();
+    materials.forEach((m) => {
+      const name = (m?.name || '').trim();
+      if (name) names.add(name);
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [materials]);
+
+  // Khoảng giá suy từ giá sản phẩm; không có giá thật ⇒ không dựng thanh giá.
+  const priceRange = useMemo(() => {
+    const values = catalogProducts.map((p) => p.pricePhysical).filter((v) => Number.isFinite(v) && v > 0);
+    if (values.length === 0) return null;
+    const max = Math.max(...values);
+    const step = max <= 200000 ? 25000 : max <= 1000000 ? 50000 : 100000;
+    return {
+      min: Math.max(0, Math.floor(Math.min(...values) / step) * step),
+      ceiling: Math.max(step, Math.ceil(max / step) * step),
+      step
+    };
+  }, [catalogProducts]);
+
+  const handleSelectPricePreset = (preset: PricePreset) => {
     setPricePreset(preset);
-    if (preset === 'under100') setPriceMax(100000);
-    else if (preset === '100to250') setPriceMax(250000);
-    else if (preset === '250to500') setPriceMax(500000);
-    else if (preset === 'above500') setPriceMax(1000000);
-    else setPriceMax(600000);
+    if (preset === 'all') setPriceMax(null);
   };
 
   const filteredProducts = useMemo(() => {
@@ -148,25 +276,25 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       // Tag filter
       if (selectedTag !== 'all') {
         const qTag = selectedTag.toLowerCase();
+        const tags = p.tags || [];
+        const features = p.features || [];
         let matchTag = false;
-        if (qTag === '2/9') {
-          matchTag = p.tags.some(t => t.includes('2/9') || t.toLowerCase().includes('đại lễ') || t.toLowerCase().includes('quốc khánh'));
-        } else if (qTag === 'mechanical') {
-          matchTag = p.category === 'mechanical' || p.tags.some(t => t.toLowerCase().includes('cơ khí') || t.toLowerCase().includes('mechanical'));
+        if (qTag === 'mechanical') {
+          matchTag = p.category === 'mechanical' || tags.some(t => t.toLowerCase().includes('cơ khí') || t.toLowerCase().includes('mechanical'));
         } else if (qTag === 'iot') {
-          matchTag = p.category === 'iot' || p.tags.some(t => t.toLowerCase().includes('iot') || t.toLowerCase().includes('arduino') || t.toLowerCase().includes('esp32'));
+          matchTag = p.category === 'iot' || tags.some(t => t.toLowerCase().includes('iot') || t.toLowerCase().includes('arduino') || t.toLowerCase().includes('esp32'));
         } else if (qTag === 'robotics') {
-          matchTag = p.tags.some(t => t.toLowerCase().includes('robot') || t.toLowerCase().includes('nema') || t.toLowerCase().includes('drone'));
+          matchTag = tags.some(t => t.toLowerCase().includes('robot') || t.toLowerCase().includes('nema') || t.toLowerCase().includes('drone'));
         } else if (qTag === 'snap-fit') {
-          matchTag = p.tags.some(t => t.toLowerCase().includes('snap-fit') || p.features.some(f => f.toLowerCase().includes('snap-fit')));
+          matchTag = tags.some(t => t.toLowerCase().includes('snap-fit')) || features.some(f => f.toLowerCase().includes('snap-fit'));
         } else if (qTag === 'resin-8k') {
-          matchTag = p.supportedMaterials.some(m => m.toLowerCase().includes('resin')) || p.tags.some(t => t.toLowerCase().includes('resin'));
+          matchTag = (p.supportedMaterials || []).some(m => m.toLowerCase().includes('resin')) || tags.some(t => t.toLowerCase().includes('resin'));
         } else if (qTag === 'decor') {
-          matchTag = p.category === 'tabletop' || p.tags.some(t => t.toLowerCase().includes('decor') || t.toLowerCase().includes('parametric') || t.toLowerCase().includes('vase'));
+          matchTag = p.category === 'tabletop' || tags.some(t => t.toLowerCase().includes('decor') || t.toLowerCase().includes('parametric') || t.toLowerCase().includes('vase'));
         } else if (qTag === 'bán-chạy') {
-          matchTag = (p.salesCount && p.salesCount > 100) || p.badge === 'BÁN CHẠY' || p.tags.some(t => t.toLowerCase().includes('bán chạy'));
+          matchTag = (p.salesCount && p.salesCount > 100) || p.badge === 'BÁN CHẠY' || tags.some(t => t.toLowerCase().includes('bán chạy'));
         } else {
-          matchTag = p.tags.some(t => t.toLowerCase().includes(qTag));
+          matchTag = tags.some(t => t.toLowerCase().includes(qTag));
         }
         if (!matchTag) return false;
       }
@@ -175,16 +303,16 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase().trim();
         const matchName = p.name.toLowerCase().includes(q);
-        const matchDesigner = p.designer.toLowerCase().includes(q);
-        const matchTags = p.tags.some(t => t.toLowerCase().includes(q));
+        const matchDesigner = (p.designer || '').toLowerCase().includes(q);
+        const matchTags = (p.tags || []).some(t => t.toLowerCase().includes(q));
         const matchSku = p.sku ? p.sku.toLowerCase().includes(q) : false;
-        const matchMat = p.supportedMaterials.some(m => m.toLowerCase().includes(q));
+        const matchMat = (p.supportedMaterials || []).some(m => m.toLowerCase().includes(q));
         if (!matchName && !matchDesigner && !matchTags && !matchSku && !matchMat) return false;
       }
 
-      // Material filter
-      if (selectedMaterial !== 'all') {
-        const hasMat = p.supportedMaterials.some(m => m.toLowerCase().includes(selectedMaterial.toLowerCase()));
+      // Material filter — chỉ áp dụng khi có danh mục vật liệu thật để chọn
+      if (selectedMaterial !== 'all' && materialOptions.length > 0) {
+        const hasMat = (p.supportedMaterials || []).some(m => m.toLowerCase().includes(selectedMaterial.toLowerCase()));
         if (!hasMat) return false;
       }
 
@@ -193,119 +321,320 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       if (pricePreset === '100to250' && (p.pricePhysical < 100000 || p.pricePhysical > 250000)) return false;
       if (pricePreset === '250to500' && (p.pricePhysical < 250000 || p.pricePhysical > 500000)) return false;
       if (pricePreset === 'above500' && p.pricePhysical < 500000) return false;
-      if (pricePreset === 'all' && p.pricePhysical > priceMax) return false;
+      if (pricePreset === 'all' && priceMax !== null && p.pricePhysical > priceMax) return false;
 
       // Customizable filter
       if (onlyCustomizable && !p.isCustomizable) {
         return false;
       }
 
-      // Watertight filter
-      if (onlyWatertight && !p.features.some(f => f.toLowerCase().includes('watertight') || f.toLowerCase().includes('kín nước') || f.toLowerCase().includes('chống thấm'))) {
-        // Most VCUBE models are watertight by default
-      }
-
       return true;
     }).sort((a, b) => {
       if (sortBy === 'price-asc') return a.pricePhysical - b.pricePhysical;
       if (sortBy === 'price-desc') return b.pricePhysical - a.pricePhysical;
-      if (sortBy === 'rating') return b.rating - a.rating;
+      // D8: `rating` NULL/undefined coi như 0 (KHÔNG có đánh giá) nên luôn nằm CUỐI khi sắp
+      // xếp giảm dần; tránh `undefined - number = NaN` làm thứ tự nhảy lung tung.
+      if (sortBy === 'rating') return (Number(b.rating) || 0) - (Number(a.rating) || 0);
       if (sortBy === 'popular') return (b.printsCount || 0) - (a.printsCount || 0);
       return 0; // featured default
     });
-  }, [products, selectedCategory, selectedTag, searchQuery, selectedMaterial, pricePreset, priceMax, onlyCustomizable, onlyWatertight, sortBy, isAdmin]);
-
-  const materialsList = ['PLA Tough', 'PETG', 'ABS', 'Resin 8K', 'TPU', 'Nylon PA12'];
+  }, [products, selectedCategory, selectedTag, searchQuery, selectedMaterial, materialOptions, pricePreset, priceMax, onlyCustomizable, sortBy, isAdmin]);
 
   const resetFilters = () => {
     setSelectedCategory('all');
     setSelectedTag('all');
     setSelectedMaterial('all');
     setPricePreset('all');
-    setPriceMax(600000);
+    setPriceMax(null);
     setOnlyCustomizable(false);
-    setOnlyWatertight(false);
     setSearchQuery('');
   };
 
-  const hasActiveFilters = selectedCategory !== 'all' || selectedTag !== 'all' || selectedMaterial !== 'all' || pricePreset !== 'all' || priceMax < 600000 || onlyCustomizable || searchQuery.trim() !== '';
+  const renderedProducts = filteredProducts.slice(0, visibleCount);
+  const isCatalogLoading = hydrationWindowOpen && products.length === 0;
+  const catalogIsEmpty = catalogProducts.length === 0;
+  const hasActiveFilters = selectedCategory !== 'all' || selectedTag !== 'all' || (selectedMaterial !== 'all' && materialOptions.length > 0) || pricePreset !== 'all' || priceMax !== null || onlyCustomizable || searchQuery.trim() !== '';
+  const goToQuote = () => onNavigate('quote');
+
+  /**
+   * Bộ lọc dùng CHUNG cho cột trái (desktop) và bottom-sheet (mobile). Dựng bằng hàm để hai
+   * bản không dùng lại cùng một cây element (tránh trùng `id`/`name` giữa 2 chỗ render).
+   */
+  const renderFilters = () => (
+    <div className="space-y-6">
+      {/* Category Filter with counts from real products */}
+      <div>
+        <p className="text-xs font-mono uppercase tracking-[0.2em] text-fg-subtle font-bold block mb-2.5">
+          {isVi ? 'Danh Mục Bản Vẽ' : 'CAD Categories'}
+        </p>
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('all')}
+            className={`w-full text-left px-3 py-2 text-xs rounded-md transition-all flex items-center justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              selectedCategory === 'all'
+                ? 'bg-primary text-primary-fg font-bold'
+                : 'text-fg-muted hover:bg-canvas hover:text-fg'
+            }`}
+          >
+            <span className="flex items-center gap-2 truncate">
+              <Icon name="select_all" size={18} />
+              <span>{isVi ? 'Tất cả danh mục' : 'All Categories'}</span>
+            </span>
+            {catalogProducts.length > 0 && (
+              <span className="font-mono text-xs tabular-nums shrink-0 ml-2">({catalogProducts.length})</span>
+            )}
+          </button>
+
+          {CATEGORIES.filter(c => c.id !== 'all').map((cat) => {
+            const count = categoryCounts[cat.id] || 0;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`w-full text-left px-3 py-2 text-xs rounded-md transition-all flex items-center justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  selectedCategory === cat.id
+                    ? 'bg-primary text-primary-fg font-bold'
+                    : 'text-fg-muted hover:bg-canvas hover:text-fg'
+                }`}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <Icon name={cat.icon} size={18} className="opacity-80" />
+                  <span>{isVi ? cat.name : (cat as any).nameEn || cat.name}</span>
+                </span>
+                {count > 0 && (
+                  <span className="font-mono text-xs tabular-nums shrink-0 ml-2">({count})</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Price Filter — chỉ dựng khi kho có giá thật để suy khoảng */}
+      {priceRange && (
+        <div>
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-fg-subtle font-bold mb-2 flex items-center gap-1">
+            {isVi ? 'Khoảng Giá In Vật Lý' : 'Physical Price Range'}
+            <InfoTip label={isVi ? 'Dải giá này lấy từ đâu?' : 'Where does this price range come from?'}>
+              {isVi
+                ? 'Dải giá được suy từ trường price_physical của các bản vẽ đang hiển thị. Bản vẽ chưa khai giá sẽ hiện — và không tham gia dải này.'
+                : 'The range is derived from the price_physical field of the models currently shown. Models with no declared price render — and do not take part in the range.'}
+            </InfoTip>
+          </p>
+
+          <div className="grid grid-cols-2 gap-1.5 mb-3">
+            {PRICE_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => handleSelectPricePreset(preset.id)}
+                className={`py-1.5 px-2 text-xs font-mono font-bold rounded-md border transition-all cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  pricePreset === preset.id
+                    ? 'bg-primary text-primary-fg border-primary'
+                    : 'bg-canvas text-fg-muted border-line-control hover:border-primary'
+                }`}
+              >
+                {isVi ? preset.vi : preset.en}
+              </button>
+            ))}
+          </div>
+
+          <div className="pt-1">
+            <div className="flex justify-between items-baseline mb-1 text-xs font-mono gap-2">
+              <span className="text-fg-subtle">{isVi ? 'Tối đa:' : 'Max:'}</span>
+              <span className="font-bold text-primary tabular-nums">
+                {priceMax === null
+                  ? (isVi ? 'Không giới hạn' : 'No limit')
+                  : `${priceMax.toLocaleString(numberLocale)} đ`}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={priceRange.min}
+              max={priceRange.ceiling}
+              step={priceRange.step}
+              value={priceMax === null ? priceRange.ceiling : priceMax}
+              onChange={(e) => {
+                setPricePreset('all');
+                const next = Number(e.target.value);
+                setPriceMax(next >= priceRange.ceiling ? null : next);
+              }}
+              aria-label={isVi ? 'Giá in vật lý tối đa' : 'Maximum physical print price'}
+              className="w-full accent-primary cursor-pointer"
+            />
+            <div className="flex justify-between text-xs font-mono text-fg-subtle mt-0.5 tabular-nums">
+              <span>{priceRange.min.toLocaleString(numberLocale)} đ</span>
+              <span>{priceRange.ceiling.toLocaleString(numberLocale)} đ</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Material Filter — lấy từ bảng `materials` thật; rỗng ⇒ ẩn cả nhóm */}
+      {materialOptions.length > 0 && (
+        <div>
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-fg-subtle font-bold mb-2 flex items-center gap-1">
+            {isVi ? 'Vật Liệu Hỗ Trợ' : 'Supported Material'}
+            <InfoTip label={isVi ? 'Danh mục vật liệu lấy từ đâu?' : 'Where does the material list come from?'}>
+              {isVi
+                ? 'Danh mục đọc từ bảng materials trong DB. Bảng rỗng thì cả nhóm lọc này ẩn — không dựng danh mục mẫu.'
+                : 'Read from the materials table in the DB. When it is empty the whole group is hidden — no sample list is invented.'}
+            </InfoTip>
+          </p>
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => setSelectedMaterial('all')}
+              className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md transition-colors flex items-center justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                selectedMaterial === 'all'
+                  ? 'bg-primary-tint text-primary font-bold'
+                  : 'text-fg-muted hover:text-fg'
+              }`}
+            >
+              <span>{isVi ? 'Tất cả vật liệu' : 'All materials'}</span>
+              <Icon name="done" size={18} />
+            </button>
+            {materialOptions.map((mat) => (
+              <button
+                key={mat}
+                type="button"
+                onClick={() => setSelectedMaterial(mat)}
+                className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md transition-colors cursor-pointer truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  selectedMaterial === mat
+                    ? 'bg-primary text-primary-fg font-bold'
+                    : 'text-fg-muted hover:bg-canvas hover:text-fg'
+                }`}
+              >
+                {mat}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Feature filter */}
+      <div className="pt-3 border-t border-line space-y-2.5">
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={onlyCustomizable}
+            onChange={(e) => setOnlyCustomizable(e.target.checked)}
+            className="w-4 h-4 accent-primary cursor-pointer rounded-sm"
+          />
+          <span className="text-xs text-fg font-medium">
+            {isVi ? 'Hỗ trợ khắc tên & tùy biến' : 'Custom engraving & resize'}
+          </span>
+        </label>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#091426] py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans relative selection:bg-[#00687A] selection:text-white">
+    <div className="min-h-screen bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans relative selection:bg-primary selection:text-primary-fg">
       <SEOHead
         title={isVi ? 'Kho Bản Vẽ CAD & Linh Kiện 3D' : '3D CAD & Precision Parts Marketplace'}
         description={isVi
-          ? `Khám phá hơn ${products.length} bản vẽ cơ khí chính xác được kiểm định ứng suất, đạt chuẩn Watertight 100% tại VCUBE Vietnam.`
-          : `Explore over ${products.length} precision mechanical 3D CAD designs stress-tested and certified for instant digital fabrication at VCUBE Vietnam.`}
-        image={products[0]?.thumbnailUrl || (products[0]?.images && products[0]?.images[0]) || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=1200&h=630&fit=crop'}
+          ? (catalogProducts.length > 0
+            ? `Kho ${catalogProducts.length} bản vẽ CAD & linh kiện 3D trên VCUBE — giá, vật liệu hỗ trợ và định dạng tệp lấy từ dữ liệu sản phẩm.`
+            : 'Kho bản vẽ CAD & linh kiện 3D của VCUBE. Hiện chưa có bản vẽ nào được đăng — bạn vẫn có thể gửi file 3D để nhận báo giá in.')
+          : (catalogProducts.length > 0
+            ? `${catalogProducts.length} CAD models on VCUBE — prices, supported materials and file formats read from product data.`
+            : 'VCUBE CAD catalogue. No model has been published yet — you can still send your own 3D file for a print quote.')}
+        image={products[0]?.thumbnailUrl || (products[0]?.images && products[0]?.images[0])}
         url={typeof window !== 'undefined' ? window.location.href : undefined}
         type="website"
       />
 
       {/* Background Ambient Glowing Radiance (Aligned with Login & HomeView) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 opacity-70">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#DCE9FF]/60 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-[#57DFFE]/15 rounded-full blur-3xl" />
-        <div className="absolute bottom-10 left-1/4 w-[400px] h-[400px] bg-[#DCE9FF]/40 rounded-full blur-3xl" />
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-accent/15 rounded-full blur-3xl" />
+        <div className="absolute bottom-10 left-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-3xl" />
       </div>
 
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Editorial Modern Header Title */}
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 sm:gap-6 pb-6 border-b border-[#CBD5E1]">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-[#CBD5E1] rounded-lg text-[10px] uppercase font-mono tracking-[0.2em] text-[#00687A] font-bold mb-2 shadow-2xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00687A] animate-pulse" />
-              <span>VCUBE PRECISION CAD REPOSITORY // 2026 ARCHIVE</span>
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 sm:gap-6 pb-6 border-b border-line">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface border border-line-subtle text-xs uppercase font-mono tracking-[0.2em] text-primary font-bold mb-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />
+              <span>{isVi ? 'Kho Bản Vẽ CAD VCUBE' : 'VCUBE CAD REPOSITORY'}</span>
             </div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-[#091426] tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-fg tracking-tight">
               {isVi ? 'Bộ Sưu Tập & Bản Vẽ Kỹ Thuật CAD' : 'Engineering CAD & Physical Catalog'}
             </h1>
-            <p className="text-xs sm:text-sm text-[#64748B] mt-1 font-sans max-w-2xl leading-relaxed">
-              {isVi
-                ? `Hơn ${products.length} bản vẽ cơ khí chính xác được kiểm định ứng suất, đạt chuẩn Watertight 100% và cấp phép sản xuất bồi đắp trực tiếp.`
-                : `Over ${products.length} precision mechanical designs stress-tested, 100% watertight verified, and certified for instant digital fabrication.`}
+            <p className="text-xs sm:text-sm text-fg-muted mt-1 font-sans max-w-2xl leading-relaxed flex items-center gap-1.5 flex-wrap">
+              <span>
+                {catalogProducts.length > 0
+                  ? (isVi
+                    ? `${catalogProducts.length} bản vẽ đang có — vật liệu hỗ trợ, định dạng tệp và giá lấy từ dữ liệu sản phẩm.`
+                    : `${catalogProducts.length} models available — materials, file formats and prices read from product data.`)
+                  : (isVi
+                    ? 'Kho bản vẽ đang trống.'
+                    : 'The catalogue is empty.')}
+              </span>
+              <InfoTip label={isVi ? 'Số bản vẽ này đếm gì?' : 'What does this count cover?'}>
+                {isVi
+                  ? 'Đếm theo các bản vẽ đang hiển thị với vai trò hiện tại. Trường nào người bán chưa khai (giá, giấy phép, thời gian in, tác giả) sẽ hiện — thay vì một giá trị đoán hộ. Kho trống thì bạn vẫn gửi được file 3D để nhận báo giá in.'
+                  : 'Counted over the models visible to the current role. Any field the seller has not declared (price, licence, print time, designer) renders — instead of a guessed value. An empty catalogue still lets you send your own 3D file for a print quote.'}
+              </InfoTip>
             </p>
           </div>
 
           {/* Quick Search Bar */}
-          <div className="relative w-full md:w-88 shrink-0">
-            <input
-              type="text"
-              placeholder={isVi ? 'Tìm linh kiện CAD (vd: Bánh răng, ESP32, Drone)...' : 'Search CAD models (e.g. Gear, Drone, NEMA)...'}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-white border border-[#CBD5E1] text-xs text-[#091426] placeholder-[#94A3B8] focus:outline-none focus:border-[#00687A] rounded-xl shadow-xs font-sans"
-            />
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-[#64748B] text-base">
-              search
-            </span>
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-2.5 text-[#64748B] hover:text-[#091426] text-xs p-0.5 cursor-pointer"
-                aria-label="Clear search"
-              >
-                <span className="material-symbols-outlined text-base">close</span>
-              </button>
-            )}
+          <div className="relative w-full md:w-88 shrink-0 space-y-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={isVi ? 'Tìm linh kiện CAD (vd: Bánh răng, ESP32, Drone)...' : 'Search CAD models (e.g. Gear, Drone, NEMA)...'}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label={isVi ? 'Tìm kiếm bản vẽ CAD' : 'Search CAD models'}
+                className="w-full pl-9 pr-8 py-2.5 bg-surface border border-line-control text-xs text-fg placeholder-fg-subtle focus:outline-none focus:border-primary rounded-md"
+              />
+              <Icon name="search" size={18} className="absolute left-3 top-2.5 text-fg-subtle" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-2.5 text-fg-subtle hover:text-fg text-xs p-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+                  aria-label={isVi ? 'Xoá từ khoá tìm kiếm' : 'Clear search'}
+                >
+                  <Icon name="close" size={18} />
+                </button>
+              )}
+            </div>
+            {/* Đường thoát thật khi kho rỗng: khách vẫn gửi được file của mình */}
+            <Button
+              variant="secondary"
+              size="md"
+              fullWidth
+              leadingIcon={<Icon name="request_quote" size={18} />}
+              onClick={goToQuote}
+            >
+              {isVi ? 'Báo giá file 3D của bạn' : 'Quote your own 3D file'}
+            </Button>
           </div>
         </div>
 
         {/* Popular Tag Filter Chips Bar */}
-        <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-[#CBD5E1] shadow-xs space-y-2">
+        <Card className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-mono font-bold text-[#64748B] flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm text-[#00687A]">sell</span>
+            <span className="text-xs uppercase font-mono font-bold text-fg-subtle flex items-center gap-1.5">
+              <Icon name="sell" size={18} className="text-primary" />
               {isVi ? 'Lọc nhanh theo Tag kỹ thuật:' : 'Quick Filter by Engineering Tag:'}
             </span>
             {selectedTag !== 'all' && (
-              <button
+              <Button
+                variant="danger-ghost"
+                size="sm"
+                leadingIcon={<Icon name="close" size={18} />}
                 onClick={() => setSelectedTag('all')}
-                className="text-[10px] text-rose-600 hover:underline font-bold flex items-center gap-0.5 cursor-pointer"
               >
-                <span>{isVi ? 'Bỏ lọc tag' : 'Clear tag'}</span>
-                <span className="material-symbols-outlined text-xs">close</span>
-              </button>
+                {isVi ? 'Bỏ lọc tag' : 'Clear tag'}
+              </Button>
             )}
           </div>
 
@@ -313,405 +642,188 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <HorizontalScrollFilter>
               {POPULAR_TAGS.map((tag) => {
                 const isActive = selectedTag === tag.id;
-                const is29 = tag.id === '2/9';
 
                 return (
                   <button
                     key={tag.id}
+                    type="button"
+                    aria-pressed={isActive}
                     onClick={() => setSelectedTag(isActive ? 'all' : tag.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-mono whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-sm text-xs font-mono whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border ${
                       isActive
-                        ? is29
-                          ? 'bg-[#990000] text-white font-bold shadow-xs'
-                          : 'bg-[#00687A] text-white font-bold shadow-xs'
-                        : is29
-                        ? 'bg-red-50 text-[#990000] border border-red-200 hover:bg-red-100 font-bold'
-                        : 'bg-[#F8FAFC] text-[#475569] border border-[#CBD5E1] hover:border-[#00687A] hover:text-[#091426]'
+                        ? 'bg-primary text-primary-fg border-primary font-bold'
+                        : 'bg-canvas text-fg-muted border-line-control hover:border-primary hover:text-fg'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-xs">{tag.icon}</span>
+                    <Icon name={tag.icon} size={18} />
                     <span>{isVi ? tag.nameVi : tag.nameEn}</span>
-                    {is29 && (
-                      <span className="bg-[#FFD700] text-[#990000] text-[8px] font-bold px-1 rounded-full uppercase">
-                        HOT
-                      </span>
-                    )}
                   </button>
                 );
               })}
             </HorizontalScrollFilter>
           </div>
-        </div>
+        </Card>
 
         {/* Active Filters Tray */}
         {hasActiveFilters && (
-          <div className="bg-[#00687A]/5 border border-[#00687A]/20 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="bg-primary-tint p-3 rounded-lg flex flex-wrap items-center justify-between gap-2.5 text-xs">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-mono font-bold uppercase text-[#00687A] flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">filter_alt</span>
+              <span className="text-xs font-mono font-bold uppercase text-primary flex items-center gap-1">
+                <Icon name="filter_alt" size={18} />
                 {isVi ? 'Đang lọc:' : 'Active filters:'}
               </span>
 
               {searchQuery && (
-                <span className="inline-flex items-center gap-1 bg-white border border-[#CBD5E1] px-2.5 py-1 rounded-lg text-xs font-medium text-[#091426] shadow-2xs">
+                <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
                   <span>Tìm: "{searchQuery}"</span>
-                  <button onClick={() => setSearchQuery('')} className="hover:text-rose-600 cursor-pointer">
-                    <span className="material-symbols-outlined text-xs">close</span>
-                  </button>
+                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Xoá tìm kiếm' : 'Clear search'} onClick={() => setSearchQuery('')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {selectedCategory !== 'all' && (
-                <span className="inline-flex items-center gap-1 bg-white border border-[#CBD5E1] px-2.5 py-1 rounded-lg text-xs font-medium text-[#00687A] shadow-2xs">
+                <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-primary">
                   <span>Danh mục: {CATEGORIES.find(c => c.id === selectedCategory)?.name || selectedCategory}</span>
-                  <button onClick={() => setSelectedCategory('all')} className="hover:text-rose-600 cursor-pointer">
-                    <span className="material-symbols-outlined text-xs">close</span>
-                  </button>
+                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc danh mục' : 'Clear category'} onClick={() => setSelectedCategory('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {selectedTag !== 'all' && (
-                <span className="inline-flex items-center gap-1 bg-white border border-[#CBD5E1] px-2.5 py-1 rounded-lg text-xs font-medium text-[#00687A] shadow-2xs">
+                <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-primary">
                   <span>Tag: #{selectedTag}</span>
-                  <button onClick={() => setSelectedTag('all')} className="hover:text-rose-600 cursor-pointer">
-                    <span className="material-symbols-outlined text-xs">close</span>
-                  </button>
+                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc thẻ' : 'Clear tag'} onClick={() => setSelectedTag('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
-              {selectedMaterial !== 'all' && (
-                <span className="inline-flex items-center gap-1 bg-white border border-[#CBD5E1] px-2.5 py-1 rounded-lg text-xs font-medium text-[#091426] shadow-2xs">
+              {selectedMaterial !== 'all' && materialOptions.length > 0 && (
+                <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
                   <span>Vật liệu: {selectedMaterial}</span>
-                  <button onClick={() => setSelectedMaterial('all')} className="hover:text-rose-600 cursor-pointer">
-                    <span className="material-symbols-outlined text-xs">close</span>
-                  </button>
+                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc vật liệu' : 'Clear material'} onClick={() => setSelectedMaterial('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {pricePreset !== 'all' && (
-                <span className="inline-flex items-center gap-1 bg-white border border-[#CBD5E1] px-2.5 py-1 rounded-lg text-xs font-medium text-[#091426] shadow-2xs">
+                <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
                   <span>
                     Giá: {pricePreset === 'under100' ? '< 100k' : pricePreset === '100to250' ? '100k - 250k' : pricePreset === '250to500' ? '250k - 500k' : '> 500k'}
                   </span>
-                  <button onClick={() => setPricePreset('all')} className="hover:text-rose-600 cursor-pointer">
-                    <span className="material-symbols-outlined text-xs">close</span>
-                  </button>
+                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc khoảng giá' : 'Clear price range'} onClick={() => setPricePreset('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
+                </span>
+              )}
+
+              {priceMax !== null && (
+                <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
+                  <span>Tối đa: {priceMax.toLocaleString(numberLocale)} đ</span>
+                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ giới hạn giá' : 'Clear max price'} onClick={() => setPriceMax(null)} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {onlyCustomizable && (
-                <span className="inline-flex items-center gap-1 bg-white border border-[#CBD5E1] px-2.5 py-1 rounded-lg text-xs font-medium text-[#091426] shadow-2xs">
+                <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
                   <span>Hỗ trợ khắc tên & tùy biến</span>
-                  <button onClick={() => setOnlyCustomizable(false)} className="hover:text-rose-600 cursor-pointer">
-                    <span className="material-symbols-outlined text-xs">close</span>
-                  </button>
+                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc tuỳ biến' : 'Clear customizable filter'} onClick={() => setOnlyCustomizable(false)} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
             </div>
 
-            <button
+            <Button
+              variant="danger-ghost"
+              size="sm"
+              leadingIcon={<Icon name="restart_alt" size={18} />}
               onClick={resetFilters}
-              className="text-xs font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer shrink-0"
             >
-              <span className="material-symbols-outlined text-sm">restart_alt</span>
-              <span>{isVi ? 'Xóa toàn bộ bộ lọc' : 'Reset all filters'}</span>
-            </button>
+              {isVi ? 'Xóa toàn bộ bộ lọc' : 'Reset all filters'}
+            </Button>
           </div>
         )}
 
-        {/* Mobile Filter Toggle Button */}
-        <div className="lg:hidden flex items-center justify-between gap-3">
-          <button
-            onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
-            className="flex-1 py-3 px-4 bg-white border border-[#CBD5E1] text-xs uppercase font-mono tracking-wider font-bold flex items-center justify-center gap-2 shadow-xs rounded-xl cursor-pointer"
+        {/* Mobile Filter Toggle Button — cột lọc thành bottom-sheet dưới lg */}
+        <div className="lg:hidden flex items-center gap-3">
+          <Button
+            variant="secondary"
+            size="md"
+            className="flex-1"
+            leadingIcon={<Icon name="tune" size={18} className="text-primary" />}
+            onClick={() => setMobileFilterOpen(true)}
           >
-            <span className="material-symbols-outlined text-base text-[#00687A]">tune</span>
-            {mobileFilterOpen ? (isVi ? 'Đóng Bộ Lọc' : 'Close Filters') : (isVi ? `Bộ Lọc Nâng Cao (${filteredProducts.length})` : `Filters (${filteredProducts.length})`)}
-          </button>
-          <button
-            onClick={resetFilters}
-            className="py-3 px-4 bg-white border border-[#CBD5E1] text-xs uppercase font-mono tracking-wider text-[#64748B] rounded-xl font-bold cursor-pointer"
-          >
+            {isVi ? `Bộ Lọc (${filteredProducts.length})` : `Filters (${filteredProducts.length})`}
+          </Button>
+          <Button variant="ghost" size="md" onClick={resetFilters}>
             {isVi ? 'Đặt lại' : 'Reset'}
-          </button>
+          </Button>
         </div>
 
         {/* Main Grid: Filters Sidebar + Products */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-          {/* Left Sidebar Filters */}
-          <aside className={`lg:col-span-3 space-y-5 ${mobileFilterOpen ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white p-5 sm:p-6 border border-[#CBD5E1] rounded-2xl shadow-xs space-y-6">
-              <div className="flex items-center justify-between pb-3.5 border-b border-[#CBD5E1]">
-                <span className="font-bold text-sm text-[#091426] flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-base text-[#00687A]">tune</span>
+          {/* Left Sidebar Filters — desktop only; mobile dùng bottom-sheet bên dưới */}
+          <aside className="hidden lg:block lg:col-span-3 space-y-5">
+            <Card padding="lg" className="space-y-6">
+              <div className="flex items-center justify-between pb-3.5 border-b border-line">
+                <span className="font-bold text-sm text-fg flex items-center gap-1.5">
+                  <Icon name="tune" size={18} className="text-primary" />
                   {isVi ? 'Bộ Lọc Phân Loại' : 'Filter Options'}
                 </span>
                 {hasActiveFilters && (
-                  <button
-                    onClick={resetFilters}
-                    className="text-[10px] font-mono uppercase tracking-wider text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
-                  >
+                  <Button variant="danger-ghost" size="sm" onClick={resetFilters}>
                     {isVi ? 'Xóa lọc' : 'Reset'}
-                  </button>
+                  </Button>
                 )}
               </div>
 
-              {/* Category Filter with Live Counts */}
-              <div>
-                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#64748B] font-bold block mb-2.5">
-                  {isVi ? 'Danh Mục Bản Vẽ' : 'CAD Categories'}
-                </label>
-                <div className="space-y-1">
-                  <button
-                    onClick={() => {
-                      setSelectedCategory('all');
-                      if (window.innerWidth < 1024) setMobileFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs rounded-xl transition-all flex items-center justify-between cursor-pointer ${
-                      selectedCategory === 'all'
-                        ? 'bg-[#00687A] text-white font-bold shadow-xs'
-                        : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#091426]'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 truncate">
-                      <span className="material-symbols-outlined text-sm">select_all</span>
-                      <span>{isVi ? 'Tất cả danh mục' : 'All Categories'}</span>
-                    </span>
-                    <span className="font-mono text-[10px] opacity-75 shrink-0 ml-2">({products.length})</span>
-                  </button>
-
-                  {CATEGORIES.filter(c => c.id !== 'all').map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => {
-                        setSelectedCategory(cat.id);
-                        if (window.innerWidth < 1024) setMobileFilterOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-xs rounded-xl transition-all flex items-center justify-between cursor-pointer ${
-                        selectedCategory === cat.id
-                          ? 'bg-[#00687A] text-white font-bold shadow-xs'
-                          : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#091426]'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2 truncate">
-                        <span className="material-symbols-outlined text-sm opacity-80">{cat.icon}</span>
-                        <span>{isVi ? cat.name : (cat as any).nameEn || cat.name}</span>
-                      </span>
-                      <span className="font-mono text-[10px] opacity-75 shrink-0 ml-2">
-                        ({categoryCounts[cat.id] || cat.count})
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price Filter with Quick Presets */}
-              <div>
-                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#64748B] font-bold block mb-2">
-                  {isVi ? 'Khoảng Giá In Vật Lý' : 'Physical Price Range'}
-                </label>
-                
-                {/* Presets */}
-                <div className="grid grid-cols-2 gap-1.5 mb-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPricePreset('under100')}
-                    className={`py-1.5 px-2 text-[11px] font-mono font-bold rounded-lg border transition-all cursor-pointer text-center ${
-                      pricePreset === 'under100'
-                        ? 'bg-[#00687A] text-white border-[#00687A] shadow-2xs'
-                        : 'bg-[#F8FAFC] text-[#475569] border-[#CBD5E1] hover:border-[#00687A]'
-                    }`}
-                  >
-                    &lt; 100k đ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPricePreset('100to250')}
-                    className={`py-1.5 px-2 text-[11px] font-mono font-bold rounded-lg border transition-all cursor-pointer text-center ${
-                      pricePreset === '100to250'
-                        ? 'bg-[#00687A] text-white border-[#00687A] shadow-2xs'
-                        : 'bg-[#F8FAFC] text-[#475569] border-[#CBD5E1] hover:border-[#00687A]'
-                    }`}
-                  >
-                    100k - 250k
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPricePreset('250to500')}
-                    className={`py-1.5 px-2 text-[11px] font-mono font-bold rounded-lg border transition-all cursor-pointer text-center ${
-                      pricePreset === '250to500'
-                        ? 'bg-[#00687A] text-white border-[#00687A] shadow-2xs'
-                        : 'bg-[#F8FAFC] text-[#475569] border-[#CBD5E1] hover:border-[#00687A]'
-                    }`}
-                  >
-                    250k - 500k
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPricePreset('above500')}
-                    className={`py-1.5 px-2 text-[11px] font-mono font-bold rounded-lg border transition-all cursor-pointer text-center ${
-                      pricePreset === 'above500'
-                        ? 'bg-[#00687A] text-white border-[#00687A] shadow-2xs'
-                        : 'bg-[#F8FAFC] text-[#475569] border-[#CBD5E1] hover:border-[#00687A]'
-                    }`}
-                  >
-                    &gt; 500k đ
-                  </button>
-                </div>
-
-                {/* Slider */}
-                <div className="pt-1">
-                  <div className="flex justify-between items-center mb-1 text-[11px] font-mono">
-                    <span className="text-[#64748B]">Tối đa:</span>
-                    <span className="font-bold text-[#00687A]">
-                      {priceMax.toLocaleString(isVi ? 'vi-VN' : 'en-US')} đ
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="50000"
-                    max="600000"
-                    step="25000"
-                    value={priceMax}
-                    onChange={(e) => {
-                      setPricePreset('all');
-                      setPriceMax(Number(e.target.value));
-                    }}
-                    className="w-full accent-[#00687A] cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[9px] font-mono text-[#94A3B8] mt-0.5">
-                    <span>50k đ</span>
-                    <span>300k đ</span>
-                    <span>600k+ đ</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Material Filter */}
-              <div>
-                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#64748B] font-bold block mb-2">
-                  {isVi ? 'Vật Liệu Khuyên Dùng' : 'Recommended Material'}
-                </label>
-                <div className="space-y-1">
-                  <button
-                    onClick={() => setSelectedMaterial('all')}
-                    className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg transition-colors flex items-center justify-between cursor-pointer ${
-                      selectedMaterial === 'all'
-                        ? 'bg-[#00687A]/10 text-[#00687A] font-bold'
-                        : 'text-[#64748B] hover:text-[#091426]'
-                    }`}
-                  >
-                    <span>{isVi ? 'Tất cả vật liệu' : 'All materials'}</span>
-                    <span className="material-symbols-outlined text-xs">done</span>
-                  </button>
-                  {materialsList.map((mat) => (
-                    <button
-                      key={mat}
-                      onClick={() => setSelectedMaterial(mat)}
-                      className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg transition-colors flex items-center justify-between cursor-pointer ${
-                        selectedMaterial === mat
-                          ? 'bg-[#00687A] text-white font-bold shadow-2xs'
-                          : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#091426]'
-                      }`}
-                    >
-                      <span>{mat}</span>
-                      <span className="text-[9px] font-mono opacity-70">
-                        {mat.includes('Resin') ? 'SLA' : 'FDM'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Quality & Feature Checkboxes */}
-              <div className="pt-3 border-t border-[#CBD5E1] space-y-2.5">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={onlyCustomizable}
-                    onChange={(e) => setOnlyCustomizable(e.target.checked)}
-                    className="w-4 h-4 accent-[#00687A] cursor-pointer rounded"
-                  />
-                  <span className="text-xs text-[#091426] font-medium">
-                    {isVi ? 'Hỗ trợ khắc tên & tùy biến' : 'Custom engraving & resize'}
-                  </span>
-                </label>
-
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={onlyWatertight}
-                    onChange={(e) => setOnlyWatertight(e.target.checked)}
-                    className="w-4 h-4 accent-[#00687A] cursor-pointer rounded"
-                  />
-                  <span className="text-xs text-[#091426] font-medium">
-                    {isVi ? 'Đạt chuẩn Watertight 100%' : '100% Watertight certified'}
-                  </span>
-                </label>
-              </div>
-
-              {/* Supabase & Admin Live Link Notice */}
-              <div className="bg-[#F8FAFC] border border-[#CBD5E1] p-3 rounded-xl text-[11px] text-[#64748B] space-y-1">
-                <div className="flex items-center gap-1.5 text-[#00687A] font-bold font-mono text-[10px] uppercase">
-                  <span className="material-symbols-outlined text-xs">cloud_sync</span>
-                  <span>Supabase Catalog Sync</span>
-                </div>
-                <p className="leading-snug">
-                  Dữ liệu bản vẽ được đồng bộ trực tiếp từ cơ sở dữ liệu Supabase và phân quyền quản trị qua Admin CMS.
-                </p>
-              </div>
-            </div>
+              {renderFilters()}
+            </Card>
           </aside>
 
           {/* Right Product Grid & Views */}
-          <main className="lg:col-span-9 space-y-6">
+          {/*
+            Thứ NGUYÊN là `<div>`, KHÔNG phải `<main>`: landmark `main` duy nhất của trang
+            do `App.tsx` cung cấp. Để `<main>` ở đây thì `/explore` có 2 landmark
+            (browser test đo `document.querySelectorAll('main').length === 2`).
+          */}
+          <div className="min-w-0 lg:col-span-9 space-y-6">
             {/* Sorting and Result Summary */}
-            <div className="bg-white p-4 rounded-2xl border border-[#CBD5E1] flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-xs">
+            <Card className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[#64748B]">
-                  {isVi ? 'Hiển thị' : 'Showing'} <strong className="text-[#091426] font-mono font-bold">{Math.min(filteredProducts.length, visibleCount)} / {filteredProducts.length}</strong> {isVi ? 'bản vẽ cơ khí đạt chuẩn' : 'verified CAD models'}
+                <span className="text-fg-subtle">
+                  {isVi ? 'Hiển thị' : 'Showing'} <strong className="text-fg font-mono font-bold tabular-nums">{renderedProducts.length} / {filteredProducts.length}</strong> {isVi ? 'bản vẽ' : 'models'}
                 </span>
                 {selectedTag !== 'all' && (
-                  <span className="bg-[#00687A]/10 text-[#00687A] px-2 py-0.5 rounded font-mono text-[10px] font-bold">
-                    Tag: #{selectedTag}
-                  </span>
+                  <Badge variant="neutral">Tag: #{selectedTag}</Badge>
                 )}
                 {isAdmin && (
-                  <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-mono text-[10px] font-bold">
-                    Admin View (All Status)
-                  </span>
+                  <Badge variant="warning">{isVi ? 'Chế độ admin (mọi trạng thái)' : 'Admin view (all status)'}</Badge>
                 )}
               </div>
 
               <div className="flex items-center gap-3">
                 {/* View Mode Switcher */}
-                <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#CBD5E1] p-0.5 rounded-xl">
-                  <button
+                <div className="flex items-center gap-1 bg-canvas border border-line p-0.5 rounded-md">
+                  <Button
+                    iconOnly
+                    size="sm"
+                    variant={viewMode === 'grid' ? 'primary' : 'ghost'}
+                    aria-label={isVi ? 'Xem dạng lưới' : 'Grid view'}
+                    aria-pressed={viewMode === 'grid'}
                     onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                      viewMode === 'grid' ? 'bg-[#00687A] text-white shadow-2xs' : 'text-[#64748B] hover:text-[#091426]'
-                    }`}
-                    title="Grid View"
-                  >
-                    <span className="material-symbols-outlined text-sm block">grid_view</span>
-                  </button>
-                  <button
+                    leadingIcon={<Icon name="grid_view" size={16} className="block" />}
+                  />
+                  <Button
+                    iconOnly
+                    size="sm"
+                    variant={viewMode === 'tech-table' ? 'primary' : 'ghost'}
+                    aria-label={isVi ? 'Xem dạng bảng' : 'Table view'}
+                    aria-pressed={viewMode === 'tech-table'}
                     onClick={() => setViewMode('tech-table')}
-                    className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                      viewMode === 'tech-table' ? 'bg-[#00687A] text-white shadow-2xs' : 'text-[#64748B] hover:text-[#091426]'
-                    }`}
-                    title="List View"
-                  >
-                    <span className="material-symbols-outlined text-sm block">table_rows</span>
-                  </button>
+                    leadingIcon={<Icon name="table_rows" size={16} className="block" />}
+                  />
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] uppercase font-mono font-bold text-[#64748B]">{isVi ? 'Sắp xếp:' : 'Sort:'}</span>
+                  <span className="text-xs uppercase font-mono font-bold text-fg-subtle">{isVi ? 'Sắp xếp:' : 'Sort:'}</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-white border border-[#CBD5E1] py-1.5 px-2.5 text-xs text-[#091426] font-bold focus:outline-none focus:border-[#00687A] cursor-pointer rounded-xl shadow-2xs"
+                    aria-label={isVi ? 'Sắp xếp danh sách bản vẽ' : 'Sort models'}
+                    className="bg-surface border border-line-control py-1.5 px-2.5 text-xs text-fg font-bold focus:outline-none focus:border-primary cursor-pointer rounded-md"
                   >
                     <option value="featured">{isVi ? 'Nổi bật nhất' : 'Featured'}</option>
                     <option value="popular">{isVi ? 'Lượt in nhiều nhất' : 'Most Printed'}</option>
@@ -721,209 +833,297 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   </select>
                 </div>
               </div>
-            </div>
+            </Card>
 
-            {/* Empty State */}
-            {filteredProducts.length === 0 ? (
-              <div className="bg-white p-12 text-center border border-[#CBD5E1] rounded-2xl space-y-4 shadow-xs">
-                <div className="w-16 h-16 rounded-full bg-[#00687A]/10 text-[#00687A] flex items-center justify-center mx-auto">
-                  <span className="material-symbols-outlined text-3xl">inventory_2</span>
-                </div>
-                <h3 className="font-extrabold text-lg text-[#091426]">
-                  {isVi ? 'Không tìm thấy bản vẽ phù hợp với tiêu chí lọc' : 'No CAD models match your criteria'}
-                </h3>
-                <p className="text-xs text-[#64748B] max-w-md mx-auto leading-relaxed">
-                  {isVi
-                    ? 'Hãy thử điều chỉnh mức giá tối đa, chọn tag khác hoặc tìm kiếm với từ khóa kỹ thuật khác (ví dụ: Bánh răng, ESP32, Drone, Khớp nối).'
-                    : 'Try adjusting the max price slider, picking a different tag, or searching with other keywords like Gear, Drone, NEMA, Case.'}
-                </p>
-                <button
-                  onClick={resetFilters}
-                  className="px-6 py-2.5 bg-[#00687A] text-white text-xs uppercase font-mono font-bold tracking-wider hover:bg-[#005260] transition-colors rounded-xl shadow-xs cursor-pointer"
-                >
-                  {isVi ? 'Xóa toàn bộ bộ lọc' : 'Reset All Filters'}
-                </button>
+            {isCatalogLoading ? (
+              /* LOADING — skeleton đúng layout lưới thẻ */
+              <div
+                role="status"
+                aria-label={isVi ? 'Đang tải kho bản vẽ' : 'Loading the catalogue'}
+                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
+              >
+                {Array.from({ length: SKELETON_CARD_COUNT }).map((_, index) => (
+                  <ProductCardSkeleton key={index} />
+                ))}
               </div>
+            ) : filteredProducts.length === 0 ? (
+              /* EMPTY STATE — nêu đúng nguyên nhân + đường thoát thật */
+              <EmptyState
+                live
+                bordered
+                icon={<Icon name={catalogIsEmpty ? 'inventory_2' : 'search_off'} size={20} />}
+                title={catalogIsEmpty
+                  ? (isVi ? 'Kho bản vẽ đang trống' : 'The catalogue is empty')
+                  : (isVi ? 'Không có bản vẽ nào khớp bộ lọc' : 'No CAD models match your filters')}
+                description={catalogIsEmpty
+                  ? (isVi
+                    ? 'Chưa có bản vẽ CAD nào được đăng trên VCUBE.'
+                    : 'No CAD model has been published on VCUBE yet.')
+                  : (isVi
+                    ? 'Hãy bỏ bớt điều kiện hoặc đổi từ khoá tìm kiếm.'
+                    : 'Remove a condition or change the search term.')}
+                action={
+                  <>
+                    {catalogIsEmpty ? (
+                      <Button variant="primary" size="md" leadingIcon={<Icon name="request_quote" size={18} />} onClick={goToQuote}>
+                        {isVi ? 'Báo giá file 3D của bạn' : 'Quote your own 3D file'}
+                      </Button>
+                    ) : (
+                      <Button variant="primary" size="md" leadingIcon={<Icon name="restart_alt" size={18} />} onClick={resetFilters}>
+                        {isVi ? 'Xóa toàn bộ bộ lọc' : 'Reset all filters'}
+                      </Button>
+                    )}
+                    {catalogIsEmpty && hasActiveFilters && (
+                      <Button variant="secondary" size="md" onClick={resetFilters}>
+                        {isVi ? 'Xóa bộ lọc' : 'Clear filters'}
+                      </Button>
+                    )}
+                    {!catalogIsEmpty && (
+                      <Button variant="secondary" size="md" leadingIcon={<Icon name="request_quote" size={18} />} onClick={goToQuote}>
+                        {isVi ? 'Báo giá file 3D của bạn' : 'Quote your own 3D file'}
+                      </Button>
+                    )}
+                    <InfoTip
+                      label={isVi ? 'Vì sao có thể không thấy bản vẽ nào?' : 'Why might no model be listed?'}
+                      title={isVi ? 'Về trạng thái rỗng' : 'About this empty state'}
+                    >
+                      {catalogIsEmpty
+                        ? (isVi
+                          ? 'Chưa có bản vẽ nào được đăng nên bộ lọc chưa có gì để lọc. Bạn vẫn gửi được file 3D của mình để nhận báo giá in.'
+                          : 'Nothing has been published yet, so there is nothing for the filters to match. You can still send your own 3D file to get a print quote.')
+                        : (isVi
+                          ? `${filteredProducts.length} / ${catalogProducts.length} bản vẽ khớp bộ lọc đang chọn.`
+                          : `${filteredProducts.length} / ${catalogProducts.length} models match the current filters.`)}
+                    </InfoTip>
+                  </>
+                }
+              />
             ) : viewMode === 'grid' ? (
               /* GRID VIEW */
               <div className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredProducts.slice(0, visibleCount).map((product) => {
+                  {renderedProducts.map((product) => {
                     const isBookmarked = bookmarkedIds.includes(product.id);
+                    const imageUrl = product.thumbnailUrl || product.images?.[0] || '';
+                    const supported = product.supportedMaterials || [];
+                    const materialsLabel = supported.slice(0, 2).join(' · ');
+                    const rating = ratingOf(product);
 
                     return (
-                      <div
+                      <Card
                         key={product.id}
-                        className="bg-white border border-[#CBD5E1] hover:border-[#00687A] transition-all flex flex-col group p-4 relative rounded-2xl shadow-xs hover:shadow-xl duration-300"
+                        as="article"
+                        padding="none"
+                        className="group relative flex flex-col overflow-hidden transition-shadow duration-300 hover:shadow-e1"
                       >
-                        {/* Bookmark Icon Button */}
-                        <button
-                          onClick={(e) => toggleBookmark(product.id, e)}
-                          className="absolute top-6 right-6 z-10 w-8 h-8 rounded-full bg-white/90 hover:bg-white shadow-xs flex items-center justify-center text-[#091426] transition-transform active:scale-90 cursor-pointer border border-[#CBD5E1]/60 backdrop-blur-xs"
-                          title={isBookmarked ? (isVi ? 'Bỏ lưu' : 'Unsave') : (isVi ? 'Lưu thiết kế' : 'Save')}
-                        >
-                          <span className={`material-symbols-outlined text-base ${isBookmarked ? 'text-[#C59B27] fill-1' : 'text-[#64748B]'}`}>
-                            {isBookmarked ? 'bookmark' : 'bookmark_border'}
-                          </span>
-                        </button>
+                        {/* Product Image Frame — tỉ lệ cố định 4:3 */}
+                        <div className="responsive-aspect-frame">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={product.name}
+                              loading="lazy"
+                              className="responsive-img-cover group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-fg-subtle">
+                              <Icon name="image" size={24} />
+                            </div>
+                          )}
 
-                        {/* Product Image Frame */}
-                        <div
-                          className="responsive-aspect-frame cursor-pointer mb-4 rounded-xl overflow-hidden relative bg-[#091426]"
-                          onClick={() => {
-                            onSelectProduct(product);
-                            onNavigate('product_detail', { product });
-                          }}
-                        >
-                          <img
-                            src={product.thumbnailUrl || product.images[0]}
-                            alt={product.name}
-                            loading="lazy"
-                            className="responsive-img-cover group-hover:scale-105 opacity-95 transition-transform duration-500"
-                          />
-                          
-                          {/* Badges */}
-                          <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
+                          {/* Badges — chỉ dữ liệu DB trả về */}
+                          <div className="absolute top-2 left-2 flex flex-col gap-1 items-start pointer-events-none">
                             {product.badge && (
-                              <span className={`text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-md font-bold ${
-                                product.badge.includes('2/9') 
-                                  ? 'bg-[#990000] text-[#FFD700] shadow-xs'
-                                  : 'bg-[#091426] text-white border border-white/10'
-                              }`}>
-                                {product.badge}
+                              <Badge variant="technical" size="sm">{product.badge}</Badge>
+                            )}
+                            {product.cadFormat && (
+                              <span className="text-xs font-mono font-bold bg-primary text-primary-fg px-1.5 py-0.5 rounded-sm uppercase">
+                                {product.cadFormat}
                               </span>
                             )}
-                            <span className="text-[8px] font-mono font-bold bg-[#00687A] text-white px-1.5 py-0.5 rounded uppercase">
-                              {product.cadFormat || 'STL + STEP'}
-                            </span>
                           </div>
 
                           {/* 3D Quick-Inspect Trigger */}
                           <button
+                            type="button"
                             onClick={(e) => handleOpen3DPreview(product, e)}
-                            className="absolute inset-0 bg-[#091426]/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white font-mono text-xs uppercase tracking-wider font-bold cursor-pointer backdrop-blur-xs"
-                            title="Soi 3D 360°"
+                            className="absolute inset-0 bg-surface-inverse/70 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-opacity flex flex-col items-center justify-center gap-2 text-on-inverse font-mono text-xs uppercase tracking-wider font-bold cursor-pointer"
+                            aria-label={isVi ? `Xem trước 3D: ${product.name}` : `3D preview: ${product.name}`}
                           >
-                            <span className="w-10 h-10 rounded-full bg-[#00687A] text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                              <span className="material-symbols-outlined text-xl">3d_rotation</span>
+                            <span className="w-11 h-11 rounded-md bg-primary text-primary-fg flex items-center justify-center shadow-e2 transform group-hover:scale-110 transition-transform">
+                              <Icon name="3d_rotation" size={24} />
                             </span>
-                            <span className="bg-black/60 px-3 py-1 rounded-full text-[11px] text-[#57DFFE] border border-white/10">
-                              {isVi ? 'Soi 3D 360°' : '3D Inspection'}
+                            <span className="bg-surface-inverse/80 px-3 py-1 rounded-sm text-xs text-accent">
+                              {isVi ? 'Xem trước 3D' : '3D preview'}
                             </span>
                           </button>
 
-                          <span className="absolute bottom-2 right-2 bg-[#091426]/80 text-white text-[9px] font-mono px-2 py-0.5 rounded font-bold border border-white/10 backdrop-blur-xs">
-                            ⏱ {product.printTime}
-                          </span>
+                          {product.printTime && (
+                            <span className="absolute bottom-2 right-2">
+                              <Badge variant="technical" size="sm" icon={<Icon name="schedule" size={16} className="shrink-0" />}>
+                                {product.printTime}
+                              </Badge>
+                            </span>
+                          )}
+
+                          {/* Bookmark */}
+                          <Button
+                            iconOnly
+                            variant="secondary"
+                            size="sm"
+                            className="absolute top-2 right-2 z-sticky shadow-e2"
+                            aria-label={isBookmarked ? (isVi ? 'Bỏ lưu bản vẽ' : 'Remove bookmark') : (isVi ? 'Lưu bản vẽ' : 'Save model')}
+                            aria-pressed={isBookmarked}
+                            onClick={(e) => toggleBookmark(product.id, e)}
+                            leadingIcon={<Icon name={isBookmarked ? 'bookmark' : 'bookmark_border'} size={20} fill={isBookmarked ? 'currentColor' : 'none'} className={isBookmarked ? 'text-warning-strong' : 'text-fg-subtle'} />}
+                          />
                         </div>
 
                         {/* Info Section */}
-                        <div className="flex-1 flex flex-col justify-between">
-                          <div>
-                            <div className="flex items-center justify-between text-[11px] text-[#64748B] mb-1 font-sans">
-                              <span className="uppercase tracking-wider truncate font-semibold font-mono text-[10px] text-[#00687A]">
-                                {product.designer}
-                              </span>
-                              <span className="font-mono text-xs text-[#D97706] font-bold flex items-center gap-0.5">
-                                ★ {product.rating} <span className="text-[10px] text-[#94A3B8]">({product.reviewsCount})</span>
-                              </span>
-                            </div>
-                            <h3
-                              onClick={() => {
-                                onSelectProduct(product);
-                                onNavigate('product_detail', { product });
-                              }}
-                              className="font-bold text-sm text-[#091426] hover:text-[#00687A] transition-colors cursor-pointer line-clamp-2 leading-snug"
+                        <div className="flex-1 flex flex-col gap-2 p-4">
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <span
+                              className="uppercase tracking-wider truncate font-semibold font-mono text-xs text-primary"
+                              title={product.designer ? product.designer : (isVi ? 'Người bán chưa khai báo tác giả' : 'Seller has not declared a designer')}
                             >
-                              {product.name}
-                            </h3>
+                              {product.designer || EMPTY_VALUE}
+                            </span>
+                            {rating ? (
+                              <span className="shrink-0 inline-flex items-center gap-1 font-mono text-xs tabular-nums font-bold text-warning">
+                                <Star aria-hidden="true" className="size-3.5 fill-current" />
+                                {rating.value}
+                                <span className="font-normal text-fg-subtle">
+                                  ({rating.count} {isVi ? 'đánh giá' : 'reviews'})
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="shrink-0 text-xs text-fg-subtle">
+                                {isVi ? 'Chưa có đánh giá' : 'No reviews'}
+                              </span>
+                            )}
+                          </div>
 
-                            {/* CAD Micro Specs */}
-                            <div className="grid grid-cols-2 gap-1.5 mt-2 py-1.5 px-2 bg-[#F8FAFC] rounded-lg border border-[#CBD5E1]/60 text-[10px] font-mono text-[#475569]">
-                              <span className="truncate">📐 {product.specs?.dimensions || 'Tiêu chuẩn'}</span>
-                              <span className="truncate text-right text-[#00687A] font-bold">✓ Watertight</span>
-                            </div>
+                          <h3
+                            onClick={() => {
+                              onSelectProduct(product);
+                              onNavigate('product_detail', { product });
+                            }}
+                            className="font-bold text-sm text-fg hover:text-primary transition-colors cursor-pointer line-clamp-2 leading-snug"
+                            title={product.name}
+                          >
+                            {product.name}
+                          </h3>
+
+                          {/* Thông số thật của sản phẩm; thiếu dữ liệu ⇒ không hiện */}
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-fg-muted">
+                            {product.specs?.dimensions && (
+                              <span className="inline-flex items-center gap-1">
+                                <Icon name="straighten" size={18} />
+                                {product.specs.dimensions}
+                              </span>
+                            )}
+                            {materialsLabel && (
+                              <span className="inline-flex items-center gap-1">
+                                <Icon name="layers" size={18} />
+                                {materialsLabel}
+                                {supported.length > 2 ? ` +${supported.length - 2}` : ''}
+                              </span>
+                            )}
+                            <span className="inline-flex items-center gap-1">
+                              <Icon name="license" size={18} />
+                              {licenseLabel(product.licenseType)}
+                            </span>
                           </div>
 
                           {/* Interactive Clickable Tags */}
-                          <div className="flex flex-wrap gap-1 mt-2.5 mb-1">
-                            {product.tags.slice(0, 3).map((tg) => (
-                              <button
-                                key={tg}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedTag(tg);
-                                }}
-                                className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border transition-colors cursor-pointer ${
-                                  tg.includes('2/9') 
-                                    ? 'bg-red-50 text-[#990000] border-red-200 font-bold hover:bg-red-100'
-                                    : selectedTag === tg
-                                    ? 'bg-[#00687A] text-white border-[#00687A] font-bold'
-                                    : 'bg-[#F8FAFC] text-[#475569] border-[#CBD5E1] hover:border-[#00687A] hover:text-[#091426]'
-                                }`}
-                              >
-                                #{tg}
-                              </button>
-                            ))}
-                          </div>
+                          {(product.tags || []).length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {product.tags.slice(0, 3).map((tg) => (
+                                <button
+                                  key={tg}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedTag(tg);
+                                  }}
+                                  className={`text-xs font-mono uppercase px-1.5 py-0.5 rounded-sm border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                                    selectedTag === tg
+                                      ? 'bg-primary text-primary-fg border-primary font-bold'
+                                      : 'bg-canvas text-fg-muted border-line hover:border-primary hover:text-fg'
+                                  }`}
+                                >
+                                  #{tg}
+                                </button>
+                              ))}
+                            </div>
+                          )}
 
-                          <div className="pt-3 border-t border-[#CBD5E1] mt-3">
-                            <div className="flex items-baseline justify-between mb-3 font-sans">
-                              <div>
-                                <span className="text-[9px] text-[#64748B] uppercase tracking-wider block font-medium">
-                                  {isVi ? 'Tải File Số' : 'Digital CAD'}
+                          <div className="mt-auto pt-3 border-t border-line-subtle">
+                            <div className="flex items-baseline justify-between gap-2 mb-3 font-sans">
+                              <div className="min-w-0">
+                                <span className="text-xs text-fg-subtle uppercase tracking-wider block font-medium">
+                                  {isVi ? 'File số' : 'Digital file'}
                                 </span>
-                                <span className="font-mono text-xs text-[#00687A] font-bold">
-                                  {product.priceDigital.toLocaleString(isVi ? 'vi-VN' : 'en-US')} đ
+                                <span className="font-mono text-xs text-primary font-bold tabular-nums">
+                                  {formatVnd(product.priceDigital, numberLocale)}
                                 </span>
                               </div>
-                              <div className="text-right">
-                                <span className="text-[9px] text-[#64748B] uppercase tracking-wider block font-medium">
-                                  {isVi ? 'Bản In Vật Lý' : 'Physical 3D'}
+                              <div className="text-right min-w-0">
+                                <span className="text-xs text-fg-subtle uppercase tracking-wider block font-medium">
+                                  {isVi ? 'Bản in vật lý' : 'Physical print'}
                                 </span>
-                                <span className="font-mono font-bold text-sm text-[#091426]">
-                                  {product.pricePhysical.toLocaleString(isVi ? 'vi-VN' : 'en-US')} đ
+                                <span className="font-mono font-bold text-sm text-fg tabular-nums">
+                                  {formatVnd(product.pricePhysical, numberLocale)}
                                 </span>
                               </div>
                             </div>
 
-                            <div className="flex gap-2">
-                              <button
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="primary"
+                                size="md"
+                                className="flex-1"
+                                leadingIcon={<Icon name="download" size={18} />}
                                 onClick={(e) => handleQuickAddDigital(product, e)}
-                                className="flex-1 py-2.5 bg-[#00687A] hover:bg-[#005260] text-white text-[10px] font-mono uppercase tracking-wider font-bold transition-all flex items-center justify-center gap-1.5 rounded-xl cursor-pointer shadow-2xs active:scale-95"
+                                disabled={!(isNum(product.priceDigital) && product.priceDigital > 0)}
+                                title={isNum(product.priceDigital) && product.priceDigital > 0
+                                  ? (isVi ? 'Tải file CAD STL/STEP gốc' : 'Get original CAD file')
+                                  : (isVi ? 'Người bán không mở bán kênh file số.' : 'The seller does not sell this product as a CAD file.')}
                               >
-                                <span className="material-symbols-outlined text-sm">download</span>
-                                {isVi ? 'Tải File CAD' : 'Buy CAD'}
-                              </button>
+                                {isNum(product.priceDigital) && product.priceDigital > 0
+                                  ? (isVi ? 'Tải File CAD' : 'Buy CAD')
+                                  : (isVi ? 'Không bán file số' : 'File not sold')}
+                              </Button>
 
-                              <button
+                              <Button
+                                variant="secondary"
+                                size="md"
+                                leadingIcon={<Icon name="precision_manufacturing" size={18} />}
                                 onClick={() => {
                                   onSelectProduct(product);
                                   onNavigate('product_detail', { product });
                                 }}
-                                className="px-3 py-2.5 bg-white border border-[#CBD5E1] hover:border-[#00687A] hover:bg-[#F8FAFC] text-[#091426] text-[10px] font-mono uppercase tracking-wider font-bold transition-all rounded-xl cursor-pointer flex items-center gap-1 shadow-2xs active:scale-95"
-                                title={isVi ? 'Xem chi tiết & Đặt in 3D' : 'Inspect & Print'}
                               >
-                                <span className="material-symbols-outlined text-sm text-[#00687A]">precision_manufacturing</span>
-                                <span>In 3D</span>
-                              </button>
+                                {isVi ? 'In 3D' : 'Print'}
+                              </Button>
 
                               {product.isCustomizable && (
-                                <button
+                                <Button
+                                  iconOnly
+                                  variant="secondary"
+                                  size="md"
+                                  aria-label={isVi ? `Khắc laser / Tùy biến: ${product.name}` : `Custom engraving: ${product.name}`}
+                                  leadingIcon={<Icon name="tune" size={18} />}
                                   onClick={() => {
                                     onSelectProduct(product);
                                     onNavigate('personalize', { product });
                                   }}
-                                  className="px-2.5 py-2.5 bg-white border border-[#CBD5E1] hover:border-[#00687A] text-[#091426] transition-colors rounded-xl cursor-pointer"
-                                  title={isVi ? 'Khắc laser / Tùy biến' : 'Custom engraving'}
-                                >
-                                  <span className="material-symbols-outlined text-sm">tune</span>
-                                </button>
+                                />
                               )}
                             </div>
                           </div>
                         </div>
-                      </div>
+                      </Card>
                     );
                   })}
                 </div>
@@ -931,104 +1131,168 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 {/* Load More Pagination Button */}
                 {visibleCount < filteredProducts.length && (
                   <div className="text-center pt-4 pb-2">
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      leadingIcon={<Icon name="expand_more" size={18} className="text-primary" />}
                       onClick={() => setVisibleCount((prev) => prev + 12)}
-                      className="px-6 py-3 bg-white border border-[#CBD5E1] hover:border-[#00687A] text-[#091426] font-mono text-xs uppercase tracking-wider font-bold rounded-xl shadow-xs transition-all cursor-pointer inline-flex items-center gap-2 hover:shadow-md"
                     >
-                      <span className="material-symbols-outlined text-base text-[#00687A]">expand_more</span>
-                      <span>
-                        {isVi
-                          ? `Xem thêm (${filteredProducts.length - visibleCount} bản vẽ CAD)`
-                          : `Load More (${filteredProducts.length - visibleCount} CAD models)`}
-                      </span>
-                    </button>
+                      {isVi
+                        ? `Xem thêm (${filteredProducts.length - visibleCount} bản vẽ CAD)`
+                        : `Load More (${filteredProducts.length - visibleCount} CAD models)`}
+                    </Button>
                   </div>
                 )}
               </div>
             ) : (
               /* TECH TABLE VIEW */
-              <div className="bg-white border border-[#CBD5E1] rounded-2xl overflow-hidden shadow-xs">
+              <Card padding="none" className="overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs font-sans">
-                    <thead className="bg-[#091426] text-white font-mono text-[10px] uppercase tracking-wider">
+                    <thead className="bg-surface-inverse text-on-inverse font-mono text-xs uppercase tracking-wider">
                       <tr>
                         <th className="py-3 px-4">Linh Kiện CAD</th>
                         <th className="py-3 px-3">Danh Mục</th>
                         <th className="py-3 px-3">Kích Thước</th>
-                        <th className="py-3 px-3">Thời Gian In</th>
+                        <th className="py-3 px-3">
+                          <span className="inline-flex items-center gap-1">
+                            Thời Gian In
+                            <InfoTip label={isVi ? 'Ô "—" ở cột này nghĩa là gì?' : 'What does "—" in this column mean?'}>
+                              {isVi
+                                ? 'Người bán chưa khai thời gian in cho bản vẽ này. Ô để trống hiện — thay vì một con số đoán hộ.'
+                                : 'The seller has not declared a print time for this model. The cell renders — instead of a guessed number.'}
+                            </InfoTip>
+                          </span>
+                        </th>
+                        <th className="py-3 px-3">
+                          <span className="inline-flex items-center gap-1">
+                            Giấy Phép
+                            <InfoTip label={isVi ? 'Giấy phép hiển thị thế nào?' : 'How is the licence shown?'}>
+                              {isVi
+                                ? 'Giấy phép đọc từ trường license_type của sản phẩm. Người bán chưa khai thì ghi rõ "— (người bán chưa khai báo)" — không tự gán Commercial.'
+                                : 'Read from the product license_type field. When the seller has not declared one it reads "— (seller has not declared)" — never defaulted to Commercial.'}
+                            </InfoTip>
+                          </span>
+                        </th>
                         <th className="py-3 px-3">Giá File Số</th>
                         <th className="py-3 px-3">Giá In Vật Lý</th>
                         <th className="py-3 px-4 text-right">Thao Tác</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#CBD5E1]">
-                      {filteredProducts.slice(0, visibleCount).map((product) => (
-                        <tr key={product.id} className="hover:bg-[#F8FAFC] transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={product.thumbnailUrl || product.images[0]}
-                                alt={product.name}
-                                className="w-12 h-12 object-cover rounded-lg border border-[#CBD5E1] shrink-0"
-                              />
-                              <div>
-                                <h4
-                                  onClick={() => {
-                                    onSelectProduct(product);
-                                    onNavigate('product_detail', { product });
-                                  }}
-                                  className="font-bold text-xs text-[#091426] hover:text-[#00687A] cursor-pointer"
-                                >
-                                  {product.name}
-                                </h4>
-                                <span className="text-[10px] text-[#64748B] font-mono block">
-                                  By {product.designer}
-                                </span>
+                    <tbody className="divide-y divide-line-subtle">
+                      {renderedProducts.map((product) => {
+                        const imageUrl = product.thumbnailUrl || product.images?.[0] || '';
+                        return (
+                          <tr key={product.id} className="hover:bg-canvas transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                {imageUrl ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={product.name}
+                                    loading="lazy"
+                                    className="w-12 h-12 object-cover rounded-md shrink-0"
+                                  />
+                                ) : (
+                                  <span className="w-12 h-12 rounded-md bg-surface-muted flex items-center justify-center text-fg-subtle shrink-0">
+                                    <Icon name="image" size={18} />
+                                  </span>
+                                )}
+                                <div className="min-w-0">
+                                  <h4
+                                    onClick={() => {
+                                      onSelectProduct(product);
+                                      onNavigate('product_detail', { product });
+                                    }}
+                                    className="font-bold text-xs text-fg hover:text-primary cursor-pointer truncate"
+                                  >
+                                    {product.name}
+                                  </h4>
+                                  <span className="text-xs text-fg-subtle font-mono block truncate">
+                                    {product.designer || EMPTY_VALUE}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3 font-mono font-bold uppercase text-[11px] text-[#00687A]">
-                            {product.category}
-                          </td>
-                          <td className="py-3 px-3 font-mono text-xs text-[#091426]">
-                            {product.specs?.dimensions || 'Tiêu chuẩn'}
-                          </td>
-                          <td className="py-3 px-3 font-mono text-xs text-[#64748B]">
-                            {product.printTime}
-                          </td>
-                          <td className="py-3 px-3 font-mono font-bold text-[#00687A]">
-                            {product.priceDigital.toLocaleString(isVi ? 'vi-VN' : 'en-US')} đ
-                          </td>
-                          <td className="py-3 px-3 font-mono font-bold text-[#091426]">
-                            {product.pricePhysical.toLocaleString(isVi ? 'vi-VN' : 'en-US')} đ
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={(e) => handleOpen3DPreview(product, e)}
-                                className="p-1.5 bg-[#091426] hover:bg-[#00687A] text-white rounded-lg text-xs transition-colors cursor-pointer"
-                                title="Soi 3D 360°"
-                              >
-                                <span className="material-symbols-outlined text-sm">3d_rotation</span>
-                              </button>
-                              <button
-                                onClick={(e) => handleQuickAddDigital(product, e)}
-                                className="px-3 py-1.5 bg-[#00687A] hover:bg-[#005260] text-white font-mono font-bold text-[11px] uppercase rounded-lg transition-colors cursor-pointer"
-                              >
-                                {isVi ? 'Tải CAD' : 'Buy STL'}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold uppercase text-xs text-primary">
+                              {product.category || EMPTY_VALUE}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-xs text-fg tabular-nums">
+                              {product.specs?.dimensions || EMPTY_VALUE}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-xs text-fg-muted tabular-nums">
+                              {product.printTime || EMPTY_VALUE}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-xs text-fg-muted">
+                              {licenseLabel(product.licenseType)}
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold text-primary tabular-nums">
+                              {formatVnd(product.priceDigital, numberLocale)}
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold text-fg tabular-nums">
+                              {formatVnd(product.pricePhysical, numberLocale)}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  iconOnly
+                                  variant="secondary"
+                                  size="sm"
+                                  aria-label={isVi ? `Xem trước 3D: ${product.name}` : `3D preview: ${product.name}`}
+                                  leadingIcon={<Icon name="3d_rotation" size={18} />}
+                                  onClick={(e) => handleOpen3DPreview(product, e)}
+                                />
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={(e) => handleQuickAddDigital(product, e)}
+                                  disabled={!(isNum(product.priceDigital) && product.priceDigital > 0)}
+                                  title={isNum(product.priceDigital) && product.priceDigital > 0
+                                    ? (isVi ? 'Tải file CAD STL/STEP gốc' : 'Get original CAD file')
+                                    : (isVi ? 'Người bán không mở bán kênh file số.' : 'The seller does not sell this product as a CAD file.')}
+                                >
+                                  {isNum(product.priceDigital) && product.priceDigital > 0
+                                    ? (isVi ? 'Tải CAD' : 'Buy CAD')
+                                    : (isVi ? 'Không bán file số' : 'File not sold')}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </Card>
             )}
-          </main>
+          </div>
         </div>
       </div>
+
+      {/* Mobile filter bottom-sheet — cùng nội dung bộ lọc với cột trái */}
+      {mobileFilterOpen && (
+        <Sheet
+          open
+          side="bottom"
+          onClose={() => setMobileFilterOpen(false)}
+          title={isVi ? 'Bộ lọc bản vẽ' : 'Filter models'}
+          description={isVi
+            ? `Đang có ${filteredProducts.length} / ${catalogProducts.length} bản vẽ khớp điều kiện`
+            : `${filteredProducts.length} / ${catalogProducts.length} models match`}
+          footer={
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="md" className="flex-1" onClick={resetFilters}>
+                {isVi ? 'Xóa lọc' : 'Reset'}
+              </Button>
+              <Button variant="primary" size="md" className="flex-1" onClick={() => setMobileFilterOpen(false)}>
+                {isVi ? `Xem ${filteredProducts.length} kết quả` : `Show ${filteredProducts.length}`}
+              </Button>
+            </div>
+          }
+        >
+          {renderFilters()}
+        </Sheet>
+      )}
 
       {/* CAD Quick View 3D Modal */}
       <CadQuickViewModal

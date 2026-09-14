@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { UnifiedCadToolbar } from './tool3d/UnifiedCadToolbar';
+import { Icon } from '@frontend/ui';
 
 interface ThreeModelViewerProps {
   modelType?: 'gear' | 'box' | 'drone' | 'arch' | 'vase' | string;
@@ -342,23 +343,23 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
 
   return (
     <div
-      className={`relative bg-[#091426] select-none rounded-2xl overflow-hidden border border-[#1e293b] flex flex-col font-sans ${className}`}
+      className={`relative bg-surface-inverse select-none rounded-lg overflow-hidden border border-surface-inverse-raised flex flex-col font-sans ${className}`}
     >
       {/* 3D Canvas container */}
       <div ref={containerRef} className="w-full flex-1 cursor-grab active:cursor-grabbing" />
 
       {/* Optional Minimal Model Badge */}
       {showTitleBadge && (
-        <div className="absolute top-3 left-3 flex items-center gap-2 bg-[#091426]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#334155]/60 text-xs text-white shadow-md">
-          <span className="w-2 h-2 rounded-full bg-[#57DFFE] animate-pulse"></span>
-          <span className="font-mono text-xs font-bold text-slate-200 uppercase">
+        <div className="absolute top-3 left-3 flex items-center gap-2 bg-surface-inverse/85 backdrop-blur-md px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2">
+          <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+          <span className="font-mono text-xs font-bold text-fg-subtle uppercase">
             {modelType}
           </span>
         </div>
       )}
 
       {/* Top Right: Unified Clean CAD Toolbar */}
-      <div className="absolute top-3 right-3 z-20 pointer-events-auto">
+      <div className="absolute top-3 right-3 z-panel pointer-events-auto">
         <UnifiedCadToolbar
           isRotating={isRotating}
           onToggleRotate={() => setIsRotating(!isRotating)}
@@ -373,10 +374,10 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
 
       {/* Layer Slicer Slider Bar (Only when explicitly enabled) */}
       {showLayerSlicer && (
-        <div className="absolute bottom-3 left-3 right-3 bg-[#091426]/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-[#334155]/60 flex items-center justify-between gap-4 text-white shadow-xl">
+        <div className="absolute bottom-3 left-3 right-3 bg-surface-inverse/90 backdrop-blur-md px-3.5 py-2 rounded-lg border border-surface-inverse-raised/60 flex items-center justify-between gap-4 text-on-inverse shadow-e3">
           <div className="flex items-center gap-2 shrink-0">
-            <span className="material-symbols-outlined text-[#57DFFE] text-sm">layers</span>
-            <span className="font-mono text-xs text-slate-300">LỚP IN: {currentSlice}%</span>
+            <Icon name="layers" size={18} className="text-accent" />
+            <span className="font-mono text-xs text-fg-subtle">LỚP IN: {currentSlice}%</span>
           </div>
           <input
             type="range"
@@ -384,9 +385,9 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
             max="100"
             value={currentSlice}
             onChange={(e) => handleSliceChange(Number(e.target.value))}
-            className="w-full h-1.5 bg-[#1e293b] rounded-lg appearance-none cursor-pointer accent-[#57DFFE]"
+            className="w-full h-1.5 bg-surface-inverse-raised rounded-full appearance-none cursor-pointer accent-accent"
           />
-          <span className="font-mono text-[10px] text-slate-400 shrink-0">0.16mm Layer</span>
+          <span className="font-mono text-xs text-fg-subtle shrink-0">0.16mm Layer</span>
         </div>
       )}
     </div>

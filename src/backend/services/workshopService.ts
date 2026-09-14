@@ -6,7 +6,6 @@ import {
   MaterialInventoryLog,
   DesignerProfile,
   CustomerProfile,
-  PricingGlobalSettings,
   WorkshopAccessory
 } from '../../types';
 
@@ -69,7 +68,9 @@ export const SEED_WORKSHOP_PROFILES: WorkshopProfile[] = [
     electricityRateOverride: 2850,
     laborRateOverride: 70000,
     verifiedStatus: 'Verified',
-    contactPhone: '0988.123.456',
+    // P4 (data-honesty): KHÔNG bịa hotline xưởng. Nguồn thật là `app_settings.hotline`
+    // do admin cấu hình; chưa cấu hình thì để trống, UI ẩn dòng hotline.
+    contactPhone: '',
     contactEmail: 'hanoi.hub@vcube.vn',
     createdAt: '2026-01-10T08:00:00.000Z',
     updatedAt: '2026-09-05T00:00:00.000Z'
@@ -85,7 +86,9 @@ export const SEED_WORKSHOP_PROFILES: WorkshopProfile[] = [
     electricityRateOverride: 2750,
     laborRateOverride: 60000,
     verifiedStatus: 'Verified',
-    contactPhone: '0905.789.101',
+    // Q1 — Đợt 8C §0 / data-honesty CI-07: hotline xưởng bịa đã gỡ.
+    // Nguồn thật: `app_settings.hotline`; rỗng ⇒ UI ẩn dòng hotline.
+    contactPhone: '',
     contactEmail: 'danang.lab@vcube.vn',
     createdAt: '2026-02-15T08:00:00.000Z',
     updatedAt: '2026-09-05T00:00:00.000Z'
@@ -101,7 +104,9 @@ export const SEED_WORKSHOP_PROFILES: WorkshopProfile[] = [
     electricityRateOverride: 2900,
     laborRateOverride: 75000,
     verifiedStatus: 'Verified',
-    contactPhone: '0912.345.678',
+    // Q1 — Đợt 8C §0 / data-honesty CI-07: hotline xưởng bịa đã gỡ.
+    // Nguồn thật: `app_settings.hotline`; rỗng ⇒ UI ẩn dòng hotline.
+    contactPhone: '',
     contactEmail: 'hcm.speed@vcube.vn',
     createdAt: '2026-01-20T08:00:00.000Z',
     updatedAt: '2026-09-05T00:00:00.000Z'
@@ -250,7 +255,9 @@ export const SEED_MATERIAL_INVENTORY_LOGS: MaterialInventoryLog[] = [
     supplier: 'Bambu Lab Direct VN',
     batchCode: 'LOT-202608-PLA',
     note: 'Nhập lô 10 cuộn 1kg định kỳ đầu tháng',
-    createdBy: 'Thành Kỹ Thuật (Admin)',
+    // Q1 — Đợt 8C §0: tên nhân sự bịa trong log kho đã gỡ (nguồn thật: `created_by` do
+    // phiên đăng nhập ghi khi thao tác thật).
+    createdBy: '',
     createdAt: '2026-08-01T09:00:00.000Z'
   },
   {
@@ -280,7 +287,11 @@ export const SEED_DESIGNER_PROFILES: DesignerProfile[] = [
     defaultRoyaltyPercent: 12,
     licenseMode: 'PrintOnly',
     badgeTier: 'TopCreator',
-    payoutBankInfo: 'Techcombank - 19033488291012 - HOANG BACH',
+    // Q1 — Đợt 8C §0 / data-honesty CI-08 + AD-06: số tài khoản ngân hàng bịa kèm PII
+    // tên người (giá trị cũ ghi trong báo cáo Q1) đã gỡ.
+    // Nguồn thật: hồ sơ chi trả của designer do admin nhập
+    // (`designer_profiles.payout_bank_info`) + `app_settings.bankName`/`bankAccount`.
+    payoutBankInfo: '',
     totalSalesCount: 142,
     totalRoyaltiesEarned: 18450000,
     createdAt: '2026-01-05T08:00:00.000Z',
@@ -298,7 +309,9 @@ export const SEED_DESIGNER_PROFILES: DesignerProfile[] = [
     defaultRoyaltyPercent: 10,
     licenseMode: 'CommercialSubscription',
     badgeTier: 'VerifiedEngineer',
-    payoutBankInfo: 'MB Bank - 0988112233 - LE MINH TRI',
+    // Q1 — Đợt 8C §0 / data-honesty CI-08 + AD-06: số tài khoản ngân hàng bịa kèm PII
+    // tên người (giá trị cũ ghi trong báo cáo Q1) đã gỡ. Nguồn thật: `designer_profiles.payout_bank_info`.
+    payoutBankInfo: '',
     totalSalesCount: 88,
     totalRoyaltiesEarned: 9650000,
     createdAt: '2026-02-10T08:00:00.000Z',
@@ -310,14 +323,27 @@ export const SEED_CUSTOMER_PROFILES: CustomerProfile[] = [
   {
     id: 'cust_fpt_software',
     userId: 'usr_customer_01',
-    companyName: 'FPT Software Smart Device R&D',
-    taxId: '0101778163',
-    billingEmail: 'hardware-rnd@fpt.com',
+    // Q1 — Đợt 8C §0: định danh một doanh nghiệp THẬT bị dùng làm fixture khách hàng đã gỡ
+    // (data-honesty CI-08: fixture khách hàng từng bị seed vào DB thật).
+    // Nguồn thật: `customer_profiles.company_name` do khách hàng/admin nhập.
+    companyName: '',
+    // Q1 — Đợt 8C §0 (gate `fake-financial-id`) / data-honesty CI-08: MST bịa (trùng MST
+    // một doanh nghiệp thật) đã gỡ. Nguồn thật: `customer_profiles.tax_id` do
+    // khách hàng nhập; MST của VCUBE là `app_settings.taxCode`.
+    taxId: '',
+    // Q1 — Đợt 8C §0: email nghiệp vụ của bên thứ ba trong fixture đã gỡ.
+    // Nguồn thật: `customer_profiles.billing_email` do khách hàng nhập.
+    billingEmail: '',
     preferredPaymentMethod: 'vietqr',
     defaultShippingAddress: {
-      recipientName: 'Vũ Anh Tuấn (Team IoT Hub)',
-      phone: '0988.777.666',
-      streetAddress: 'Tòa nhà FPT Cầu Giấy, Số 10 Phạm Văn Bạch',
+      // Q1 — Đợt 8C §0: PII tên người nhận bịa đã gỡ. Nguồn thật: hồ sơ khách hàng
+      // (`customer_profiles.default_shipping_address`) do chính khách hàng nhập.
+      recipientName: '',
+      // Q1 — Đợt 8C §0: SĐT bịa đã gỡ (nguồn thật: hồ sơ khách hàng).
+      phone: '',
+      // Q1 — Đợt 8C §0: địa chỉ toà nhà của doanh nghiệp THẬT trong fixture đã gỡ.
+      // Nguồn thật: địa chỉ do khách hàng nhập khi đặt hàng.
+      streetAddress: '',
       ward: 'Dịch Vọng',
       district: 'Cầu Giấy',
       city: 'Hà Nội'
@@ -330,12 +356,18 @@ export const SEED_CUSTOMER_PROFILES: CustomerProfile[] = [
   {
     id: 'cust_individual_khoa',
     userId: 'usr_customer_02',
-    companyName: 'Khoa Đăng Tech Studio',
-    billingEmail: 'khoa.dang@gmail.com',
+    // Q1 — Đợt 8C §0: định danh doanh nghiệp bịa trong fixture khách hàng đã gỡ
+    // (nguồn thật: `customer_profiles.company_name`).
+    companyName: '',
+    // Q1 — Đợt 8C §0: email cá nhân bịa trong fixture đã gỡ (nguồn thật: hồ sơ khách hàng).
+    billingEmail: '',
     preferredPaymentMethod: 'vietqr',
     defaultShippingAddress: {
-      recipientName: 'Đặng Đăng Khoa',
-      phone: '0912.888.999',
+      // Q1 — Đợt 8C §0: PII tên người nhận bịa đã gỡ. Nguồn thật: hồ sơ khách hàng
+      // (`customer_profiles.default_shipping_address`) do chính khách hàng nhập.
+      recipientName: '',
+      // Q1 — Đợt 8C §0: SĐT bịa đã gỡ (nguồn thật: hồ sơ khách hàng).
+      phone: '',
       streetAddress: 'Số 45 Lê Duẩn, Phường Bến Nghé',
       district: 'Quận 1',
       city: 'TP. Hồ Chí Minh'
@@ -346,24 +378,14 @@ export const SEED_CUSTOMER_PROFILES: CustomerProfile[] = [
   }
 ];
 
-export const SEED_PRICING_GLOBAL_SETTINGS: PricingGlobalSettings = {
-  id: 'default',
-  electricityRateVndKwh: 2850,
-  defaultLaborRateVndHour: 65000,
-  defaultScrapRatePercent: 5,
-  profitMode: 'Markup',
-  defaultProfitPercent: 35,
-  marketplaceFeePercent: 8,
-  marketplaceFixedFeeVnd: 5000,
-  overheadMonthlyCost: 15000000,
-  avgProductsSoldPerMonth: 300,
-  enableAccessoriesPricing: true,
-  enableMarketplaceFeeMode: false,
-  enableAdvancedOverhead: true,
-  version: 1,
-  updatedBy: 'VCUBE Chief Operating Officer',
-  updatedAt: '2026-09-05T00:00:00.000Z'
-};
+/* ── Đợt P (Việc 5): `SEED_PRICING_GLOBAL_SETTINGS` đã bị XOÁ ────────────────────
+ * Nó là một hàng "cấu hình giá toàn hệ thống" BỊA (2.850đ/kWh, 65.000đ/giờ, markup 35%,
+ * phí sàn 8%…) dùng `id: 'default'`, trong khi hàng thật trong DB là `id: 'global'`
+ * (`settingsService.SETTINGS_ROW_IDS.pricing_global_settings`), và ghi vào 14 CỘT KHÔNG
+ * TỒN TẠI (`electricity_rate_vnd_kwh`, `default_labor_rate_vnd_hour`, `default_scrap_rate_percent`…).
+ * Đây là "nguồn sự thật thứ hai" — nay thông số thật nằm ở `pricing_global_settings`
+ * (điện · nhân công · VAT) + `pricing_configs` (công thức), đọc/ghi qua `settingsService`.
+ * ────────────────────────────────────────────────────────────────────────────── */
 
 export const SEED_WORKSHOP_ACCESSORIES: WorkshopAccessory[] = [
   {
@@ -504,27 +526,35 @@ export class WorkshopService {
     const updatedLocal = [fullProfile, ...local.filter(w => w.id !== id)];
     writeToStorage(STORAGE_KEYS.WORKSHOP_PROFILES, updatedLocal);
 
+    // W7 — `partner_id` và `verified_status` là 2 cột ĐẶC QUYỀN (chỉ admin gán/duyệt).
+    // `upsert` = INSERT **hoặc** UPDATE: nếu gửi kèm 2 cột này khi UPDATE một hàng ĐÃ có
+    // `partner_id`/`verified_status` thì payload vô tình ghi đè (null / 'Pending'), và trigger
+    // `trg_protect_workshop_profile_privileged_columns` sẽ raise 42501 — nhìn như lỗi RLS.
+    // ⇒ CHỈ gửi khi người gọi khai TƯỜNG MINH. Với hàng MỚI thì cột vắng mặt = NULL/DEFAULT,
+    // y hệt giá trị cũ, nên đường onboarding không đổi hành vi.
+    const payload: Record<string, unknown> = {
+      id: fullProfile.id,
+      user_id: fullProfile.userId || null,
+      workshop_name: fullProfile.workshopName,
+      address: fullProfile.address,
+      region: fullProfile.region,
+      total_machines: fullProfile.totalMachines,
+      active_machines_now: fullProfile.activeMachinesNow,
+      electricity_rate_override: fullProfile.electricityRateOverride,
+      labor_rate_override: fullProfile.laborRateOverride,
+      contact_phone: fullProfile.contactPhone,
+      contact_email: fullProfile.contactEmail,
+      updated_at: fullProfile.updatedAt
+    };
+    if (profile.partnerId !== undefined) payload.partner_id = profile.partnerId || null;
+    if (profile.verifiedStatus !== undefined) payload.verified_status = profile.verifiedStatus;
+
     try {
-      const { error } = await supabase.from('workshop_profiles').upsert({
-        id: fullProfile.id,
-        user_id: fullProfile.userId || null,
-        partner_id: fullProfile.partnerId || null,
-        workshop_name: fullProfile.workshopName,
-        address: fullProfile.address,
-        region: fullProfile.region,
-        total_machines: fullProfile.totalMachines,
-        active_machines_now: fullProfile.activeMachinesNow,
-        electricity_rate_override: fullProfile.electricityRateOverride,
-        labor_rate_override: fullProfile.laborRateOverride,
-        verified_status: fullProfile.verifiedStatus,
-        contact_phone: fullProfile.contactPhone,
-        contact_email: fullProfile.contactEmail,
-        updated_at: fullProfile.updatedAt
-      });
+      const { error } = await supabase.from('workshop_profiles').upsert(payload);
       if (error) throw error;
       return { success: true, data: fullProfile };
     } catch (e: any) {
-      return { success: true, data: fullProfile, error: e?.message };
+      return { success: false, data: fullProfile, error: e?.message };
     }
   }
 
@@ -536,7 +566,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true };
     } catch (e: any) {
-      return { success: true, error: e?.message };
+      return { success: false, error: e?.message };
     }
   }
 
@@ -610,7 +640,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true, data: fullMachine };
     } catch (e: any) {
-      return { success: true, data: fullMachine, error: e?.message };
+      return { success: false, data: fullMachine, error: e?.message };
     }
   }
 
@@ -632,7 +662,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true };
     } catch (e: any) {
-      return { success: true, error: e?.message };
+      return { success: false, error: e?.message };
     }
   }
 
@@ -644,7 +674,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true };
     } catch (e: any) {
-      return { success: true, error: e?.message };
+      return { success: false, error: e?.message };
     }
   }
 
@@ -720,7 +750,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true, data: fullMat };
     } catch (e: any) {
-      return { success: true, data: fullMat, error: e?.message };
+      return { success: false, data: fullMat, error: e?.message };
     }
   }
 
@@ -754,7 +784,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true };
     } catch (e: any) {
-      return { success: true, error: e?.message };
+      return { success: false, error: e?.message };
     }
   }
 
@@ -766,7 +796,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true };
     } catch (e: any) {
-      return { success: true, error: e?.message };
+      return { success: false, error: e?.message };
     }
   }
 
@@ -873,7 +903,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true, data: fullLog };
     } catch (e: any) {
-      return { success: true, data: fullLog, error: e?.message };
+      return { success: false, data: fullLog, error: e?.message };
     }
   }
 
@@ -966,7 +996,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true, data: fullProfile };
     } catch (e: any) {
-      return { success: true, data: fullProfile, error: e?.message };
+      return { success: false, data: fullProfile, error: e?.message };
     }
   }
 
@@ -978,7 +1008,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true };
     } catch (e: any) {
-      return { success: true, error: e?.message };
+      return { success: false, error: e?.message };
     }
   }
 
@@ -1059,7 +1089,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true, data: fullProfile };
     } catch (e: any) {
-      return { success: true, data: fullProfile, error: e?.message };
+      return { success: false, data: fullProfile, error: e?.message };
     }
   }
 
@@ -1071,89 +1101,22 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true };
     } catch (e: any) {
-      return { success: true, error: e?.message };
+      return { success: false, error: e?.message };
     }
   }
 
-  // ----------------------------------------------------------------------------
-  // 7. PRICING GLOBAL SETTINGS (pricing_global_settings)
-  // ----------------------------------------------------------------------------
-  static async getPricingGlobalSettings(): Promise<PricingGlobalSettings> {
-    try {
-      const { data, error } = await supabase
-        .from('pricing_global_settings')
-        .select('*')
-        .eq('id', 'default')
-        .limit(1)
-        .single();
-
-      if (!error && data) {
-        const mapped: PricingGlobalSettings = {
-          id: data.id,
-          electricityRateVndKwh: Number(data.electricity_rate_vnd_kwh || 2850),
-          defaultLaborRateVndHour: Number(data.default_labor_rate_vnd_hour || 65000),
-          defaultScrapRatePercent: Number(data.default_scrap_rate_percent || 5),
-          profitMode: data.profit_mode || 'Markup',
-          defaultProfitPercent: Number(data.default_profit_percent || 35),
-          marketplaceFeePercent: Number(data.marketplace_fee_percent || 8),
-          marketplaceFixedFeeVnd: Number(data.marketplace_fixed_fee_vnd || 5000),
-          overheadMonthlyCost: Number(data.overhead_monthly_cost || 15000000),
-          avgProductsSoldPerMonth: Number(data.avg_products_sold_per_month || 300),
-          enableAccessoriesPricing: Boolean(data.enable_accessories_pricing ?? true),
-          enableMarketplaceFeeMode: Boolean(data.enable_marketplace_fee_mode ?? false),
-          enableAdvancedOverhead: Boolean(data.enable_advanced_overhead ?? true),
-          version: Number(data.version || 1),
-          updatedBy: data.updated_by,
-          updatedAt: data.updated_at
-        };
-        writeToStorage(STORAGE_KEYS.PRICING_SETTINGS, mapped);
-        return mapped;
-      }
-    } catch (e) {
-      console.warn('[WorkshopService] Supabase getPricingGlobalSettings fallback to local:', e);
-    }
-    return readFromStorage<PricingGlobalSettings>(STORAGE_KEYS.PRICING_SETTINGS, SEED_PRICING_GLOBAL_SETTINGS);
-  }
-
-  static async savePricingGlobalSettings(
-    settings: Partial<PricingGlobalSettings>
-  ): Promise<{ success: boolean; data?: PricingGlobalSettings; error?: string }> {
-    const current = await WorkshopService.getPricingGlobalSettings();
-    const updated: PricingGlobalSettings = {
-      ...current,
-      ...settings,
-      id: 'default',
-      version: (current.version || 1) + 1,
-      updatedAt: new Date().toISOString()
-    };
-
-    writeToStorage(STORAGE_KEYS.PRICING_SETTINGS, updated);
-
-    try {
-      const { error } = await supabase.from('pricing_global_settings').upsert({
-        id: 'default',
-        electricity_rate_vnd_kwh: updated.electricityRateVndKwh,
-        default_labor_rate_vnd_hour: updated.defaultLaborRateVndHour,
-        default_scrap_rate_percent: updated.defaultScrapRatePercent,
-        profit_mode: updated.profitMode,
-        default_profit_percent: updated.defaultProfitPercent,
-        marketplace_fee_percent: updated.marketplaceFeePercent,
-        marketplace_fixed_fee_vnd: updated.marketplaceFixedFeeVnd,
-        overhead_monthly_cost: updated.overheadMonthlyCost,
-        avg_products_sold_per_month: updated.avgProductsSoldPerMonth,
-        enable_accessories_pricing: updated.enableAccessoriesPricing,
-        enable_marketplace_fee_mode: updated.enableMarketplaceFeeMode,
-        enable_advanced_overhead: updated.enableAdvancedOverhead,
-        version: updated.version,
-        updated_by: updated.updatedBy || 'admin',
-        updated_at: updated.updatedAt
-      });
-      if (error) throw error;
-      return { success: true, data: updated };
-    } catch (e: any) {
-      return { success: true, data: updated, error: e?.message };
-    }
-  }
+  /* ── Đợt P (Việc 5): nhóm hàm ghi legacy đã bị XOÁ ──────────────────────────────
+   * `getPricingGlobalSettings()` + `savePricingGlobalSettings()` (0 caller, đã kiểm bằng
+   * `grep -rn 'WorkshopService.getPricingGlobalSettings|...savePricingGlobalSettings'`):
+   *   * dùng `id: 'default'` trong khi hàng thật là `id: 'global'` ⇒ ghi/đọc SAI hàng;
+   *   * upsert 14 cột KHÔNG tồn tại trong baseline (`electricity_rate_vnd_kwh`,
+   *     `default_labor_rate_vnd_hour`, `default_scrap_rate_percent`, `profit_mode`,
+   *     `default_profit_percent`, `marketplace_fee_percent`, `marketplace_fixed_fee_vnd`,
+   *     `overhead_monthly_cost`, `avg_products_sold_per_month`, …) ⇒ lỗi hoặc ghi rỗng;
+   *   * nuốt lỗi rồi rơi về `SEED_PRICING_GLOBAL_SETTINGS` (đã xoá ở trên) ⇒ số bịa.
+   * Đường ĐỌC/GHI duy nhất còn lại là `src/backend/services/settingsService.ts`
+   * (`getPricingGlobalSettings` / `savePricingGlobalSettings` của module đó).
+   * ────────────────────────────────────────────────────────────────────────────── */
 
   // ----------------------------------------------------------------------------
   // 8. WORKSHOP ACCESSORIES (workshop_accessories)
@@ -1218,7 +1181,7 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true, data: fullAcc };
     } catch (e: any) {
-      return { success: true, data: fullAcc, error: e?.message };
+      return { success: false, data: fullAcc, error: e?.message };
     }
   }
 
@@ -1230,9 +1193,975 @@ export class WorkshopService {
       if (error) throw error;
       return { success: true };
     } catch (e: any) {
-      return { success: true, error: e?.message };
+      return { success: false, error: e?.message };
     }
   }
+
+  // ==========================================================================
+  // W1b — BẢNG ĐIỀU KHIỂN XƯỞNG: CHỈ DỮ LIỆU CỦA CHÍNH XƯỞNG ĐANG ĐĂNG NHẬP
+  //
+  // Vì sao tách khỏi nhóm `getWorkshop*` phía trên: nhóm cũ rơi về `SEED_*` /
+  // localStorage khi bảng rỗng. Với bảng điều khiển của xưởng, "rơi về seed" nghĩa là
+  // xưởng A nhìn thấy máy / vật liệu của một xưởng không tồn tại — vừa RÒ DỮ LIỆU vừa
+  // SỐ BỊA (`docs/design/data-honesty.md` CI-07). Nhóm hàm dưới đây:
+  //   - KHÔNG đọc/ghi localStorage, KHÔNG rơi về `SEED_*`;
+  //   - LUÔN lọc theo hồ sơ xưởng của `auth.uid()` (máy/vật liệu/phụ kiện) hoặc theo
+  //     `partner_id` của xưởng đó (`orders.assigned_workshop_id`);
+  //   - trả `{ data, error }` để tầng view nói THẬT khi máy chủ từ chối (RLS) thay vì
+  //     báo thành công giả.
+  // ==========================================================================
+
+  /** `auth.uid()` hiện tại; `null` khi chưa đăng nhập. */
+  static async getCurrentUserId(): Promise<string | null> {
+    try {
+      const { data } = await supabase.auth.getUser();
+      return data?.user?.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Hồ sơ xưởng của CHÍNH người đang đăng nhập.
+   *
+   * `workshop_profiles` KHÔNG có unique constraint trên `user_id` (đã kiểm chứng trên
+   * project thật) ⇒ một user có thể có nhiều hồ sơ. Hàm trả hàng MỚI NHẤT và kèm
+   * `duplicateCount` để tầng view cảnh báo thay vì âm thầm chọn bừa.
+   */
+  static async getMyWorkshopProfile(): Promise<MyWorkshopProfileResult> {
+    const uid = await WorkshopService.getCurrentUserId();
+    if (!uid) return { profile: null, error: null, duplicateCount: 0 };
+
+    const { data, error } = await supabase
+      .from('workshop_profiles')
+      .select(
+        'id,user_id,partner_id,workshop_name,address,region,total_machines,active_machines_now,' +
+          'electricity_rate_override,labor_rate_override,verified_status,contact_phone,contact_email,' +
+          'created_at,updated_at'
+      )
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false });
+
+    if (error) return { profile: null, error: error.message, duplicateCount: 0 };
+    const rows = (data ?? []) as unknown as Record<string, unknown>[];
+    if (rows.length === 0) return { profile: null, error: null, duplicateCount: 0 };
+
+    return {
+      profile: WorkshopService.mapMyWorkshopProfile(rows[0]),
+      error: null,
+      duplicateCount: rows.length,
+    };
+  }
+
+  /**
+   * Lưu cấu hình của chính xưởng. `electricityRateOverride` / `laborRateOverride`:
+   * số = có cấu hình, `null` = XOÁ cấu hình (rỗng = chưa cấu hình, KHÔNG mặc định số).
+   */
+  static async saveMyWorkshopProfile(
+    profileId: string,
+    patch: MyWorkshopProfilePatch
+  ): Promise<WriteResult> {
+    if (!profileId) return { success: false, error: 'Thiếu hồ sơ xưởng — không thể lưu.' };
+
+    const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (patch.workshopName !== undefined) payload.workshop_name = patch.workshopName;
+    if (patch.address !== undefined) payload.address = patch.address;
+    if (patch.region !== undefined) payload.region = patch.region;
+    if (patch.contactPhone !== undefined) payload.contact_phone = patch.contactPhone;
+    if (patch.contactEmail !== undefined) payload.contact_email = patch.contactEmail;
+    if (patch.electricityRateOverride !== undefined) {
+      payload.electricity_rate_override = patch.electricityRateOverride;
+    }
+    if (patch.laborRateOverride !== undefined) {
+      payload.labor_rate_override = patch.laborRateOverride;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('workshop_profiles')
+        .update(payload)
+        .eq('id', profileId)
+        .select('id');
+      if (error) return { success: false, error: error.message };
+      if (!data || data.length === 0) {
+        return {
+          success: false,
+          error: 'Máy chủ không ghi được hàng nào (quyền RLS) — chưa có thay đổi nào được lưu.',
+        };
+      }
+      return { success: true, error: null };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi lưu hồ sơ xưởng.' };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // W1b.1 — MÁY IN CỦA CHÍNH XƯỞNG (`workshop_machines`)
+  // --------------------------------------------------------------------------
+  static async getMyMachines(workshopProfileId: string): Promise<MyMachinesResult> {
+    if (!workshopProfileId) return { data: [], error: null };
+    const { data, error } = await supabase
+      .from('workshop_machines')
+      .select('id,workshop_id,name,brand,model,technology,bed_dimensions,status,hourly_rate,created_at,updated_at')
+      .eq('workshop_id', workshopProfileId)
+      .order('created_at', { ascending: true });
+    if (error) return { data: [], error: error.message };
+    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyMachine), error: null };
+  }
+
+  static async saveMyMachine(input: MyMachineInput): Promise<WriteResult> {
+    if (!input.workshopProfileId) {
+      return { success: false, error: 'Thiếu hồ sơ xưởng — không thể khai báo máy in.' };
+    }
+    const payload: Record<string, unknown> = {
+      workshop_id: input.workshopProfileId,
+      name: input.name,
+      brand: input.brand ?? '',
+      model: input.model ?? '',
+      technology: input.technology ?? 'FDM',
+      bed_dimensions: input.bedDimensions ?? { x: 256, y: 256, z: 256 },
+      status: input.status ?? 'Free',
+      hourly_rate: input.hourlyRate ?? null,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      if (input.id) {
+        const { data, error } = await supabase
+          .from('workshop_machines')
+          .update(payload)
+          .eq('id', input.id)
+          .eq('workshop_id', input.workshopProfileId)
+          .select('id');
+        if (error) return { success: false, error: error.message };
+        if (!data || data.length === 0) {
+          return { success: false, error: 'Máy chủ không ghi được hàng nào (quyền RLS).' };
+        }
+        return { success: true, error: null };
+      }
+
+      const { data, error } = await supabase.from('workshop_machines').insert(payload).select('id');
+      if (error) return { success: false, error: error.message };
+      if (!data || data.length === 0) {
+        return { success: false, error: 'Máy chủ không tạo được hàng nào (quyền RLS).' };
+      }
+      return { success: true, error: null };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi lưu máy in.' };
+    }
+  }
+
+  static async setMyMachineStatus(
+    machineId: string,
+    workshopProfileId: string,
+    status: string
+  ): Promise<WriteResult> {
+    try {
+      const { data, error } = await supabase
+        .from('workshop_machines')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', machineId)
+        .eq('workshop_id', workshopProfileId)
+        .select('id');
+      if (error) return { success: false, error: error.message };
+      if (!data || data.length === 0) {
+        return { success: false, error: 'Máy chủ không ghi được hàng nào (quyền RLS).' };
+      }
+      return { success: true, error: null };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi đổi trạng thái máy.' };
+    }
+  }
+
+  static async deleteMyMachine(machineId: string, workshopProfileId: string): Promise<WriteResult> {
+    try {
+      const { data, error } = await supabase
+        .from('workshop_machines')
+        .delete()
+        .eq('id', machineId)
+        .eq('workshop_id', workshopProfileId)
+        .select('id');
+      if (error) return { success: false, error: error.message };
+      if (!data || data.length === 0) {
+        return { success: false, error: 'Máy chủ không xoá được hàng nào (quyền RLS).' };
+      }
+      return { success: true, error: null };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi xoá máy in.' };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // W1b.2 — VẬT LIỆU & TỒN KHO CỦA CHÍNH XƯỞNG
+  // (`workshop_materials` + `material_inventory_logs`)
+  // --------------------------------------------------------------------------
+  static async getMyMaterials(workshopProfileId: string): Promise<MyMaterialsResult> {
+    if (!workshopProfileId) return { data: [], error: null };
+    const { data, error } = await supabase
+      .from('workshop_materials')
+      .select(
+        'id,workshop_id,name,type,color,current_stock_grams,low_stock_threshold_grams,price_per_kg,stock_status,created_at,updated_at'
+      )
+      .eq('workshop_id', workshopProfileId)
+      .order('created_at', { ascending: true });
+    if (error) return { data: [], error: error.message };
+    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyMaterial), error: null };
+  }
+
+  static async saveMyMaterial(input: MyMaterialInput): Promise<WriteResult> {
+    if (!input.workshopProfileId) {
+      return { success: false, error: 'Thiếu hồ sơ xưởng — không thể khai báo vật liệu.' };
+    }
+    const payload: Record<string, unknown> = {
+      workshop_id: input.workshopProfileId,
+      name: input.name,
+      type: input.type ?? 'PLA',
+      color: input.color ?? '',
+      current_stock_grams: input.currentStockGrams ?? 0,
+      low_stock_threshold_grams: input.lowStockThresholdGrams ?? 500,
+      price_per_kg: input.pricePerKg ?? null,
+      stock_status: input.stockStatus ?? WorkshopService.computeStockStatus(
+        input.currentStockGrams ?? 0,
+        input.lowStockThresholdGrams ?? 500
+      ),
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      if (input.id) {
+        const { data, error } = await supabase
+          .from('workshop_materials')
+          .update(payload)
+          .eq('id', input.id)
+          .eq('workshop_id', input.workshopProfileId)
+          .select('id');
+        if (error) return { success: false, error: error.message };
+        if (!data || data.length === 0) {
+          return { success: false, error: 'Máy chủ không ghi được hàng nào (quyền RLS).' };
+        }
+        return { success: true, error: null };
+      }
+
+      const { data, error } = await supabase.from('workshop_materials').insert(payload).select('id');
+      if (error) return { success: false, error: error.message };
+      if (!data || data.length === 0) {
+        return { success: false, error: 'Máy chủ không tạo được hàng nào (quyền RLS).' };
+      }
+      return { success: true, error: null };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi lưu vật liệu.' };
+    }
+  }
+
+  static async deleteMyMaterial(materialId: string, workshopProfileId: string): Promise<WriteResult> {
+    try {
+      const { data, error } = await supabase
+        .from('workshop_materials')
+        .delete()
+        .eq('id', materialId)
+        .eq('workshop_id', workshopProfileId)
+        .select('id');
+      if (error) return { success: false, error: error.message };
+      if (!data || data.length === 0) {
+        return { success: false, error: 'Máy chủ không xoá được hàng nào (quyền RLS).' };
+      }
+      return { success: true, error: null };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi xoá vật liệu.' };
+    }
+  }
+
+  static async getMyInventoryLogs(materialIds: string[]): Promise<MyInventoryLogsResult> {
+    const ids = materialIds.filter(Boolean);
+    if (ids.length === 0) return { data: [], error: null };
+    const { data, error } = await supabase
+      .from('material_inventory_logs')
+      .select('id,material_id,action,grams,price_per_kg_at_time,supplier,batch_code,note,created_by,created_at')
+      .in('material_id', ids)
+      .order('created_at', { ascending: false });
+    if (error) return { data: [], error: error.message };
+    return {
+      data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyInventoryLog),
+      error: null,
+    };
+  }
+
+  /**
+   * Ghi phiếu nhập/xuất kho + cập nhật tồn của vật liệu (và đơn giá nếu phiếu nhập có giá).
+   * Trả `stockUpdated = false` khi phiếu đã ghi nhưng tồn CHƯA cập nhật — tầng view phải
+   * nói đúng trạng thái đó, không được báo "thành công" trọn vẹn.
+   */
+  static async addMyInventoryLog(input: MyInventoryLogInput): Promise<MyInventoryLogResult> {
+    if (!input.workshopProfileId || !input.materialId) {
+      return { success: false, error: 'Thiếu vật liệu hoặc hồ sơ xưởng.', stockUpdated: false, newStockGrams: null };
+    }
+
+    const payload: Record<string, unknown> = {
+      material_id: input.materialId,
+      action: input.action,
+      grams: input.grams,
+      price_per_kg_at_time: input.pricePerKgAtTime ?? null,
+      supplier: input.supplier ?? '',
+      batch_code: input.batchCode ?? '',
+      note: input.note ?? '',
+      created_by: input.createdBy ?? '',
+    };
+
+    try {
+      const { data: logData, error: logError } = await supabase
+        .from('material_inventory_logs')
+        .insert(payload)
+        .select('id');
+      if (logError) return { success: false, error: logError.message, stockUpdated: false, newStockGrams: null };
+      if (!logData || logData.length === 0) {
+        return { success: false, error: 'Phiếu kho chưa được ghi (quyền RLS).', stockUpdated: false, newStockGrams: null };
+      }
+
+      // Đọc tồn hiện tại TỪ MÁY CHỦ (không tin state trong RAM) rồi mới tính tồn mới.
+      const { data: matData, error: matError } = await supabase
+        .from('workshop_materials')
+        .select('current_stock_grams,price_per_kg,low_stock_threshold_grams')
+        .eq('id', input.materialId)
+        .eq('workshop_id', input.workshopProfileId);
+
+      if (matError || !matData || matData.length === 0) {
+        return {
+          success: true,
+          error: matError ? matError.message : 'Không đọc được vật liệu để cập nhật tồn.',
+          stockUpdated: false,
+          newStockGrams: null,
+        };
+      }
+
+      const row = matData[0] as Record<string, unknown>;
+      const currentStock = Number(row.current_stock_grams ?? 0);
+      const threshold = Number(row.low_stock_threshold_grams ?? 500);
+      let newStock: number;
+      if (input.action === 'Import') newStock = currentStock + input.grams;
+      else if (input.action === 'Export') newStock = Math.max(0, currentStock - input.grams);
+      else newStock = Math.max(0, input.grams);
+
+      const stockPayload: Record<string, unknown> = {
+        current_stock_grams: newStock,
+        stock_status: WorkshopService.computeStockStatus(newStock, threshold),
+        updated_at: new Date().toISOString(),
+      };
+      if (input.action === 'Import' && typeof input.pricePerKgAtTime === 'number' && input.pricePerKgAtTime > 0) {
+        stockPayload.price_per_kg = input.pricePerKgAtTime;
+      }
+
+      const { data: updData, error: updError } = await supabase
+        .from('workshop_materials')
+        .update(stockPayload)
+        .eq('id', input.materialId)
+        .eq('workshop_id', input.workshopProfileId)
+        .select('id');
+
+      if (updError) {
+        return { success: false, error: updError.message, stockUpdated: false, newStockGrams: newStock };
+      }
+      if (!updData || updData.length === 0) {
+        return {
+          success: false,
+          error: 'Phiếu kho đã ghi nhưng tồn kho CHƯA cập nhật (quyền RLS).',
+          stockUpdated: false,
+          newStockGrams: newStock,
+        };
+      }
+
+      return { success: true, error: null, stockUpdated: true, newStockGrams: newStock };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi ghi phiếu kho.', stockUpdated: false, newStockGrams: null };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // W1b.3 — PHỤ KIỆN RIÊNG CỦA XƯỞNG (`workshop_accessories`)
+  // Chỉ bản ghi có `workshop_id` = xưởng của mình (bản ghi dùng chung của nền tảng
+  // không thuộc phạm vi "năng lực của tôi" nên không hiển thị ở đây).
+  // --------------------------------------------------------------------------
+  static async getMyAccessories(workshopProfileId: string): Promise<MyAccessoriesResult> {
+    if (!workshopProfileId) return { data: [], error: null };
+    const { data, error } = await supabase
+      .from('workshop_accessories')
+      .select('id,workshop_id,name,unit,quantity,cost_price,selling_price,sku,is_active,created_at,updated_at')
+      .eq('workshop_id', workshopProfileId)
+      .order('created_at', { ascending: true });
+    if (error) return { data: [], error: error.message };
+    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyAccessory), error: null };
+  }
+
+  static async saveMyAccessory(input: MyAccessoryInput): Promise<WriteResult> {
+    if (!input.workshopProfileId) {
+      return { success: false, error: 'Thiếu hồ sơ xưởng — không thể khai báo phụ kiện.' };
+    }
+    const payload: Record<string, unknown> = {
+      workshop_id: input.workshopProfileId,
+      name: input.name,
+      unit: input.unit ?? 'cái',
+      quantity: input.quantity ?? 0,
+      cost_price: input.costPrice ?? null,
+      selling_price: input.sellingPrice ?? null,
+      sku: input.sku ?? '',
+      is_active: input.isActive ?? true,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      if (input.id) {
+        const { data, error } = await supabase
+          .from('workshop_accessories')
+          .update(payload)
+          .eq('id', input.id)
+          .eq('workshop_id', input.workshopProfileId)
+          .select('id');
+        if (error) return { success: false, error: error.message };
+        if (!data || data.length === 0) {
+          return { success: false, error: 'Máy chủ không ghi được hàng nào (quyền RLS).' };
+        }
+        return { success: true, error: null };
+      }
+      const { data, error } = await supabase.from('workshop_accessories').insert(payload).select('id');
+      if (error) return { success: false, error: error.message };
+      if (!data || data.length === 0) {
+        return { success: false, error: 'Máy chủ không tạo được hàng nào (quyền RLS).' };
+      }
+      return { success: true, error: null };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi lưu phụ kiện.' };
+    }
+  }
+
+  static async deleteMyAccessory(accessoryId: string, workshopProfileId: string): Promise<WriteResult> {
+    try {
+      const { data, error } = await supabase
+        .from('workshop_accessories')
+        .delete()
+        .eq('id', accessoryId)
+        .eq('workshop_id', workshopProfileId)
+        .select('id');
+      if (error) return { success: false, error: error.message };
+      if (!data || data.length === 0) {
+        return { success: false, error: 'Máy chủ không xoá được hàng nào (quyền RLS).' };
+      }
+      return { success: true, error: null };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi xoá phụ kiện.' };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // W1b.4 — HÀNG ĐỢI VIỆC: đơn được giao CHO XƯỞNG NÀY (`orders.assigned_workshop_id`)
+  // --------------------------------------------------------------------------
+  static async getMyQueueOrders(partnerId: string | null): Promise<MyQueueResult> {
+    if (!partnerId) return { data: [], error: null };
+    const { data, error } = await supabase
+      .from('orders')
+      .select(
+        'id,order_number,date,estimated_delivery,status,status_stage_index,layer_progress,items,assigned_printer_id'
+      )
+      .eq('assigned_workshop_id', partnerId)
+      .order('created_at', { ascending: false });
+    if (error) return { data: [], error: error.message };
+    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyQueueOrder), error: null };
+  }
+
+  /**
+   * Cập nhật tiến độ một đơn CỦA XƯỞNG NÀY.
+   *
+   * Chỉ ghi đúng các cột trong phạm vi: `status_stage_index`, `status`, `layer_progress`.
+   * Lọc thêm `assigned_workshop_id = partnerId` để một lệnh gọi sai id cũng không chạm
+   * đơn của xưởng khác. `.select('id')` để phát hiện trường hợp RLS chặn âm thầm
+   * (PostgREST trả 200 + 0 hàng) — khi đó KHÔNG được báo thành công.
+   */
+  static async updateMyOrderProgress(input: MyOrderProgressInput): Promise<MyOrderProgressResult> {
+    if (!input.partnerId) {
+      return { success: false, error: 'Tài khoản chưa gắn mã đối tác xưởng — không thể cập nhật đơn.', updatedRows: 0 };
+    }
+    if (!Number.isInteger(input.stageIndex) || input.stageIndex < 0 || input.stageIndex > 7) {
+      return { success: false, error: 'Nấc tiến độ không hợp lệ (chỉ nhận 0–7).', updatedRows: 0 };
+    }
+
+    const payload: Record<string, unknown> = {
+      status_stage_index: input.stageIndex,
+      status: input.status,
+    };
+    if (typeof input.layerProgress === 'number' && Number.isFinite(input.layerProgress)) {
+      const clamped = Math.max(0, Math.min(100, Math.round(input.layerProgress)));
+      payload.layer_progress = clamped;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(payload)
+        .eq('id', input.orderId)
+        .eq('assigned_workshop_id', input.partnerId)
+        .select('id');
+
+      if (error) return { success: false, error: error.message, updatedRows: 0 };
+      const updatedRows = data ? data.length : 0;
+      if (updatedRows === 0) {
+        return {
+          success: false,
+          error:
+            'Máy chủ không cập nhật hàng nào (đơn không thuộc xưởng này hoặc tài khoản chưa được cấp quyền sửa đơn). Chưa có thay đổi nào được lưu.',
+          updatedRows: 0,
+        };
+      }
+      return { success: true, error: null, updatedRows };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Lỗi không xác định khi cập nhật tiến độ đơn.', updatedRows: 0 };
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // W1b.5 — DANH MỤC THAM CHIẾU CỦA NỀN TẢNG (`printer_fleet`, `materials`)
+  // Chỉ dùng để GỢI Ý thông số khi xưởng khai báo máy/vật liệu của mình. KHÔNG hiển thị
+  // như tài sản của xưởng và KHÔNG dùng để tính bất kỳ số liệu tổng nào.
+  // --------------------------------------------------------------------------
+  static async getPrinterFleetCatalog(): Promise<PrinterFleetCatalogResult> {
+    const { data, error } = await supabase
+      .from('printer_fleet')
+      .select('id,name,brand,model,technology,bed_dimensions,power_kw,status')
+      .order('name', { ascending: true });
+    if (error) return { data: [], error: error.message };
+    return { data: (data ?? []) as unknown as PrinterFleetRef[], error: null };
+  }
+
+  static async getMaterialsCatalog(): Promise<MaterialCatalogResult> {
+    const { data, error } = await supabase
+      .from('materials')
+      .select('id,name,brand,type,density,cost_per_kg')
+      .order('name', { ascending: true });
+    if (error) return { data: [], error: error.message };
+    return { data: (data ?? []) as unknown as MaterialCatalogRef[], error: null };
+  }
+
+  // --------------------------------------------------------------------------
+  // W1b.6 — HÀM ÁNH XẠ / TIỆN ÍCH NỘI BỘ
+  // --------------------------------------------------------------------------
+  private static computeStockStatus(grams: number, threshold: number): string {
+    if (grams <= 0) return 'OutOfStock';
+    if (grams <= threshold) return 'LowStock';
+    return 'Tracking';
+  }
+
+  private static mapMyWorkshopProfile(d: Record<string, unknown>): MyWorkshopProfile {
+    return {
+      id: String(d.id ?? ''),
+      userId: d.user_id ? String(d.user_id) : null,
+      partnerId: d.partner_id ? String(d.partner_id) : null,
+      workshopName: String(d.workshop_name ?? ''),
+      address: String(d.address ?? ''),
+      region: String(d.region ?? ''),
+      verifiedStatus: String(d.verified_status ?? 'Pending'),
+      contactPhone: String(d.contact_phone ?? ''),
+      contactEmail: String(d.contact_email ?? ''),
+      electricityRateOverride: WorkshopService.toNumberOrNull(d.electricity_rate_override),
+      laborRateOverride: WorkshopService.toNumberOrNull(d.labor_rate_override),
+      totalMachines: WorkshopService.toNumberOrNull(d.total_machines),
+      activeMachinesNow: WorkshopService.toNumberOrNull(d.active_machines_now),
+      createdAt: d.created_at ? String(d.created_at) : null,
+      updatedAt: d.updated_at ? String(d.updated_at) : null,
+    };
+  }
+
+  private static mapMyMachine(d: Record<string, unknown>): MyMachine {
+    const bed = (d.bed_dimensions ?? null) as Record<string, unknown> | null;
+    return {
+      id: String(d.id ?? ''),
+      workshopId: String(d.workshop_id ?? ''),
+      name: String(d.name ?? ''),
+      brand: String(d.brand ?? ''),
+      model: String(d.model ?? ''),
+      technology: String(d.technology ?? ''),
+      status: String(d.status ?? ''),
+      hourlyRate: WorkshopService.toNumberOrNull(d.hourly_rate),
+      bedDimensions: bed
+        ? {
+            x: WorkshopService.toNumberOrNull(bed.x) ?? 0,
+            y: WorkshopService.toNumberOrNull(bed.y) ?? 0,
+            z: WorkshopService.toNumberOrNull(bed.z) ?? 0,
+          }
+        : null,
+      createdAt: d.created_at ? String(d.created_at) : null,
+      updatedAt: d.updated_at ? String(d.updated_at) : null,
+    };
+  }
+
+  private static mapMyMaterial(d: Record<string, unknown>): MyMaterial {
+    return {
+      id: String(d.id ?? ''),
+      workshopId: String(d.workshop_id ?? ''),
+      name: String(d.name ?? ''),
+      type: String(d.type ?? ''),
+      color: String(d.color ?? ''),
+      currentStockGrams: WorkshopService.toNumberOrNull(d.current_stock_grams),
+      lowStockThresholdGrams: WorkshopService.toNumberOrNull(d.low_stock_threshold_grams),
+      pricePerKg: WorkshopService.toNumberOrNull(d.price_per_kg),
+      stockStatus: String(d.stock_status ?? ''),
+      createdAt: d.created_at ? String(d.created_at) : null,
+      updatedAt: d.updated_at ? String(d.updated_at) : null,
+    };
+  }
+
+  private static mapMyInventoryLog(d: Record<string, unknown>): MyInventoryLog {
+    return {
+      id: String(d.id ?? ''),
+      materialId: String(d.material_id ?? ''),
+      action: String(d.action ?? ''),
+      grams: WorkshopService.toNumberOrNull(d.grams),
+      pricePerKgAtTime: WorkshopService.toNumberOrNull(d.price_per_kg_at_time),
+      supplier: String(d.supplier ?? ''),
+      batchCode: String(d.batch_code ?? ''),
+      note: String(d.note ?? ''),
+      createdBy: String(d.created_by ?? ''),
+      createdAt: d.created_at ? String(d.created_at) : null,
+    };
+  }
+
+  private static mapMyAccessory(d: Record<string, unknown>): MyAccessory {
+    return {
+      id: String(d.id ?? ''),
+      workshopId: String(d.workshop_id ?? ''),
+      name: String(d.name ?? ''),
+      unit: String(d.unit ?? ''),
+      quantity: WorkshopService.toNumberOrNull(d.quantity),
+      costPrice: WorkshopService.toNumberOrNull(d.cost_price),
+      sellingPrice: WorkshopService.toNumberOrNull(d.selling_price),
+      sku: String(d.sku ?? ''),
+      isActive: d.is_active === true,
+      createdAt: d.created_at ? String(d.created_at) : null,
+      updatedAt: d.updated_at ? String(d.updated_at) : null,
+    };
+  }
+
+  private static mapMyQueueOrder(d: Record<string, unknown>): MyQueueOrder {
+    const rawItems = Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : [];
+    return {
+      id: String(d.id ?? ''),
+      orderNumber: String(d.order_number ?? ''),
+      date: d.date ? String(d.date) : null,
+      estimatedDelivery: d.estimated_delivery ? String(d.estimated_delivery) : '',
+      status: String(d.status ?? ''),
+      statusStageIndex: WorkshopService.toNumberOrNull(d.status_stage_index),
+      layerProgress: WorkshopService.toNumberOrNull(d.layer_progress),
+      assignedPrinterId: d.assigned_printer_id ? String(d.assigned_printer_id) : null,
+      items: rawItems.map((it) => ({
+        id: String(it.id ?? ''),
+        name: String(it.name ?? ''),
+        quantity: WorkshopService.toNumberOrNull(it.quantity) ?? 0,
+        material: it.material ? String(it.material) : null,
+        color: it.color ? String(it.color) : null,
+      })),
+    };
+  }
+
+  private static toNumberOrNull(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
 }
+
+// ============================================================================
+// W1b — KIỂU DỮ LIỆU CHO BẢNG ĐIỀU KHIỂN XƯỞNG
+//
+// Các kiểu dưới đây phản ánh ĐÚNG cột đang tồn tại trên project thật (kiểm chứng bằng
+// OpenAPI của PostgREST). Chúng KHÔNG dùng `WorkshopMachine`/`WorkshopMaterial` trong
+// `src/types/index.ts` vì hai kiểu đó mô tả cột không tồn tại (`machine_name`,
+// `avg_power_kw`, `current_stock_grams`…) — dùng chúng sẽ cho ra `undefined` hàng loạt.
+// ============================================================================
+
+export interface WriteResult {
+  success: boolean;
+  error: string | null;
+}
+
+export interface MyWorkshopProfile {
+  id: string;
+  userId: string | null;
+  /** `null` = tài khoản chưa được gắn đối tác ⇒ không thể nhận đơn. */
+  partnerId: string | null;
+  workshopName: string;
+  address: string;
+  region: string;
+  verifiedStatus: string;
+  contactPhone: string;
+  contactEmail: string;
+  /** `null` = CHƯA CẤU HÌNH (rỗng). KHÔNG được thay bằng một số mặc định. */
+  electricityRateOverride: number | null;
+  /** `null` = CHƯA CẤU HÌNH (rỗng). KHÔNG được thay bằng một số mặc định. */
+  laborRateOverride: number | null;
+  totalMachines: number | null;
+  activeMachinesNow: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface MyWorkshopProfileResult {
+  profile: MyWorkshopProfile | null;
+  error: string | null;
+  /** > 1 = user có nhiều hồ sơ xưởng (bảng KHÔNG có unique trên `user_id`). */
+  duplicateCount: number;
+}
+
+export interface MyWorkshopProfilePatch {
+  workshopName?: string;
+  address?: string;
+  region?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  /** `null` = xoá cấu hình (ô để trống). */
+  electricityRateOverride?: number | null;
+  laborRateOverride?: number | null;
+}
+
+/** Một máy in do CHÍNH xưởng khai báo (`workshop_machines`). */
+export interface MyMachine {
+  id: string;
+  workshopId: string;
+  name: string;
+  brand: string;
+  model: string;
+  technology: string;
+  status: string;
+  /** `null` = xưởng chưa khai đơn giá giờ máy. */
+  hourlyRate: number | null;
+  bedDimensions: { x: number; y: number; z: number } | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface MyMachinesResult {
+  data: MyMachine[];
+  error: string | null;
+}
+
+export interface MyMachineInput {
+  id?: string;
+  workshopProfileId: string;
+  name: string;
+  brand?: string;
+  model?: string;
+  technology?: string;
+  status?: string;
+  hourlyRate?: number | null;
+  bedDimensions?: { x: number; y: number; z: number };
+}
+
+/** Một vật liệu của CHÍNH xưởng (`workshop_materials`). */
+export interface MyMaterial {
+  id: string;
+  workshopId: string;
+  name: string;
+  type: string;
+  color: string;
+  /** `null` = chưa từng ghi nhận tồn (KHÁC `0`). */
+  currentStockGrams: number | null;
+  lowStockThresholdGrams: number | null;
+  /** `null` = xưởng chưa khai đơn giá vật liệu. */
+  pricePerKg: number | null;
+  stockStatus: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface MyMaterialsResult {
+  data: MyMaterial[];
+  error: string | null;
+}
+
+export interface MyMaterialInput {
+  id?: string;
+  workshopProfileId: string;
+  name: string;
+  type?: string;
+  color?: string;
+  currentStockGrams?: number;
+  lowStockThresholdGrams?: number;
+  pricePerKg?: number | null;
+  stockStatus?: string;
+}
+
+/** Một dòng sổ kho của xưởng (`material_inventory_logs`). */
+export interface MyInventoryLog {
+  id: string;
+  materialId: string;
+  action: string;
+  grams: number | null;
+  pricePerKgAtTime: number | null;
+  supplier: string;
+  batchCode: string;
+  note: string;
+  createdBy: string;
+  createdAt: string | null;
+}
+
+export interface MyInventoryLogsResult {
+  data: MyInventoryLog[];
+  error: string | null;
+}
+
+export interface MyInventoryLogInput {
+  workshopProfileId: string;
+  materialId: string;
+  action: 'Import' | 'Export' | 'Adjustment';
+  grams: number;
+  pricePerKgAtTime?: number | null;
+  supplier?: string;
+  batchCode?: string;
+  note?: string;
+  /** Danh tính THẬT của người ghi phiếu (email phiên đăng nhập). */
+  createdBy?: string;
+}
+
+export interface MyInventoryLogResult extends WriteResult {
+  /** `false` = phiếu đã ghi nhưng tồn kho CHƯA cập nhật ⇒ view phải nói đúng. */
+  stockUpdated: boolean;
+  newStockGrams: number | null;
+}
+
+/** Một phụ kiện riêng của xưởng (`workshop_accessories`). */
+export interface MyAccessory {
+  id: string;
+  workshopId: string;
+  name: string;
+  unit: string;
+  quantity: number | null;
+  costPrice: number | null;
+  sellingPrice: number | null;
+  sku: string;
+  isActive: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface MyAccessoriesResult {
+  data: MyAccessory[];
+  error: string | null;
+}
+
+export interface MyAccessoryInput {
+  id?: string;
+  workshopProfileId: string;
+  name: string;
+  unit?: string;
+  quantity?: number;
+  costPrice?: number | null;
+  sellingPrice?: number | null;
+  sku?: string;
+  isActive?: boolean;
+}
+
+export interface MyQueueItem {
+  id: string;
+  name: string;
+  quantity: number;
+  material: string | null;
+  color: string | null;
+}
+
+/** Một đơn được giao CHO XƯỞNG NÀY (`orders.assigned_workshop_id = partner_id`). */
+export interface MyQueueOrder {
+  id: string;
+  orderNumber: string;
+  date: string | null;
+  estimatedDelivery: string;
+  status: string;
+  /** `null` = xưởng chưa báo nấc nào. */
+  statusStageIndex: number | null;
+  /** `null` = máy in chưa báo tiến độ lớp. */
+  layerProgress: number | null;
+  assignedPrinterId: string | null;
+  items: MyQueueItem[];
+}
+
+export interface MyQueueResult {
+  data: MyQueueOrder[];
+  error: string | null;
+}
+
+export interface MyOrderProgressInput {
+  orderId: string;
+  /** `orders.assigned_workshop_id` của xưởng đang đăng nhập — chốt phạm vi ở tầng truy vấn. */
+  partnerId: string | null;
+  /** 0..7, khớp `MES_PIPELINE_STAGES` trong `OrderProgress.tsx`. */
+  stageIndex: number;
+  status: string;
+  layerProgress?: number | null;
+}
+
+export interface MyOrderProgressResult extends WriteResult {
+  updatedRows: number;
+}
+
+export interface PrinterFleetRef {
+  id: string;
+  name: string;
+  brand?: string | null;
+  model?: string | null;
+  technology?: string | null;
+  bed_dimensions?: { x?: number; y?: number; z?: number } | null;
+  power_kw?: number | null;
+  status?: string | null;
+}
+
+export interface PrinterFleetCatalogResult {
+  data: PrinterFleetRef[];
+  error: string | null;
+}
+
+export interface MaterialCatalogRef {
+  id: string;
+  name: string;
+  brand?: string | null;
+  type?: string | null;
+  density?: number | null;
+  cost_per_kg?: number | null;
+}
+
+export interface MaterialCatalogResult {
+  data: MaterialCatalogRef[];
+  error: string | null;
+}
+
+/** Nhãn trạng thái đơn — khớp union `Order['status']` trong `src/types/index.ts`. */
+export const MY_ORDER_STATUS_LABELS: Record<string, string> = {
+  pending_payment: 'Chờ thanh toán',
+  processing: 'Đang xử lý',
+  printing: 'Đang in',
+  post_processing: 'Hậu kỳ',
+  packaging: 'Đóng gói',
+  shipping: 'Đang giao',
+  completed: 'Hoàn thành',
+  cancelled: 'Đã huỷ',
+};
+
+/**
+ * Nấc thứ i (0..7) ⇒ `orders.status` thô. Giữ `status` đồng bộ với `status_stage_index`
+ * vì `MyOrdersView` suy nấc từ `status` khi `status_stage_index` rỗng.
+ */
+export const MY_ORDER_STATUS_BY_STAGE: string[] = [
+  'processing',
+  'processing',
+  'processing',
+  'printing',
+  'printing',
+  'post_processing',
+  'post_processing',
+  'shipping',
+];
+
+/** Trạng thái máy in xưởng tự đặt (`workshop_machines.status`, không có CHECK ở DB). */
+export const MY_MACHINE_STATUSES = ['Free', 'Busy', 'Maintenance', 'Offline'] as const;
+
+export const MY_MACHINE_STATUS_LABELS: Record<string, string> = {
+  Free: 'Rảnh',
+  Busy: 'Đang in',
+  Maintenance: 'Bảo trì',
+  Offline: 'Tắt máy',
+};
 
 export const workshopService = WorkshopService;

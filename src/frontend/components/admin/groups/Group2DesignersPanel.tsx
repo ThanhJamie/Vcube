@@ -1,11 +1,21 @@
-import React, { useState, useMemo } from 'react';
-import { useDesignerAdminStore, ExtendedDesignerProfile, DesignerWithdrawalRequest } from '../../../../stores/useDesignerAdminStore';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useDesignerAdminStore, DesignerRow } from '../../../../stores/useDesignerAdminStore';
 import { useLanguage } from '../../../context/LanguageContext';
+import { dbService } from '../../../../backend/supabase/database';
+import { AppUserProfile } from '../../../../types';
+import { Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
 
 export interface Group2DesignersPanelProps {
   onShowToast?: (message: string) => void;
   onNavigateSection?: (section: any) => void;
 }
+
+const BADGE_TIERS = [
+  { id: 'TopCreator', label: '👑 Top Creator', desc: 'Nhà sáng tạo xuất sắc' },
+  { id: 'VerifiedEngineer', label: '🛡️ Verified Engineer', desc: 'Kỹ sư cơ khí kiểm duyệt' },
+  { id: 'PioneerMaker', label: '🚀 Pioneer Maker', desc: 'Nghệ nhân tiên phong' },
+  { id: 'Standard', label: 'Tiêu Chuẩn', desc: 'Creator phổ thông' }
+] as const;
 
 export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
   onShowToast,
@@ -16,208 +26,282 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
 
   const [activeTab, setActiveTab] = useState<'designers' | 'withdrawals' | 'analytics'>('designers');
 
-  // Zustand Store
+  // Store đọc/ghi bảng thật `designer_profiles` (xem chú thích đầu store).
   const {
     designers,
-    withdrawals,
+    designerColumns,
+    isLoading,
+    error,
     filters,
     setFilterBadgeTier,
-    setFilterStatus,
+    setFilterVerifiedStatus,
     setSearchQuery,
-    setBadgeTier,
-    updateRoyaltyPercent,
-    updateDesignerStatus,
-    approveWithdrawal,
-    completePayoutTransfer,
-    rejectWithdrawal,
+    loadDesigners,
+    updateDesigner,
     getDesignerStats
   } = useDesignerAdminStore();
 
   const stats = getDesignerStats();
+  /** `badge_tier` KHÔNG có trong baseline ⇒ ẩn mọi điều khiển huy hiệu thay vì ghi rồi báo lỗi. */
+  const hasBadgeColumn = designerColumns.includes('badge_tier');
+  /**
+   * Ghi chú dùng chung khi KHÔNG lọc/gán được huy hiệu. Phân biệt 2 nguyên nhân KHÁC NHAU:
+   * bảng chưa có bản ghi nào (⇒ chưa đọc được danh sách cột) so với bảng có dữ liệu nhưng
+   * thiếu hẳn cột `badge_tier`.
+   */
+  const noBadgeTierNote =
+    designerColumns.length === 0
+      ? isVi
+        ? 'chưa xác định được cột vì bảng chưa có bản ghi nào'
+        : 'columns unknown because the table has no row yet'
+      : isVi
+      ? 'bảng designer_profiles không có cột badge_tier'
+      : 'designer_profiles has no badge_tier column';
+
+  useEffect(() => {
+    void loadDesigners();
+  }, [loadDesigners]);
+
+  // ==========================================================================
+  // Danh tính (email / SĐT) KHÔNG nằm trong `designer_profiles` — nó ở `user_profiles`.
+  // Ghép theo `designer_profiles.user_id = user_profiles.id`. Không ghép được ⇒ '—'.
+  // ==========================================================================
+  const [users, setUsers] = useState<AppUserProfile[]>([]);
+  const [usersError, setUsersError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const rows = await dbService.getUsers();
+        if (alive) {
+          setUsers(Array.isArray(rows) ? rows : []);
+          setUsersError(null);
+        }
+      } catch (err: any) {
+        if (alive) {
+          setUsers([]);
+          setUsersError(err?.message || (isVi ? 'lỗi không xác định' : 'unknown error'));
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [isVi]);
+
+  const userById = useMemo(() => {
+    const map = new Map<string, AppUserProfile>();
+    users.forEach((u) => map.set(u.uid, u));
+    return map;
+  }, [users]);
 
   // Modals / Editing state
-  const [editingDesigner, setEditingDesigner] = useState<ExtendedDesignerProfile | null>(null);
+  const [editingDesigner, setEditingDesigner] = useState<DesignerRow | null>(null);
   const [royaltyDraft, setRoyaltyDraft] = useState<number>(10);
-  const [badgeDraft, setBadgeDraft] = useState<ExtendedDesignerProfile['badgeTier']>('Standard');
-
-  // Withdrawal processing modal
-  const [selectedWithdrawal, setSelectedWithdrawal] = useState<DesignerWithdrawalRequest | null>(null);
-  const [txRefInput, setTxRefInput] = useState('');
-  const [rejectReasonInput, setRejectReasonInput] = useState('');
-  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [badgeDraft, setBadgeDraft] = useState<string>('Standard');
+  const [isSavingDesigner, setIsSavingDesigner] = useState(false);
 
   // Format currency
   const formatVnd = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(val);
   };
+  /** Thiếu số đo ⇒ '—' (không rơi về 0 như thể đã đo được). */
+  const numOrDash = (val: number | null | undefined) =>
+    val === null || val === undefined ? '—' : String(val);
 
   // Filtered designers
   const filteredDesigners = useMemo(() => {
+    const q = filters.searchQuery.trim().toLowerCase();
     return designers.filter((d) => {
-      const matchBadge = filters.badgeTier === 'all' || d.badgeTier === filters.badgeTier;
-      const matchStatus = filters.status === 'all' || d.status === filters.status;
+      const user = d.userId ? userById.get(d.userId) : undefined;
+      const matchBadge =
+        !hasBadgeColumn || filters.badgeTier === 'all' || d.badgeTier === filters.badgeTier;
+      const matchStatus =
+        filters.verifiedStatus === 'all' || d.verifiedStatus === filters.verifiedStatus;
       const matchQuery =
-        !filters.searchQuery ||
-        d.displayName.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-        d.email.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-        (d.bio && d.bio.toLowerCase().includes(filters.searchQuery.toLowerCase()));
+        !q ||
+        d.displayName.toLowerCase().includes(q) ||
+        (d.bio && d.bio.toLowerCase().includes(q)) ||
+        (user?.email && user.email.toLowerCase().includes(q));
       return matchBadge && matchStatus && matchQuery;
     });
-  }, [designers, filters]);
+  }, [designers, filters, hasBadgeColumn, userById]);
 
   // Open Edit Designer Modal
-  const handleOpenEdit = (d: ExtendedDesignerProfile) => {
+  const handleOpenEdit = (d: DesignerRow) => {
     setEditingDesigner(d);
-    setRoyaltyDraft(d.defaultRoyaltyPercent);
-    setBadgeDraft(d.badgeTier);
+    // Chưa có giá trị trong DB ⇒ mặc định của thanh trượt chỉ là ĐIỂM BẮT ĐẦU; chỉ ghi khi bấm Lưu.
+    setRoyaltyDraft(d.royaltyPercent ?? 10);
+    setBadgeDraft(d.badgeTier ?? 'Standard');
   };
 
-  // Save changes to designer
-  const handleSaveDesigner = (e: React.FormEvent) => {
+  // Save changes to designer — GHI XUỐNG DB, chỉ báo thành công khi DB xác nhận.
+  const handleSaveDesigner = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDesigner) return;
-
-    setBadgeTier(editingDesigner.id, badgeDraft);
-    updateRoyaltyPercent(editingDesigner.id, royaltyDraft);
-    setEditingDesigner(null);
-    onShowToast?.(
-      isVi
-        ? `Đã cập nhật danh hiệu & trần hoa hồng cho ${editingDesigner.displayName}!`
-        : `Updated tier & royalty cap for ${editingDesigner.displayName}!`
-    );
-  };
-
-  // Handle Complete Transfer
-  const handleConfirmTransfer = (w: DesignerWithdrawalRequest) => {
-    const tx = txRefInput.trim() || `VCB-${Date.now().toString().slice(-6)}`;
-    completePayoutTransfer(w.id, tx);
-    setSelectedWithdrawal(null);
-    setTxRefInput('');
-    onShowToast?.(
-      isVi
-        ? `Đã xác nhận tất toán ${formatVnd(w.amountVnd)} cho ${w.designerName} (Mã GD: ${tx})`
-        : `Payout of ${formatVnd(w.amountVnd)} transferred to ${w.designerName} (Ref: ${tx})`
-    );
-  };
-
-  // Handle Reject
-  const handleConfirmReject = () => {
-    if (!selectedWithdrawal) return;
-    if (!rejectReasonInput.trim()) {
-      alert(isVi ? 'Vui lòng nhập lý do từ chối' : 'Please provide rejection reason');
-      return;
+    setIsSavingDesigner(true);
+    try {
+      const res = await updateDesigner(editingDesigner.id, {
+        royaltyPercent: royaltyDraft,
+        badgeTier: hasBadgeColumn ? badgeDraft : undefined
+      });
+      if (!res.success) {
+        onShowToast?.(
+          isVi
+            ? `Lưu hồ sơ designer thất bại: ${res.error || 'lỗi không xác định'}`
+            : `Failed to save designer profile: ${res.error || 'unknown error'}`
+        );
+        return; // giữ modal mở để không mất thao tác vừa nhập
+      }
+      setEditingDesigner(null);
+      onShowToast?.(
+        isVi
+          ? `Đã lưu vào designer_profiles: ${editingDesigner.displayName}`
+          : `Saved to designer_profiles: ${editingDesigner.displayName}`
+      );
+    } finally {
+      setIsSavingDesigner(false);
     }
-    rejectWithdrawal(selectedWithdrawal.id, rejectReasonInput.trim());
-    setIsRejectModalOpen(false);
-    setSelectedWithdrawal(null);
-    setRejectReasonInput('');
-    onShowToast?.(isVi ? 'Đã từ chối lệnh rút tiền' : 'Withdrawal rejected');
+  };
+
+  // Cycle tier (chỉ khi bảng thật sự có cột `badge_tier`)
+  const handleCycleTier = async (d: DesignerRow) => {
+    if (!hasBadgeColumn) return;
+    const current = d.badgeTier ?? 'Standard';
+    const nextTier =
+      current === 'Standard'
+        ? 'PioneerMaker'
+        : current === 'PioneerMaker'
+        ? 'VerifiedEngineer'
+        : current === 'VerifiedEngineer'
+        ? 'TopCreator'
+        : 'Standard';
+    const res = await updateDesigner(d.id, { badgeTier: nextTier });
+    onShowToast?.(
+      res.success
+        ? isVi
+          ? `Đã đổi huy hiệu ${d.displayName} thành ${nextTier}`
+          : `Changed ${d.displayName} tier to ${nextTier}`
+        : isVi
+        ? `Đổi huy hiệu thất bại: ${res.error}`
+        : `Failed to change tier: ${res.error}`
+    );
   };
 
   return (
     <div className="space-y-6">
       {/* Header & Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-5 rounded-lg border border-line-subtle shadow-e1">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700">
-              Group 2
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-warning/10 text-warning">
+              Nhà thiết kế
             </span>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-xl font-black text-fg tracking-tight">
               {isVi ? 'Quản Trị Nhà Thiết Kế & Bản Quyền (Designers Hub)' : 'Designers & IP Royalty Hub'}
             </h2>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
-            {isVi
-              ? 'Xác thực hồ sơ Creator, gán Badge Tier danh hiệu, điều chỉnh trần hoa hồng bản quyền và quyết toán rút tiền.'
-              : 'Verify designer profiles, assign Badge Tiers, adjust royalty percentage caps, and settle withdrawal payouts.'}
-          </p>
+          <div className="mt-1">
+            <InfoTip label={isVi ? 'Mục này quản trị những gì?' : 'What does this hub manage?'}>
+              {isVi
+                ? 'Hồ sơ nhà thiết kế đọc/ghi trực tiếp bảng designer_profiles: trần hoa hồng bản quyền và (nếu bảng có cột) huy hiệu.'
+                : 'Designer profiles are read/written directly to designer_profiles: royalty cap and (when the column exists) badge tier.'}
+            </InfoTip>
+          </div>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+        <div className="flex items-center gap-1.5 p-1 bg-surface-muted rounded-lg">
           <button
             onClick={() => setActiveTab('designers')}
             className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
               activeTab === 'designers'
-                ? 'bg-white text-[#00687A] shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-surface text-primary shadow-e1'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
-            <span className="material-symbols-outlined text-base">palette</span>
+            <Icon name="palette" size={18} />
             {isVi ? 'Hồ Sơ Designers' : 'Designers'}
           </button>
           <button
             onClick={() => setActiveTab('withdrawals')}
             className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
               activeTab === 'withdrawals'
-                ? 'bg-white text-[#00687A] shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-surface text-primary shadow-e1'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
-            <span className="material-symbols-outlined text-base">payments</span>
+            <Icon name="payments" size={18} />
             {isVi ? 'Lệnh Rút Tiền' : 'Payouts'}
-            {withdrawals.filter((w) => w.status === 'Pending').length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 bg-amber-500 text-white text-[10px] font-black rounded-full">
-                {withdrawals.filter((w) => w.status === 'Pending').length}
-              </span>
-            )}
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
             className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
               activeTab === 'analytics'
-                ? 'bg-white text-[#00687A] shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-surface text-primary shadow-e1'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
-            <span className="material-symbols-outlined text-base">query_stats</span>
+            <Icon name="query_stats" size={18} />
             {isVi ? 'Doanh Thu & Sales' : 'Sales Stats'}
           </button>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards — mọi số đều từ `designer_profiles`; không có cột ⇒ '—' */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase text-slate-500">{isVi ? 'Tổng Designers' : 'Total Designers'}</div>
-          <div className="text-2xl font-black text-slate-900 mt-1">{stats.totalDesigners}</div>
-          <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">100% Hoạt động</div>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-amber-200 bg-amber-50/20 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase text-amber-700">{isVi ? 'Top Creators' : 'Top Creators'}</div>
-          <div className="text-2xl font-black text-amber-700 mt-1">{stats.topCreatorsCount}</div>
-          <div className="text-[11px] text-amber-600 font-semibold mt-0.5">{isVi ? 'Huy hiệu cao nhất' : 'Elite tier'}</div>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-blue-200 bg-blue-50/20 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase text-blue-700">{isVi ? 'Kỹ Sư CAD' : 'Verified Eng.'}</div>
-          <div className="text-2xl font-black text-blue-700 mt-1">{stats.verifiedEngineersCount}</div>
-          <div className="text-[11px] text-blue-600 font-semibold mt-0.5">{isVi ? 'Kỹ thuật chính xác' : 'Mechanical'}</div>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-purple-200 bg-purple-50/20 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase text-purple-700">{isVi ? 'Pioneer Makers' : 'Pioneers'}</div>
-          <div className="text-2xl font-black text-purple-700 mt-1">{stats.pioneerMakersCount}</div>
-          <div className="text-[11px] text-purple-600 font-semibold mt-0.5">{isVi ? 'Tạo mẫu sáng tạo' : 'Artistic'}</div>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/20 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase text-emerald-700">{isVi ? 'Royalties Đã Trả' : 'Royalties Paid'}</div>
-          <div className="text-lg font-black text-emerald-700 mt-1 truncate">
-            {formatVnd(stats.totalRoyaltiesPaidVnd)}
+        <div className="bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
+          <div className="text-xs font-bold uppercase text-fg-subtle">{isVi ? 'Tổng Designers' : 'Total Designers'}</div>
+          <div className="text-2xl font-black text-fg mt-1">{error ? '—' : isLoading ? '…' : stats.totalDesigners}</div>
+          <div className="text-xs text-fg-subtle font-semibold mt-0.5">
+            {error
+              ? isVi ? 'Lỗi đọc designer_profiles' : 'designer_profiles read failed'
+              : isVi ? 'Bảng designer_profiles' : 'designer_profiles table'}
           </div>
-          <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">{isVi ? 'Tích lũy hệ thống' : 'All-time'}</div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-xl border border-rose-200 bg-rose-50/20 shadow-2xs">
-          <div className="text-[11px] font-bold uppercase text-rose-700">{isVi ? 'Chờ Quyết Toán' : 'Pending Payout'}</div>
-          <div className="text-lg font-black text-rose-700 mt-1 truncate">
-            {formatVnd(stats.pendingPayoutVnd)}
+        <div className="bg-surface p-3.5 rounded-lg border border-warning/30 bg-warning-tint/20 shadow-e0">
+          <div className="text-xs font-bold uppercase text-warning">{isVi ? 'Top Creators' : 'Top Creators'}</div>
+          <div className="text-2xl font-black text-warning mt-1">{numOrDash(stats.topCreatorsCount)}</div>
+          <div className="text-xs text-warning font-semibold mt-0.5">
+            {hasBadgeColumn ? (isVi ? 'Huy hiệu cao nhất' : 'Elite tier') : noBadgeTierNote}
           </div>
-          <div className="text-[11px] text-rose-600 font-semibold mt-0.5">
-            {withdrawals.filter((w) => w.status === 'Pending').length} {isVi ? 'lệnh chờ duyệt' : 'pending'}
+        </div>
+
+        <div className="bg-surface p-3.5 rounded-lg border border-info/30 bg-info-tint/20 shadow-e0">
+          <div className="text-xs font-bold uppercase text-info">{isVi ? 'Kỹ Sư CAD' : 'Verified Eng.'}</div>
+          <div className="text-2xl font-black text-info mt-1">{numOrDash(stats.verifiedEngineersCount)}</div>
+          <div className="text-xs text-info font-semibold mt-0.5">
+            {hasBadgeColumn ? (isVi ? 'Kỹ thuật chính xác' : 'Mechanical') : noBadgeTierNote}
+          </div>
+        </div>
+
+        <div className="bg-surface p-3.5 rounded-lg border border-info/30 bg-info-tint/20 shadow-e0">
+          <div className="text-xs font-bold uppercase text-info">{isVi ? 'Pioneer Makers' : 'Pioneers'}</div>
+          <div className="text-2xl font-black text-info mt-1">{numOrDash(stats.pioneerMakersCount)}</div>
+          <div className="text-xs text-info font-semibold mt-0.5">
+            {hasBadgeColumn ? (isVi ? 'Tạo mẫu sáng tạo' : 'Artistic') : noBadgeTierNote}
+          </div>
+        </div>
+
+        <div className="bg-surface p-3.5 rounded-lg border border-positive/30 bg-positive-tint/20 shadow-e0">
+          <div className="text-xs font-bold uppercase text-positive">{isVi ? 'Royalties Ghi Nhận' : 'Royalties Recorded'}</div>
+          <div className="text-lg font-black text-positive mt-1 truncate">
+            {stats.totalRoyaltiesPaidVnd === null ? '—' : formatVnd(stats.totalRoyaltiesPaidVnd)}
+          </div>
+          <div className="text-xs text-positive font-semibold mt-0.5">
+            {stats.totalRoyaltiesPaidVnd === null
+              ? isVi ? 'Bảng không có cột total_royalties_earned' : 'no total_royalties_earned column'
+              : isVi ? 'Tổng theo hồ sơ' : 'From profiles'}
+          </div>
+        </div>
+
+        <div className="bg-surface p-3.5 rounded-lg border border-danger/30 bg-danger-tint/20 shadow-e0">
+          <div className="text-xs font-bold uppercase text-danger">{isVi ? 'Chờ Quyết Toán' : 'Pending Payout'}</div>
+          <div className="text-lg font-black text-danger mt-1 truncate">—</div>
+          <div className="text-xs text-danger font-semibold mt-0.5">
+            {isVi ? 'Chưa có nguồn dữ liệu chi trả' : 'No payout data source'}
           </div>
         </div>
       </div>
@@ -226,375 +310,439 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
       {activeTab === 'designers' && (
         <div className="space-y-4">
           {/* Controls Bar */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold">
-                <span className="text-slate-400 px-1 text-[11px] uppercase tracking-wider">{isVi ? 'Huy hiệu:' : 'Badge Tier:'}</span>
-                {(['all', 'TopCreator', 'VerifiedEngineer', 'PioneerMaker', 'Standard'] as const).map((t) => (
+              {hasBadgeColumn ? (
+                <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs font-semibold">
+                  <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Huy hiệu:' : 'Badge Tier:'}</span>
+                  {(['all', 'TopCreator', 'VerifiedEngineer', 'PioneerMaker', 'Standard'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setFilterBadgeTier(t)}
+                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                        filters.badgeTier === t
+                          ? 'bg-surface text-primary font-bold shadow-e0'
+                          : 'text-fg-muted hover:text-fg'
+                      }`}
+                    >
+                      {t === 'all'
+                        ? (isVi ? 'Tất cả' : 'All')
+                        : t === 'TopCreator'
+                        ? '👑 Top Creator'
+                        : t === 'VerifiedEngineer'
+                        ? '⚙️ Engineer'
+                        : t === 'PioneerMaker'
+                        ? '🚀 Pioneer'
+                        : (isVi ? 'Tiêu chuẩn' : 'Standard')}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-xs text-fg-subtle bg-surface-muted px-2.5 py-1.5 rounded-lg">
+                  {isVi
+                    ? `Không lọc/gán huy hiệu được: ${noBadgeTierNote}.`
+                    : `Tier filter/assignment unavailable: ${noBadgeTierNote}.`}
+                </span>
+              )}
+
+              <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs font-semibold">
+                <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">
+                  {isVi ? 'Xác thực:' : 'Verified:'}
+                </span>
+                {(['all', 'Verified', 'Pending'] as const).map((s) => (
                   <button
-                    key={t}
-                    onClick={() => setFilterBadgeTier(t)}
+                    key={s}
+                    onClick={() => setFilterVerifiedStatus(s)}
                     className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                      filters.badgeTier === t
-                        ? 'bg-white text-[#00687A] font-bold shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                      filters.verifiedStatus === s
+                        ? 'bg-surface text-primary font-bold shadow-e0'
+                        : 'text-fg-muted hover:text-fg'
                     }`}
                   >
-                    {t === 'all'
-                      ? (isVi ? 'Tất cả' : 'All')
-                      : t === 'TopCreator'
-                      ? '👑 Top Creator'
-                      : t === 'VerifiedEngineer'
-                      ? '⚙️ Engineer'
-                      : t === 'PioneerMaker'
-                      ? '🚀 Pioneer'
-                      : (isVi ? 'Tiêu chuẩn' : 'Standard')}
+                    {s === 'all' ? (isVi ? 'Tất cả' : 'All') : s}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="relative w-full md:w-72">
-              <span className="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-sm">
-                search
-              </span>
-              <input
-                type="text"
-                placeholder={isVi ? 'Tìm tên designer, email...' : 'Search designer...'}
-                value={filters.searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#00687A] focus:bg-white"
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative w-full md:w-72">
+                <Icon name="search" size={16} className="absolute left-2.5 top-2 text-fg-subtle" />
+                <input
+                  type="text"
+                  placeholder={isVi ? 'Tìm tên designer, email...' : 'Search designer...'}
+                  value={filters.searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus:border-primary focus:bg-surface"
+                />
+              </div>
+              <button
+                onClick={() => void loadDesigners()}
+                disabled={isLoading}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-60 shrink-0"
+              >
+                <Icon name="sync" size={16} className={isLoading ? 'animate-spin' : ''} />
+                {isVi ? 'Tải Lại' : 'Reload'}
+              </button>
             </div>
           </div>
 
-          {/* Designer Profiles Grid */}
+          {usersError !== null && (
+            <p className="text-xs text-warning bg-warning-tint border border-warning/30 rounded-lg px-3 py-2">
+              {isVi
+                ? `Không ghép được hồ sơ người dùng (email/SĐT) từ user_profiles: ${usersError}`
+                : `Could not join user profiles (email/phone) from user_profiles: ${usersError}`}
+            </p>
+          )}
+
+          {/* Đang tải */}
+          {isLoading && designers.length === 0 && error === null && (
+            <div className="bg-surface p-6 rounded-lg border border-line-subtle shadow-e0 text-center text-xs text-fg-subtle">
+              {isVi ? 'Đang tải hồ sơ nhà thiết kế từ designer_profiles...' : 'Loading designer profiles from designer_profiles...'}
+            </div>
+          )}
+
+          {/* LỖI THẬT */}
+          {error !== null && (
+            <div role="alert" className="p-4 bg-danger-tint border border-danger/30 rounded-lg flex items-start gap-3">
+              <Icon name="error" size={24} className="text-danger mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-bold text-danger text-sm">
+                  {isVi ? 'Không đọc được bảng designer_profiles' : 'Could not read the designer_profiles table'}
+                </h4>
+                <p className="text-xs text-danger mt-1 font-mono break-all">{error}</p>
+                <button
+                  onClick={() => void loadDesigners()}
+                  className="mt-2 px-3 py-1 bg-surface border border-danger/30 text-danger text-xs font-bold rounded-lg cursor-pointer"
+                >
+                  {isVi ? 'Thử lại' : 'Retry'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {error === null && !isLoading && filteredDesigners.length === 0 && (
+            <EmptyState
+              size="sm"
+              title={isVi ? 'Chưa có nhà thiết kế nào' : 'No designer yet'}
+              description={
+                designers.length === 0
+                  ? isVi
+                    ? 'Bảng designer_profiles chưa có bản ghi nào.'
+                    : 'The designer_profiles table has no row yet.'
+                  : isVi
+                  ? 'Không có hồ sơ nhà thiết kế nào khớp bộ lọc hiện tại.'
+                  : 'No designer profile matches the current filter.'
+              }
+              icon={<Icon name="draw" size={20} className="text-primary" />}
+              action={
+                <Button variant="secondary" size="sm" onClick={() => setActiveTab('analytics')}>
+                  {isVi ? 'Xem Doanh Thu Theo Designer' : 'View revenue by designer'}
+                </Button>
+              }
+            />
+          )}
+
+          {error === null && filteredDesigners.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredDesigners.map((d) => (
+            {filteredDesigners.map((d) => {
+              const user = d.userId ? userById.get(d.userId) : undefined;
+              return (
               <div
                 key={d.id}
-                className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs hover:shadow-sm transition-all flex flex-col justify-between"
+                className="bg-surface rounded-lg border border-line-subtle p-5 shadow-e0 hover:shadow-e1 transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <img
-                        src={d.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
-                        alt={d.displayName}
-                        className="w-13 h-13 rounded-full object-cover border-2 border-slate-200 shadow-2xs shrink-0"
-                      />
+                      {d.avatarUrl ? (
+                        <img
+                          src={d.avatarUrl}
+                          alt={d.displayName}
+                          className="w-13 h-13 rounded-full object-cover border-2 border-line-subtle shadow-e0 shrink-0"
+                        />
+                      ) : (
+                        <span
+                          aria-hidden="true"
+                          className="w-13 h-13 rounded-full border-2 border-line-subtle bg-surface-muted text-fg-muted font-bold flex items-center justify-center shrink-0"
+                        >
+                          {(d.displayName || '?').charAt(0)}
+                        </span>
+                      )}
                       <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="font-bold text-slate-900 text-base">{d.displayName}</h3>
-                          {/* Badge Tier Chip */}
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-2xs ${
-                              d.badgeTier === 'TopCreator'
-                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                : d.badgeTier === 'VerifiedEngineer'
-                                ? 'bg-blue-100 text-blue-900 border border-blue-300'
-                                : d.badgeTier === 'PioneerMaker'
-                                ? 'bg-purple-100 text-purple-900 border border-purple-300'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200'
-                            }`}
-                          >
-                            {d.badgeTier === 'TopCreator' && '👑 Top Creator'}
-                            {d.badgeTier === 'VerifiedEngineer' && '🛡️ Verified Engineer'}
-                            {d.badgeTier === 'PioneerMaker' && '🚀 Pioneer Maker'}
-                            {d.badgeTier === 'Standard' && 'Standard Maker'}
-                          </span>
+                          <h3 className="font-bold text-fg text-base">{d.displayName || '—'}</h3>
+                          {d.badgeTier && (
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1 shadow-e0 ${
+                                d.badgeTier === 'TopCreator'
+                                  ? 'bg-warning-tint text-warning border border-warning/30'
+                                  : d.badgeTier === 'VerifiedEngineer'
+                                  ? 'bg-info-tint text-info border border-info/30'
+                                  : d.badgeTier === 'PioneerMaker'
+                                  ? 'bg-info-tint text-info border border-info/30'
+                                  : 'bg-surface-muted text-fg-muted border border-line-subtle'
+                              }`}
+                            >
+                              {d.badgeTier === 'TopCreator' && '👑 Top Creator'}
+                              {d.badgeTier === 'VerifiedEngineer' && '🛡️ Verified Engineer'}
+                              {d.badgeTier === 'PioneerMaker' && '🚀 Pioneer Maker'}
+                              {d.badgeTier === 'Standard' && 'Standard Maker'}
+                              {!['TopCreator', 'VerifiedEngineer', 'PioneerMaker', 'Standard'].includes(d.badgeTier) && d.badgeTier}
+                            </span>
+                          )}
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5">{d.email} • {d.phone || 'Chưa cập nhật SĐT'}</p>
+                        <p className="text-xs text-fg-subtle mt-0.5">
+                          {user?.email || '—'} • {user?.phone || (isVi ? 'Chưa cập nhật SĐT' : 'No phone')}
+                        </p>
+                        <p className="text-xs text-fg-subtle mt-0.5 font-mono">
+                          {isVi ? 'Xác thực:' : 'Verified:'} {d.verifiedStatus || '—'}
+                          {d.rating !== null ? ` • ★ ${d.rating}` : ''}
+                        </p>
                       </div>
                     </div>
 
                     <button
                       onClick={() => handleOpenEdit(d)}
-                      className="px-3 py-1 bg-slate-100 hover:bg-[#00687A]/10 text-slate-700 hover:text-[#00687A] text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                      className="px-3 py-1 bg-surface-muted hover:bg-primary/10 text-fg-muted hover:text-primary text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                     >
-                      <span className="material-symbols-outlined text-sm">tune</span>
+                      <Icon name="tune" size={16} />
                       {isVi ? 'Cấu Hình' : 'Configure'}
                     </button>
                   </div>
 
                   {d.bio && (
-                    <p className="text-xs text-slate-600 mt-3 line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100 italic">
+                    <p className="text-xs text-fg-muted mt-3 line-clamp-2 bg-canvas p-2 rounded-lg border border-line-subtle italic">
                       "{d.bio}"
                     </p>
                   )}
 
-                  {/* Royalty & Revenue Stats */}
-                  <div className="grid grid-cols-3 gap-2 mt-4 p-3 bg-slate-50/80 rounded-xl border border-slate-100">
+                  {/* Royalty & Sales — chỉ hiện số có thật trong DB */}
+                  <div className="grid grid-cols-3 gap-2 mt-4 p-3 bg-canvas/80 rounded-lg border border-line-subtle">
                     <div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase">{isVi ? 'Trần Royalty' : 'Royalty Cap'}</div>
-                      <div className="text-lg font-black text-[#00687A] font-mono">{d.defaultRoyaltyPercent}%</div>
-                      <div className="text-[10px] text-slate-500">{d.licenseMode}</div>
+                      <div className="text-xs text-fg-subtle font-bold uppercase">{isVi ? 'Trần Royalty' : 'Royalty Cap'}</div>
+                      <div className="text-lg font-black text-primary font-mono">
+                        {d.royaltyPercent !== null ? `${d.royaltyPercent}%` : '—'}
+                      </div>
+                      <div className="text-xs text-fg-subtle">royalty_percent</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase">{isVi ? 'Đã Kiếm Được' : 'Total Royalties'}</div>
-                      <div className="text-sm font-bold text-slate-900 font-mono mt-0.5">{formatVnd(d.totalRoyaltiesEarned || 0)}</div>
-                      <div className="text-[10px] text-emerald-600 font-medium">{d.totalSalesCount} {isVi ? 'lượt bán' : 'sales'}</div>
+                      <div className="text-xs text-fg-subtle font-bold uppercase">{isVi ? 'Doanh Số Ghi Nhận' : 'Recorded Sales'}</div>
+                      <div className="text-sm font-bold text-fg font-mono mt-0.5">
+                        {numOrDash(d.totalSales)}
+                      </div>
+                      <div className="text-xs text-fg-subtle">total_sales</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase">{isVi ? 'Đang Chờ Rút' : 'Pending Balance'}</div>
-                      <div className="text-sm font-bold text-amber-700 font-mono mt-0.5">{formatVnd(d.pendingRoyaltyPayout)}</div>
-                      <div className="text-[10px] text-slate-500">{d.activeModelsCount} {isVi ? 'mẫu active' : 'models'}</div>
+                      <div className="text-xs text-fg-subtle font-bold uppercase">{isVi ? 'Hoa Hồng Đã Trả' : 'Royalties Paid'}</div>
+                      <div className="text-sm font-bold text-warning font-mono mt-0.5">
+                        {d.totalRoyaltiesEarned !== null ? formatVnd(d.totalRoyaltiesEarned) : '—'}
+                      </div>
+                      <div className="text-xs text-fg-subtle">
+                        {d.totalRoyaltiesEarned !== null ? 'total_royalties_earned' : isVi ? 'bảng không có cột này' : 'no such column'}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Bank info */}
-                  {d.payoutBankInfo && (
-                    <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100/60 px-2.5 py-1.5 rounded-lg font-mono">
-                      <span className="material-symbols-outlined text-sm text-slate-400">account_balance</span>
-                      <span className="truncate">{d.payoutBankInfo}</span>
+                  {/* Bank info — cột thật của bảng */}
+                  {(d.bankName || d.bankAccount || d.taxId || d.portfolioUrl) && (
+                    <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle bg-surface-muted/60 px-2.5 py-1.5 rounded-lg font-mono">
+                      <Icon name="account_balance" size={16} className="text-fg-subtle" />
+                      <span className="truncate">
+                        {[d.bankName, d.bankAccount, d.taxId && `MST: ${d.taxId}`, d.portfolioUrl]
+                          .filter(Boolean)
+                          .join(' • ')}
+                      </span>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">
-                    {isVi ? 'Gia nhập:' : 'Joined:'} {new Date(d.joinedDate).toLocaleDateString('vi-VN')}
+                <div className="mt-4 pt-3 border-t border-line-subtle flex items-center justify-between text-xs">
+                  <span className="text-fg-subtle">
+                    {isVi ? 'Gia nhập:' : 'Joined:'}{' '}
+                    {d.createdAt ? new Date(d.createdAt).toLocaleDateString('vi-VN') : '—'}
                   </span>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const nextTier =
-                          d.badgeTier === 'Standard'
-                            ? 'PioneerMaker'
-                            : d.badgeTier === 'PioneerMaker'
-                            ? 'VerifiedEngineer'
-                            : d.badgeTier === 'VerifiedEngineer'
-                            ? 'TopCreator'
-                            : 'Standard';
-                        setBadgeTier(d.id, nextTier);
-                        onShowToast?.(isVi ? `Đã đổi huy hiệu thành ${nextTier}` : `Changed tier to ${nextTier}`);
-                      }}
-                      className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold rounded cursor-pointer"
-                    >
-                      {isVi ? 'Thăng Hạng Nhanh' : 'Cycle Tier'}
-                    </button>
+                    {hasBadgeColumn && (
+                      <button
+                        onClick={() => void handleCycleTier(d)}
+                        className="px-2.5 py-1 bg-warning-tint hover:bg-warning-tint text-warning text-xs font-bold rounded-sm cursor-pointer"
+                      >
+                        {isVi ? 'Thăng Hạng Nhanh' : 'Cycle Tier'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
+          )}
         </div>
       )}
 
-      {/* TAB 2: LỆNH RÚT TIỀN (WITHDRAWALS) */}
+      {/* TAB 2: LỆNH RÚT TIỀN — CHƯA CÓ NGUỒN DỮ LIỆU DB */}
       {activeTab === 'withdrawals' && (
         <div className="space-y-4">
-          <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between text-xs text-slate-600">
-            <span>
+          <div className="bg-surface p-4 rounded-lg border border-warning/30 bg-warning-tint/20 flex items-start gap-3">
+            <Icon name="warning" size={24} className="text-warning mt-0.5" />
+            <div className="text-xs">
+              <h4 className="font-bold text-warning text-sm">
+                {isVi ? 'Chưa có nguồn dữ liệu lệnh rút tiền trong DB' : 'No DB source for payout requests yet'}
+              </h4>
+              <p className="text-fg-muted mt-1">
+                {isVi
+                  ? 'Không có bảng nào lưu YÊU CẦU rút tiền của designer: `payment_transactions` (baseline schema) chỉ có order_id / transaction_id / amount / status — không có designer_id, số tài khoản hay thời điểm yêu cầu; và không có hàm service nào đọc bảng đó. Vì vậy màn này KHÔNG hiển thị danh sách thay thế và không cho duyệt/từ chối trên RAM.'
+                  : 'No table stores designer payout REQUESTS: `payment_transactions` only has order_id / transaction_id / amount / status — no designer_id, bank account or requested-at; and no service function reads it. This screen therefore shows no substitute list and offers no RAM-only approve/reject.'}
+              </p>
+            </div>
+          </div>
+          <EmptyState
+            size="sm"
+            title={isVi ? 'Không có bản ghi lệnh rút tiền' : 'No payout request record'}
+            description={
+              isVi
+                ? 'Cần một bảng + hàm service đọc/ghi yêu cầu rút tiền trước khi tab này có dữ liệu thật.'
+                : 'A table plus service read/write for payout requests is required before this tab can hold real data.'
+            }
+            icon={<Icon name="payments" size={20} className="text-primary" />}
+            action={
+              <Button variant="secondary" size="sm" onClick={() => setActiveTab('designers')}>
+                {isVi ? 'Xem Nhà Thiết Kế' : 'View designers'}
+              </Button>
+            }
+          />
+        </div>
+      )}
+
+      {/* TAB 3: THỐNG KÊ THEO DESIGNER — chỉ số có thật trong `designer_profiles` */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-4">
+          <div className="bg-surface p-4 rounded-lg border border-line-subtle shadow-e0 text-xs">
+            <h4 className="font-bold text-fg text-sm">
+              {isVi ? 'Số liệu đọc từ designer_profiles' : 'Numbers read from designer_profiles'}
+            </h4>
+            <p className="text-fg-subtle mt-0.5">
               {isVi
-                ? `Hệ thống có ${withdrawals.length} giao dịch rút tiền bản quyền tác giả.`
-                : `Showing ${withdrawals.length} royalty payout transactions.`}
-            </span>
-            <span className="font-bold text-[#00687A]">
-              {isVi ? 'Cổng thanh toán tự động VietQR Napas 24/7' : 'VietQR Napas 24/7 Enabled'}
-            </span>
+                ? 'Chỉ hiển thị các cột có thật (`total_sales`, `rating`). Doanh thu theo tháng và số đơn hoàn thành KHÔNG có cột trong bảng nên để trống thay vì bịa số.'
+                : 'Only real columns are shown (`total_sales`, `rating`). Monthly revenue and completed orders have no column, so they are left blank instead of invented.'}
+            </p>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
+          {error !== null ? (
+            <div role="alert" className="p-4 bg-danger-tint border border-danger/30 rounded-lg text-xs text-danger font-mono break-all">
+              {error}
+            </div>
+          ) : designers.length === 0 ? (
+            <EmptyState
+              size="sm"
+              title={isVi ? 'Chưa có dữ liệu theo designer' : 'No per-designer data yet'}
+              description={
+                isLoading
+                  ? isVi ? 'Đang tải...' : 'Loading...'
+                  : isVi
+                  ? 'Bảng designer_profiles chưa có bản ghi nào.'
+                  : 'designer_profiles has no row yet.'
+              }
+              icon={<Icon name="analytics" size={20} className="text-primary" />}
+              action={
+                <Button variant="secondary" size="sm" onClick={() => setActiveTab('designers')}>
+                  {isVi ? 'Xem Nhà Thiết Kế' : 'View designers'}
+                </Button>
+              }
+            />
+          ) : (
+            <div className="overflow-x-auto bg-surface rounded-lg border border-line-subtle shadow-e0">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
+                <thead className="bg-canvas border-b border-line-subtle text-fg-subtle font-bold uppercase text-xs">
                   <tr>
-                    <th className="py-3 px-4">{isVi ? 'Designer' : 'Designer'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Số tiền yêu cầu' : 'Amount'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Tài khoản thụ hưởng' : 'Bank Account'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Thời gian' : 'Date'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Trạng thái' : 'Status'}</th>
-                    <th className="py-3 px-4 text-right">{isVi ? 'Thao tác' : 'Actions'}</th>
+                    <th className="py-3 px-4">Designer</th>
+                    <th className="py-3 px-3">{isVi ? 'Trần hoa hồng' : 'Royalty cap'}</th>
+                    <th className="py-3 px-3">total_sales</th>
+                    <th className="py-3 px-3">{isVi ? 'Đánh giá' : 'Rating'}</th>
+                    <th className="py-3 px-3">{isVi ? 'Xác thực' : 'Verified'}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {withdrawals.map((w) => (
-                    <tr key={w.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        <div>{w.designerName}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{w.id}</div>
+                <tbody className="divide-y divide-line-subtle">
+                  {designers.map((d) => (
+                    <tr key={d.id} className="hover:bg-canvas/70 transition-colors">
+                      <td className="py-3 px-4 font-bold text-fg">
+                        <div>{d.displayName || '—'}</div>
+                        <div className="text-xs text-fg-subtle font-mono">{d.id}</div>
                       </td>
-                      <td className="py-3.5 px-3">
-                        <div className="font-black text-base text-slate-900 font-mono">{formatVnd(w.amountVnd)}</div>
+                      <td className="py-3 px-3 font-mono font-bold text-primary">
+                        {d.royaltyPercent !== null ? `${d.royaltyPercent}%` : '—'}
                       </td>
-                      <td className="py-3.5 px-3 font-mono text-xs">
-                        <div className="font-bold text-slate-800">{w.bankName} - {w.accountNumber}</div>
-                        <div className="text-[11px] text-slate-500">{w.accountName}</div>
-                      </td>
-                      <td className="py-3.5 px-3 text-slate-500">
-                        {new Date(w.requestedAt).toLocaleDateString('vi-VN')} {new Date(w.requestedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            w.status === 'Transferred'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : w.status === 'Approved'
-                              ? 'bg-blue-100 text-blue-800'
-                              : w.status === 'Pending'
-                              ? 'bg-amber-100 text-amber-800 animate-pulse'
-                              : 'bg-rose-100 text-rose-800'
-                          }`}
-                        >
-                          {w.status === 'Transferred'
-                            ? (isVi ? 'Đã Chuyển Tiền' : 'Transferred')
-                            : w.status === 'Approved'
-                            ? (isVi ? 'Đã Duyệt (Chờ Bank)' : 'Approved')
-                            : w.status === 'Pending'
-                            ? (isVi ? 'Chờ Duyệt' : 'Pending')
-                            : (isVi ? 'Bị Từ Chối' : 'Rejected')}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        {w.status === 'Pending' && (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => {
-                                approveWithdrawal(w.id);
-                                onShowToast?.(isVi ? 'Đã duyệt yêu cầu rút tiền!' : 'Approved payout request!');
-                              }}
-                              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded cursor-pointer"
-                            >
-                              {isVi ? 'Duyệt' : 'Approve'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedWithdrawal(w);
-                                setIsRejectModalOpen(true);
-                              }}
-                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold rounded cursor-pointer"
-                            >
-                              {isVi ? 'Từ Chối' : 'Reject'}
-                            </button>
-                          </div>
-                        )}
-                        {w.status === 'Approved' && (
-                          <button
-                            onClick={() => {
-                              setSelectedWithdrawal(w);
-                            }}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded cursor-pointer shadow-xs"
-                          >
-                            {isVi ? 'Tất Toán Chuyển Tiền' : 'Complete Payout'}
-                          </button>
-                        )}
-                        {w.status === 'Transferred' && (
-                          <span className="text-[11px] text-emerald-600 font-medium flex items-center justify-end gap-1">
-                            <span className="material-symbols-outlined text-sm">check_circle</span>
-                            {isVi ? 'Đã Hoàn Tất' : 'Settled'}
-                          </span>
-                        )}
-                        {w.status === 'Rejected' && (
-                          <span className="text-[11px] text-rose-600 font-medium">
-                            {w.note || (isVi ? 'Đã hủy lệnh' : 'Cancelled')}
-                          </span>
-                        )}
-                      </td>
+                      <td className="py-3 px-3 font-mono text-fg">{numOrDash(d.totalSales)}</td>
+                      <td className="py-3 px-3 font-mono text-fg">{numOrDash(d.rating)}</td>
+                      <td className="py-3 px-3 text-fg-muted">{d.verifiedStatus || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* TAB 3: THỐNG KÊ DOANH THU THEO DESIGNER */}
-      {activeTab === 'analytics' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {designers.map((d) => (
-              <div key={d.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={d.avatarUrl}
-                      alt={d.displayName}
-                      className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                    />
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-sm">{d.displayName}</h4>
-                      <p className="text-[11px] text-slate-500">Mã: {d.id}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-[#00687A] bg-[#00687A]/10 px-2 py-0.5 rounded">
-                    {d.defaultRoyaltyPercent}% Hoa Hồng
-                  </span>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg text-xs">
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">{isVi ? 'Doanh Thu Tháng Này' : 'Monthly Revenue'}</span>
-                    <span className="font-bold text-slate-900 font-mono text-base">{formatVnd(d.monthlyRevenueVnd || 0)}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">{isVi ? 'Đơn Hàng Thành Công' : 'Completed Orders'}</span>
-                    <span className="font-bold text-slate-900 font-mono text-base">{d.lifetimeCompletedOrders} {isVi ? 'đơn' : 'orders'}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: CHỈNH SỬA HUY HIỆU & HOA HỒNG DESIGNER */}
+      {/* MODAL: CHỈNH SỬA HOA HỒNG (và huy hiệu nếu bảng có cột) */}
       {editingDesigner && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface rounded-lg max-w-md w-full p-6 shadow-e3 border border-line-subtle">
+            <div className="flex items-center justify-between pb-3 border-b border-line-subtle">
               <div>
-                <h3 className="font-bold text-slate-900 text-base">
+                <h3 className="font-bold text-fg text-base">
                   {isVi ? 'Cấu Hình Designer & Bản Quyền' : 'Configure Designer & IP'}
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">{editingDesigner.displayName}</p>
+                <p className="text-xs text-fg-subtle mt-0.5">{editingDesigner.displayName}</p>
               </div>
-              <button
+              <button aria-label="Đóng"
                 onClick={() => setEditingDesigner(null)}
-                className="text-slate-400 hover:text-slate-600 material-symbols-outlined text-xl cursor-pointer"
+                className="text-fg-subtle hover:text-fg-muted cursor-pointer"
               >
-                close
+                <Icon name="close" size={24} />
               </button>
             </div>
 
             <form onSubmit={handleSaveDesigner} className="mt-4 space-y-4">
-              {/* Badge Tier Selection */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  {isVi ? 'Gán Huy Hiệu Badge Tier:' : 'Badge Tier Assignment:'}
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'TopCreator', label: '👑 Top Creator', desc: 'Nhà sáng tạo xuất sắc' },
-                    { id: 'VerifiedEngineer', label: '🛡️ Verified Engineer', desc: 'Kỹ sư cơ khí kiểm duyệt' },
-                    { id: 'PioneerMaker', label: '🚀 Pioneer Maker', desc: 'Nghệ nhân tiên phong' },
-                    { id: 'Standard', label: 'Tiêu Chuẩn', desc: 'Creator phổ thông' }
-                  ].map((tier) => (
-                    <button
-                      key={tier.id}
-                      type="button"
-                      onClick={() => setBadgeDraft(tier.id as any)}
-                      className={`p-2.5 text-left rounded-lg border text-xs transition-all cursor-pointer ${
-                        badgeDraft === tier.id
-                          ? 'border-[#00687A] bg-[#00687A]/5 ring-1 ring-[#00687A]'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="font-bold text-slate-900">{tier.label}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">{tier.desc}</div>
-                    </button>
-                  ))}
+              {hasBadgeColumn ? (
+                <div>
+                  <label className="block text-xs font-bold text-fg-muted mb-1.5">
+                    {isVi ? 'Gán Huy Hiệu Badge Tier:' : 'Badge Tier Assignment:'}
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {BADGE_TIERS.map((tier) => (
+                      <button
+                        key={tier.id}
+                        type="button"
+                        onClick={() => setBadgeDraft(tier.id)}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition-all cursor-pointer ${
+                          badgeDraft === tier.id
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                            : 'border-line-subtle hover:bg-canvas'
+                        }`}
+                      >
+                        <div className="font-bold text-fg">{tier.label}</div>
+                        <div className="text-xs text-fg-subtle mt-0.5">{tier.desc}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="text-xs text-fg-muted bg-surface-muted rounded-lg px-3 py-2">
+                  {isVi
+                    ? `Mục huy hiệu được ẩn (không ghi vào cột không tồn tại): ${noBadgeTierNote}.`
+                    : `The tier section is hidden (no write to a non-existent column): ${noBadgeTierNote}.`}
+                </p>
+              )}
 
-              {/* Royalty Slider & Input */}
+              {/* Royalty slider — ghi `royalty_percent` */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">
+                  <label className="text-xs font-bold text-fg-muted">
                     {isVi ? 'Trần Hoa Hồng Bản Quyền (% Royalty):' : 'Royalty Rate (%):'}
                   </label>
-                  <span className="font-mono font-black text-sm text-[#00687A]">{royaltyDraft}%</span>
+                  <span className="font-mono font-black text-sm text-primary">{royaltyDraft}%</span>
                 </div>
                 <input
                   type="range"
@@ -603,168 +751,41 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                   step={1}
                   value={royaltyDraft}
                   onChange={(e) => setRoyaltyDraft(Number(e.target.value))}
-                  className="w-full accent-[#00687A] cursor-pointer"
+                  className="w-full accent-primary cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                <div className="flex justify-between text-xs text-fg-subtle mt-1 font-mono">
                   <span>Min: 5%</span>
-                  <span>Mặc định: 10%</span>
-                  <span>Trần max: 25%</span>
+                  <span>{isVi ? 'Mặc định: 10%' : 'Default: 10%'}</span>
+                  <span>{isVi ? 'Trần max: 25%' : 'Max: 25%'}</span>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1.5">
-                  * Chính sách Inkiri quy định trần hoa hồng vật lý từ 5% đến 20% (hoặc 25% cho Top Creator độc quyền).
+                <p className="text-xs text-fg-subtle mt-1.5">
+                  {editingDesigner.royaltyPercent === null
+                    ? isVi
+                      ? 'Hiện DB chưa có giá trị royalty_percent cho hồ sơ này. Thanh trượt đang ở 10% chỉ là điểm bắt đầu — bấm Lưu mới ghi.'
+                      : 'The DB currently has no royalty_percent for this profile. The slider starts at 10% but only Save writes it.'
+                    : isVi
+                    ? 'Giá trị đang lưu trong DB được nạp sẵn vào thanh trượt.'
+                    : 'The value currently stored in the DB is loaded into the slider.'}
                 </p>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-3 border-t border-line-subtle">
                 <button
                   type="button"
                   onClick={() => setEditingDesigner(null)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+                  className="px-4 py-2 bg-surface-muted text-fg-muted text-xs font-bold rounded-lg cursor-pointer"
                 >
                   {isVi ? 'Hủy' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#00687A] text-white text-xs font-bold rounded-lg shadow-xs cursor-pointer"
+                  disabled={isSavingDesigner}
+                  className="px-4 py-2 bg-primary text-primary-fg text-xs font-bold rounded-lg shadow-e1 cursor-pointer disabled:opacity-60"
                 >
-                  {isVi ? 'Lưu Thay Đổi' : 'Save Changes'}
+                  {isSavingDesigner ? (isVi ? 'Đang lưu...' : 'Saving...') : isVi ? 'Lưu Vào DB' : 'Save to DB'}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: TẤT TOÁN CHUYỂN KHOẢN (PAYOUT MODAL) */}
-      {selectedWithdrawal && !isRejectModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-base">
-                {isVi ? 'Xác Nhận Chuyển Tiền Tất Toán' : 'Confirm Payout Transfer'}
-              </h3>
-              <button
-                onClick={() => setSelectedWithdrawal(null)}
-                className="text-slate-400 hover:text-slate-600 material-symbols-outlined text-xl cursor-pointer"
-              >
-                close
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3 text-xs">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">{isVi ? 'Người nhận:' : 'Recipient:'}</span>
-                  <span className="font-bold text-slate-900">{selectedWithdrawal.designerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">{isVi ? 'Số tiền:' : 'Amount:'}</span>
-                  <span className="font-black text-emerald-700 text-sm font-mono">
-                    {formatVnd(selectedWithdrawal.amountVnd)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">{isVi ? 'Ngân hàng:' : 'Bank:'}</span>
-                  <span className="font-bold text-slate-800">{selectedWithdrawal.bankName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">{isVi ? 'Số tài khoản:' : 'Account #:'}</span>
-                  <span className="font-mono font-bold text-slate-900">{selectedWithdrawal.accountNumber}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">{isVi ? 'Tên chủ TK:' : 'Account Name:'}</span>
-                  <span className="font-bold text-slate-900">{selectedWithdrawal.accountName}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isVi ? 'Mã giao dịch ngân hàng / VietQR Reference:' : 'Transaction Reference:'}
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: VCB-98234812"
-                  value={txRefInput}
-                  onChange={(e) => setTxRefInput(e.target.value)}
-                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#00687A]"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setSelectedWithdrawal(null)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
-                >
-                  {isVi ? 'Hủy' : 'Cancel'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleConfirmTransfer(selectedWithdrawal)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs cursor-pointer"
-                >
-                  {isVi ? 'Xác Nhận Đã Chuyển Tiền' : 'Confirm Transfer'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: TỪ CHỐI RÚT TIỀN */}
-      {isRejectModalOpen && selectedWithdrawal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-rose-700 text-base">
-                {isVi ? 'Từ Chối Lệnh Rút Tiền' : 'Reject Withdrawal Request'}
-              </h3>
-              <button
-                onClick={() => setIsRejectModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 material-symbols-outlined text-xl cursor-pointer"
-              >
-                close
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <p className="text-xs text-slate-600">
-                {isVi
-                  ? `Từ chối lệnh rút tiền ${formatVnd(selectedWithdrawal.amountVnd)} của ${selectedWithdrawal.designerName}.`
-                  : `Rejecting payout request for ${selectedWithdrawal.designerName}.`}
-              </p>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isVi ? 'Lý do từ chối (bắt buộc):' : 'Rejection Reason (Required):'}
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder={isVi ? 'Thông tin STK không trùng khớp với CMND/CCCD...' : 'Bank details do not match...'}
-                  value={rejectReasonInput}
-                  onChange={(e) => setRejectReasonInput(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-rose-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsRejectModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
-                >
-                  {isVi ? 'Đóng' : 'Cancel'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmReject}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-xs cursor-pointer"
-                >
-                  {isVi ? 'Xác Nhận Từ Chối' : 'Confirm Reject'}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

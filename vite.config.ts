@@ -9,20 +9,38 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+
+  // Cấu hình Supabase cho CLIENT. Chỉ dùng khoá publishable (an toàn để lộ ra bundle).
+  // KHÔNG bao giờ đưa SUPABASE_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY vào `define` —
+  // khoá đó bỏ qua toàn bộ RLS.
+  const supabaseUrl = env.VITE_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = env.VITE_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const siteUrl = env.VITE_SITE_URL || env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn(
+      '[vcube] Thiếu VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY trong .env — app sẽ chạy bằng dữ liệu mock/localStorage.'
+    );
+  }
+  if (supabaseKey.startsWith('sb_secret_')) {
+    throw new Error(
+      '[vcube] Cấu hình sai: khoá secret (sb_secret_…) không được dùng cho client. Dùng sb_publishable_…'
+    );
+  }
+
   return {
     plugins: [react(), tailwindcss()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
-      'process.env.NEXT_PUBLIC_SUPABASE_URL': JSON.stringify(env.NEXT_PUBLIC_SUPABASE_URL || 'https://vcxarjwzbihvurpkcufa.supabase.co'),
-      'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjeGFyand6YmlodnVycGtjdWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzOTgzNTcsImV4cCI6MjEwMzk3NDM1N30.t-uhe5zcg6NpRRb8GdbMMEmP-fKFp8qv8SF5ZvLtao0'),
-      'process.env.NEXT_PUBLIC_SITE_URL': JSON.stringify(env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+      'process.env.NEXT_PUBLIC_SUPABASE_URL': JSON.stringify(supabaseUrl),
+      'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(supabaseKey),
+      'process.env.NEXT_PUBLIC_SITE_URL': JSON.stringify(siteUrl),
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, './src'),
         '@frontend': path.resolve(__dirname, './src/frontend'),
         '@backend': path.resolve(__dirname, './src/backend'),
-        '@ai': path.resolve(__dirname, './src/ai'),
       },
     },
     build: {

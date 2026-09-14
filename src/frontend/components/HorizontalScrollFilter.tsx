@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import { Icon } from '@frontend/ui';
 
 interface HorizontalScrollFilterProps {
   children: React.ReactNode;
@@ -57,16 +58,16 @@ export const HorizontalScrollFilter: React.FC<HorizontalScrollFilterProps> = ({
         <button
           type="button"
           onClick={() => handleScroll('left')}
-          className="absolute left-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/95 border border-[#CBD5E1] shadow-md hover:shadow-lg flex items-center justify-center text-[#091426] hover:bg-[#F8FAFC] transition-all cursor-pointer backdrop-blur-xs active:scale-95 shrink-0"
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-panel w-8 h-8 rounded-full bg-surface/95 border border-line shadow-e2 hover:shadow-e2 flex items-center justify-center text-fg hover:bg-canvas transition-all cursor-pointer backdrop-blur-xs active:scale-95 shrink-0"
           aria-label={isVi ? "Cuộn sang trái" : "Scroll left"}
         >
-          <span className="material-symbols-outlined text-lg leading-none">chevron_left</span>
+          <Icon name="chevron_left" size={20} className="leading-none" />
         </button>
       )}
 
       {/* Left Gradient Fade Mask */}
       <div
-        className={`absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none z-10 transition-opacity duration-200 ${
+        className={`absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-surface via-surface/80 to-transparent pointer-events-none z-sticky transition-opacity duration-200 ${
           canScrollLeft ? 'opacity-100' : 'opacity-0'
         }`}
       />
@@ -81,7 +82,7 @@ export const HorizontalScrollFilter: React.FC<HorizontalScrollFilterProps> = ({
 
       {/* Right Gradient Fade Mask */}
       <div
-        className={`absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-10 transition-opacity duration-200 ${
+        className={`absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-surface via-surface/80 to-transparent pointer-events-none z-sticky transition-opacity duration-200 ${
           canScrollRight ? 'opacity-100' : 'opacity-0'
         }`}
       />
@@ -91,10 +92,10 @@ export const HorizontalScrollFilter: React.FC<HorizontalScrollFilterProps> = ({
         <button
           type="button"
           onClick={() => handleScroll('right')}
-          className="absolute right-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/95 border border-[#CBD5E1] shadow-md hover:shadow-lg flex items-center justify-center text-[#091426] hover:bg-[#F8FAFC] transition-all cursor-pointer backdrop-blur-xs active:scale-95 shrink-0"
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-panel w-8 h-8 rounded-full bg-surface/95 border border-line shadow-e2 hover:shadow-e2 flex items-center justify-center text-fg hover:bg-canvas transition-all cursor-pointer backdrop-blur-xs active:scale-95 shrink-0"
           aria-label={isVi ? "Cuộn sang phải" : "Scroll right"}
         >
-          <span className="material-symbols-outlined text-lg leading-none">chevron_right</span>
+          <Icon name="chevron_right" size={20} className="leading-none" />
         </button>
       )}
     </div>

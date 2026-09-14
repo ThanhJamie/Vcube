@@ -1,163 +1,280 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Order } from '../types';
-import { ThreeModelViewer } from '../components/ThreeModelViewer';
 import { OrderProgress } from '../components/OrderProgress';
-import { MOCK_ORDERS } from '../../data/mockData';
 import { dbService } from '../../backend/supabase/database';
+import { Icon } from '@frontend/ui';
 
 interface OrderTrackingViewProps {
   order?: Order;
+  /** true khi App không resolve được đơn theo id trên URL (đã bị chặn fallback). */
+  notFound?: boolean;
   onNavigate: (screen: string, payload?: any) => void;
   onOpenChat: () => void;
   onOpenInvoice: (order: Order) => void;
 }
 
+/**
+ * `—` cho mọi giá trị chưa có nguồn thật (data-honesty §3).
+ * Không bao giờ render một con số mặc định trông như số đo thật.
+ */
+const Unknown: React.FC<{ title?: string }> = ({ title = 'Chưa có dữ liệu' }) => (
+  <span className="text-fg-subtle font-mono" title={title} aria-label={title}>
+    —
+  </span>
+);
+
 export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   order: initialOrder,
+  notFound = false,
   onNavigate,
   onOpenChat,
   onOpenInvoice
 }) => {
   const location = useLocation();
-  const [currentOrder, setCurrentOrder] = useState<Order>(initialOrder || MOCK_ORDERS[0]);
-  const [isGuestSearchMode, setIsGuestSearchMode] = useState<boolean>(false);
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(initialOrder ?? null);
+  // Cổng tra cứu khách: chỉ mở khi chưa có đơn nào để hiển thị.
+  const [isGuestSearchMode, setIsGuestSearchMode] = useState<boolean>(!initialOrder);
   const [lookupCode, setLookupCode] = useState<string>('');
   const [lookupAuth, setLookupAuth] = useState<string>('');
   const [lookupError, setLookupError] = useState<string>('');
-  const [warrantyClaimSent, setWarrantyClaimSent] = useState<boolean>(false);
+  const [lookupState, setLookupState] = useState<'idle' | 'searching' | 'not_found'>('idle');
 
-  // Inspect URL parameters for magic tracking links (?code=... or ?token=...)
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const codeParam = params.get('code') || params.get('order');
-    if (codeParam) {
-      const found = MOCK_ORDERS.find(
-        (o) => o.orderNumber.toLowerCase() === codeParam.toLowerCase() || o.id.toLowerCase() === codeParam.toLowerCase()
-      );
-      if (found) {
-        setCurrentOrder(found);
-        setIsGuestSearchMode(false);
-      } else {
-        setLookupCode(codeParam);
-        setIsGuestSearchMode(true);
-      }
-    }
-  }, [location.search]);
-
-  // Sync when initialOrder prop changes
+  // Sync when the resolved order prop changes (điều hướng trong app).
   useEffect(() => {
     if (initialOrder) {
       setCurrentOrder(initialOrder);
+      setIsGuestSearchMode(false);
+      setLookupState('idle');
+      setLookupError('');
+    } else {
+      setCurrentOrder(null);
+      setIsGuestSearchMode(true);
     }
   }, [initialOrder]);
 
-  const layerProgress = currentOrder.layerProgress || 64;
-  const currentStageIndex = currentOrder.statusStageIndex ?? (
-    currentOrder.status === 'completed' ? 7 :
-    currentOrder.status === 'shipping' ? 7 :
-    currentOrder.status === 'post_processing' ? 5 :
-    currentOrder.status === 'printing' ? 4 : 0
-  );
+  // `?code=` / `?token=` chỉ là tiện ích điền sẵn — KHÔNG tự tra cứu, vì tra cứu
+  // bắt buộc phải có token (xem handleGuestLookup).
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const codeParam = params.get('code') || params.get('order');
+    const tokenParam = params.get('token');
+    if (codeParam) setLookupCode(codeParam);
+    if (tokenParam) setLookupAuth(tokenParam);
+    if (codeParam || tokenParam) setIsGuestSearchMode(true);
+  }, [location.search]);
 
+  /**
+   * Tra cứu đơn khách vãng lai.
+   *
+   * P0 (OT-02): trước đây hàm này `return true` khi không nhập mã xác thực, nên
+   * CHỈ CẦN MÃ ĐƠN là đọc được tên / SĐT / địa chỉ / hoá đơn của người khác
+   * (nguồn dữ liệu là `MOCK_ORDERS` + `localStorage`).
+   *
+   * Quy tắc hiện tại:
+   *  - BẮT BUỘC token; thiếu token ⇒ từ chối, không truy vấn.
+   *  - Truy vấn DUY NHẤT qua RPC SECURITY DEFINER `get_order_by_guest_token`.
+   *  - Không đọc `MOCK_ORDERS`, không đọc `localStorage`.
+   *  - Sai mã và không tồn tại trả về CÙNG một thông báo ⇒ không dò được đơn nào có thật.
+   */
   const handleGuestLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLookupError('');
     const cleanCode = lookupCode.trim();
-    const cleanCodeLower = cleanCode.toLowerCase();
-    const cleanAuth = lookupAuth.trim();
-    const cleanAuthLower = cleanAuth.toLowerCase();
+    const cleanToken = lookupAuth.trim();
 
-    // 1. If security token is provided, attempt database query via secure_access_token
-    if (cleanAuth) {
-      try {
-        const dbOrder = await dbService.getOrderByToken(cleanCode, cleanAuth);
-        if (dbOrder) {
-          setCurrentOrder(dbOrder);
-          setIsGuestSearchMode(false);
-          setLookupError('');
-          return;
-        }
-      } catch (err) {
-        console.warn('Lookup via dbService error:', err);
-      }
+    if (!cleanCode) {
+      setLookupError('Vui lòng nhập mã đơn hàng.');
+      return;
+    }
+    if (!cleanToken) {
+      setLookupState('idle');
+      setLookupError(
+        'Cần thêm số điện thoại hoặc mã token để bảo vệ thông tin đơn hàng. Tra cứu chỉ bằng mã đơn không được phép.'
+      );
+      return;
     }
 
-    // 2. Fallback to localStorage orders
+    setLookupState('searching');
+    let found: Order | null = null;
     try {
-      const storedOrders: Order[] = JSON.parse(localStorage.getItem('vcube_orders') || '[]');
-      const foundStored = storedOrders.find((o) => {
-        const matchCode = o.orderNumber.toLowerCase() === cleanCodeLower || o.id.toLowerCase() === cleanCodeLower || o.orderNumber.replace('#', '').toLowerCase() === cleanCodeLower;
-        if (!matchCode) return false;
-        if (cleanAuthLower) {
-          const matchPhone = o.shippingAddress?.phone?.replace(/\s/g, '').includes(cleanAuthLower.replace(/\s/g, ''));
-          const matchToken = o.secureAccessToken?.toLowerCase() === cleanAuthLower;
-          return matchPhone || matchToken;
-        }
-        return true;
-      });
-      if (foundStored) {
-        setCurrentOrder(foundStored);
-        setIsGuestSearchMode(false);
-        setLookupError('');
-        return;
-      }
-    } catch {}
-
-    // 3. Fallback to MOCK_ORDERS
-    const found = MOCK_ORDERS.find((o) => {
-      const matchCode = o.orderNumber.toLowerCase() === cleanCodeLower || o.id.toLowerCase() === cleanCodeLower || o.orderNumber.replace('#', '').toLowerCase() === cleanCodeLower;
-      if (!matchCode) return false;
-      if (cleanAuthLower) {
-        const matchPhone = o.shippingAddress.phone.replace(/\s/g, '').includes(cleanAuthLower.replace(/\s/g, ''));
-        const matchToken = o.secureAccessToken?.toLowerCase() === cleanAuthLower;
-        return matchPhone || matchToken;
-      }
-      return true;
-    });
+      found = await dbService.getOrderByToken(cleanCode, cleanToken);
+    } catch (err) {
+      console.warn('Guest order lookup failed:', err);
+      found = null;
+    }
 
     if (found) {
       setCurrentOrder(found);
       setIsGuestSearchMode(false);
+      setLookupState('idle');
       setLookupError('');
-    } else {
-      setLookupError('Không tìm thấy đơn hàng với thông tin này. Vui lòng kiểm tra mã đơn hoặc token / số điện thoại.');
+      return;
     }
+
+    // Một thông báo duy nhất cho "sai token" và "không tồn tại": không tiết lộ
+    // đơn nào có thật trên hệ thống.
+    setCurrentOrder(null);
+    setLookupState('not_found');
+    setLookupError('');
   };
 
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#091426] py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        {/* Top Breadcrumb & Return Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 pb-6 border-b border-[#CBD5E1]">
+  // ---------------------------------------------------------------- NOT FOUND / PORTAL
+  if (!currentOrder) {
+    return (
+      <div className="min-h-screen bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
+        <div className="max-w-3xl mx-auto space-y-6">
           <div className="flex items-start sm:items-center gap-3">
             <button
               onClick={() => onNavigate('my_orders')}
-              className="p-2 border border-[#CBD5E1] bg-white hover:bg-slate-100 text-[#091426] rounded-xl transition-colors shrink-0 mt-1 sm:mt-0 cursor-pointer shadow-2xs"
+              className="p-2 border border-line-control bg-surface hover:bg-surface-muted text-fg rounded-full transition-colors shrink-0 cursor-pointer shadow-e0"
               aria-label="Quay lại danh sách đơn hàng"
             >
-              <span className="material-symbols-outlined text-lg">arrow_back</span>
+              <Icon name="arrow_back" size={20} />
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-fg tracking-tight">
+              Tra Cứu Đơn Hàng
+            </h1>
+          </div>
+
+          {lookupState === 'not_found' && (
+            <div className="bg-surface rounded-lg p-6 sm:p-8 space-y-2 shadow-e1" role="status">
+              <div className="flex items-center gap-2 text-fg">
+                <Icon name="search_off" size={24} className="text-fg-subtle" />
+                <h2 className="font-bold text-base">Không tìm thấy đơn hàng</h2>
+              </div>
+              <p className="text-xs text-fg-muted leading-relaxed">
+                Chúng tôi không có đơn hàng nào khớp với thông tin bạn nhập. Vui lòng kiểm tra lại mã đơn,
+                hoặc dùng đúng mã token / số điện thoại đã dùng khi đặt hàng.
+              </p>
+            </div>
+          )}
+
+          <div className="bg-surface border-2 border-primary/30 rounded-lg p-6 shadow-e2 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-line">
+              <div className="flex items-center gap-2 text-primary">
+                <Icon name="travel_explore" size={24} />
+                <h3 className="font-bold text-sm text-fg uppercase font-mono tracking-wider">
+                  Cổng Tra Cứu Đơn Hàng Khách Vãng Lai
+                </h3>
+              </div>
+              <span className="text-xs font-mono text-fg-subtle">Không cần mật khẩu đăng nhập</span>
+            </div>
+
+            <p className="text-xs text-fg-muted leading-relaxed">
+              Để bảo vệ thông tin đơn hàng, tra cứu yêu cầu <strong>cả mã đơn và mã token</strong> (hoặc số
+              điện thoại nhận hàng) đã dùng khi đặt hàng. Mã token được cấp ở màn hình xác nhận đơn.
+            </p>
+
+            <form onSubmit={handleGuestLookup} className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+              <div className="sm:col-span-5">
+                <label htmlFor="lookup-code" className="block text-xs font-bold text-fg mb-1">
+                  Mã Đơn Hàng:
+                </label>
+                <input
+                  id="lookup-code"
+                  type="text"
+                  value={lookupCode}
+                  onChange={(e) => setLookupCode(e.target.value)}
+                  placeholder="Ví dụ: #VCUBE-8924"
+                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+                  required
+                />
+              </div>
+
+              <div className="sm:col-span-5">
+                <label htmlFor="lookup-token" className="block text-xs font-bold text-fg mb-1">
+                  Mã Token Hoặc Số Điện Thoại Nhận Hàng (bắt buộc):
+                </label>
+                <input
+                  id="lookup-token"
+                  type="text"
+                  value={lookupAuth}
+                  onChange={(e) => setLookupAuth(e.target.value)}
+                  placeholder="Token trong màn hình xác nhận đơn"
+                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+                  required
+                  aria-describedby="lookup-token-hint"
+                />
+                <p id="lookup-token-hint" className="text-xs text-fg-subtle mt-1">
+                  Chúng tôi không hiển thị đơn hàng nếu chỉ có mã đơn.
+                </p>
+              </div>
+
+              <div className="sm:col-span-2 flex items-end">
+                <button
+                  type="submit"
+                  disabled={lookupState === 'searching'}
+                  className="w-full py-2.5 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse font-mono font-bold text-xs uppercase rounded-full transition-all cursor-pointer shadow-e1 disabled:opacity-60"
+                >
+                  {lookupState === 'searching' ? 'Đang tra...' : 'Tra Cứu'}
+                </button>
+              </div>
+            </form>
+
+            {lookupError && (
+              <p className="text-xs text-danger bg-danger-tint p-2.5 rounded-lg border border-danger/30" role="alert">
+                {lookupError}
+              </p>
+            )}
+
+            {notFound && !lookupError && lookupState === 'idle' && (
+              <p className="text-xs text-fg-muted">
+                Liên kết bạn mở không ứng với đơn hàng nào trong phiên làm việc này. Hãy tra cứu bằng mã đơn
+                và token, hoặc đăng nhập để xem đơn của chính bạn.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------- ORDER DETAIL
+  const isVi = true;
+  // null = chưa có dữ liệu từ xưởng ⇒ render `—` thay vì mặc định 64% / nấc 4.
+  const layerProgress = currentOrder.layerProgress ?? null;
+  const currentStageIndex = currentOrder.statusStageIndex ?? null;
+  const hasCarrierData = Boolean(currentOrder.carrier?.trackingCode);
+
+  return (
+    <div className="min-h-screen bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        {/* Top Breadcrumb & Return Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 pb-6 border-b border-line">
+          <div className="flex items-start sm:items-center gap-3">
+            <button
+              onClick={() => onNavigate('my_orders')}
+              className="p-2 border border-line-control bg-surface hover:bg-surface-muted text-fg rounded-full transition-colors shrink-0 mt-1 sm:mt-0 cursor-pointer shadow-e0"
+              aria-label="Quay lại danh sách đơn hàng"
+            >
+              <Icon name="arrow_back" size={20} />
             </button>
             <div>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-[#00687A] text-[9px] sm:text-[10px] uppercase tracking-widest font-mono font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#57DFFE] animate-pulse"></span>
-                  Live Telemetry // VCUBE MES Hub
+                {/* OT-04: bỏ badge "Live Telemetry" khi không có nhịp tim từ MES. */}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-muted border border-line-subtle text-fg-subtle text-xs sm:text-xs uppercase tracking-widest font-mono font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-line-control"></span>
+                  Không có tín hiệu MES
                 </span>
-                <span className="px-2.5 py-0.5 bg-[#091426] text-white text-[10px] font-mono font-bold rounded-lg shrink-0">
+                <span className="px-2.5 py-0.5 bg-surface-inverse text-on-inverse text-xs font-mono font-bold rounded-lg shrink-0">
                   {currentOrder.orderNumber}
                 </span>
                 {currentOrder.customerType === 'guest' && (
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-mono font-bold rounded-md">
+                  <span className="px-2 py-0.5 bg-warning-tint text-warning text-xs font-mono font-bold rounded-md">
                     GUEST ORDER
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#091426] tracking-tight">
-                Tiến Độ Gia Công & Kiểm Tra Dung Sai QC
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-fg tracking-tight">
+                Tiến Độ Gia Công Đơn Hàng
               </h1>
-              <p className="text-xs text-[#545F73] mt-0.5">
-                Ngày đặt: <strong className="text-[#091426]">{currentOrder.date}</strong> • Dự kiến giao xưởng: <strong className="text-[#091426]">{currentOrder.estimatedDelivery}</strong>
+              <p className="text-xs text-fg-muted mt-0.5">
+                Ngày đặt: <strong className="text-fg">{currentOrder.date || <Unknown />}</strong>
+                {' • '}Dự kiến hoàn thành:{' '}
+                <strong className="text-fg">
+                  {currentOrder.estimatedDelivery || <Unknown title="Chưa có lịch từ xưởng" />}
+                </strong>
               </p>
             </div>
           </div>
@@ -166,251 +283,192 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto font-mono">
             <button
               onClick={() => setIsGuestSearchMode(!isGuestSearchMode)}
-              className="px-3 py-2 border border-[#CBD5E1] bg-white hover:bg-slate-50 text-[#545F73] hover:text-[#091426] text-xs uppercase font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              className="px-3 py-2 border border-line-control bg-surface hover:bg-canvas text-fg-muted hover:text-fg text-xs uppercase font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-e0"
             >
-              <span className="material-symbols-outlined text-sm">search</span>
+              <Icon name="search" size={18} />
               <span>{isGuestSearchMode ? 'Xem Đơn Hiện Tại' : 'Tra Cứu Mã Khác'}</span>
             </button>
             <button
               onClick={onOpenChat}
-              className="px-4 py-2 bg-[#00687A] hover:bg-[#005260] text-white text-xs uppercase font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs uppercase font-bold rounded-full shadow-e1 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <span className="material-symbols-outlined text-sm">support_agent</span>
-              <span>Kỹ Sư Trực Ca</span>
+              <Icon name="support_agent" size={18} />
+              <span>Hỗ Trợ</span>
             </button>
             <button
               onClick={() => onOpenInvoice(currentOrder)}
-              className="px-4 py-2 border border-[#CBD5E1] bg-white hover:bg-slate-50 text-[#091426] text-xs uppercase font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              className="px-4 py-2 border border-line-control bg-surface hover:bg-canvas text-fg text-xs uppercase font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-e0"
             >
-              <span className="material-symbols-outlined text-sm">receipt_long</span>
-              <span>Hóa Đơn PDF</span>
+              <Icon name="receipt_long" size={18} />
+              <span>Hoá Đơn</span>
             </button>
           </div>
         </div>
 
-        {/* Guest Magic Tracking Search Card (Expandable) */}
+        {/* Guest lookup card (mở khi người dùng muốn tra mã khác) */}
         {isGuestSearchMode && (
-          <div className="bg-white border-2 border-[#00687A]/30 rounded-2xl p-6 shadow-md space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#CBD5E1]">
-              <div className="flex items-center gap-2 text-[#00687A]">
-                <span className="material-symbols-outlined text-xl">travel_explore</span>
-                <h3 className="font-bold text-sm text-[#091426] uppercase font-mono tracking-wider">
-                  Cổng Tra Cứu Đơn Hàng Khách Vãng Lai (Guest Magic Portal)
+          <div className="bg-surface border-2 border-primary/30 rounded-lg p-6 shadow-e2 space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-line">
+              <div className="flex items-center gap-2 text-primary">
+                <Icon name="travel_explore" size={24} />
+                <h3 className="font-bold text-sm text-fg uppercase font-mono tracking-wider">
+                  Tra Cứu Đơn Khác
                 </h3>
               </div>
-              <span className="text-[10px] font-mono text-[#64748B]">Không cần mật khẩu đăng nhập</span>
+              <span className="text-xs font-mono text-fg-subtle">Bắt buộc mã token hoặc SĐT</span>
             </div>
 
             <form onSubmit={handleGuestLookup} className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
               <div className="sm:col-span-5">
-                <label className="block text-[11px] font-bold text-[#091426] mb-1">
+                <label htmlFor="lookup-code-2" className="block text-xs font-bold text-fg mb-1">
                   Mã Đơn Hàng:
                 </label>
                 <input
+                  id="lookup-code-2"
                   type="text"
                   value={lookupCode}
                   onChange={(e) => setLookupCode(e.target.value)}
-                  placeholder="Ví dụ: #VCUBE-8924-A"
-                  className="w-full p-2.5 bg-slate-50 border border-[#CBD5E1] rounded-xl font-mono text-xs focus:outline-none focus:border-[#00687A]"
+                  placeholder="Ví dụ: #VCUBE-8924"
+                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
                   required
                 />
               </div>
-
               <div className="sm:col-span-5">
-                <label className="block text-[11px] font-bold text-[#091426] mb-1">
-                  Số Điện Thoại Nhận Hàng hoặc Mã PIN:
+                <label htmlFor="lookup-token-2" className="block text-xs font-bold text-fg mb-1">
+                  Mã Token Hoặc Số Điện Thoại (bắt buộc):
                 </label>
                 <input
+                  id="lookup-token-2"
                   type="text"
                   value={lookupAuth}
                   onChange={(e) => setLookupAuth(e.target.value)}
-                  placeholder="Ví dụ: 0987654321"
-                  className="w-full p-2.5 bg-slate-50 border border-[#CBD5E1] rounded-xl font-mono text-xs focus:outline-none focus:border-[#00687A]"
+                  placeholder="Token trong màn hình xác nhận đơn"
+                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+                  required
                 />
               </div>
-
               <div className="sm:col-span-2 flex items-end">
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#091426] hover:bg-[#1E293B] text-white font-mono font-bold text-xs uppercase rounded-xl transition-all cursor-pointer shadow-xs"
+                  disabled={lookupState === 'searching'}
+                  className="w-full py-2.5 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse font-mono font-bold text-xs uppercase rounded-full transition-all cursor-pointer shadow-e1 disabled:opacity-60"
                 >
-                  Tra Cứu
+                  {lookupState === 'searching' ? 'Đang tra...' : 'Tra Cứu'}
                 </button>
               </div>
             </form>
 
             {lookupError && (
-              <p className="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200">
+              <p className="text-xs text-danger bg-danger-tint p-2.5 rounded-lg border border-danger/30" role="alert">
                 {lookupError}
               </p>
             )}
-
-            <div className="flex items-center gap-2 pt-1 text-[11px] text-[#64748B]">
-              <span>Mã mẫu thử nghiệm:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setLookupCode('#VCUBE-8924-A');
-                  setLookupAuth('0987 654 321');
-                }}
-                className="text-[#00687A] underline font-mono cursor-pointer"
-              >
-                #VCUBE-8924-A (Đang in)
-              </button>
-            </div>
+            {lookupState === 'not_found' && (
+              <p className="text-xs text-fg-muted bg-canvas p-2.5 rounded-lg border border-line" role="status">
+                Không tìm thấy đơn hàng khớp với thông tin đã nhập.
+              </p>
+            )}
           </div>
         )}
 
-        {/* 8-Stage Pipeline Card */}
-        <div className="bg-white border border-[#CBD5E1] rounded-2xl p-5 sm:p-7 space-y-6 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#CBD5E1] gap-2">
-            <h2 className="font-bold text-base text-[#091426] flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg text-[#00687A]">linear_scale</span>
-              Quy Trình 8 Bước Gia Công Công Nghiệp & Kiểm Định Dung Sai (QC)
+        {/* Pipeline Card */}
+        <div className="bg-surface rounded-lg p-5 sm:p-7 space-y-6 shadow-e1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-line gap-2">
+            <h2 className="font-bold text-base text-fg flex items-center gap-2">
+              <Icon name="linear_scale" size={20} className="text-primary" />
+              Quy Trình Gia Công 8 Bước
             </h2>
-            <span className="text-xs font-mono text-[#00687A] font-bold flex items-center gap-1.5 px-3 py-1 bg-teal-50 rounded-full border border-teal-200 self-start sm:self-auto">
-              <span className="w-2 h-2 rounded-full bg-[#57DFFE] animate-pulse"></span>
-              Xưởng Vận Hành ISO 9001
+            {/* OT-06: bỏ badge "Xưởng Vận Hành ISO 9001" — không có chứng nhận nào được lưu. */}
+            <span className="text-xs font-mono text-fg-subtle flex items-center gap-1.5 px-3 py-1 bg-surface-muted rounded-full border border-line-subtle self-start sm:self-auto">
+              Trạng thái cập nhật từ xưởng
             </span>
           </div>
 
-          {/* Full Pipeline Visualizer */}
           <OrderProgress
             currentStageIndex={currentStageIndex}
-            layerProgress={layerProgress}
+            layerProgress={layerProgress ?? undefined}
             variant="full"
             status={currentOrder.status}
           />
 
-          {/* Real-time Hardware Telemetry Strip */}
-          <div className="bg-[#091426] p-5 text-white rounded-xl flex flex-col lg:flex-row items-center justify-between gap-6 border border-[#1E293B] shadow-sm">
-            <div className="flex items-center gap-4 w-full lg:w-auto">
-              <div className="w-11 h-11 bg-[#00687A]/30 border border-[#57DFFE]/40 rounded-xl flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-[#57DFFE] text-2xl animate-spin-slow">
-                  precision_manufacturing
-                </span>
-              </div>
-              <div className="text-xs">
-                <p className="font-mono text-[10px] uppercase tracking-widest text-[#57DFFE] font-bold">
-                  Máy In Khí Động Học #08 // VCUBE Precision X1
-                </p>
-                <p className="text-slate-300 font-sans mt-0.5">
-                  Đầu đùn: <strong className="text-white font-mono">220°C</strong> • Bàn nhiệt: <strong className="text-white font-mono">60°C</strong> • Tốc độ: <strong className="text-white font-mono">250 mm/s</strong>
-                </p>
-              </div>
-            </div>
-
-            <div className="w-full lg:w-96 flex items-center gap-4 text-xs font-mono">
-              <div className="flex-1 space-y-1.5">
-                <div className="flex justify-between text-[11px] text-slate-300">
-                  <span>Lớp cắt: 384 / 600</span>
-                  <span className="text-[#57DFFE] font-bold">{layerProgress}%</span>
-                </div>
-                <div className="w-full bg-[#1E293B] h-2 rounded-full overflow-hidden border border-slate-700">
-                  <div
-                    className="bg-gradient-to-r from-[#00687A] to-[#57DFFE] h-full rounded-full transition-all duration-500"
-                    style={{ width: `${layerProgress}%` }}
-                  />
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <span className="text-[10px] text-slate-400 block">Thời gian còn lại:</span>
-                <span className="font-bold text-white text-sm">{currentOrder.timeRemaining || '04h 12m'}</span>
-              </div>
-            </div>
+          {/* OT-04/OT-05: bỏ dải telemetry bịa và mô phỏng "digital twin". */}
+          <div className="bg-canvas border border-line rounded-lg p-5 text-xs font-mono space-y-2">
+            <p className="font-bold text-fg">Chưa có dữ liệu từ máy in</p>
+            <p className="text-fg-subtle">
+              Đầu đùn: <Unknown /> • Bàn nhiệt: <Unknown /> • Tốc độ: <Unknown /> • Lớp: <Unknown />
+            </p>
+            <p className="text-fg-subtle">
+              Trạng thái này chỉ hiển thị số liệu khi xưởng kết nối hệ thống MES.
+            </p>
+            <p className="text-fg-subtle pt-1">
+              Tiến độ lớp: {layerProgress === null ? <Unknown title="Chưa có dữ liệu từ máy in" /> : `${layerProgress}%`}
+              {' • '}Thời gian còn lại:{' '}
+              {currentOrder.timeRemaining || <Unknown title="Chưa có dữ liệu từ máy in" />}
+            </p>
           </div>
         </div>
 
-        {/* 2-Column: Live 3D Simulation Viewport + Order Details */}
+        {/* Order details + delivery */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
-          {/* Left: 3D Realtime Layer Model View */}
           <div className="lg:col-span-6 space-y-5">
-            <div className="bg-white border border-[#CBD5E1] rounded-2xl p-5 space-y-4 shadow-xs">
-              <div className="flex items-center justify-between pb-3 border-b border-[#CBD5E1]">
-                <h3 className="font-bold text-sm text-[#091426] flex items-center gap-2">
-                  <span className="material-symbols-outlined text-base text-[#00687A]">view_in_ar</span>
-                  Mô Phỏng Lớp In 3D (Digital Twin Preview)
-                </h3>
-                <span className="text-[10px] font-mono text-[#00687A] bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200 font-bold">
-                  Layer Height: 0.16mm
-                </span>
-              </div>
-
-              <div className="bg-[#091426] rounded-xl border border-[#1E293B] p-2 overflow-hidden shadow-inner">
-                <ThreeModelViewer
-                  modelType="box"
-                  color="#57DFFE"
-                  className="h-[280px] sm:h-[340px] lg:h-[360px] w-full"
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] text-[#64748B] font-mono pt-1">
-                <span>Trọng lượng ước tính: 84.5g</span>
-                <span>Dung sai cam kết: ±0.05mm</span>
-              </div>
-            </div>
-
-            {/* Tolerance Guarantee Commitment Banner */}
-            <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-2xl p-4.5 flex items-start gap-3 text-xs">
-              <span className="material-symbols-outlined text-xl text-[#00687A] shrink-0 mt-0.5">
-                verified
-              </span>
-              <div className="space-y-1">
-                <h4 className="font-bold text-[#091426]">Chứng Nhận Dung Sai Kỹ Thuật VCUBE Assurance</h4>
-                <p className="text-[#545F73]">
-                  Mỗi chi tiết xuất xưởng đều được quét 3D laser hoặc đo bằng thước cặp điện tử Mitutoyo để đảm bảo không bị sai lệch quá ±0.05mm. Nếu không khớp lắp ghép, bạn được bảo hành in lại miễn phí trong 48h.
-                </p>
-                {warrantyClaimSent ? (
-                  <span className="text-emerald-700 font-bold font-mono inline-block pt-1">
-                    ✓ Hồ sơ khiếu nại đã gửi tới kỹ sư ca trực.
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => setWarrantyClaimSent(true)}
-                    className="text-[#00687A] font-bold underline font-mono text-[11px] pt-1 cursor-pointer"
-                  >
-                    Báo cáo sai số lắp ghép (Kích hoạt bảo hành) →
-                  </button>
-                )}
-              </div>
+            {/* OT-06: thay bảng "chứng nhận dung sai" bằng trạng thái đo kiểm thật. */}
+            <div className="bg-surface rounded-lg p-5 space-y-3 text-xs shadow-e1">
+              <h3 className="font-bold text-sm text-fg flex items-center gap-2">
+                <Icon name="straighten" size={18} className="text-primary" />
+                Kết Quả Đo Kiểm
+              </h3>
+              <p className="text-fg-muted leading-relaxed">
+                Chưa có biên bản đo kiểm nào được ghi cho đơn này. VCUBE chỉ công bố kết quả dung sai khi
+                xưởng đã thực hiện đo và lưu kết quả vào hồ sơ đơn hàng.
+              </p>
+              <p className="text-xs text-fg-subtle">
+                Cần đo kiểm theo yêu cầu? Hãy mở trao đổi với xưởng để thoả thuận phương pháp đo và tiêu chí nghiệm thu.
+              </p>
+              <button
+                onClick={onOpenChat}
+                className="text-primary font-bold underline font-mono text-xs cursor-pointer"
+              >
+                Liên hệ xưởng về đo kiểm →
+              </button>
             </div>
           </div>
 
-          {/* Right: Items, Carrier & Shipping Details */}
           <div className="lg:col-span-6 space-y-5">
             {/* Ordered Items */}
-            <div className="bg-white border border-[#CBD5E1] rounded-2xl p-5 space-y-4 shadow-xs">
-              <div className="flex items-center justify-between border-b border-[#CBD5E1] pb-3">
-                <h3 className="font-bold text-sm text-[#091426]">
+            <div className="bg-surface rounded-lg p-5 space-y-4 shadow-e1">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <h3 className="font-bold text-sm text-fg">
                   Linh Kiện Trong Đơn Hàng ({currentOrder.items.length})
                 </h3>
-                <span className="text-xs font-mono text-[#64748B]">
+                <span className="text-xs font-mono text-fg-subtle">
                   Tổng: {currentOrder.payment.total.toLocaleString('vi-VN')} ₫
                 </span>
               </div>
 
-              <div className="divide-y divide-[#CBD5E1]">
+              <div className="divide-y divide-line">
                 {currentOrder.items.map((item) => (
                   <div key={item.id} className="py-3.5 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-3 truncate">
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="w-13 h-13 object-cover border border-[#CBD5E1] rounded-xl bg-slate-100 shrink-0"
+                        className="w-13 h-13 object-cover border border-line rounded-lg bg-surface-muted shrink-0"
                       />
                       <div className="truncate">
-                        <h4 className="font-bold text-sm text-[#091426] truncate">{item.name}</h4>
-                        <p className="text-[11px] text-[#64748B] font-mono mt-0.5">
-                          {item.quantity}x • {item.material || 'Nhựa PLA+'} • {item.color || 'Kỹ thuật'}
+                        <h4 className="font-bold text-sm text-fg truncate">{item.name}</h4>
+                        <p className="text-xs text-fg-subtle font-mono mt-0.5">
+                          {item.quantity}x
+                          {item.material ? ` • ${item.material}` : ''}
+                          {item.color ? ` • ${item.color}` : ''}
                         </p>
                         {item.resolution && (
-                          <span className="text-[10px] text-[#00687A] font-mono block">
+                          <span className="text-xs text-primary font-mono block">
                             Độ phân giải: {item.resolution}
                           </span>
                         )}
                       </div>
                     </div>
-                    <span className="font-mono font-bold text-sm text-[#00687A] shrink-0 ml-3">
+                    <span className="font-mono font-bold text-sm text-primary shrink-0 ml-3">
                       {(item.price * item.quantity).toLocaleString('vi-VN')} ₫
                     </span>
                   </div>
@@ -418,32 +476,88 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               </div>
             </div>
 
-            {/* Carrier & Delivery Info */}
-            <div className="bg-white border border-[#CBD5E1] rounded-2xl p-5 space-y-4 text-xs shadow-xs">
-              <div className="flex items-center justify-between border-b border-[#CBD5E1] pb-3">
-                <h3 className="font-bold text-sm text-[#091426] flex items-center gap-2">
-                  <span className="material-symbols-outlined text-base text-[#00687A]">local_shipping</span>
-                  Vận Chuyển Chuyên Dụng Chống Va Đập
+            {/* Payment + Delivery — chỉ hiện dữ liệu thật */}
+            <div className="bg-surface rounded-lg p-5 space-y-4 text-xs shadow-e1">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <h3 className="font-bold text-sm text-fg flex items-center gap-2">
+                  <Icon name="local_shipping" size={18} className="text-primary" />
+                  Thanh Toán & Vận Chuyển
                 </h3>
-                <span className="text-[#00687A] font-mono font-bold text-xs bg-teal-50 px-2.5 py-0.5 rounded border border-teal-200">
-                  {currentOrder.carrier.name}
+                <span className={`font-mono font-bold text-xs px-2.5 py-0.5 rounded-sm border ${
+                  currentOrder.payment.isPaid
+                    ? 'text-positive bg-positive-tint border-positive/30'
+                    : 'text-warning bg-warning-tint border-warning/30'
+                }`}>
+                  {currentOrder.payment.isPaid
+                    ? 'ĐÃ THANH TOÁN'
+                    : currentOrder.payment.status === 'cod'
+                    ? 'THU KHI GIAO (COD)'
+                    : 'CHỜ THANH TOÁN'}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <span className="text-[#64748B] text-[10px] font-mono uppercase tracking-wider block">Mã Vận Đơn:</span>
-                  <span className="font-mono font-bold text-sm text-[#00687A]">{currentOrder.carrier.trackingCode}</span>
+                  <span className="text-fg-subtle text-xs font-mono uppercase tracking-wider block">
+                    Phương thức:
+                  </span>
+                  <span className="font-bold text-fg">
+                    {currentOrder.payment.method || <Unknown title="Chưa ghi nhận phương thức" />}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[#64748B] text-[10px] font-mono uppercase tracking-wider block">Người Nhận:</span>
-                  <span className="font-bold text-[#091426]">{currentOrder.shippingAddress.fullName} ({currentOrder.shippingAddress.phone})</span>
+                  <span className="text-fg-subtle text-xs font-mono uppercase tracking-wider block">
+                    Ngày thanh toán:
+                  </span>
+                  <span className="font-bold text-fg">
+                    {currentOrder.payment.paidDate || <Unknown title="Chưa ghi nhận thời điểm thanh toán" />}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-fg-subtle text-xs font-mono uppercase tracking-wider block">
+                    Đơn vị vận chuyển:
+                  </span>
+                  <span className="font-bold text-fg">
+                    {currentOrder.carrier?.name || <Unknown title="Chưa có đơn vị vận chuyển" />}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-fg-subtle text-xs font-mono uppercase tracking-wider block">
+                    Mã vận đơn:
+                  </span>
+                  <span className="font-mono font-bold text-primary">
+                    {hasCarrierData ? currentOrder.carrier.trackingCode : (
+                      <span className="text-fg-subtle" title="Chưa có mã vận đơn">Chưa có mã vận đơn</span>
+                    )}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-fg-subtle text-xs font-mono uppercase tracking-wider block">
+                    Người Nhận:
+                  </span>
+                  <span className="font-bold text-fg">
+                    {currentOrder.shippingAddress.fullName || <Unknown />}
+                    {currentOrder.shippingAddress.phone ? ` (${currentOrder.shippingAddress.phone})` : ''}
+                  </span>
                 </div>
                 <div className="sm:col-span-2">
-                  <span className="text-[#64748B] text-[10px] font-mono uppercase tracking-wider block">Địa Chỉ Nhận Hàng:</span>
-                  <span className="text-[#334155]">{currentOrder.shippingAddress.address}, {currentOrder.shippingAddress.district}, {currentOrder.shippingAddress.city}</span>
+                  <span className="text-fg-subtle text-xs font-mono uppercase tracking-wider block">
+                    Địa Chỉ Nhận Hàng:
+                  </span>
+                  <span className="text-fg-muted">
+                    {[currentOrder.shippingAddress.address, currentOrder.shippingAddress.district, currentOrder.shippingAddress.city]
+                      .filter(Boolean)
+                      .join(', ') || <Unknown />}
+                  </span>
                 </div>
               </div>
+
+              <button
+                onClick={() => onNavigate('my_orders')}
+                className="text-primary font-bold underline font-mono text-xs cursor-pointer"
+              >
+                ← Về danh sách đơn hàng
+              </button>
             </div>
           </div>
         </div>

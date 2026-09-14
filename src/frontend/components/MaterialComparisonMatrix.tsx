@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MaterialProfile } from '../../types';
 import { MATERIALS_CATALOG } from '../../data/mockData';
+import { Icon } from '@frontend/ui';
 
 interface MaterialComparisonMatrixProps {
   materials?: MaterialProfile[];
@@ -136,24 +137,24 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
   };
 
   return (
-    <div className={`bg-white border border-[#CBD5E1] rounded-2xl p-6 shadow-sm ${className}`}>
+    <div className={`bg-surface rounded-lg p-6 shadow-e1 ${className}`}>
       {/* Header & Categories Filter */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line-subtle pb-5">
         <div>
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#00687A]/10 text-[#00687A] text-[11px] font-mono font-bold uppercase tracking-wider mb-1.5">
-            <span className="material-symbols-outlined text-xs">science</span>
-            <span>Ma Trận Vật Liệu Chế Tác ISO/ASTM</span>
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-mono font-bold uppercase tracking-wider mb-1.5">
+            <Icon name="science" size={18} />
+            <span>Ma Trận Vật Liệu Chế Tác</span>
           </div>
-          <h2 className="text-xl font-black text-[#091426] tracking-tight">
+          <h2 className="text-xl font-black text-fg tracking-tight">
             So Sánh Kỹ Thuật: PLA, PETG, ABS, Resin 8K & Carbon Fiber
           </h2>
-          <p className="text-xs text-[#64748B] mt-0.5">
+          <p className="text-xs text-fg-subtle mt-0.5">
             Đánh giá định lượng về cơ tính, chịu nhiệt, độ bóng và chi phí để chọn vật liệu tối ưu cho đơn hàng của bạn.
           </p>
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto bg-[#F1F5F9] p-1 rounded-xl">
+        <div className="flex items-center gap-1.5 overflow-x-auto bg-line-subtle p-1 rounded-md">
           {[
             { id: 'all', label: 'Tất Cả (6)' },
             { id: 'standard', label: 'Tiêu Chuẩn' },
@@ -164,10 +165,10 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 selectedCategory === cat.id
-                  ? 'bg-white text-[#00687A] shadow-xs'
-                  : 'text-[#64748B] hover:text-[#091426]'
+                  ? 'bg-surface text-primary shadow-e1'
+                  : 'text-fg-muted hover:text-fg'
               }`}
             >
               {cat.label}
@@ -182,7 +183,7 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
         <div className="lg:col-span-8 overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-[#CBD5E1] text-[11px] font-mono text-[#64748B] uppercase tracking-wider">
+              <tr className="border-b border-line text-xs font-mono text-fg-subtle uppercase tracking-wider">
                 <th className="py-3 px-3">Vật Liệu</th>
                 <th className="py-3 px-2 text-center">Độ Bền Kéo</th>
                 <th className="py-3 px-2 text-center">Chịu Nhiệt</th>
@@ -192,7 +193,7 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
                 <th className="py-3 px-3 text-right">Hành Động</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#F1F5F9]">
+            <tbody className="divide-y divide-line-subtle">
               {filteredMaterials.map((mat) => {
                 const isSelected = mat.id === activeHighlightId;
                 return (
@@ -200,18 +201,18 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
                     key={mat.id}
                     onClick={() => setActiveHighlightId(mat.id)}
                     className={`cursor-pointer transition-colors ${
-                      isSelected ? 'bg-[#00687A]/5 font-medium' : 'hover:bg-slate-50'
+                      isSelected ? 'bg-primary/5 font-medium' : 'hover:bg-canvas'
                     }`}
                   >
                     <td className="py-3.5 px-3">
                       <div className="flex items-center gap-2.5">
                         <span
-                          className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0"
+                          className="w-3.5 h-3.5 rounded-full border border-line-control shrink-0"
                           style={{ backgroundColor: mat.colorHex }}
                         />
                         <div>
-                          <div className="font-bold text-[#091426]">{mat.name}</div>
-                          <span className="text-[10px] text-[#64748B] font-mono uppercase">{mat.category}</span>
+                          <div className="font-bold text-fg">{mat.name}</div>
+                          <span className="text-xs text-fg-muted font-mono uppercase">{mat.category}</span>
                         </div>
                       </div>
                     </td>
@@ -219,19 +220,23 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
                     {/* Tensile Strength */}
                     <td className="py-3.5 px-2 text-center">
                       <div className="inline-flex items-center gap-1">
-                        <span className="font-mono font-bold text-[#091426]">{mat.tensileStrength}</span>
-                        <span className="text-[10px] text-[#94A3B8]">/10</span>
+                        <span className="font-mono font-bold text-fg">{mat.tensileStrength}</span>
+                        <span className="text-xs text-fg-muted">/10</span>
                       </div>
                     </td>
 
-                    {/* Heat Deflection Temp */}
+                    {/* Heat Deflection Temp.
+                        D-1 da lam nhat token `--color-warning-tint` (#FBF0E4 -> #FEF6EC, src/index.css) nen
+                        `text-warning` tren `bg-warning-tint` nay dat 4.69:1 (light) / 9.49:1 (dark)
+                        -> badge quay lai dung quy tac "nen tint + chu mau dac"; khong con can ban va cuc bo
+                        bang `bg-surface-muted`. Luat nay duoc giu boi scripts/check-contrast-combos.mjs. */}
                     <td className="py-3.5 px-2 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded font-mono font-bold text-[11px] ${
+                      <span className={`inline-block px-2 py-0.5 rounded-sm font-mono font-bold text-xs ${
                         mat.heatResistanceTemp >= 100
-                          ? 'bg-red-50 text-red-700 border border-red-200'
+                          ? 'bg-danger-tint text-danger border border-danger/30'
                           : mat.heatResistanceTemp >= 75
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : 'bg-slate-100 text-[#475569]'
+                          ? 'bg-warning-tint text-warning border border-warning/30'
+                          : 'bg-surface-muted text-fg-muted'
                       }`}>
                         {mat.heatResistanceTemp}°C
                       </span>
@@ -240,21 +245,21 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
                     {/* Surface Finish */}
                     <td className="py-3.5 px-2 text-center">
                       <div className="inline-flex items-center gap-1">
-                        <span className="font-mono font-bold text-[#091426]">{mat.surfaceFinish}</span>
-                        <span className="text-[10px] text-[#94A3B8]">/10</span>
+                        <span className="font-mono font-bold text-fg">{mat.surfaceFinish}</span>
+                        <span className="text-xs text-fg-muted">/10</span>
                       </div>
                     </td>
 
                     {/* Impact Resistance */}
                     <td className="py-3.5 px-2 text-center">
                       <div className="inline-flex items-center gap-1">
-                        <span className="font-mono font-bold text-[#091426]">{mat.impactResistance}</span>
-                        <span className="text-[10px] text-[#94A3B8]">/10</span>
+                        <span className="font-mono font-bold text-fg">{mat.impactResistance}</span>
+                        <span className="text-xs text-fg-muted">/10</span>
                       </div>
                     </td>
 
                     {/* Price Tier */}
-                    <td className="py-3.5 px-2 text-center font-mono font-bold text-[#00687A]">
+                    <td className="py-3.5 px-2 text-center font-mono font-bold text-primary">
                       {mat.priceTier}
                     </td>
 
@@ -265,7 +270,7 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
                           e.stopPropagation();
                           handleChooseForQuote(mat.id);
                         }}
-                        className="px-2.5 py-1 bg-[#00687A] hover:bg-[#005260] text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
+                        className="px-2.5 py-1 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-full transition-colors cursor-pointer"
                       >
                         Báo Giá
                       </button>
@@ -278,82 +283,82 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
         </div>
 
         {/* Selected Material Deep-Dive Card (4 cols) */}
-        <div className="lg:col-span-4 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-5 flex flex-col justify-between space-y-4">
+        <div className="lg:col-span-4 bg-canvas border border-line rounded-lg p-5 flex flex-col justify-between space-y-4">
           <div>
             <div className="flex items-center justify-between">
-              <span className="px-2.5 py-0.5 bg-white border border-[#CBD5E1] text-[10px] font-mono font-bold text-[#00687A] rounded-md uppercase">
+              <span className="px-2.5 py-0.5 bg-surface-muted border border-line-subtle text-xs font-mono font-bold text-primary rounded-sm uppercase">
                 {activeMaterial.category}
               </span>
-              <span className="text-xs font-mono font-bold text-[#64748B]">Mức Giá: {activeMaterial.priceTier}</span>
+              <span className="text-xs font-mono font-bold text-fg-subtle">Mức Giá: {activeMaterial.priceTier}</span>
             </div>
 
-            <h3 className="text-base font-black text-[#091426] mt-2 flex items-center gap-2">
+            <h3 className="text-base font-black text-fg mt-2 flex items-center gap-2">
               <span className="w-3 h-3 rounded-full" style={{ backgroundColor: activeMaterial.colorHex }} />
               {activeMaterial.name}
             </h3>
 
             {/* Visual Spec Bars */}
-            <div className="space-y-2.5 mt-4 text-[11px]">
+            <div className="space-y-2.5 mt-4 text-xs">
               <div>
-                <div className="flex justify-between text-[#475569] mb-1">
+                <div className="flex justify-between text-fg-muted mb-1">
                   <span>Độ Bền Kéo & Chịu Lực</span>
-                  <span className="font-mono font-bold text-[#091426]">{activeMaterial.tensileStrength} / 10</span>
+                  <span className="font-mono font-bold text-fg">{activeMaterial.tensileStrength} / 10</span>
                 </div>
-                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-line-subtle rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#00687A] rounded-full transition-all"
+                    className="h-full bg-primary rounded-full transition-all"
                     style={{ width: `${activeMaterial.tensileStrength * 10}%` }}
                   />
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between text-[#475569] mb-1">
+                <div className="flex justify-between text-fg-muted mb-1">
                   <span>Độ Mịn Bề Mặt (Layer Resolution)</span>
-                  <span className="font-mono font-bold text-[#091426]">{activeMaterial.surfaceFinish} / 10</span>
+                  <span className="font-mono font-bold text-fg">{activeMaterial.surfaceFinish} / 10</span>
                 </div>
-                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-line-subtle rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-purple-600 rounded-full transition-all"
+                    className="h-full bg-info rounded-full transition-all"
                     style={{ width: `${activeMaterial.surfaceFinish * 10}%` }}
                   />
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between text-[#475569] mb-1">
+                <div className="flex justify-between text-fg-muted mb-1">
                   <span>Khả Năng Chống Va Đập</span>
-                  <span className="font-mono font-bold text-[#091426]">{activeMaterial.impactResistance} / 10</span>
+                  <span className="font-mono font-bold text-fg">{activeMaterial.impactResistance} / 10</span>
                 </div>
-                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-line-subtle rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-emerald-600 rounded-full transition-all"
+                    className="h-full bg-positive rounded-full transition-all"
                     style={{ width: `${activeMaterial.impactResistance * 10}%` }}
                   />
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between text-[#475569] mb-1">
+                <div className="flex justify-between text-fg-muted mb-1">
                   <span>Nhiệt Độ Chịu Biến Dạng (HDT)</span>
-                  <span className="font-mono font-bold text-[#091426]">{activeMaterial.heatResistanceTemp}°C</span>
+                  <span className="font-mono font-bold text-fg">{activeMaterial.heatResistanceTemp}°C</span>
                 </div>
-                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-line-subtle rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-amber-500 rounded-full transition-all"
+                    className="h-full bg-warning rounded-full transition-all"
                     style={{ width: `${Math.min(100, Math.round((activeMaterial.heatResistanceTemp / 160) * 100))}%` }}
                   />
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between text-[#475569] mb-1">
+                <div className="flex justify-between text-fg-muted mb-1">
                   <span>Khung Giá Phôi & Gia Công</span>
-                  <span className="font-mono font-bold text-[#00687A]">{activeMaterial.priceTier}</span>
+                  <span className="font-mono font-bold text-primary">{activeMaterial.priceTier}</span>
                 </div>
-                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-line-subtle rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#00687A] rounded-full transition-all"
+                    className="h-full bg-primary rounded-full transition-all"
                     style={{
                       width: activeMaterial.priceTier === '$' ? '25%' : activeMaterial.priceTier === '$$' ? '50%' : activeMaterial.priceTier === '$$$' ? '75%' : '100%'
                     }}
@@ -364,27 +369,27 @@ export const MaterialComparisonMatrix: React.FC<MaterialComparisonMatrixProps> =
 
             {/* Best For & Caveats */}
             <div className="mt-4 space-y-2.5 text-xs">
-              <div className="p-2.5 bg-white border border-[#CBD5E1] rounded-lg">
-                <span className="text-[10px] font-mono uppercase font-bold text-emerald-700 block mb-0.5">
+              <div className="p-2.5 bg-surface-muted rounded-lg">
+                <span className="text-xs font-mono uppercase font-bold text-positive block mb-0.5">
                   ✓ Ứng Dụng Tối Ưu:
                 </span>
-                <p className="text-[#334155] leading-relaxed">{activeMaterial.recommendedUse}</p>
+                <p className="text-fg-muted leading-relaxed">{activeMaterial.recommendedUse}</p>
               </div>
 
-              <div className="p-2.5 bg-white border border-[#CBD5E1] rounded-lg">
-                <span className="text-[10px] font-mono uppercase font-bold text-amber-700 block mb-0.5">
+              <div className="p-2.5 bg-surface-muted rounded-lg">
+                <span className="text-xs font-mono uppercase font-bold text-warning block mb-0.5">
                   ⚠ Giới Hạn Kỹ Thuật:
                 </span>
-                <p className="text-[#334155] leading-relaxed">{activeMaterial.limitations}</p>
+                <p className="text-fg-muted leading-relaxed">{activeMaterial.limitations}</p>
               </div>
             </div>
           </div>
 
           <button
             onClick={() => handleChooseForQuote(activeMaterial.id)}
-            className="w-full py-2.5 bg-[#00687A] hover:bg-[#005260] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-2.5 bg-primary hover:bg-primary-hover text-primary-fg font-bold text-xs uppercase tracking-wider rounded-full transition-all shadow-e1 flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-base">precision_manufacturing</span>
+            <Icon name="precision_manufacturing" size={18} />
             <span>Chọn {activeMaterial.name} Báo Giá</span>
           </button>
         </div>

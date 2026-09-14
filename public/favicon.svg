@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="VCUBE">
+  <!-- VCUBE mark: isometric cube. Filled plate so it reads on light AND dark tab bars. -->
+  <rect x="0" y="0" width="32" height="32" rx="7" fill="#00687A"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+    <!-- outer hexagon -->
+    <path d="M16 8.5 L22.5 12.2 L22.5 19.8 L16 23.5 L9.5 19.8 L9.5 12.2 Z"/>
+    <!-- three inner edges meeting at the front-top vertex -->
+    <path d="M16 16 L22.5 12.2"/>
+    <path d="M16 16 L9.5 12.2"/>
+    <path d="M16 16 L16 23.5"/>
+  </g>
+</svg>

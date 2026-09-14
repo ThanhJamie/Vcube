@@ -1,5 +1,24 @@
 import React, { useState } from 'react';
 import { AnalysisFile } from '../../types';
+import { Icon } from '@frontend/ui';
+
+/**
+ * R4: cong thuc diem dung BON phep do. Dem so phep CO so that (`0` la so do that, `null` = chua do).
+ */
+function countMeasuredScoreInputs(file: AnalysisFile): number {
+  return [file.isWatertight, file.nonManifoldEdges, file.invertedNormals, file.minWallThickness]
+    .filter((v) => v !== null).length;
+}
+
+/** R4: nhan cac phep do CHUA co so — de noi ro diem duoc cham tu phan nao, bo qua muc nao. */
+function describeUnmeasuredScoreInputs(file: AnalysisFile): string[] {
+  const missing: string[] = [];
+  if (file.isWatertight === null) missing.push('độ kín');
+  if (file.nonManifoldEdges === null) missing.push('cạnh non-manifold');
+  if (file.invertedNormals === null) missing.push('pháp tuyến nghịch');
+  if (file.minWallThickness === null) missing.push('độ dày thành tối thiểu');
+  return missing;
+}
 
 interface ValidationReportPanelProps {
   file: AnalysisFile;
@@ -27,9 +46,9 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
   const printability = file.printability;
 
   const getScoreBadgeColor = (score: number) => {
-    if (score >= 90) return 'text-emerald-700 bg-emerald-50 border-emerald-300';
-    if (score >= 70) return 'text-amber-700 bg-amber-50 border-amber-300';
-    return 'text-rose-700 bg-rose-50 border-rose-300';
+    if (score >= 90) return 'text-positive bg-positive-tint border-positive/40';
+    if (score >= 70) return 'text-warning bg-warning-tint border-warning/40';
+    return 'text-danger bg-danger-tint border-danger/40';
   };
 
   const handleFixClick = () => {
@@ -42,26 +61,26 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
   };
 
   return (
-    <div className="bg-white border border-black/10 p-5 sm:p-6 space-y-4">
+    <div className="bg-surface rounded-lg p-5 sm:p-6 space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/10 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line-subtle pb-3">
         <div>
-          <span className="font-sans text-[9px] uppercase tracking-widest text-[#7D7565] font-bold block">
+          <span className="font-sans text-xs uppercase tracking-widest text-fg-muted font-bold block">
             Kiểm Tra Tính Toàn Vẹn & Khả Năng In // Mesh QA & Auto-Fix
           </span>
-          <h3 className="font-serif font-bold text-sm sm:text-base text-[#1C1C1C] flex items-center gap-2 mt-0.5">
-            <span className="material-symbols-outlined text-base text-[#00687a]">fact_check</span>
+          <h3 className="font-bold text-sm sm:text-base text-fg flex items-center gap-2 mt-0.5">
+            <Icon name="fact_check" size={18} className="text-primary" />
             Báo Cáo Kiểm Định Hình Học & Sửa Lỗi
           </h3>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1 bg-[#F7F6F2] p-1 rounded border border-black/10 text-xs">
+        <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-sm border border-line-subtle text-xs">
           <button
             type="button"
             onClick={() => setActiveTab('level3')}
-            className={`px-2.5 py-1 rounded font-bold transition-colors ${
-              activeTab === 'level3' ? 'bg-[#00687a] text-white shadow-xs' : 'text-[#5A554C] hover:text-[#1C1C1C]'
+            className={`px-2.5 py-1 rounded-sm font-bold transition-colors ${
+              activeTab === 'level3' ? 'bg-primary text-primary-fg shadow-e1' : 'text-fg-muted hover:text-fg'
             }`}
           >
             Level 3: In Ấn
@@ -69,8 +88,8 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('level2')}
-            className={`px-2.5 py-1 rounded font-bold transition-colors ${
-              activeTab === 'level2' ? 'bg-[#00687a] text-white shadow-xs' : 'text-[#5A554C] hover:text-[#1C1C1C]'
+            className={`px-2.5 py-1 rounded-sm font-bold transition-colors ${
+              activeTab === 'level2' ? 'bg-primary text-primary-fg shadow-e1' : 'text-fg-muted hover:text-fg'
             }`}
           >
             Level 2: Hình Học
@@ -78,8 +97,8 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('level1')}
-            className={`px-2.5 py-1 rounded font-bold transition-colors ${
-              activeTab === 'level1' ? 'bg-[#00687a] text-white shadow-xs' : 'text-[#5A554C] hover:text-[#1C1C1C]'
+            className={`px-2.5 py-1 rounded-sm font-bold transition-colors ${
+              activeTab === 'level1' ? 'bg-primary text-primary-fg shadow-e1' : 'text-fg-muted hover:text-fg'
             }`}
           >
             Level 1: Tệp Tin
@@ -88,18 +107,18 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
       </div>
 
       {/* QUICK AUTO-REPAIR & COMPARISON BAR */}
-      <div className="bg-[#FAF9F5] p-3.5 rounded-lg border border-black/10 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-surface-muted p-3.5 rounded-lg flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleFixClick}
             disabled={isFixing}
-            className="px-3.5 py-1.5 bg-[#00687a] hover:bg-[#005260] text-white text-xs font-sans font-bold uppercase tracking-wider rounded transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+            className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-sans font-bold uppercase tracking-wider rounded-sm transition-all flex items-center gap-1.5 shadow-e1 disabled:opacity-50"
           >
             {isFixing ? (
-              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent animate-spin rounded-full inline-block"></span>
+              <span className="w-3.5 h-3.5 border-2 border-primary-fg border-t-transparent animate-spin rounded-full inline-block"></span>
             ) : (
-              <span className="material-symbols-outlined text-sm">build</span>
+              <Icon name="build" size={18} />
             )}
             Tự Động Sửa Lưới Mesh
           </button>
@@ -108,13 +127,13 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
             <button
               type="button"
               onClick={onToggleDefects}
-              className={`px-3 py-1.5 text-xs font-sans font-bold rounded border transition-colors flex items-center gap-1 ${
+              className={`px-3 py-1.5 text-xs font-sans font-bold rounded-sm border transition-colors flex items-center gap-1 ${
                 showDefects
-                  ? 'bg-amber-500 text-white border-amber-600'
-                  : 'bg-white hover:bg-slate-100 text-[#1C1C1C] border-black/15'
+                  ? 'bg-warning text-primary-fg border-warning'
+                  : 'bg-surface hover:bg-surface-muted text-fg border-line-control'
               }`}
             >
-              <span className="material-symbols-outlined text-xs">wb_incandescent</span>
+              <Icon name="wb_incandescent" size={18} />
               {showDefects ? 'Tắt Bản Đồ Lỗi' : 'Hiện Vùng Lỗi'}
             </button>
           )}
@@ -122,13 +141,13 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
 
         {/* Before vs After Comparison Switcher */}
         {onSetCompareMode && (
-          <div className="flex items-center gap-1 bg-white p-0.5 rounded border border-black/15 text-xs">
-            <span className="text-[10px] text-[#7D7565] px-1.5 font-sans">So Sánh:</span>
+          <div className="flex items-center gap-1 bg-surface-muted p-0.5 rounded-sm text-xs">
+            <span className="text-xs text-fg-muted px-1.5 font-sans">So Sánh:</span>
             <button
               type="button"
               onClick={() => onSetCompareMode('normal')}
-              className={`px-2 py-0.5 text-[11px] font-bold rounded transition-colors ${
-                compareMode === 'normal' ? 'bg-[#00687a] text-white' : 'text-[#5A554C] hover:text-[#1C1C1C]'
+              className={`px-2 py-0.5 text-xs font-bold rounded-sm transition-colors ${
+                compareMode === 'normal' ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:text-fg'
               }`}
             >
               Chuẩn
@@ -136,8 +155,8 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
             <button
               type="button"
               onClick={() => onSetCompareMode('before')}
-              className={`px-2 py-0.5 text-[11px] font-bold rounded transition-colors ${
-                compareMode === 'before' ? 'bg-rose-700 text-white' : 'text-[#5A554C] hover:text-[#1C1C1C]'
+              className={`px-2 py-0.5 text-xs font-bold rounded-sm transition-colors ${
+                compareMode === 'before' ? 'bg-danger text-primary-fg' : 'text-fg-muted hover:text-fg'
               }`}
             >
               Trước Khi Sửa
@@ -145,8 +164,8 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
             <button
               type="button"
               onClick={() => onSetCompareMode('after')}
-              className={`px-2 py-0.5 text-[11px] font-bold rounded transition-colors ${
-                compareMode === 'after' ? 'bg-emerald-700 text-white' : 'text-[#5A554C] hover:text-[#1C1C1C]'
+              className={`px-2 py-0.5 text-xs font-bold rounded-sm transition-colors ${
+                compareMode === 'after' ? 'bg-positive text-primary-fg' : 'text-fg-muted hover:text-fg'
               }`}
             >
               Sau Khi Sửa
@@ -158,58 +177,78 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
       {/* Level 3: Printability Risk Score */}
       {activeTab === 'level3' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-[#F7F6F2] border border-black/10 rounded">
+          <div className="flex items-center justify-between p-4 bg-surface-muted rounded-sm">
             <div>
-              <div className="text-[10px] uppercase tracking-widest text-[#7D7565] font-bold">
+              <div className="text-xs uppercase tracking-widest text-fg-muted font-bold">
                 Chỉ Số Khả Năng In Thành Công (Risk Score)
               </div>
-              <div className="text-xs text-[#5A554C] mt-0.5">
-                Dựa trên mô phỏng góc nhô (Overhang), độ dày vách và diện tích tiếp xúc bàn in
+              <div className="text-xs text-fg-muted mt-0.5">
+                {/* R4: noi RO diem den tu may phep do va muc nao bi bo qua; khong cham diem tu `null`. */}
+                {typeof printability.printabilityScore === 'number'
+                  ? describeUnmeasuredScoreInputs(file).length > 0
+                    ? `Chấm trên ${countMeasuredScoreInputs(file)}/4 phép đo đã chạy. Bỏ qua (chưa đo được): ${describeUnmeasuredScoreInputs(file).join(', ')}.`
+                    : 'Điểm suy trực tiếp từ 4 phép đo đã chạy trên lưới bạn tải lên: độ kín, cạnh non-manifold, pháp tuyến nghịch và độ dày vách tối thiểu.'
+                  : `Chưa chấm điểm: thiếu số đo (${describeUnmeasuredScoreInputs(file).join(', ')}). Hệ thống không chấm điểm từ dữ liệu không có.`}
               </div>
             </div>
 
-            <div className={`px-4 py-2 border rounded text-center shrink-0 ${getScoreBadgeColor(printability.printabilityScore)}`}>
-              <div className="font-tech text-2xl font-bold leading-none">
-                {printability.printabilityScore}/100
+            {typeof printability.printabilityScore === 'number' ? (
+              <div className={`px-4 py-2 border rounded-sm text-center shrink-0 ${getScoreBadgeColor(printability.printabilityScore)}`}>
+                <div className="font-tech text-2xl font-bold leading-none">
+                  {printability.printabilityScore}/100
+                </div>
+                <div className="text-xs uppercase tracking-wider font-bold mt-1">
+                  {countMeasuredScoreInputs(file) < 4
+                    ? `Chấm từ ${countMeasuredScoreInputs(file)}/4 số đo`
+                    // R4: `level === null` (chua xep muc) KHONG duoc hien "Rui Ro Cao".
+                    : printability.level === null
+                    ? '—'
+                    : printability.level === 'good' ? 'Rất Khả Thi' : printability.level === 'warning' ? 'Cần Chú Ý' : 'Rủi Ro Cao'}
+                </div>
               </div>
-              <div className="text-[9px] uppercase tracking-wider font-bold mt-1">
-                {printability.level === 'good' ? 'Rất Khả Thi' : printability.level === 'warning' ? 'Cần Chú Ý' : 'Rủi Ro Cao'}
+            ) : (
+              <div className="px-4 py-2 border rounded-sm text-center shrink-0 bg-surface-muted border-line-control text-fg-muted">
+                <div className="font-tech text-2xl font-bold leading-none">—/100</div>
+                <div className="text-xs uppercase tracking-wider font-bold mt-1">Chưa chấm điểm</div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Orientation Recommendation */}
-          <div className="p-3.5 bg-cyan-50/60 border border-[#00687a]/20 rounded text-xs flex items-start gap-2.5">
-            <span className="material-symbols-outlined text-[#00687a] text-base shrink-0 mt-0.5">
-              explore
-            </span>
+          <div className="p-3.5 bg-primary-tint/60 border border-primary/20 rounded-sm text-xs flex items-start gap-2.5">
+            <Icon name="explore" size={18} className="text-primary shrink-0 mt-0.5" />
             <div>
-              <strong className="text-[#00687a] block">Hướng đặt phôi in đề xuất bởi AI Slicer:</strong>
-              <span className="text-[#1C1C1C]">{printability.recommendedOrientation}</span>
+              <strong className="text-primary block">Hướng đặt phôi in gợi ý (mặc định, chưa tối ưu theo máy):</strong>
+              <span className="text-fg">{printability.recommendedOrientation}</span>
             </div>
           </div>
 
           {/* Issues List */}
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-[#1C1C1C]">Danh sách phân tích chi tiết:</div>
+            <div className="text-xs font-semibold text-fg">Danh sách phân tích chi tiết:</div>
             {printability.issues.map((issue, idx) => (
               <div
                 key={idx}
-                className={`p-3 rounded border text-xs flex items-start gap-2.5 ${
+                className={`p-3 rounded-sm border text-xs flex items-start gap-2.5 ${
                   issue.severity === 'high'
-                    ? 'bg-rose-50/70 border-rose-200 text-rose-900'
+                    ? 'bg-danger-tint/70 border-danger/30 text-danger'
                     : issue.severity === 'medium'
-                    ? 'bg-amber-50/70 border-amber-200 text-amber-900'
-                    : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                    ? 'bg-warning-tint/70 border-warning/30 text-warning'
+                    : issue.severity === 'low'
+                    ? 'bg-positive-tint/70 border-positive/30 text-positive'
+                    : 'bg-surface-muted border-line text-fg-muted'
                 }`}
               >
-                <span className="material-symbols-outlined text-base shrink-0 mt-0.5">
-                  {issue.severity === 'high' ? 'error' : issue.severity === 'medium' ? 'warning' : 'check_circle'}
-                </span>
+                {/* Q2: `info` (ví dụ "chưa đo được …") không được tô xanh như một kết luận đạt. */}
+                <Icon
+                  name={issue.severity === 'high' ? 'error' : issue.severity === 'medium' ? 'warning' : issue.severity === 'low' ? 'check_circle' : 'info'}
+                  size={18}
+                  className="shrink-0 mt-0.5"
+                />
                 <div>
                   <div className="font-bold flex items-center gap-2">
                     <span>{issue.code}</span>
-                    <span className="text-[9px] uppercase px-1.5 py-0.2 rounded border bg-white/70">
+                    <span className="text-xs uppercase px-1.5 py-0.2 rounded-sm border border-line-subtle bg-surface-muted">
                       {issue.severity}
                     </span>
                   </div>
@@ -225,44 +264,68 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
       {activeTab === 'level2' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-sans">
-            <div className="bg-[#F7F6F2] p-3.5 border border-black/10 rounded">
-              <span className="text-[9px] uppercase tracking-widest text-[#7D7565] block">Độ Kín Nước</span>
-              <span className="font-tech font-bold text-[#1C1C1C] flex items-center gap-1 mt-1 text-xs text-emerald-700">
-                <span className="material-symbols-outlined text-xs">verified</span>
-                {file.isWatertight ? '100% Watertight' : 'Non-manifold'}
+            <div className="bg-surface-muted p-3.5 rounded-sm">
+              <span className="text-xs uppercase tracking-widest text-fg-muted block">Độ Kín Nước</span>
+              {/* Q2 (data-honesty): trước đây icon `verified` + `text-positive` render CẢ khi lưới
+                  KHÔNG kín ⇒ màu và biểu tượng nói ngược số đo. Giờ bám đúng `file.isWatertight`. */}
+              <span className={`font-tech font-bold flex items-center gap-1 mt-1 text-xs ${
+                file.isWatertight === true ? 'text-positive' : file.isWatertight === false ? 'text-warning' : 'text-fg-muted'
+              }`}>
+                <Icon
+                  name={file.isWatertight === true ? 'verified' : file.isWatertight === false ? 'warning' : 'help'}
+                  size={18}
+                />
+                {file.isWatertight === true
+                  ? 'Kín (watertight)'
+                  : file.isWatertight === false
+                  ? 'Không kín (non-manifold)'
+                  : 'Chưa phân tích'}
               </span>
             </div>
 
-            <div className="bg-[#F7F6F2] p-3.5 border border-black/10 rounded">
-              <span className="text-[9px] uppercase tracking-widest text-[#7D7565] block">Số Tam Giác</span>
-              <span className="font-tech font-bold text-[#1C1C1C] mt-1 block text-xs">
+            <div className="bg-surface-muted p-3.5 rounded-sm">
+              <span className="text-xs uppercase tracking-widest text-fg-muted block">Số Tam Giác</span>
+              <span className="font-tech font-bold text-fg mt-1 block text-xs">
                 {file.triangleCount.toLocaleString()} triangles
               </span>
             </div>
 
-            <div className="bg-[#F7F6F2] p-3.5 border border-black/10 rounded">
-              <span className="text-[9px] uppercase tracking-widest text-[#7D7565] block">Diện Tích Bề Mặt</span>
-              <span className="font-tech font-bold text-[#1C1C1C] mt-1 block text-xs">
+            <div className="bg-surface-muted p-3.5 rounded-sm">
+              <span className="text-xs uppercase tracking-widest text-fg-muted block">Diện Tích Bề Mặt</span>
+              <span className="font-tech font-bold text-fg mt-1 block text-xs">
                 {file.surfaceArea.toFixed(1)} cm²
               </span>
             </div>
 
-            <div className="bg-[#F7F6F2] p-3.5 border border-black/10 rounded">
-              <span className="text-[9px] uppercase tracking-widest text-[#7D7565] block">Cạnh Non-manifold</span>
-              <span className={`font-tech font-bold mt-1 block text-xs ${file.nonManifoldEdges > 0 ? 'text-amber-600' : 'text-emerald-700'}`}>
-                {file.nonManifoldEdges} cạnh
+            <div className="bg-surface-muted p-3.5 rounded-sm">
+              <span className="text-xs uppercase tracking-widest text-fg-muted block">Cạnh Non-manifold</span>
+              <span className={`font-tech font-bold mt-1 block text-xs ${
+                file.nonManifoldEdges === null ? 'text-fg-muted' : file.nonManifoldEdges > 0 ? 'text-warning' : 'text-positive'
+              }`}>
+                {file.nonManifoldEdges === null ? '—' : `${file.nonManifoldEdges} cạnh`}
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="p-3 bg-slate-50 border border-black/10 rounded">
-              <span className="text-[#7D7565] block text-[10px] uppercase font-bold">Vector Pháp Tuyến Nghịch (Inverted):</span>
-              <span className="font-tech font-bold text-[#1C1C1C]">{file.invertedNormals} faces</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 bg-canvas rounded-sm">
+              <span className="text-fg-muted block text-xs uppercase font-bold">Vector Pháp Tuyến Nghịch (Inverted):</span>
+              <span className="font-tech font-bold text-fg">
+                {file.invertedNormals === null ? '—' : `${file.invertedNormals} faces`}
+              </span>
             </div>
-            <div className="p-3 bg-slate-50 border border-black/10 rounded">
-              <span className="text-[#7D7565] block text-[10px] uppercase font-bold">Độ Dày Thành Tối Thiểu (Min Wall):</span>
-              <span className="font-tech font-bold text-[#1C1C1C]">{file.minWallThickness} mm</span>
+            <div className="p-3 bg-canvas rounded-sm">
+              <span className="text-fg-muted block text-xs uppercase font-bold">Độ Dày Thành Tối Thiểu (Min Wall):</span>
+              <span className="font-tech font-bold text-fg">
+                {typeof file.minWallThickness === 'number' ? `${file.minWallThickness.toFixed(2)} mm` : '—'}
+              </span>
+            </div>
+            {/* R4 (MP-10): bien ho la phep do RIENG — truoc day no bi gan nham cho "phap tuyen nghich". */}
+            <div className="p-3 bg-canvas rounded-sm">
+              <span className="text-fg-muted block text-xs uppercase font-bold">Biên Hở (cạnh chỉ có 1 mặt):</span>
+              <span className="font-tech font-bold text-fg">
+                {typeof file.boundaryEdges === 'number' ? `${file.boundaryEdges} cạnh` : '—'}
+              </span>
             </div>
           </div>
         </div>
@@ -271,23 +334,24 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
       {/* Level 1: File Metadata QA */}
       {activeTab === 'level1' && (
         <div className="space-y-3 text-xs font-sans">
-          <div className="p-3.5 bg-[#F7F6F2] border border-black/10 rounded space-y-2">
+          <div className="p-3.5 bg-surface-muted rounded-sm space-y-2">
             <div className="flex justify-between">
-              <span className="text-[#7D7565]">Tên tập tin:</span>
-              <span className="font-bold text-[#1C1C1C]">{file.fileName}</span>
+              <span className="text-fg-muted">Tên tập tin:</span>
+              <span className="font-bold text-fg">{file.fileName}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#7D7565]">Định dạng:</span>
-              <span className="font-tech font-bold text-[#00687a]">{file.format} CAD Standard</span>
+              <span className="text-fg-muted">Định dạng:</span>
+              <span className="font-tech font-bold text-primary">{file.format} CAD Standard</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#7D7565]">Dung lượng:</span>
-              <span className="font-tech text-[#1C1C1C]">{file.fileSize}</span>
+              <span className="text-fg-muted">Dung lượng:</span>
+              <span className="font-tech text-fg">{file.fileSize}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#7D7565]">Mã băm SHA-256:</span>
-              <span className="font-tech text-[10px] text-[#7D7565] truncate max-w-[200px]">
-                {file.sha256Hash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
+              <span className="text-fg-muted">Mã băm SHA-256:</span>
+              <span className="font-tech text-xs text-fg-muted truncate max-w-[200px]">
+                {/* Q2 (MP-11): bỏ fallback = SHA-256 của chuỗi rỗng; chưa băm được ⇒ in "—". */}
+                {file.sha256Hash || '—'}
               </span>
             </div>
           </div>

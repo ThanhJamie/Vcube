@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { disposeHierarchy } from '../../three/dispose';
 import { UnifiedCadToolbar } from '../tool3d/UnifiedCadToolbar';
+import { Icon } from '@frontend/ui';
 
 export interface PersonalizeModelViewer3DProps {
   modelType?: string;
@@ -16,35 +18,6 @@ export interface PersonalizeModelViewer3DProps {
   className?: string;
   dimensions?: { x: number; y: number; z: number };
   onLidExplodeChange?: (distance: number) => void;
-}
-
-/**
- * Cleanly and recursively disposes every BufferGeometry, Material (and sub-materials), and Texture
- * within an Object3D hierarchy to completely eliminate VRAM and GPU memory leaks.
- */
-export function disposeHierarchy(rootNode: THREE.Object3D, preserveMaterials = false) {
-  rootNode.traverse((child) => {
-    const mesh = child as THREE.Mesh;
-    if (mesh.geometry) {
-      mesh.geometry.dispose();
-    }
-    if (!preserveMaterials && mesh.material) {
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      for (const mat of materials) {
-        for (const key of Object.keys(mat)) {
-          const val = (mat as any)[key];
-          if (val && typeof val === 'object' && val.isTexture) {
-            (val as THREE.Texture).dispose();
-          }
-        }
-        mat.dispose();
-      }
-    }
-  });
-  while (rootNode.children.length > 0) {
-    const child = rootNode.children[0];
-    rootNode.remove(child);
-  }
 }
 
 export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> = ({
@@ -725,28 +698,28 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
   return (
     <div
       ref={rootWrapperRef}
-      className={`relative bg-[#091426] select-none overflow-hidden border border-[#1e293b] flex flex-col font-sans transition-all duration-300 ${
+      className={`relative bg-surface-inverse select-none overflow-hidden border border-surface-inverse-raised flex flex-col font-sans transition-all duration-300 ${
         isFullscreen
-          ? 'fixed inset-0 z-[100] rounded-none w-screen h-screen p-0 m-0 shadow-2xl'
-          : `rounded-2xl ${className}`
+          ? 'fixed inset-0 z-[100] rounded-none w-screen h-screen p-0 m-0 shadow-e3'
+          : `rounded-lg ${className}`
       }`}
     >
       {/* 3D WebGL Canvas Container */}
       <div ref={containerRef} className="w-full flex-1 cursor-grab active:cursor-grabbing" />
 
       {/* TOP-LEFT MINIMAL PRODUCT BADGE */}
-      <div className="absolute top-3 left-3 z-20 pointer-events-auto flex items-center gap-2 bg-[#091426]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#334155]/60 text-xs text-white shadow-md">
-        <span className="w-2 h-2 rounded-full bg-[#57DFFE] animate-pulse"></span>
-        <span className="font-mono text-xs font-bold text-slate-200 uppercase">
+      <div className="absolute top-3 left-3 z-panel pointer-events-auto flex items-center gap-2 bg-surface-inverse/85 backdrop-blur-md px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2">
+        <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+        <span className="font-mono text-xs font-bold text-on-inverse uppercase">
           {modelType || 'ARDUINO-CASE'}
         </span>
-        <span className="text-slate-500 font-mono text-[10px] hidden sm:inline">
+        <span className="text-on-inverse font-mono text-xs hidden sm:inline">
           ({dimensions.x.toFixed(0)}×{dimensions.y.toFixed(0)}×{dimensions.z.toFixed(0)} mm)
         </span>
       </div>
 
       {/* TOP-RIGHT UNIFIED CAD TOOLBAR */}
-      <div className="absolute top-3 right-3 z-20 pointer-events-auto">
+      <div className="absolute top-3 right-3 z-panel pointer-events-auto">
         <UnifiedCadToolbar
           isRotating={isRotating}
           onToggleRotate={() => setIsRotating(!isRotating)}
@@ -764,9 +737,9 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
       </div>
 
       {/* BOTTOM CENTER: COMPACT EXPLODE LID CONTROLLER */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto flex items-center gap-3 bg-[#091426]/90 backdrop-blur-md px-4 py-2 rounded-xl border border-[#334155]/60 shadow-xl text-xs text-white">
-        <span className="material-symbols-outlined text-sm text-[#57DFFE]">vertical_align_top</span>
-        <span className="font-mono text-[10px] uppercase text-slate-300 font-bold hidden sm:inline">
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-panel pointer-events-auto flex items-center gap-3 bg-surface-inverse/90 backdrop-blur-md px-4 py-2 rounded-lg border border-surface-inverse-raised/60 shadow-e3 text-xs text-on-inverse">
+        <Icon name="vertical_align_top" size={18} className="text-accent" />
+        <span className="font-mono text-xs uppercase text-on-inverse font-bold hidden sm:inline">
           TÁCH NẮP HỘP:
         </span>
         <input
@@ -779,10 +752,10 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
             setLocalLidLift(val);
             onLidExplodeChange?.(val);
           }}
-          className="w-28 sm:w-36 accent-[#00687A] cursor-pointer"
+          className="w-28 sm:w-36 accent-primary cursor-pointer"
           title="Kéo trượt để mở nắp hộp kiểm tra chân cắm bên trong"
         />
-        <span className="font-mono text-xs text-[#57DFFE] font-bold w-12 text-right">
+        <span className="font-mono text-xs text-accent font-bold w-12 text-right">
           +{localLidLift}mm
         </span>
       </div>

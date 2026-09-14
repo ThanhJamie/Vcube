@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
+import { Icon } from '@frontend/ui';
 
 interface ChatSupportModalProps {
   isOpen: boolean;
@@ -6,11 +8,14 @@ interface ChatSupportModalProps {
 }
 
 export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useLanguage();
+  // AT-09: đây là TRỢ LÝ TỰ ĐỘNG, không phải kỹ sư trực ca. Không nêu tên người, không
+  // cam kết SLA và không nêu thông số kỹ thuật nào khi chưa đọc từ dữ liệu thật của đơn.
   const [messages, setMessages] = useState<Array<{ sender: 'agent' | 'user'; text: string; time: string }>>([
     {
       sender: 'agent',
-      text: 'Chào kỹ sư Minh! Tôi là Long - Kỹ thuật viên trưởng tại phòng in VCUBE. Bạn cần hỗ trợ gì về dung sai, vật liệu hay tiến độ in?',
-      time: '10:15'
+      text: 'Chào bạn! Đây là trợ lý tự động của VCUBE. Bạn cần hỗ trợ gì về đơn hàng, vật liệu hay tệp CAD?',
+      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
@@ -27,70 +32,65 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
     setMessages(prev => [...prev, { sender: 'user', text: userText, time: timeNow }]);
     setInputMessage('');
 
-    // Simulate smart engineer reply
+    // Trợ lý tự động: KHÔNG bịa tiến độ, định mức, dung sai hay thời điểm giao.
+    // Câu trả lời chỉ xác nhận đã ghi nhận và nói rõ bước tiếp theo do người phụ trách.
     setTimeout(() => {
-      let reply = 'Đã nhận yêu cầu của bạn! Chúng tôi sẽ kiểm tra và điều chỉnh profile in trên máy Bambu Lab để đảm bảo kích thước ren M3 đạt chuẩn ±0.03mm.';
-      if (userText.toLowerCase().includes('petg') || userText.toLowerCase().includes('nhựa')) {
-        reply = 'Vật liệu PETG Technical Pro chịu nhiệt đến 75°C và chống va đập tốt hơn PLA 35%. Lô in của bạn đang chạy ở tốc độ 120mm/s để đảm bảo độ liên kết giữa các lớp in tối đa.';
-      } else if (userText.toLowerCase().includes('khi nào') || userText.toLowerCase().includes('giao')) {
-        reply = 'Đơn hàng đang in lớp 384/600, dự kiến hoàn thiện lúc 14:30 chiều nay và bàn giao cho VCUBE Express ngay trong ngày.';
-      }
+      const reply = 'VCUBE đã ghi nhận câu hỏi của bạn. Đây là trợ lý tự động: tiến độ, vật liệu và dung sai của đơn sẽ do bộ phận phụ trách kiểm tra trên dữ liệu thật rồi phản hồi lại cho bạn.';
 
       setMessages(prev => [...prev, { sender: 'agent', text: reply, time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) }]);
     }, 1000);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex justify-end">
-      <div className="bg-[#F7F6F2] w-full max-w-md h-full flex flex-col shadow-2xl border-l border-black/15 text-[#1C1C1C]">
+    <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex justify-end">
+      <div className="bg-surface w-full max-w-md h-full flex flex-col shadow-e3 text-fg">
         {/* Header */}
-        <div className="p-4 sm:p-5 bg-[#1C1C1C] text-white flex items-center justify-between">
+        <div className="p-4 sm:p-5 bg-surface-inverse text-on-inverse flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-9 h-9 bg-white/10 text-white flex items-center justify-center font-bold text-xs font-sans">
-                HL
-              </div>
-              <span className="w-2 h-2 rounded-full bg-white border border-[#1C1C1C] absolute -bottom-0.5 -right-0.5"></span>
+            <div className="w-9 h-9 bg-on-inverse/10 text-on-inverse flex items-center justify-center rounded-full">
+              <Icon name="smart_toy" size={20} />
             </div>
             <div>
-              <h3 className="font-serif font-bold text-sm text-white">Kỹ sư Hoàng Long (VCUBE Lab)</h3>
-              <p className="text-[10px] text-[#D5CFC5] font-sans">Kỹ sư trực xưởng • Hotline 24/7</p>
+              <h3 className="font-bold text-sm text-on-inverse">
+                {t('supportAssistant', 'Trợ lý tự động', 'Automated assistant')}
+              </h3>
+              <p className="text-xs text-fg-muted font-sans">Phản hồi tự động • Không phải kỹ sư trực ca</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-white/10 text-white/70 hover:text-white transition-colors touch-target-btn"
+            className="p-1.5 rounded-full hover:bg-on-inverse/10 text-on-inverse/70 hover:text-on-inverse transition-colors touch-target-btn"
             aria-label="Đóng trò chuyện"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <Icon name="close" size={20} />
           </button>
         </div>
 
         {/* Message history */}
-        <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-[#F7F6F2]">
+        <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-surface-muted">
           {messages.map((m, i) => (
             <div key={i} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
               <div
                 className={`max-w-[85%] p-3.5 sm:p-4 text-xs leading-relaxed font-sans ${
                   m.sender === 'user'
-                    ? 'bg-[#1C1C1C] text-white border border-[#1C1C1C]'
-                    : 'bg-white text-[#1C1C1C] border border-black/10'
+                    ? 'bg-surface-inverse text-on-inverse border border-surface-inverse'
+                    : 'bg-surface text-fg border border-line-subtle'
                 }`}
               >
                 {m.text}
               </div>
-              <span className="text-[9px] font-tech text-[#7D7565] mt-1 px-1">{m.time}</span>
+              <span className="text-xs font-tech text-fg-muted mt-1 px-1">{m.time}</span>
             </div>
           ))}
         </div>
 
         {/* Quick questions chips */}
-        <div className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white border-t border-black/10 flex gap-2 overflow-x-auto font-sans">
+        <div className="px-4 sm:px-5 py-2.5 sm:py-3 bg-surface border-t border-line-subtle flex gap-2 overflow-x-auto font-sans">
           {['Hỏi về dung sai', 'Thời gian giao hàng?', 'Đổi màu nhựa'].map((q) => (
             <button
               key={q}
               onClick={() => setInputMessage(q)}
-              className="px-3 py-1.5 bg-[#F7F6F2] hover:bg-black hover:text-white text-[#1C1C1C] text-[10px] uppercase tracking-wider font-semibold border border-black/10 shrink-0 transition-colors touch-target-btn whitespace-nowrap"
+              className="px-3 py-1.5 rounded-full bg-surface-muted hover:bg-surface-inverse hover:text-on-inverse text-fg text-xs uppercase tracking-wider font-semibold border border-line-subtle shrink-0 transition-colors touch-target-btn whitespace-nowrap"
             >
               {q}
             </button>
@@ -98,17 +98,17 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSend} className="p-3.5 sm:p-4 bg-white border-t border-black/10 flex gap-2 font-sans">
+        <form onSubmit={handleSend} className="p-3.5 sm:p-4 bg-surface border-t border-line-subtle flex gap-2 font-sans">
           <input
             type="text"
             placeholder="Nhập câu hỏi kỹ thuật..."
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            className="flex-1 bg-[#F7F6F2] border border-black/15 px-3 py-2.5 text-xs text-[#1C1C1C] focus:outline-none focus:border-black font-sans"
+            className="flex-1 bg-surface-muted border border-line-control px-3 py-2.5 text-xs text-fg focus:outline-none focus:border-primary font-sans"
           />
           <button
             type="submit"
-            className="px-5 py-2.5 bg-[#1C1C1C] hover:bg-[#333] text-white text-[10px] font-sans uppercase tracking-widest font-bold transition-colors touch-target-btn"
+            className="px-5 py-2.5 rounded-full bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse text-xs font-sans uppercase tracking-widest font-bold transition-colors touch-target-btn"
           >
             Gửi
           </button>

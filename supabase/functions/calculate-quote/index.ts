@@ -86,7 +86,23 @@ serve(async (req) => {
     const nonce = Math.random().toString(36).substring(2, 10);
     const quoteId = `QUO-EDGE-${now}`;
 
-    const secret = Deno.env.get('QUOTE_SIGNING_SECRET') || 'vcube_inkiri_hmac_secret_2026_industrial_fab';
+    // BẢO MẬT (docs/design/data-honesty.md AT-10, docs/plans/06-supabase-vercel.md E3):
+    // TUYỆT ĐỐI không có secret mặc định trong code. Secret hardcode nằm trong repo
+    // = mọi "báo giá có chữ ký" đều giả mạo được. Thiếu env ⇒ FAIL CLOSED: trả 503 và
+    // không ký gì cả, thay vì ký bằng một khoá ai cũng biết.
+    const secret = Deno.env.get('QUOTE_SIGNING_SECRET');
+    if (!secret || secret.trim().length < 32) {
+      console.error('[calculate-quote] QUOTE_SIGNING_SECRET chưa được cấu hình (hoặc quá ngắn) — từ chối ký.');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'QUOTE_SIGNING_SECRET chưa được cấu hình trên Edge Function — không thể ký báo giá.',
+          code: 'signing_secret_missing'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 }
+      );
+    }
+
     const sigPayload = JSON.stringify({
       id: quoteId,
       total: finalSellingPrice,

@@ -1,13 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { disposeHierarchy } from '../../three/dispose';
 import { ModelPart, TransformState, MeasurementResult, PlateInfo } from '../../types';
+import { Icon } from '@frontend/ui';
 
 export interface ModelViewer3DProps {
   fileName?: string;
   modelType?: string;
   parts?: ModelPart[];
   transform: TransformState;
-  bedDimensions?: { x: number; y: number; z: number };
+  /** SỐ ĐO bàn in (mm). `null`/bỏ trống = **CHƯA KHAI** ⇒ viewer không vẽ bàn (KHÔNG mặc định). */
+  bedDimensions?: { x: number; y: number; z: number } | null;
   customGeometry?: THREE.BufferGeometry | null;
   customObjectGroup?: THREE.Group | null;
   selectedPartId?: string | null;
@@ -32,40 +35,18 @@ export interface ModelViewer3DProps {
 }
 
 /**
- * Cleanly and recursively disposes every BufferGeometry, Material (and sub-materials), and Texture
- * within an Object3D hierarchy to completely eliminate VRAM and GPU memory leaks.
+ * Sàn khung dựng cảnh (đơn vị cảnh) khi CHƯA có bàn in và CHƯA đo được mô hình.
+ * Đây là hằng số DỰNG CẢNH — KHÔNG phải thông số bàn in của máy nào và KHÔNG bao giờ được
+ * hiển thị như một số đo (Đợt S #3: trước đây component tự mặc định một khối bàn in 256 mm).
  */
-export function disposeHierarchy(rootNode: THREE.Object3D, preserveMaterials = false) {
-  rootNode.traverse((child) => {
-    const mesh = child as THREE.Mesh;
-    if (mesh.geometry && !mesh.userData?.isSharedGeometry) {
-      mesh.geometry.dispose();
-    }
-    if (!preserveMaterials && mesh.material) {
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      for (const mat of materials) {
-        for (const key of Object.keys(mat)) {
-          const val = (mat as any)[key];
-          if (val && typeof val === 'object' && val.isTexture) {
-            (val as THREE.Texture).dispose();
-          }
-        }
-        mat.dispose();
-      }
-    }
-  });
-  while (rootNode.children.length > 0) {
-    const child = rootNode.children[0];
-    rootNode.remove(child);
-  }
-}
+const MIN_VIEW_FRAME = 260;
 
 export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   fileName,
   modelType = 'gear',
   parts = [],
   transform,
-  bedDimensions = { x: 256, y: 256, z: 256 },
+  bedDimensions = null,
   customGeometry = null,
   customObjectGroup = null,
   selectedPartId = null,
@@ -88,12 +69,26 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   onSelectPlate
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  /**
+   * Đợt S (#3): bàn in chỉ tồn tại khi CÓ SỐ ĐO THẬT cả 3 cạnh. `bed === null` ⇒ không vẽ lưới
+   * bàn, không kết luận "vượt khổ", không hiển thị con số bàn in nào.
+   */
+  const bed =
+    bedDimensions &&
+    typeof bedDimensions.x === 'number' && Number.isFinite(bedDimensions.x) &&
+    typeof bedDimensions.y === 'number' && Number.isFinite(bedDimensions.y) &&
+    typeof bedDimensions.z === 'number' && Number.isFinite(bedDimensions.z)
+      ? bedDimensions
+      : null;
+
   const rootWrapperRef = useRef<HTMLDivElement>(null);
   const [wireframe, setWireframe] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [modelHeight, setModelHeight] = useState(40);
-  const [modelDims, setModelDims] = useState<{ x: number; y: number; z: number }>({ x: 92, y: 92, z: 38 });
+  // Đợt S (#3): KHÔNG khởi tạo bằng số bịa (`40`, `92×92×38`). Giá trị 0 = CHƯA ĐO;
+  // giao diện hiện `—` và khung dựng cảnh dùng sàn `MIN_VIEW_FRAME` cho tới khi có số đo thật.
+  const [modelHeight, setModelHeight] = useState(0);
+  const [modelDims, setModelDims] = useState<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 });
   const [hoveredPartName, setHoveredPartName] = useState<string | null>(null);
   const [interactionMode] = useState<'orbit' | 'pan'>('orbit');
   const [caliperPoints, setCaliperPoints] = useState<THREE.Vector3[]>([]);
@@ -201,9 +196,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     const scaledY = modelDims.y * scaleMultiplier;
     const scaledZ = modelDims.z * scaleMultiplier;
 
-    const overflow = scaledX > bedDimensions.x || scaledY > bedDimensions.y || scaledZ > bedDimensions.z;
+    // Chưa khai bàn in ⇒ KHÔNG kết luận "vượt khổ" (không có gì để so).
+    const overflow = !!bed && (scaledX > bed.x || scaledY > bed.y || scaledZ > bed.z);
     setIsBedOverflow(overflow);
-  }, [modelDims, transform, bedDimensions]);
+  }, [modelDims, transform, bed]);
 
   // Handle measurement caliper click
   const handleMeasureClick = useCallback((worldPoint: THREE.Vector3) => {
@@ -306,6 +302,17 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   }, [isFullscreen]);
 
   // Force resize on fullscreen transition start and end
+  /**
+   * Khung tham chiếu để DỰNG CẢNH: bàn in thật nếu có, ngược lại dùng CHÍNH kích thước mô hình
+   * (số đo thật, cập nhật từ geometry) và cuối cùng là sàn `MIN_VIEW_FRAME`. Không dùng giá trị
+   * này để HIỂN THỊ số đo bàn in.
+   */
+  const viewFrame = {
+    x: bed?.x ?? (modelDims.x > 0 ? modelDims.x : MIN_VIEW_FRAME),
+    y: bed?.y ?? (modelDims.y > 0 ? modelDims.y : MIN_VIEW_FRAME),
+    z: bed?.z ?? (modelDims.z > 0 ? modelDims.z : MIN_VIEW_FRAME),
+  };
+
   useEffect(() => {
     const updateSize = () => {
       if (!containerRef.current || !rendererRef.current) return;
@@ -318,7 +325,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           perspectiveCameraRef.current.updateProjectionMatrix();
         }
         if (orthoCameraRef.current) {
-          const fSize = Math.max(bedDimensions.x, bedDimensions.y, 260);
+          const fSize = Math.max(viewFrame.x, viewFrame.y, MIN_VIEW_FRAME);
           orthoCameraRef.current.left = (-fSize * asp) / 2;
           orthoCameraRef.current.right = (fSize * asp) / 2;
           orthoCameraRef.current.top = fSize / 2;
@@ -339,7 +346,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [isFullscreen, bedDimensions, requestRender]);
+  }, [isFullscreen, bed, modelDims, requestRender]);
 
   // ---------------------------------------------------------------------------------
   // 1. SCENE GRAPH INITIALIZATION (Runs ONCE on mount; NOT destroyed on state change)
@@ -358,13 +365,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     // 2. Cameras
     const aspect = width / height;
     const persCamera = new THREE.PerspectiveCamera(45, aspect, 0.5, 50000);
-    const initialBedMax = Math.max(bedDimensions.x, bedDimensions.y, bedDimensions.z, 250);
+    const initialBedMax = Math.max(viewFrame.x, viewFrame.y, viewFrame.z, MIN_VIEW_FRAME);
     const initCamDist = initialBedMax * 2.2;
     persCamera.position.set(initCamDist * 0.75, initCamDist * 0.7, initCamDist * 0.85);
-    persCamera.lookAt(0, bedDimensions.z * 0.2, 0);
+    persCamera.lookAt(0, viewFrame.z * 0.2, 0);
     perspectiveCameraRef.current = persCamera;
 
-    const frustumSize = Math.max(bedDimensions.x, bedDimensions.y, 260) * 1.8;
+    const frustumSize = Math.max(viewFrame.x, viewFrame.y, MIN_VIEW_FRAME) * 1.8;
     const orthoCamera = new THREE.OrthographicCamera(
       (frustumSize * aspect) / -2,
       (frustumSize * aspect) / 2,
@@ -374,7 +381,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       50000
     );
     orthoCamera.position.set(initCamDist * 0.75, initCamDist * 0.7, initCamDist * 0.85);
-    orthoCamera.lookAt(0, bedDimensions.z * 0.2, 0);
+    orthoCamera.lookAt(0, viewFrame.z * 0.2, 0);
     orthoCameraRef.current = orthoCamera;
     activeCameraRef.current = cameraMode === 'orthographic' ? orthoCamera : persCamera;
 
@@ -420,35 +427,38 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     dirLight3.position.set(0, -30, 60);
     scene.add(dirLight3);
 
-    // 5. Millimeter CAD Build Plate Grid & Axis Lines
-    const bedWidth = bedDimensions.x;
-    const bedDepth = bedDimensions.y;
-    const bedHeight = bedDimensions.z;
+    // 5. Lưới bàn in CAD (mm) — CHỈ vẽ khi có SỐ ĐO bàn in THẬT (Đợt S #3).
+    //    Chưa khai khổ bàn ⇒ không vẽ lưới/buồng khổ và KHÔNG gắn một con số bàn in bịa nào.
+    if (bed) {
+      const bedWidth = bed.x;
+      const bedDepth = bed.y;
+      const bedHeight = bed.z;
 
-    const gridHelper = new THREE.GridHelper(
-      Math.max(bedWidth, bedDepth),
-      Math.round(Math.max(bedWidth, bedDepth) / 10),
-      0x008ba3,
-      0x1e293b
-    );
-    gridHelper.position.y = 0;
-    scene.add(gridHelper);
+      const gridHelper = new THREE.GridHelper(
+        Math.max(bedWidth, bedDepth),
+        Math.round(Math.max(bedWidth, bedDepth) / 10),
+        0x008ba3,
+        0x1e293b
+      );
+      gridHelper.position.y = 0;
+      scene.add(gridHelper);
 
-    const axesHelper = new THREE.AxesHelper(Math.max(30, bedWidth * 0.15));
-    axesHelper.position.set(-bedWidth / 2, 0.2, bedDepth / 2);
-    scene.add(axesHelper);
+      const axesHelper = new THREE.AxesHelper(Math.max(30, bedWidth * 0.15));
+      axesHelper.position.set(-bedWidth / 2, 0.2, bedDepth / 2);
+      scene.add(axesHelper);
 
-    // Build Volume Cage
-    const buildBoxGeo = new THREE.BoxGeometry(bedWidth, bedHeight, bedDepth);
-    const edges = new THREE.EdgesGeometry(buildBoxGeo);
-    const lineMat = new THREE.LineBasicMaterial({
-      color: 0x334155,
-      transparent: true,
-      opacity: 0.35
-    });
-    const wireframeBox = new THREE.LineSegments(edges, lineMat);
-    wireframeBox.position.set(0, bedHeight / 2, 0);
-    scene.add(wireframeBox);
+      // Build Volume Cage
+      const buildBoxGeo = new THREE.BoxGeometry(bedWidth, bedHeight, bedDepth);
+      const edges = new THREE.EdgesGeometry(buildBoxGeo);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x334155,
+        transparent: true,
+        opacity: 0.35
+      });
+      const wireframeBox = new THREE.LineSegments(edges, lineMat);
+      wireframeBox.position.set(0, bedHeight / 2, 0);
+      scene.add(wireframeBox);
+    }
 
     // 6. Model Mesh Group & Stencil Holder Group
     const modelGroup = new THREE.Group();
@@ -710,7 +720,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
               perspectiveCameraRef.current.updateProjectionMatrix();
             }
             if (orthoCameraRef.current) {
-              const fSize = Math.max(bedDimensions.x, bedDimensions.y, 260);
+              const fSize = Math.max(viewFrame.x, viewFrame.y, MIN_VIEW_FRAME);
               orthoCameraRef.current.left = (-fSize * asp) / 2;
               orthoCameraRef.current.right = (fSize * asp) / 2;
               orthoCameraRef.current.top = fSize / 2;
@@ -788,7 +798,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       disposeHierarchy(scene);
       renderer.dispose();
     };
-  }, [bedDimensions.x, bedDimensions.y, bedDimensions.z]);
+  }, [bed?.x, bed?.y, bed?.z]);
 
   // Separate Camera Mode Switcher (changes active camera without destroying WebGL context)
   useEffect(() => {
@@ -1375,7 +1385,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       onUpdateTransform({ rotationX: 0, rotationY: 0, rotationZ: 0, positionX: 0, positionZ: 0 });
     }
     const maxDim = Math.max(modelDims.x, modelDims.y, modelDims.z, 50);
-    const bedMax = Math.max(bedDimensions.x, bedDimensions.y, bedDimensions.z);
+    const bedMax = bed ? Math.max(bed.x, bed.y, bed.z) : 0;
     const dist = Math.max(maxDim * 2.2, bedMax * 1.8, 300);
     const target = orbitTargetRef.current;
     target.set(0, Math.max(modelHeight * 0.45, 12), 0);
@@ -1407,7 +1417,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
     const sphere = new THREE.Sphere();
     box.getBoundingSphere(sphere);
-    const radius = Math.max(sphere.radius, bedDimensions.x * 0.45, 35);
+    const radius = Math.max(sphere.radius, (bed?.x ?? 0) * 0.45, 35);
     const center = sphere.center;
 
     orbitTargetRef.current.set(center.x, Math.max(center.y, 10), center.z);
@@ -1434,8 +1444,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     setActiveAngle(angle);
     setIsRotating(false);
     const maxDim = Math.max(modelDims.x, modelDims.y, modelDims.z, 50);
-    const bedMax = Math.max(bedDimensions.x, bedDimensions.y);
-    const d = Math.max(maxDim * 2.2, bedMax * 1.5, 260);
+    const bedMax = bed ? Math.max(bed.x, bed.y) : 0;
+    const d = Math.max(maxDim * 2.2, bedMax * 1.5, MIN_VIEW_FRAME);
     const target = orbitTargetRef.current;
 
     const applyAngleToCam = (cam: THREE.Camera) => {
@@ -1516,10 +1526,12 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   // Auto scale model to fit printer bed
   const handleScaleToFitBed = () => {
     if (!onUpdateTransform) return;
+    // Chưa khai khổ bàn ⇒ KHÔNG suy được tỉ lệ "vừa bàn" (không lấy một khối bàn in bịa làm chuẩn).
+    if (!bed) return;
     const fitFactor = Math.min(
-      (bedDimensions.x * 0.85) / Math.max(1, modelDims.x),
-      (bedDimensions.y * 0.85) / Math.max(1, modelDims.y),
-      (bedDimensions.z * 0.85) / Math.max(1, modelDims.z)
+      (bed.x * 0.85) / Math.max(1, modelDims.x),
+      (bed.y * 0.85) / Math.max(1, modelDims.y),
+      (bed.z * 0.85) / Math.max(1, modelDims.z)
     );
     const targetScale = Math.max(5, Math.min(300, Math.round(fitFactor * 100)));
     onUpdateTransform({ scaleUniform: targetScale, positionX: 0, positionZ: 0 });
@@ -1565,20 +1577,20 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         }
       }}
       ref={rootWrapperRef}
-      className={`relative bg-[#091426] overflow-hidden border ${
-        isBedOverflow ? 'border-rose-500 shadow-[0_0_25px_rgba(239,68,68,0.35)] ring-2 ring-rose-500/40' : 'border-[#CBD5E1]'
+      className={`relative bg-surface-inverse overflow-hidden border ${
+        isBedOverflow ? 'border-danger shadow-e3 ring-2 ring-danger/40' : 'border-line'
       } flex flex-col transition-all duration-300 ${
         isFullscreen
-          ? 'fixed inset-0 z-[100] rounded-none w-screen h-screen p-0 m-0 shadow-2xl'
-          : `rounded-2xl ${className}`
+          ? 'fixed inset-0 z-[100] rounded-none w-screen h-screen p-0 m-0 shadow-e3'
+          : `rounded-lg ${className}`
       }`}
     >
       {/* Drag and Drop Over Canvas Overlay */}
       {isDragOver && (
-        <div className="absolute inset-0 z-50 bg-[#00687a]/90 backdrop-blur-md flex flex-col items-center justify-center text-white border-2 border-dashed border-[#57DFFE]">
-          <span className="material-symbols-outlined text-5xl animate-bounce text-[#57DFFE]">upload_file</span>
+        <div className="absolute inset-0 z-modal bg-primary/90 backdrop-blur-md flex flex-col items-center justify-center text-primary-fg border-2 border-dashed border-accent">
+          <Icon name="upload_file" size={48} className="animate-bounce text-accent" />
           <p className="font-mono text-sm font-bold mt-2 uppercase tracking-wider">Thả tập tin 3D (3MF / STL / OBJ / STEP) vào đây</p>
-          <span className="text-xs text-cyan-200 font-mono">Hệ thống sẽ bóc tách cấu trúc 3D tự động</span>
+          <span className="text-xs text-primary-fg font-mono">Hệ thống sẽ bóc tách cấu trúc 3D tự động</span>
         </div>
       )}
 
@@ -1586,49 +1598,51 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       <div ref={containerRef} className="w-full flex-1 cursor-grab active:cursor-grabbing min-h-[340px]" />
 
       {/* Top Header Bar: Status Badge + Live FPS on Left, Dimensions + Fullscreen on Right */}
-      <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between gap-2 pointer-events-none">
+      <div className="absolute top-3 left-3 right-3 z-panel flex items-center justify-between gap-2 pointer-events-none">
         {/* Top-Left: VCUBE ENGINE v2.6 // 60 FPS // Model Name */}
-        <div className="pointer-events-auto flex items-center gap-2 bg-[#091426]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#334155]/70 text-xs text-white font-mono shadow-lg">
-          <span className="w-2 h-2 rounded-full bg-[#57DFFE] animate-pulse shrink-0"></span>
-          <span className="font-bold text-[#57DFFE] tracking-wider shrink-0">VCUBE ENGINE v2.6</span>
-          <span className="text-slate-600">//</span>
-          <span className="text-emerald-400 font-bold shrink-0">{fps} FPS</span>
+        <div className="pointer-events-auto flex items-center gap-2 bg-surface-inverse/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-surface-inverse-raised/70 text-xs text-on-inverse font-mono shadow-e2">
+          <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0"></span>
+          <span className="font-bold text-accent tracking-wider shrink-0">VCUBE ENGINE v2.6</span>
+          <span className="text-on-inverse/70">//</span>
+          <span className="text-positive font-bold shrink-0">{fps} FPS</span>
           {isFullscreen && (
             <>
-              <span className="text-slate-600">//</span>
-              <span className="text-cyan-300 font-bold uppercase text-[10px] bg-cyan-950/80 px-1.5 py-0.5 rounded border border-cyan-500/40 tracking-wider">
+              <span className="text-on-inverse/70">//</span>
+              <span className="text-primary font-bold uppercase text-xs bg-primary-tint px-1.5 py-0.5 rounded-sm border border-primary/40 tracking-wider">
                 FULLSCREEN
               </span>
             </>
           )}
-          <span className="text-slate-600 hidden sm:inline">//</span>
-          <span className="text-slate-200 font-medium truncate max-w-[110px] sm:max-w-[200px] hidden sm:inline" title={displayName}>
+          <span className="text-on-inverse/70 hidden sm:inline">//</span>
+          <span className="text-on-inverse/70 font-medium truncate max-w-[110px] sm:max-w-[200px] hidden sm:inline" title={displayName}>
             {displayName}
           </span>
         </div>
 
         {/* Top-Right: Dimension Chip + Fullscreen */}
         <div className="pointer-events-auto flex items-center gap-1.5">
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#091426]/90 backdrop-blur-md rounded-xl border border-[#334155]/70 text-[#57DFFE] font-mono text-xs shadow-lg">
-            <span className="material-symbols-outlined text-sm text-cyan-400">straighten</span>
-            <span className="font-bold">{modelDims.x.toFixed(1)} × {modelDims.y.toFixed(1)} × {modelDims.z.toFixed(1)} mm</span>
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-surface-inverse/90 backdrop-blur-md rounded-lg border border-surface-inverse-raised/70 text-accent font-mono text-xs shadow-e2">
+            <Icon name="straighten" size={18} className="text-accent" />
+            <span className="font-bold">
+              {modelDims.x > 0 && modelDims.y > 0 && modelDims.z > 0
+                ? `${modelDims.x.toFixed(1)} × ${modelDims.y.toFixed(1)} × ${modelDims.z.toFixed(1)} mm`
+                : '— chưa đo'}
+            </span>
           </div>
 
           <button
             type="button"
             onClick={handleToggleFullscreen}
             title={isFullscreen ? 'Thoát toàn màn hình (Phím ESC)' : 'Toàn màn hình CAD Studio'}
-            className={`p-1.5 backdrop-blur-md rounded-xl border transition-all shadow-lg cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold ${
+            className={`p-1.5 backdrop-blur-md rounded-lg border transition-all shadow-e2 cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold ${
               isFullscreen
-                ? 'bg-[#00687A] text-white border-[#57DFFE] shadow-cyan-900/50 hover:bg-[#005260]'
-                : 'bg-[#091426]/90 border-[#334155]/70 text-slate-300 hover:text-white hover:border-[#57DFFE]/60'
+                ? 'bg-primary text-primary-fg border-accent shadow-e1 hover:bg-primary-hover'
+                : 'bg-surface-inverse/90 border-surface-inverse-raised/70 text-on-inverse/70 hover:text-on-inverse hover:border-accent/60'
             }`}
           >
-            <span className="material-symbols-outlined text-base">
-              {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
-            </span>
+            <Icon name={isFullscreen ? 'fullscreen_exit' : 'fullscreen'} size={18} />
             {isFullscreen && (
-              <span className="text-[10px] text-cyan-200 hidden sm:inline uppercase tracking-wider pr-1">
+              <span className="text-xs text-primary-fg hidden sm:inline uppercase tracking-wider pr-1">
                 Thoát (ESC)
               </span>
             )}
@@ -1637,10 +1651,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       </div>
 
       {/* Floating Centered CAD Control Toolbar */}
-      <div className="absolute top-12 sm:top-14 left-1/2 -translate-x-1/2 z-20 pointer-events-auto max-w-[95%] overflow-x-auto">
-        <div className="flex items-center gap-1.5 bg-[#091426]/90 backdrop-blur-md p-1.5 rounded-2xl border border-[#334155]/70 shadow-2xl text-white">
+      <div className="absolute top-12 sm:top-14 left-1/2 -translate-x-1/2 z-panel pointer-events-auto max-w-[95%] overflow-x-auto">
+        <div className="flex items-center gap-1.5 bg-surface-inverse/90 backdrop-blur-md p-1.5 rounded-md border border-surface-inverse-raised/70 shadow-e3 text-on-inverse">
           {/* Angle Presets: [ISO], [TOP], [FRONT], [SIDE] */}
-          <div className="flex items-center gap-0.5 bg-[#0f172a] p-0.5 rounded-xl border border-[#334155]/50 font-mono text-[10px]">
+          <div className="flex items-center gap-0.5 bg-surface-inverse p-0.5 rounded-lg border border-surface-inverse-raised/50 font-mono text-xs">
             {(['iso', 'top', 'front', 'side'] as const).map((ang) => (
               <button
                 key={ang}
@@ -1648,8 +1662,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
                 onClick={() => setCameraAngle(ang)}
                 className={`px-2 py-1 rounded-lg font-bold uppercase transition-all cursor-pointer ${
                   activeAngle === ang
-                    ? 'bg-[#00687A] text-white shadow-xs border border-[#57DFFE]/50'
-                    : 'text-slate-400 hover:text-white hover:bg-[#1e293b]'
+                    ? 'bg-primary text-primary-fg shadow-e1 border border-accent/50'
+                    : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised'
                 }`}
                 title={`Góc nhìn [${ang.toUpperCase()}]`}
               >
@@ -1658,18 +1672,18 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             ))}
           </div>
 
-          <div className="w-px h-4 bg-[#334155]/80 shrink-0" />
+          <div className="w-px h-4 bg-surface-inverse-raised/80 shrink-0" />
 
           {/* 360 Auto-Rotate */}
           <button
             type="button"
             onClick={() => setIsRotating(!isRotating)}
             title={isRotating ? 'Dừng xoay tự động 360°' : 'Bật xoay tự động 360°'}
-            className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
-              isRotating ? 'text-[#57DFFE] bg-[#00687A]/35 border border-[#57DFFE]/50' : 'text-slate-300 hover:bg-[#1e293b]'
+            className={`p-1.5 rounded-sm transition-colors cursor-pointer ${
+              isRotating ? 'text-accent bg-primary/35 border border-accent/50' : 'text-on-inverse/70 hover:bg-surface-inverse-raised'
             }`}
           >
-            <span className="material-symbols-outlined text-base">360</span>
+            <Icon name="360" size={18} />
           </button>
 
           {/* Wireframe / Solid */}
@@ -1677,11 +1691,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             type="button"
             onClick={() => setWireframe(!wireframe)}
             title={wireframe ? 'Chuyển sang chế độ Đặc (Solid)' : 'Chuyển sang chế độ Khung dây (Wireframe)'}
-            className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
-              wireframe ? 'text-[#57DFFE] bg-[#00687A]/35 border border-[#57DFFE]/50' : 'text-slate-300 hover:bg-[#1e293b]'
+            className={`p-1.5 rounded-sm transition-colors cursor-pointer ${
+              wireframe ? 'text-accent bg-primary/35 border border-accent/50' : 'text-on-inverse/70 hover:bg-surface-inverse-raised'
             }`}
           >
-            <span className="material-symbols-outlined text-base">grid_4x4</span>
+            <Icon name="grid_4x4" size={18} />
           </button>
 
           {/* Camera Mode Toggle (Perspective / Ortho) */}
@@ -1689,22 +1703,22 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             type="button"
             onClick={handleToggleCameraMode}
             title={cameraMode === 'orthographic' ? 'Đang Trực Giao (Ortho) -> Bấm để chuyển Phối Cảnh (Persp)' : 'Đang Phối Cảnh (Persp) -> Bấm để chuyển Trực Giao (Ortho)'}
-            className="px-2 py-1 rounded-xl hover:bg-[#1e293b] text-slate-300 hover:text-white transition-colors cursor-pointer font-mono text-[10px] font-bold flex items-center gap-1 border border-[#334155]/50"
+            className="px-2 py-1 rounded-lg hover:bg-surface-inverse-raised text-on-inverse/70 hover:text-on-inverse transition-colors cursor-pointer font-mono text-xs font-bold flex items-center gap-1 border border-surface-inverse-raised/50"
           >
-            <span className="material-symbols-outlined text-sm text-[#57DFFE]">view_in_ar</span>
+            <Icon name="view_in_ar" size={18} className="text-accent" />
             <span>{cameraMode === 'orthographic' ? 'ORTHO' : 'PERSP'}</span>
           </button>
 
-          <div className="w-px h-4 bg-[#334155]/80 shrink-0" />
+          <div className="w-px h-4 bg-surface-inverse-raised/80 shrink-0" />
 
           {/* Reset Camera View */}
           <button
             type="button"
             onClick={handleResetCamera}
             title="Đặt lại góc nhìn chuẩn (Reset View)"
-            className="p-1.5 rounded-xl hover:bg-[#1e293b] text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-sm hover:bg-surface-inverse-raised text-on-inverse/70 hover:text-on-inverse transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-base">center_focus_strong</span>
+            <Icon name="center_focus_strong" size={18} />
           </button>
 
           {/* Bounding Box Toggle */}
@@ -1712,11 +1726,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             type="button"
             onClick={handleToggleBoundingBox}
             title={isBoundingBoxActive ? 'Ẩn khung bao (Bounding Box)' : 'Hiện khung bao (Bounding Box)'}
-            className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
-              isBoundingBoxActive ? 'text-[#57DFFE] bg-[#00687A]/35 border border-[#57DFFE]/50' : 'text-slate-300 hover:bg-[#1e293b]'
+            className={`p-1.5 rounded-sm transition-colors cursor-pointer ${
+              isBoundingBoxActive ? 'text-accent bg-primary/35 border border-accent/50' : 'text-on-inverse/70 hover:bg-surface-inverse-raised'
             }`}
           >
-            <span className="material-symbols-outlined text-base">square_foot</span>
+            <Icon name="square_foot" size={18} />
           </button>
 
           {/* Caliper 2-Point Measurement Toggle */}
@@ -1724,11 +1738,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             type="button"
             onClick={handleToggleMeasurement}
             title={isMeasurementActive ? 'Tắt thước đo Caliper' : 'Bật thước đo Caliper 2 điểm'}
-            className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
-              isMeasurementActive ? 'text-amber-400 bg-amber-950/40 border border-amber-500/50' : 'text-slate-300 hover:bg-[#1e293b]'
+            className={`p-1.5 rounded-sm transition-colors cursor-pointer ${
+              isMeasurementActive ? 'text-warning bg-warning-tint border border-warning/50' : 'text-on-inverse/70 hover:bg-surface-inverse-raised'
             }`}
           >
-            <span className="material-symbols-outlined text-base">straighten</span>
+            <Icon name="straighten" size={18} />
           </button>
 
           {/* Screenshot PNG */}
@@ -1736,18 +1750,18 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             type="button"
             onClick={handleCaptureThumbnail}
             title="Chụp ảnh mô hình 3D (PNG)"
-            className="p-1.5 rounded-xl hover:bg-[#1e293b] text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-sm hover:bg-surface-inverse-raised text-on-inverse/70 hover:text-on-inverse transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-base">photo_camera</span>
+            <Icon name="photo_camera" size={18} />
           </button>
         </div>
       </div>
 
       {/* Dedicated Multi-Plate Dock (Positioned at Bottom-Left above Slicer) */}
       {plates && plates.length > 1 && (
-        <div className="absolute bottom-16 left-3 z-20 pointer-events-auto flex items-center gap-1.5 bg-[#091426]/90 backdrop-blur-md p-1.5 rounded-2xl border border-[#334155]/70 font-mono text-[11px] shadow-xl">
-          <span className="px-2 py-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-            <span className="material-symbols-outlined text-xs text-[#57DFFE]">layers</span>
+        <div className="absolute bottom-16 left-3 z-panel pointer-events-auto flex items-center gap-1.5 bg-surface-inverse/90 backdrop-blur-md p-1.5 rounded-md border border-surface-inverse-raised/70 font-mono text-xs shadow-e3">
+          <span className="px-2 py-1 text-xs text-on-inverse/70 font-bold uppercase tracking-wider flex items-center gap-1">
+            <Icon name="layers" size={18} className="text-accent" />
             Bàn In:
           </span>
           <button
@@ -1756,10 +1770,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
               if (onSelectPlate) onSelectPlate(0);
               handleAutoFit();
             }}
-            className={`px-2.5 py-1 rounded-xl font-bold transition-all cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
               activePlateIndex === 0
-                ? 'bg-[#00687A] text-white border border-[#57DFFE]/50 shadow-xs'
-                : 'text-slate-400 hover:text-white hover:bg-[#1e293b]'
+                ? 'bg-primary text-primary-fg border border-accent/50 shadow-e1'
+                : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised'
             }`}
             title="Hiển thị tất cả chi tiết đã lắp ráp"
           >
@@ -1775,10 +1789,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
                   if (onSelectPlate) onSelectPlate(plate.index);
                   handleAutoFit();
                 }}
-                className={`px-2.5 py-1 rounded-xl font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-[#00687A] text-white border border-[#57DFFE]/50 shadow-xs'
-                    : 'text-slate-400 hover:text-white hover:bg-[#1e293b]'
+                    ? 'bg-primary text-primary-fg border border-accent/50 shadow-e1'
+                    : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised'
                 }`}
                 title={`Chuyển sang Bàn ${plate.index}`}
               >
@@ -1791,14 +1805,14 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* Bed overflow warning banner when dimensions exceed build plate */}
       {isBedOverflow && (
-        <div className="absolute top-14 left-3 right-3 z-20 bg-rose-950/90 backdrop-blur-md border border-rose-500 text-rose-200 px-4 py-2.5 rounded-xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-mono animate-pulse">
+        <div className="absolute top-14 left-3 right-3 z-panel bg-danger-tint backdrop-blur-md border border-danger/40 text-danger px-4 py-2.5 rounded-lg shadow-e3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono animate-pulse">
           <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-rose-400 text-xl shrink-0">warning</span>
+            <Icon name="warning" size={24} className="text-danger shrink-0" />
             <div>
-              <strong className="font-bold text-rose-200 block sm:inline">
-                CẢNH BÁO: KÍCH THƯỚC VƯỢT KHỔ BÀN IN ({bedDimensions.x} × {bedDimensions.y} × {bedDimensions.z} mm)
+              <strong className="font-bold text-danger block sm:inline">
+                CẢNH BÁO: KÍCH THƯỚC VƯỢT KHỔ BÀN IN ({bed ? `${bed.x} × ${bed.y} × ${bed.z} mm` : 'chưa khai khổ bàn'})
               </strong>
-              <span className="text-[11px] text-rose-300/80 block sm:inline sm:ml-2">
+              <span className="text-xs text-danger/80 block sm:inline sm:ml-2">
                 Mô hình ({(modelDims.x * scaleMultiplier).toFixed(1)} × {(modelDims.y * scaleMultiplier).toFixed(1)} × {(modelDims.z * scaleMultiplier).toFixed(1)} mm) vượt quá khổ máy.
               </span>
             </div>
@@ -1807,9 +1821,9 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             <button
               type="button"
               onClick={handleScaleToFitBed}
-              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
+              className="px-3 py-1.5 bg-danger hover:opacity-90 text-primary-fg rounded-lg font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 shadow-e1"
             >
-              <span className="material-symbols-outlined text-sm">fit_screen</span>
+              <Icon name="fit_screen" size={18} />
               Co Vừa Bàn (Auto-Fit)
             </button>
           )}
@@ -1818,27 +1832,27 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* Metrology Overlay: Caliper 2-point measurement indicator */}
       {isMeasurementActive && (
-        <div className="absolute top-14 right-3 bg-[#091426]/95 backdrop-blur-md p-3 rounded-xl border border-amber-500/60 text-xs text-white max-w-xs shadow-2xl space-y-2 z-20 font-mono">
-          <div className="flex items-center justify-between gap-2 font-bold text-amber-400">
+        <div className="absolute top-14 right-3 bg-surface-inverse/95 backdrop-blur-md p-3 rounded-lg border border-warning/60 text-xs text-on-inverse max-w-xs shadow-e3 space-y-2 z-panel font-mono">
+          <div className="flex items-center justify-between gap-2 font-bold text-warning">
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-base">straighten</span>
+              <Icon name="straighten" size={18} />
               THƯỚC ĐO CALIPER 2 ĐIỂM
             </span>
             <button
               type="button"
               onClick={clearMeasurement}
-              className="text-[10px] text-slate-400 hover:text-white uppercase underline cursor-pointer"
+              className="text-xs text-on-inverse/70 hover:text-on-inverse uppercase underline cursor-pointer"
             >
               Xóa điểm
             </button>
           </div>
-          <div className="text-[11px] text-slate-300 leading-relaxed">
+          <div className="text-xs text-on-inverse/70 leading-relaxed">
             {caliperPoints.length === 0 && '1. Nhấp chuột chọn điểm thứ nhất trên phôi 3D...'}
             {caliperPoints.length === 1 && '2. Nhấp chuột chọn điểm thứ hai để tính khoảng cách...'}
             {caliperPoints.length === 2 && (
-              <div className="bg-amber-950/50 p-2 rounded-lg border border-amber-500/40 mt-1">
-                <span className="text-slate-400 text-[10px] block">KHOẢNG CÁCH THỰC TẾ:</span>
-                <span className="text-[#57DFFE] text-sm font-bold block">
+              <div className="bg-warning-tint p-2 rounded-lg border border-warning/40 mt-1">
+                <span className="text-on-inverse/70 text-xs block">KHOẢNG CÁCH THỰC TẾ:</span>
+                <span className="text-accent text-sm font-bold block">
                   {caliperDistance} mm
                 </span>
               </div>
@@ -1849,16 +1863,16 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* Hover Tooltip */}
       {hoveredPartName && (
-        <div className="absolute bottom-16 left-3 bg-[#091426]/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-cyan-700/50 text-xs font-mono text-[#57DFFE] pointer-events-none shadow-lg z-20">
-          <span className="text-slate-400">Chi tiết:</span> {hoveredPartName}
+        <div className="absolute bottom-16 left-3 bg-surface-inverse/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-primary/50 text-xs font-mono text-accent pointer-events-none shadow-e2 z-panel">
+          <span className="text-on-inverse/70">Chi tiết:</span> {hoveredPartName}
         </div>
       )}
 
       {/* Bottom: Unified Layer Slicer progress slider with percentage and clipping plane */}
-      <div className="absolute bottom-3 left-3 right-3 bg-[#091426]/90 backdrop-blur-md px-4 py-2.5 rounded-xl border border-[#334155]/60 flex items-center justify-between gap-4 text-white font-mono z-20 shadow-xl">
+      <div className="absolute bottom-3 left-3 right-3 bg-surface-inverse/90 backdrop-blur-md px-4 py-2.5 rounded-lg border border-surface-inverse-raised/60 flex items-center justify-between gap-4 text-on-inverse font-mono z-panel shadow-e3">
         <div className="flex items-center gap-2 shrink-0">
-          <span className="material-symbols-outlined text-[#57DFFE] text-sm">layers</span>
-          <span className="text-xs text-slate-200 font-bold">LỚP IN: {currentSlice}%</span>
+          <Icon name="layers" size={18} className="text-accent" />
+          <span className="text-xs text-on-inverse/70 font-bold">LỚP IN: {currentSlice}%</span>
         </div>
         <input
           type="range"
@@ -1866,16 +1880,16 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           max="100"
           value={currentSlice}
           onChange={(e) => handleSliceChange(Number(e.target.value))}
-          className="w-full h-1.5 bg-[#1e293b] rounded-lg appearance-none cursor-pointer accent-[#57DFFE]"
+          className="w-full h-1.5 bg-surface-inverse-raised rounded-full appearance-none cursor-pointer accent-accent"
           title={`Cắt lớp 3D: ${currentSlice}%`}
         />
-        <div className="flex items-center gap-2 text-[11px] text-slate-300 shrink-0">
-          <span className="text-[#57DFFE] font-bold">
+        <div className="flex items-center gap-2 text-xs text-on-inverse/70 shrink-0">
+          <span className="text-accent font-bold">
             {((modelHeight * currentSlice) / 100).toFixed(1)} mm
           </span>
-          <span className="text-slate-500">/</span>
-          <span className="text-slate-400">{modelHeight.toFixed(1)} mm</span>
-          <span className="hidden sm:inline px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded text-[9px]">
+          <span className="text-on-inverse/70">/</span>
+          <span className="text-on-inverse/70">{modelHeight.toFixed(1)} mm</span>
+          <span className="hidden sm:inline px-1.5 py-0.5 bg-surface-inverse text-on-inverse/70 rounded-sm text-xs">
             0.16mm Layer
           </span>
         </div>

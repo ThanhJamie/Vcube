@@ -1,9 +1,207 @@
 @import "tailwindcss";
 
+/* Dual theme: `.dark` được gắn trên <html> bởi src/frontend/theme/ThemeProvider.tsx.
+   Route dark-first: /quote, /admin/*, /lab/*, /designer/* (docs/plans/01-theme-migration.md §5.2). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* `index.html` không nằm trong tập source tự dò của Tailwind (đã kiểm chứng: build ra
+   KHÔNG có .bg-canvas/.text-fg) -> khai báo tường minh để class token trên <body> sinh
+   utility thật thay vì bị bỏ qua im lặng. */
+@source "../index.html";
+/* Tailwind v4 quét cả file .md trong repo; docs/ chứa NGUYÊN VĂN chuỗi lớp hex
+   (ví dụ `placeholder-[#94A3B8]` trong docs/plans/token-codemod-report.md) nên sinh
+   utility CHẾT vào CSS build. Loại docs/ khỏi tập source. */
+@source not "../docs";
+
+/* ---------------------------------------------------------------------------
+   Design tokens — nguồn sự thật: docs/design/tokens.md
+   Tên theo VAI TRÒ (primary, fg, line…), không theo màu: đổi theme chỉ đổi giá trị biến.
+   Đây là giá trị LIGHT (mặc định). Giá trị DARK ở khối `.dark` bên dưới.
+   --text-* (thang chữ) ĐÃ khai báo ở Đợt 11A theo docs/plans/21-saas-spec.md §2.2 —
+   ghi đè mặc định Tailwind v4 (text-sm 14px -> 13px, text-base 16px -> 14px,
+   text-lg 18px -> 16px, text-4xl 36px -> 38px) nên ĐỔI PIXEL TOÀN APP, có chủ đích.
+   --duration-* / --ease-* (motion) VẪN chưa khai báo: đụng vào là đổi mọi transition.
+   `static`: Tailwind v4 chỉ phát biến theme khi có utility dùng tới; token nền tảng
+   (radius-full, shadow e0..e3, z-*) chưa có consumer nên PHẢI ép phát đủ.
+   LƯU Ý: không được viết chuỗi "* /" liền nhau trong comment của file này —
+   Tailwind/CSS sẽ kết thúc comment sớm và nuốt luôn khối @theme bên dưới.
+   --------------------------------------------------------------------------- */
+@theme static {
+  /* --- Màu: nền & bề mặt --- */
+  --color-canvas: #F8FAFC;
+  --color-surface: #FFFFFF;
+  /* Light: "raised" bằng surface (phân cấp bề mặt chỉ cần ở dark). */
+  --color-surface-raised: #FFFFFF;
+  --color-surface-muted: #F8F9FF;
+  --color-surface-inverse: #091426;
+  --color-surface-inverse-raised: #1E293B;
+  --color-on-inverse: #FFFFFF;
+
+  /* --- Màu: đường & viền --- */
+  --color-line: #CBD5E1;
+  --color-line-subtle: #E2E8F0;
+  /* Viền control (input/select/checkbox) — cần >= 3:1. KHÔNG dùng cho chữ (3.21:1). */
+  --color-line-control: #8590A6;
+
+  /* --- Màu: chữ --- */
+  --color-fg: #091426;
+  --color-fg-muted: #545F73;
+  /* #94A3B8 (2.56:1) đã bị loại khỏi vai trò chữ; chữ mờ dùng #64748B (4.76:1). */
+  --color-fg-subtle: #64748B;
+
+  /* --- Màu: thương hiệu & trạng thái --- */
+  --color-primary: #00687A;
+  --color-primary-hover: #005260;
+  --color-primary-fg: #FFFFFF;
+  --color-accent: #57DFFE;
+  --color-positive: #15803D;
+  --color-warning: #B45309;
+  /* Sao đánh giá — chỉ đồ hoạ/lớn (3.19:1), không dùng cho chữ nhỏ. */
+  --color-warning-strong: #D97706;
+  --color-danger: #B91C1C;
+  --color-info: #1D4ED8;
+  --color-ring: #00687A;
+
+  /* TINT cho the trang thai / callout — thay cho `bg-<mau>-50/100` tho.
+     Luat: nen tint + chu <mau> dac (xem docs/plans/12-ui-refactor-spec.md §1.3).
+     Hai tint duoi day phai NHAT hon phan con lai vi mau dac cua chung (#15803D, #B45309)
+     la mau toi nhat trong nhom trang thai:
+       positive-tint #E7F3EC -> #F0F9F3 : #15803D dat 4.40 -> 4.67 (D-1b)
+       warning-tint  #FBF0E4 -> #FEF6EC : #B45309 dat 4.47 -> 4.69 (D-1)
+     CANH BAO: `text-fg-subtle` #64748B KHONG dat tren cac nen tint nay (positive-tint
+     light 4.43 / dark 4.46, warning-tint light 4.44 / dark 4.33) -> tren nen tint dung
+     `text-fg-muted`; xem scripts/check-contrast-combos.mjs. */
+  --color-primary-tint: #E6F0F2;
+  --color-positive-tint: #F0F9F3;
+  --color-warning-tint: #FEF6EC;
+  --color-danger-tint: #FBE9E9;
+  --color-info-tint: #E8EDFB;
+
+  /* --- Bo góc: thang SaaS (docs/plans/21-saas-spec.md §1.1) ---
+     sm 6 (badge/chip) · md 8 (nút, input, select) · lg 12 (card, panel)
+     xl 16 (band toàn chiều rộng) · modal 14 (modal/sheet) · full (avatar, chấm, pill đếm)
+     Thang cũ 8/12/20/28 -> 6/8/12/16: NHỎ hơn nên giảm rủi ro "ô vuông thành tròn"
+     (bài học A19), nhưng vẫn phải rà `borderRadius/(cạnh/2) < 1` khi áp từng trang. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-modal: 14px;
+  --radius-full: 9999px;
+
+  /* --- Elevation theo vai trò (e0 phẳng + viền) ---
+     Chính sách Modern SaaS (21-saas-spec.md §2.4): e0 card trong luồng (KHÔNG bóng) ·
+     e1 card nổi · e2 popover/dropdown · e3 modal. Giữ 4 bậc, giá trị RÀ NHẸ hơn bản cũ
+     (SaaS tối giản: bóng chỉ gợi độ nổi, viền mới là tín hiệu phân tách). */
+  --shadow-e0: none;
+  --shadow-e1: 0 1px 2px rgb(9 20 38 / 0.05), 0 1px 1px rgb(9 20 38 / 0.04);
+  --shadow-e2: 0 2px 8px rgb(9 20 38 / 0.08), 0 1px 2px rgb(9 20 38 / 0.04);
+  --shadow-e3: 0 12px 32px rgb(9 20 38 / 0.16), 0 2px 8px rgb(9 20 38 / 0.08);
+
+  /* --- Thang chữ có thật (21-saas-spec.md §2.2) ---
+     xs 12 · sm 13 · base 14 · lg 16 · xl 20 · 2xl 24 · 3xl 30 · 4xl 38.
+     Body mặc định 14px (khai báo ở `@layer base` bên dưới). Sàn 12px KHÔNG đổi. */
+  --text-xs: 12px;
+  --text-xs--line-height: 1.35;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.45;
+  --text-base: 14px;
+  --text-base--line-height: 1.5;
+  --text-lg: 16px;
+  --text-lg--line-height: 1.4;
+  --text-xl: 20px;
+  --text-xl--line-height: 1.35;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 1.25;
+  --text-3xl: 30px;
+  --text-3xl--line-height: 1.2;
+  --text-4xl: 38px;
+  --text-4xl--line-height: 1.15;
+
+  /* --- Nhịp dọc (21-saas-spec.md §2.3) ---
+     giữa section 24 (`space-y-section`) · trong section 16 (`gap-block`) ·
+     nhãn <-> giá trị 4 (`gap-label`). Cấm giá trị lẻ tuỳ hứng. */
+  --spacing-section: 24px;
+  --spacing-block: 16px;
+  --spacing-label: 4px;
+
+  /* --- Z-index scale (chống chồng lớp; xem 01-theme-migration.md §4.7) --- */
+  --z-sticky: 10;
+  --z-panel: 20;
+  --z-header: 30;
+  --z-drawer: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+}
+
+/* Tailwind v4 KHÔNG có namespace utility cho z-index (chỉ có chuỗi cố định z-10..z-50),
+   nên biến `--z-*` ở trên không tự sinh class. Khai báo utility trỏ về token để dùng
+   `z-header` / `z-modal` thay cho `z-40` dùng chung cho nhiều vai trò (§4.7). */
+@utility z-sticky { z-index: var(--z-sticky); }
+@utility z-panel { z-index: var(--z-panel); }
+@utility z-header { z-index: var(--z-header); }
+@utility z-drawer { z-index: var(--z-drawer); }
+@utility z-modal { z-index: var(--z-modal); }
+@utility z-toast { z-index: var(--z-toast); }
+
+/* Số liệu (bảng, KPI, tiền, tiến độ) — 21-saas-spec.md §2.2.
+   Tailwind v4 ĐÃ có utility lõi `tabular-nums` (kiểm chứng trong CSS build:
+   `.tabular-nums{--tw-numeric-spacing:tabular-nums;font-variant-numeric:var(...)}`),
+   nhưng khai báo tường minh ở đây để: (a) nó là token của dự án, không phải chi tiết
+   của framework; (b) bơm thêm `font-feature-settings` cho engine cũ.
+   Giá trị HIỆU DỤNG tương đương bản lõi nên không đổi hình. */
+@utility tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Dark theme — giá trị đã kiểm tương phản: docs/plans/01-theme-migration.md §5.1/§5.3
+   Không dùng #000/#FFF tuyệt đối; phân cấp bề mặt bằng viền, không bằng độ sáng.
+   --------------------------------------------------------------------------- */
+.dark {
+  color-scheme: dark;
+
+  --color-canvas: #080D16;
+  --color-surface: #0E1520;
+  --color-surface-raised: #1A2434;
+  --color-surface-muted: #131C2A;
+  /* Panel "HUD" hoà vào surface ở dark (01-theme-migration.md §5.4). */
+  --color-surface-inverse: #131C2A;
+  --color-surface-inverse-raised: #1A2434;
+  --color-on-inverse: #E8EEF7;
+
+  --color-line: #232F42;
+  --color-line-subtle: #1B2434;
+  --color-line-control: #4E6490;
+
+  --color-fg: #E8EEF7;
+  --color-fg-muted: #9BA9BE;
+  --color-fg-subtle: #7A8798;
+
+  --color-primary: #3AB8CE;
+  --color-primary-hover: #57DFFE;
+  --color-primary-fg: #07272E;
+  --color-accent: #57DFFE;
+  --color-positive: #4ADE80;
+  --color-warning: #FBBF24;
+  --color-warning-strong: #FBBF24;
+  --color-danger: #F87171;
+  --color-info: #60A5FA;
+  --color-ring: #57DFFE;
+
+  --color-primary-tint: #10262B;
+  --color-positive-tint: #10241A;
+  --color-warning-tint: #2A2114;
+  --color-danger-tint: #2C1618;
+  --color-info-tint: #141F33;
+}
+
 @layer base {
   :root {
     --font-sans: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-serif: 'Be Vietnam Pro', 'Inter', Georgia, serif;
+    /* Serif THẬT: trước đây trỏ stack sans nên `font-serif` render ra sans (gây nhầm). */
+    --font-serif: Georgia, 'Times New Roman', ui-serif, serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
     /* Responsive fluid typography scale variables */
@@ -63,8 +261,12 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #F8FAFC;
-    color: #091426;
+    /* Body mặc định 14px (21-saas-spec.md §1.3). Trước đây KHÔNG khai báo nên ăn
+       16px mặc định của trình duyệt (không phải 15px như ghi trong spec cũ). */
+    font-size: var(--text-base);
+    line-height: 1.5;
+    background-color: var(--color-canvas);
+    color: var(--color-fg);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
@@ -139,6 +341,7 @@
   width: 100%;
   aspect-ratio: 4 / 3;
   overflow: hidden;
+  /* Placeholder media: #2A2A2A chưa có token tương ứng (Stage B xử lý). */
   background-color: #2A2A2A;
 }
 
@@ -218,8 +421,8 @@
   bottom: 0;
   width: 85%;
   max-width: 320px;
-  background-color: #F8FAFC;
-  border-left: 1px solid #CBD5E1;
+  background-color: var(--color-canvas);
+  border-left: 1px solid var(--color-line);
   box-shadow: -4px 0 24px rgba(9, 20, 38, 0.2);
   z-index: 999;
   display: flex;
@@ -257,43 +460,24 @@
   background-size: 16px 16px;
 }
 
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
-}
-
-.material-symbols-outlined.fill {
-  font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;
-}
-
-/* Custom crisp editorial scrollbars */
+/* Custom crisp editorial scrollbars (theo token, đổi được theo theme) */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F8FAFC;
+  background: var(--color-canvas);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: var(--color-line);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  /* Thumb hover là thành phần UI -> dùng line-control (#8590A6, 3.21:1),
+     thay cho #94A3B8 (2.45:1) đã bị loại. */
+  background: var(--color-line-control);
 }
 
 @keyframes pulse-subtle {
@@ -309,7 +493,8 @@
   animation: pulse-subtle 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Print Stylesheet for Invoices & Technical Sheets */
+/* Print Stylesheet for Invoices & Technical Sheets
+   (in ấn luôn trắng/đen tuyệt đối — giữ hardcode có chủ đích) */
 @media print {
   body {
     background-color: #FFFFFF !important;

@@ -1,78 +1,146 @@
 import { supabase } from './client';
 import { Order, Product, MaterialProfile, PrinterProfile, AppUserProfile, WorkshopPartner, AccessoryItem, SiteContentConfig, InkiriCostFormulaConfig } from '../../types';
-import { 
-  PRODUCTS, 
-  MOCK_ORDERS, 
-  MATERIALS_CATALOG, 
-  PRINTER_PROFILES, 
-  MOCK_APP_USERS, 
-  DEFAULT_INKIRI_FORMULA_CONFIG,
-  DEFAULT_SITE_CONTENT,
-  WORKSHOP_PARTNERS,
-  ACCESSORIES_CATALOG
-} from '../../data/mockData';
+// Chỉ còn nhãn mặc định cho `site_content` (đã bỏ mọi tuyên bố không kiểm chứng
+// được — docs/design/data-honesty.md AT-06/CI-01). Mọi fixture thực thể đã bị gỡ.
+import { DEFAULT_SITE_CONTENT } from '../../data/mockData';
+// Row → domain: MỘT nơi duy nhất (06 §2.5). Xem src/backend/supabase/mappers.ts.
+import {
+  rowToProduct,
+  rowToOrder,
+  rowToMaterial,
+  rowToPrinter,
+  rowToUserProfile,
+  rowToSiteContent,
+  rowToAccessory,
+  rowToWorkshopPartner,
+} from './mappers';
+
+/**
+ * Quy tắc bán hàng mặc định (một nguồn duy nhất cho phí ship / ngưỡng freeship).
+ * Giá trị thật có thể bị `site_content` ghi đè (xem `getSiteContent`).
+ */
+export const DEFAULT_SALES_RULES = {
+  standardShippingFee: 30000,
+  freeShippingThreshold: 300000,
+} as const;
+
+/**
+ * Tính phí vận chuyển từ MỘT nguồn duy nhất. Mọi view (cart, drawer, checkout,
+ * invoice) phải gọi hàm này thay vì hardcode 25.000 / 30.000.
+ */
+export function computeShippingFee(
+  subtotalPhysical: number,
+  hasPhysicalItems: boolean,
+  rules: { standardShippingFee?: number; freeShippingThreshold?: number } = {}
+): number {
+  if (!hasPhysicalItems) return 0;
+  const fee = rules.standardShippingFee ?? DEFAULT_SALES_RULES.standardShippingFee;
+  const threshold = rules.freeShippingThreshold ?? DEFAULT_SALES_RULES.freeShippingThreshold;
+  return subtotalPhysical >= threshold ? 0 : fee;
+}
+
+/**
+ * Map 1 dòng `orders` (Supabase) → `Order` của UI.
+ *
+ * Logic đã được gom về `src/backend/supabase/mappers.ts` (06 §2.5). Giữ alias này
+ * để call site nội bộ và mọi import cũ không phải đổi.
+ */
+const mapOrderRow = rowToOrder;
+
+/**
+ * Trường storefront CHƯA có cột riêng trong `site_content` — chúng nằm trong cột
+ * `settings` (jsonb, xem 20260901_baseline_schema.sql).
+ *
+ * Vì sao cần: `AdminStorefrontPanel` đã cho admin sửa `standardShippingFee`
+ * (`:638`), `freeShippingThreshold` (`:628`) và `toleranceSpec`, nhưng
+ * `saveSiteContent` chỉ upsert 9 cột nên các giá trị đó **bị bỏ mất âm thầm** —
+ * admin tưởng đã lưu. `settingsService.saveSiteContent()` (A8) đã ghi đúng; hai hàm
+ * dưới đây đóng nốt vòng đọc/ghi của `dbService` để không còn đường nào làm mất dữ liệu.
+ *
+ * LUẬT "VẮNG MẶT = ĐÃ XOÁ" (W3-A/Bug 2): `saveSiteContent(content)` nhận MỘT
+ * `SiteContentConfig` ĐẦY ĐỦ (không phải patch). Với 3 khoá trên: CÓ trong `content` ⇒ giá
+ * trị đó là giá trị phải lưu; VẮNG MẶT ⇒ admin đã XOÁ ⇒ khoá phải BIẾN MẤT khỏi jsonb.
+ * Trước đây `writeSiteContentExtras` trả `null` khi cả 3 khoá đều vắng ⇒ `saveSiteContent`
+ * bỏ luôn cột `settings` ⇒ jsonb giữ nguyên số CŨ và thao tác xoá trắng của admin không có
+ * tác dụng gì (im lặng). Xem `saveSiteContent` để biết vì sao cách ghi mới KHÔNG xoá khoá
+ * của người khác.
+ */
+const SITE_CONTENT_EXTRA_KEYS = ['standardShippingFee', 'freeShippingThreshold', 'toleranceSpec'] as const;
+
+function readSiteContentExtras(settings: unknown): Partial<SiteContentConfig> {
+  if (!settings || typeof settings !== 'object') return {};
+  const j = settings as Record<string, unknown>;
+  const out: Partial<SiteContentConfig> = {};
+  const fee = Number(j.standardShippingFee);
+  const threshold = Number(j.freeShippingThreshold);
+  if (j.standardShippingFee !== undefined && Number.isFinite(fee)) out.standardShippingFee = fee;
+  if (j.freeShippingThreshold !== undefined && Number.isFinite(threshold)) out.freeShippingThreshold = threshold;
+  if (typeof j.toleranceSpec === 'string') out.toleranceSpec = j.toleranceSpec;
+  return out;
+}
+
+/**
+ * 3 khoá mở rộng → object để ghi vào cột `settings`.
+ *
+ * LUÔN trả một object, kể cả `{}`: quyết định "ghi cột `settings` thế nào" nay thuộc
+ * `saveSiteContent` và dựa trên jsonb HIỆN CÓ, chứ KHÔNG dựa vào việc object này rỗng —
+ * chính chỗ `return null` cũ là nguyên nhân "xoá cả hai ô mà không xoá được" (Bug 2).
+ */
+function writeSiteContentExtras(content: SiteContentConfig): Record<string, unknown> {
+  const extras: Record<string, unknown> = {};
+  for (const key of SITE_CONTENT_EXTRA_KEYS) {
+    const v = (content as any)[key];
+    if (v !== undefined) extras[key] = v;
+  }
+  return extras;
+}
+
+/**
+ * Chuẩn hoá một giá trị thời gian thành ISO-8601, hoặc `null` nếu không phải mốc thời gian.
+ *
+ * VÌ SAO CẦN (`orders.date` là `timestamptz` — 20260901_baseline_schema.sql:610): chỗ gọi
+ * từng truyền thẳng chuỗi HIỂN THỊ của UI ("13/9/2026 14:05") vào cột đó ⇒ Postgres trả
+ * `22008 date/time field value out of range` và đơn KHÔNG được ghi. Chuỗi hiển thị chỉ để
+ * render; xuống DB chỉ có ISO-8601.
+ */
+function toIsoTimestampOrNull(value: unknown): string | null {
+  if (value instanceof Date) {
+    const ms = value.getTime();
+    return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const ms = Date.parse(value);
+    return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+  }
+  return null;
+}
 
 export const dbService = {
   // Products
+  // LUẬT TRUNG THỰC DỮ LIỆU (docs/design/data-honesty.md CI-01): lỗi truy vấn ⇒ ném lỗi
+  // THẬT để caller hiện trạng thái "lỗi khi tải"; bảng rỗng ⇒ [] để caller hiện trạng
+  // thái rỗng. KHÔNG rơi về fixture `PRODUCTS`, KHÔNG đọc localStorage.
   async getProducts(filterParams?: { status?: string; category?: string; limit?: number; offset?: number }): Promise<Product[]> {
-    try {
-      let query = supabase.from('products').select('*');
-      
-      if (filterParams?.status) {
-        query = query.eq('status', filterParams.status.toLowerCase());
-      }
-      if (filterParams?.category && filterParams.category !== 'all') {
-        query = query.eq('category', filterParams.category);
-      }
-      if (filterParams?.limit) {
-        const offset = filterParams.offset || 0;
-        query = query.range(offset, offset + filterParams.limit - 1);
-      }
-      
-      query = query.order('created_at', { ascending: false });
+    let query = supabase.from('products').select('*');
 
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        return data.map((d: any): Product => ({
-          id: d.id,
-          sku: d.sku || `VC-${Math.floor(1000 + Math.random() * 9000)}`,
-          name: d.name,
-          category: d.category,
-          designer: d.designer || 'VCUBE Engineering',
-          pricePhysical: Number(d.price_physical ?? d.pricePhysical ?? 0),
-          priceDigital: Number(d.price_digital ?? d.priceDigital ?? 0),
-          images: Array.isArray(d.images) ? d.images : [d.images].filter(Boolean),
-          thumbnailUrl: d.thumbnail_url || (Array.isArray(d.images) ? d.images[0] : ''),
-          cadFileUrl: d.cad_file_url || '',
-          cadFormat: d.cad_format || 'STL',
-          fileSizeBytes: Number(d.file_size_bytes || 0),
-          description: d.description || '',
-          features: Array.isArray(d.features) ? d.features : [],
-          specs: d.specs || {
-            dimensions: '80 x 80 x 40 mm',
-            weight: '60g',
-            resolution: '0.12mm',
-            infillDefault: '35%',
-            technology: 'FDM Industrial'
-          },
-          supportedMaterials: Array.isArray(d.supported_materials || d.supportedMaterials) ? (d.supported_materials || d.supportedMaterials) : ['PLA Tough'],
-          colors: Array.isArray(d.colors) ? d.colors : [{ name: 'Đen Kỹ Thuật', hex: '#1C1C1C', available: true }],
-          tags: Array.isArray(d.tags) ? d.tags : [],
-          badge: d.badge || '',
-          rating: Number(d.rating || 5.0),
-          reviewsCount: Number(d.reviews_count || d.reviewsCount || 0),
-          printsCount: Number(d.prints_count || d.printsCount || 0),
-          printTime: d.print_time || d.printTime || '2h',
-          isCustomizable: Boolean(d.is_customizable ?? d.isCustomizable ?? false),
-          status: (d.status ? d.status.toLowerCase() : 'published') as any,
-          productionReadiness: d.production_readiness || d.productionReadiness || 'ready_to_print'
-        }));
-      }
-    } catch (e) {
-      console.warn('Supabase getProducts query fallback to local:', e);
+    if (filterParams?.status) {
+      query = query.eq('status', filterParams.status.toLowerCase());
     }
-    const local = localStorage.getItem('vcube_products');
-    return local ? JSON.parse(local) : PRODUCTS;
+    if (filterParams?.category && filterParams.category !== 'all') {
+      query = query.eq('category', filterParams.category);
+    }
+    if (filterParams?.limit) {
+      const offset = filterParams.offset || 0;
+      query = query.range(offset, offset + filterParams.limit - 1);
+    }
+
+    query = query.order('created_at', { ascending: false });
+
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Không tải được danh sách sản phẩm: ${error.message}`);
+    }
+    return (data ?? []).map(rowToProduct);
   },
 
   async saveProduct(product: Product): Promise<{ success: boolean; error?: string }> {
@@ -108,7 +176,7 @@ export const dbService = {
         updated_at: new Date().toISOString()
       });
       if (error) {
-        console.warn('Supabase saveProduct error (falling back to local):', error.message);
+        console.warn('Supabase saveProduct error:', error.message);
         return { success: false, error: error.message };
       }
       return { success: true };
@@ -132,48 +200,26 @@ export const dbService = {
     }
   },
 
-  // Seed initial products if DB is empty
+  /**
+   * ⚠️ TRƯỚC ĐÂY: tự đẩy fixture `PRODUCTS` vào bảng `products` khi bảng rỗng
+   * (data-honesty CI-01: dữ liệu bịa lọt vào DB thật rồi không phân biệt được với hàng
+   * thật). NAY: **KHÔNG ghi gì vào DB**.
+   *
+   * Giữ nguyên tên + kiểu trả về (`Promise<boolean>`) để call site `src/App.tsx:371`
+   * không phải sửa: `false` = "không nạp fixture". DB rỗng là thông tin thật và được
+   * truyền cho caller qua danh sách rỗng (caller hiện trạng thái rỗng).
+   */
   async seedInitialProductsIfEmpty(): Promise<boolean> {
-    try {
-      const { data, count, error } = await supabase.from('products').select('id', { count: 'exact', head: true });
-      if (!error && (count === 0 || !data || data.length === 0)) {
-        console.info('Products table is empty. Seeding initial catalog from mockData...');
-        const payload = PRODUCTS.map(p => ({
-          id: p.id,
-          sku: p.sku || `VC-${Math.floor(1000 + Math.random() * 9000)}`,
-          name: p.name,
-          category: p.category,
-          designer: p.designer,
-          price_physical: p.pricePhysical,
-          price_digital: p.priceDigital,
-          images: p.images,
-          thumbnail_url: p.images[0] || '',
-          cad_file_url: p.cadFileUrl || '',
-          cad_format: p.cadFormat || 'STL',
-          description: p.description,
-          features: p.features,
-          specs: p.specs,
-          supported_materials: p.supportedMaterials,
-          colors: p.colors,
-          tags: p.tags,
-          badge: p.badge,
-          rating: p.rating,
-          reviews_count: p.reviewsCount,
-          prints_count: p.printsCount,
-          print_time: p.printTime,
-          is_customizable: p.isCustomizable,
-          status: 'published',
-          production_readiness: p.productionReadiness || 'ready_to_print',
-        }));
-        const { error: seedError } = await supabase.from('products').upsert(payload, { onConflict: 'id' });
-        if (seedError) {
-          console.warn('Could not seed initial products:', seedError.message);
-          return false;
-        }
-        return true;
-      }
-    } catch (e) {
-      console.warn('seedInitialProductsIfEmpty error:', e);
+    const { error, count } = await supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true });
+
+    if (error) {
+      throw new Error(`Không kiểm tra được bảng products: ${error.message}`);
+    }
+    if (count === 0) {
+      // KHÔNG nạp dữ liệu mẫu. Catalog thật nhập ở /admin (Sản phẩm) hoặc qua SQL.
+      console.info('[vcube] Bảng products rỗng — không nạp dữ liệu mẫu (data-honesty CI-01).');
     }
     return false;
   },
@@ -223,14 +269,37 @@ export const dbService = {
   },
 
   // Orders
-  async saveOrder(order: Order, explicitUserId?: string): Promise<{ success: boolean; error?: string }> {
+  // LUẬT TRUNG THỰC DỮ LIỆU (docs/design/data-honesty.md OT-03/PC-03): đơn chỉ tồn tại
+  // khi DB đã nhận. Ghi DB lỗi ⇒ trả `success: false` + lỗi thật; KHÔNG ghi localStorage
+  // (localStorage không phải nguồn dữ liệu đơn hàng). Không tự bịa email/tên khách.
+  async saveOrder(
+    order: Order,
+    explicitUserId?: string,
+    options?: {
+      /**
+       * B2 — ISO-8601 cho `orders.date` (timestamptz). `Order.date` là chuỗi HIỂN THỊ;
+       * truyền thẳng nó xuống DB là lỗi `22008`. Bỏ trống ⇒ suy từ `order.date` nếu nó
+       * là mốc thời gian hợp lệ, còn không thì lấy thời điểm ghi.
+       */
+      createdAtIso?: string;
+      /** B1b — xưởng nhận đơn (`orders.assigned_workshop_id`). null = chưa giao xưởng. */
+      assignedWorkshopId?: string | null;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
     try {
-      const customerEmail = order.shippingAddress?.email || 'guest@vcube.vn';
-      const customerName = order.shippingAddress?.fullName || 'Khách Hàng VCUBE';
+      const customerEmail = order.shippingAddress?.email || '';
+      const customerName = order.shippingAddress?.fullName || '';
       const customerPhone = order.shippingAddress?.phone || '';
       const totalAmount = order.payment?.total || 0;
       const shippingFee = order.payment?.shippingFee || 0;
       const secureToken = order.secureAccessToken || `token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+      const nowIso = new Date().toISOString();
+
+      // B2: chỉ ISO-8601 được ghi vào `orders.date` (timestamptz). Ưu tiên mốc ISO do
+      // caller truyền, rồi tới `order.date` NẾU nó là mốc thời gian hợp lệ, cuối cùng là
+      // thời điểm ghi. Chuỗi hiển thị kiểu "13/9/2026 14:05" KHÔNG BAO GIỜ tới được cột.
+      const orderDateIso =
+        toIsoTimestampOrNull(options?.createdAtIso) || toIsoTimestampOrNull(order.date) || nowIso;
 
       // Pass full user_id from user account if logged in (ensuring RLS auth.uid() = user_id works)
       let userId: string | null = explicitUserId || (order as any).userId || (order as any).user_id || null;
@@ -241,7 +310,7 @@ export const dbService = {
             userId = authData.user.id;
           }
         } catch {
-          // Fallback if auth is unavailable or guest checkout
+          // Guest checkout: không có phiên đăng nhập.
         }
       }
 
@@ -249,7 +318,7 @@ export const dbService = {
         id: order.id,
         order_number: order.orderNumber,
         user_id: userId,
-        date: order.date,
+        date: orderDateIso,
         estimated_delivery: order.estimatedDelivery,
         customer_email: customerEmail,
         customer_name: customerName,
@@ -260,25 +329,25 @@ export const dbService = {
         status: order.status,
         status_stage_index: order.statusStageIndex,
         layer_progress: order.layerProgress || 0,
-        payment_method: order.payment?.method || 'cod',
+        payment_method: order.payment?.method || '',
         payment_status: order.payment?.isPaid ? 'paid' : 'unpaid',
         items: order.items,
         shipping_address: order.shippingAddress,
         carrier: order.carrier,
         payment: order.payment,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        // B1b: trước đây cột này KHÔNG bao giờ được ghi ⇒ đơn không thể định tuyến tới
+        // xưởng (`vcube_orders_workshop_read` lọc theo `assigned_workshop_id`).
+        assigned_workshop_id: options?.assignedWorkshopId ?? null,
+        created_at: nowIso,
+        updated_at: nowIso,
       });
 
       if (error) {
-        console.warn('Supabase DB saveOrder fallback to local:', error.message);
-        const existing: Order[] = JSON.parse(localStorage.getItem('vcube_orders') || '[]');
-        const updated = [{ ...order, secureAccessToken: secureToken }, ...existing.filter((o: Order) => o.id !== order.id)];
-        localStorage.setItem('vcube_orders', JSON.stringify(updated));
+        return { success: false, error: `Không lưu được đơn hàng vào Supabase: ${error.message}` };
       }
       return { success: true };
     } catch (err: any) {
-      console.warn('DB error:', err);
+      console.warn('DB error on saveOrder:', err);
       return { success: false, error: err?.message };
     }
   },
@@ -307,21 +376,8 @@ export const dbService = {
         .update(updateData)
         .eq('id', orderId);
 
-      // Keep localStorage in sync
-      try {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          const localOrders: Order[] = JSON.parse(localStorage.getItem('vcube_orders') || '[]');
-          const idx = localOrders.findIndex((o: Order) => o.id === orderId);
-          if (idx !== -1) {
-            localOrders[idx].status = status as any;
-            localOrders[idx].statusStageIndex = statusStageIndex;
-            if (statusStageIndex >= 6) {
-              localOrders[idx].layerProgress = 100;
-            }
-            localStorage.setItem('vcube_orders', JSON.stringify(localOrders));
-          }
-        }
-      } catch {}
+      // KHÔNG đồng bộ localStorage: localStorage không còn là nguồn dữ liệu đơn hàng
+      // (docs/design/data-honesty.md OT-03). DB là nguồn duy nhất.
 
       if (error) {
         console.warn('Supabase updateOrderStatus error:', error.message);
@@ -335,125 +391,55 @@ export const dbService = {
   },
 
   async getOrders(userEmail?: string): Promise<Order[]> {
-    try {
-      let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
-      if (userEmail) {
-        query = query.eq('customer_email', userEmail);
-      }
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        return data.map((d: any): Order => ({
-          id: d.id,
-          orderNumber: d.order_number || d.id,
-          date: d.date || d.created_at || new Date().toISOString(),
-          estimatedDelivery: d.estimated_delivery || '3 ngày sau khi duyệt',
-          status: d.status || 'processing',
-          statusStageIndex: d.status_stage_index ?? 1,
-          layerProgress: d.layer_progress ?? d.layerProgress ?? 0,
-          secureAccessToken: d.secure_access_token || d.secureAccessToken,
-          items: d.items || [],
-          shippingAddress: d.shipping_address || {
-            fullName: 'Khách hàng',
-            phone: '0900000000',
-            address: '',
-            city: 'Hà Nội',
-            district: '',
-          },
-          carrier: d.carrier || {
-            name: 'Viettel Post',
-            trackingCode: 'VTP' + Math.floor(100000 + Math.random() * 900000),
-          },
-          payment: d.payment || {
-            method: 'Chuyển khoản QR Techcombank',
-            paidDate: new Date().toISOString(),
-            subtotalPhysical: 0,
-            subtotalDigital: 0,
-            shippingFee: 30000,
-            discount: 0,
-            total: 30000,
-            isPaid: true,
-          },
-        }));
-      }
-    } catch (e) {
-      console.warn('Supabase getOrders query error:', e);
+    let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
+    if (userEmail) {
+      query = query.eq('customer_email', userEmail);
     }
-    // Fallback to local storage
-    const local = localStorage.getItem('vcube_orders');
-    return local ? JSON.parse(local) : [];
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Không tải được danh sách đơn hàng: ${error.message}`);
+    }
+    // Bảng rỗng ⇒ []. KHÔNG rơi về fixture MOCK_ORDERS, KHÔNG đọc localStorage
+    // (OT-02/OT-03: đơn của người khác tuyệt đối không được hiển thị).
+    return (data ?? []).map(mapOrderRow);
   },
 
-  // Guest order lookup via secure access token
+  // Guest order lookup via secure access token.
+  //
+  // SECURITY: đây là ĐƯỜNG DUY NHẤT để tra cứu đơn không đăng nhập. Truy vấn đi qua
+  // RPC SECURITY DEFINER `public.get_order_by_guest_token(p_order_number, p_token)`.
+  // KHÔNG được thay bằng truy vấn PostgREST có nội suy tham số người dùng vào `.or()`
+  // (filter injection) và KHÔNG được nới điều kiện token: nếu sai/thiếu token thì
+  // trả về null, tuyệt đối không fallback sang đơn khác.
   async getOrderByToken(identifier: string, token: string): Promise<Order | null> {
+    const cleanIdentifier = (identifier || '').trim();
+    const cleanToken = (token || '').trim();
+    if (!cleanIdentifier || cleanToken.length < 12) {
+      // Hàm SQL yêu cầu token >= 12 ký tự; chặn sớm để không tạo request vô ích.
+      return null;
+    }
     try {
-      // 1. Try Security Definer RPC function
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_order_by_guest_token', {
-        p_order_number: identifier,
-        p_token: token,
+        p_order_number: cleanIdentifier,
+        p_token: cleanToken,
       });
 
+      if (rpcError) {
+        console.warn('get_order_by_guest_token RPC error:', rpcError.message);
+        return null;
+      }
+
       const matched = (rpcData && rpcData.length > 0) ? rpcData[0] : null;
-
-      if (!rpcError && matched) {
-        return {
-          id: matched.id,
-          orderNumber: matched.order_number || matched.id,
-          date: matched.date || matched.created_at || new Date().toISOString(),
-          estimatedDelivery: matched.estimated_delivery || '3 ngày sau khi duyệt',
-          status: matched.status || 'processing',
-          statusStageIndex: matched.status_stage_index ?? 1,
-          layerProgress: matched.layer_progress ?? 0,
-          secureAccessToken: matched.secure_access_token,
-          items: matched.items || [],
-          shippingAddress: matched.shipping_address || {},
-          carrier: matched.carrier || {},
-          payment: matched.payment || {},
-        };
+      if (matched) {
+        return mapOrderRow(matched);
       }
 
-      // 2. Direct query fallback
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .or(`order_number.eq.${identifier},id.eq.${identifier}`)
-        .eq('secure_access_token', token)
-        .limit(1)
-        .maybeSingle();
-
-      if (!error && data) {
-        return {
-          id: data.id,
-          orderNumber: data.order_number || data.id,
-          date: data.date || data.created_at || new Date().toISOString(),
-          estimatedDelivery: data.estimated_delivery || '3 ngày sau khi duyệt',
-          status: data.status || 'processing',
-          statusStageIndex: data.status_stage_index ?? 1,
-          layerProgress: data.layer_progress ?? 0,
-          secureAccessToken: data.secure_access_token,
-          items: data.items || [],
-          shippingAddress: data.shipping_address || {},
-          carrier: data.carrier || {},
-          payment: data.payment || {},
-        };
-      }
     } catch (e) {
-      console.warn('Supabase getOrderByToken fallback to local:', e);
+      console.warn('Supabase getOrderByToken error:', e);
     }
 
-    // 3. Fallback to localStorage
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const localOrders: Order[] = JSON.parse(localStorage.getItem('vcube_orders') || '[]');
-        const cleanId = identifier.trim().toLowerCase();
-        const found = localOrders.find(
-          (o) =>
-            (o.orderNumber.toLowerCase() === cleanId || o.id.toLowerCase() === cleanId) &&
-            o.secureAccessToken === token
-        );
-        if (found) return found;
-      }
-    } catch {}
-
+    // Không tìm thấy (sai mã / sai token / RPC lỗi) → trả null.
+    // Không đọc localStorage: token trong máy khách không phải nguồn xác thực.
     return null;
   },
 
@@ -468,31 +454,18 @@ export const dbService = {
 
   // Users & Multi-stakeholder Profiles
   async getUsers(): Promise<AppUserProfile[]> {
-    try {
-      const { data, error } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) {
-        return data.map((d: any): AppUserProfile => ({
-          uid: d.id,
-          email: d.email,
-          displayName: d.display_name,
-          phone: d.phone || '',
-          role: d.role || 'customer',
-          company: d.company || '',
-          avatarUrl: d.avatar_url || '',
-          createdAt: d.created_at || new Date().toISOString(),
-          lastLoginAt: d.updated_at || new Date().toISOString(),
-          kycStatus: d.kyc_status || 'verified',
-          accountStatus: d.account_status || 'active',
-          totalOrders: Number(d.total_orders || 0),
-          totalSpent: Number(d.total_spent || 0),
-          notes: d.notes || '',
-        }));
-      }
-    } catch (e) {
-      console.warn('Supabase getUsers fallback to local:', e);
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Không tải được danh sách người dùng: ${error.message}`);
     }
-    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_app_users') : null;
-    return local ? JSON.parse(local) : MOCK_APP_USERS;
+    // Bảng rỗng ⇒ []. KHÔNG rơi về fixture MOCK_APP_USERS (AT-05/CI-08: fixture mang số
+    // giấy tờ KYC + số tài khoản ngân hàng bịa, từng hiện như khách hàng thật), KHÔNG
+    // đọc localStorage.
+    return (data ?? []).map(rowToUserProfile);
   },
 
   async saveUser(user: Partial<AppUserProfile> & { uid: string }): Promise<{ success: boolean; error?: string }> {
@@ -536,36 +509,12 @@ export const dbService = {
 
   // Materials
   async getMaterials(): Promise<MaterialProfile[]> {
-    try {
-      const { data, error } = await supabase.from('materials').select('*');
-      if (!error && data && data.length > 0) {
-        return data.map((d: any): MaterialProfile => ({
-          id: d.id,
-          name: d.name,
-          brand: d.brand,
-          density: Number(d.density || 1.24),
-          strength: d.strength,
-          heatResistance: d.heat_resistance,
-          flexibility: d.flexibility,
-          costPerKg: Number(d.cost_per_kg || 320000),
-          pricePerGram: Number(d.price_per_gram || 850),
-          unitPriceMultiplier: Number(d.unit_price_multiplier || 1.0),
-          spoolWeightGrams: Number(d.spool_weight_grams || 1000),
-          extruderTempMin: Number(d.extruder_temp_min || 200),
-          extruderTempMax: Number(d.extruder_temp_max || 220),
-          bedTemp: Number(d.bed_temp || 55),
-          colors: Array.isArray(d.colors) ? d.colors : [],
-          desc: d.desc || '',
-          recommendedFor: d.recommended_for || '',
-          inStock: Boolean(d.in_stock),
-          stockRollsCount: Number(d.stock_rolls_count || 10),
-        }));
-      }
-    } catch (e) {
-      console.warn('Supabase getMaterials fallback to local:', e);
+    const { data, error } = await supabase.from('materials').select('*');
+    if (error) {
+      throw new Error(`Không tải được danh mục vật liệu: ${error.message}`);
     }
-    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_materials') : null;
-    return local ? JSON.parse(local) : MATERIALS_CATALOG;
+    // Bảng rỗng ⇒ []. KHÔNG rơi về fixture MATERIALS_CATALOG, KHÔNG đọc localStorage.
+    return (data ?? []).map(rowToMaterial);
   },
 
   async saveMaterial(mat: MaterialProfile): Promise<{ success: boolean; error?: string }> {
@@ -601,33 +550,12 @@ export const dbService = {
 
   // Printer Fleet
   async getPrinters(): Promise<PrinterProfile[]> {
-    try {
-      const { data, error } = await supabase.from('printer_fleet').select('*');
-      if (!error && data && data.length > 0) {
-        return data.map((d: any): PrinterProfile => ({
-          id: d.id,
-          name: d.name,
-          brand: d.brand || 'Bambu Lab',
-          bedDimensions: d.bed_dimensions || { x: 256, y: 256, z: 256 },
-          nozzleDiameter: Number(d.nozzle_diameter || 0.4),
-          technology: d.technology || 'FDM',
-          powerKW: Number(d.power_kw || 0.18),
-          acquisitionCost: Number(d.acquisition_cost || 30000000),
-          expectedLifetimeHours: Number(d.expected_lifetime_hours || 8000),
-          consumablesHourlyRate: Number(d.consumables_hourly_rate || 2000),
-          hourlyRate: Number(d.hourly_rate || 25000),
-          maxPrintSpeedMmS: Number(d.max_print_speed_mms || 500),
-          heatedBedMaxTemp: Number(d.heated_bed_max_temp || 100),
-          hasEnclosure: Boolean(d.has_enclosure),
-          hasAMS: Boolean(d.has_ams),
-          status: d.status || 'Idle',
-        }));
-      }
-    } catch (e) {
-      console.warn('Supabase getPrinters fallback to local:', e);
+    const { data, error } = await supabase.from('printer_fleet').select('*');
+    if (error) {
+      throw new Error(`Không tải được danh sách máy in: ${error.message}`);
     }
-    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_printers') : null;
-    return local ? JSON.parse(local) : PRINTER_PROFILES;
+    // Bảng rỗng ⇒ []. KHÔNG rơi về fixture PRINTER_PROFILES, KHÔNG đọc localStorage.
+    return (data ?? []).map(rowToPrinter);
   },
 
   async savePrinter(printer: PrinterProfile): Promise<{ success: boolean; error?: string }> {
@@ -659,31 +587,39 @@ export const dbService = {
   },
 
   // Pricing Config
+  // LUẬT TRUNG THỰC DỮ LIỆU (docs/plans/09-admin-settings.md §3.2 #1): chưa cấu hình ⇒
+  // KHÔNG rơi về một con số đoán. Kiểu trả về ở đây là non-null nên trạng thái đó được
+  // biểu diễn bằng lỗi thật (call site `src/App.tsx:459` đã có `.catch`); accessor trả
+  // `null` tường minh nằm ở `settingsService.getPricingConfig()`.
   async getPricingConfig(): Promise<InkiriCostFormulaConfig> {
-    try {
-      const { data, error } = await supabase.from('pricing_configs').select('*').eq('is_active', true).limit(1).single();
-      if (!error && data && data.config) {
-        return data.config as InkiriCostFormulaConfig;
-      }
-      // Fallback check on singular table if legacy
-      const legacyRes = await supabase.from('pricing_config').select('*').limit(1).single();
-      if (!legacyRes.error && legacyRes.data && legacyRes.data.config) {
-        return legacyRes.data.config as InkiriCostFormulaConfig;
-      }
-    } catch (e) {
-      console.warn('Supabase getPricingConfig fallback to local:', e);
+    const { data, error } = await supabase
+      .from('pricing_configs')
+      .select('*')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Không tải được cấu hình công thức giá: ${error.message}`);
     }
-    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_pricing_config') : null;
-    return local ? JSON.parse(local) : DEFAULT_INKIRI_FORMULA_CONFIG;
+    if (data?.config) {
+      return data.config as InkiriCostFormulaConfig;
+    }
+
+    // `pricing_config` (số ít) là VIEW tương thích cho code cũ.
+    const legacy = await supabase.from('pricing_config').select('*').limit(1).maybeSingle();
+    if (!legacy.error && legacy.data?.config) {
+      return legacy.data.config as InkiriCostFormulaConfig;
+    }
+
+    // KHÔNG rơi về DEFAULT_INKIRI_FORMULA_CONFIG, KHÔNG đọc localStorage.
+    throw new Error('Chưa cấu hình công thức giá trong hệ thống (bảng pricing_configs rỗng).');
   },
 
   async savePricingConfig(config: InkiriCostFormulaConfig): Promise<{ success: boolean; error?: string }> {
     try {
-      // Keep localStorage in sync
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('vcube_pricing_config', JSON.stringify(config));
-      }
-
+      // KHÔNG ghi localStorage: đây không còn là kênh dữ liệu (App.tsx tự giữ cache
+      // riêng của nó). DB là nguồn duy nhất — nếu ghi DB lỗi thì trả lỗi thật bên dưới.
       const { error } = await supabase.from('pricing_configs').upsert({
         id: 'default-active-formula',
         config_name: 'Default Inkiri Formula v3.4',
@@ -707,35 +643,61 @@ export const dbService = {
   },
 
   // Site Content & CMS
+  // Chưa có hàng `site_content` ⇒ "chưa cấu hình" (ném lỗi thật, không đọc localStorage,
+  // không coi nội dung mẫu là nội dung thật). Cột nào thiếu thì lấy nhãn từ
+  // DEFAULT_SITE_CONTENT — đã bỏ mọi tuyên bố không kiểm chứng được (AT-06).
   async getSiteContent(): Promise<SiteContentConfig> {
-    try {
-      const { data, error } = await supabase.from('site_content').select('*').limit(1).single();
-      if (!error && data) {
-        return {
-          ...DEFAULT_SITE_CONTENT,
-          heroBadge: data.hero_badge || DEFAULT_SITE_CONTENT.heroBadge,
-          heroHeadline: data.hero_title || DEFAULT_SITE_CONTENT.heroHeadline,
-          heroSubheadline: data.hero_subtitle || DEFAULT_SITE_CONTENT.heroSubheadline,
-          hotline: data.phone || DEFAULT_SITE_CONTENT.hotline,
-          contactEmail: data.email || DEFAULT_SITE_CONTENT.contactEmail,
-          hanoiWorkshopAddress: data.hanoi_workshop_address || DEFAULT_SITE_CONTENT.hanoiWorkshopAddress,
-          hcmWorkshopAddress: data.hcm_workshop_address || DEFAULT_SITE_CONTENT.hcmWorkshopAddress,
-          announcementText: data.announcement_text || DEFAULT_SITE_CONTENT.announcementText,
-          announcementActive: data.announcement_enabled ?? DEFAULT_SITE_CONTENT.announcementActive,
-        };
-      }
-    } catch (e) {
-      console.warn('Supabase getSiteContent fallback to local:', e);
+    const { data, error } = await supabase.from('site_content').select('*').limit(1).maybeSingle();
+
+    if (error) {
+      throw new Error(`Không tải được nội dung website: ${error.message}`);
     }
-    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_site_content') : null;
-    return local ? JSON.parse(local) : DEFAULT_SITE_CONTENT;
+    if (!data) {
+      throw new Error('Chưa cấu hình nội dung website (bảng site_content rỗng).');
+    }
+    return { ...rowToSiteContent(data, DEFAULT_SITE_CONTENT), ...readSiteContentExtras(data.settings) };
   },
 
   async saveSiteContent(content: SiteContentConfig): Promise<{ success: boolean; error?: string }> {
     try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('vcube_site_content', JSON.stringify(content));
+      // KHÔNG ghi localStorage (xem savePricingConfig).
+      //
+      // Cột `settings` (jsonb) là nơi duy nhất giữ 3 khoá mở rộng (SITE_CONTENT_EXTRA_KEYS).
+      // Luật ghi (W3-A/Bug 2):
+      //   · khoá CÓ trong `content`   ⇒ ghi giá trị mới;
+      //   · khoá VẮNG trong `content` ⇒ admin đã XOÁ ⇒ xoá khoá khỏi jsonb.
+      //     (Bản cũ bỏ qua cả cột khi mọi khoá vắng ⇒ số CŨ nằm lại: xoá trắng vô hiệu.)
+      //
+      // Vì sao phải ĐỌC jsonb trước khi ghi: cột `settings` còn giữ cả NHÓM SEO
+      // (comment cột này trong 20260901_baseline_schema.sql) — dữ liệu KHÔNG thuộc hàm này.
+      // Ghi đè cả cột bằng object chỉ có 3 khoá là xoá dữ liệu của người khác. Nên: merge
+      // jsonb hiện có rồi chỉ thay/xoá ĐÚNG 3 khoá mình sở hữu ⇒ cả khi cả 3 khoá đều bị
+      // xoá, cột vẫn được ghi bằng phần còn lại của jsonb, KHÔNG BAO GIỜ ghi đè bằng object
+      // rỗng lên dữ liệu chưa đọc được.
+      const { data: current, error: readError } = await supabase
+        .from('site_content')
+        .select('settings')
+        .eq('id', 'default')
+        .maybeSingle();
+      if (readError) {
+        // Không đọc được jsonb thì KHÔNG ghi bừa (ghi `{}` lúc này = xoá dữ liệu chưa đọc
+        // được). Trả lỗi THẬT để admin biết lần lưu này không thành công.
+        return {
+          success: false,
+          error: `Không đọc được settings hiện tại của site_content: ${readError.message}`,
+        };
       }
+      const extras = writeSiteContentExtras(content);
+      const currentSettings =
+        current?.settings && typeof current.settings === 'object' && !Array.isArray(current.settings)
+          ? (current.settings as Record<string, unknown>)
+          : {};
+      const mergedSettings: Record<string, unknown> = { ...currentSettings };
+      for (const key of SITE_CONTENT_EXTRA_KEYS) {
+        if (key in extras) mergedSettings[key] = extras[key];
+        else delete mergedSettings[key];
+      }
+
       const { error } = await supabase.from('site_content').upsert({
         id: 'default',
         hero_badge: content.heroBadge,
@@ -747,6 +709,9 @@ export const dbService = {
         hcm_workshop_address: content.hcmWorkshopAddress,
         announcement_text: content.announcementText,
         announcement_enabled: content.announcementActive,
+        // LUÔN gửi cột `settings` (kể cả object rỗng, khi hàng chưa từng cấu hình gì):
+        // xem khối giải thích ở đầu hàm.
+        settings: mergedSettings,
         updated_at: new Date().toISOString(),
       });
       if (error) return { success: false, error: error.message };
@@ -790,32 +755,26 @@ export const dbService = {
   // Workshop Partners
   async getWorkshopPartners(): Promise<WorkshopPartner[]> {
     try {
-      const { data, error } = await supabase.from('workshop_partners').select('*').order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) {
-        return data.map((d: any): WorkshopPartner => ({
-          id: d.id,
-          name: d.name,
-          region: (d.region || 'hanoi') as 'hanoi' | 'danang' | 'hcm',
-          address: d.address || '',
-          contactPerson: d.contact_person || 'Kỹ sư quản trị xưởng',
-          phone: d.phone || '',
-          email: d.email || '',
-          supportedTechnologies: Array.isArray(d.supported_technologies) ? d.supported_technologies : ['FDM'],
-          maxBuildVolume: d.max_build_volume || { x: 450, y: 450, z: 500 },
-          activePrintersCount: Number(d.active_jobs_count || d.active_printers_count || 10),
-          availablePrintersCount: Number(d.available_printers_count || 4),
-          slaRating: Number(d.rating || d.sla_rating || 4.9),
-          completedJobsCount: Number(d.completed_jobs_count || 500),
-          currentQueueLength: Number(d.current_queue_length || 6.5),
-          inStockMaterials: Array.isArray(d.in_stock_materials) ? d.in_stock_materials : ['PLA Pro', 'PETG Technical Pro', 'ABS Industrial'],
-          status: (d.capacity_status === 'available' || d.status === 'active') ? 'active' : (d.capacity_status || d.status || 'active') as any,
-        }));
+      const { data, error } = await supabase
+        .from('workshop_partners')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // LUẬT TRUNG THỰC DỮ LIỆU (docs/design/data-honesty.md CI-07 + "Recommended UI
+      // states" §4): màn hình admin KHÔNG được rơi về WORKSHOP_PARTNERS (dữ liệu bịa
+      // trong mockData) hay localStorage khi bảng rỗng/lỗi — admin sẽ tưởng đó là dữ
+      // liệu thật của mạng lưới đối tác. Vì vậy:
+      //   * lỗi truy vấn → ném lỗi THẬT để caller hiện trạng thái "lỗi khi tải"
+      //   * bảng rỗng    → trả mảng rỗng để caller hiện "chưa có dữ liệu"
+      // Không có nhánh fallback mock nào ở đây.
+      if (error) {
+        throw new Error(`Không tải được danh sách đối tác xưởng: ${error.message}`);
       }
+      return (data ?? []).map(rowToWorkshopPartner);
     } catch (e) {
-      console.warn('Supabase getWorkshopPartners fallback to local:', e);
+      if (e instanceof Error) throw e;
+      throw new Error(`Không tải được danh sách đối tác xưởng: ${String(e)}`);
     }
-    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_workshop_partners') : null;
-    return local ? JSON.parse(local) : WORKSHOP_PARTNERS;
   },
 
   async saveWorkshopPartner(partner: WorkshopPartner): Promise<{ success: boolean; error?: string }> {
@@ -830,7 +789,8 @@ export const dbService = {
         email: partner.email,
         capacity_status: partner.status === 'active' ? 'available' : partner.status,
         rating: partner.slaRating,
-        sla_on_time_rate: 98.5,
+        // KHÔNG ghi `sla_on_time_rate`: chỉ số này chưa từng được đo (data-honesty
+        // CI-07). Chỉ ghi giá trị do caller thật sự cung cấp.
         active_jobs_count: partner.activePrintersCount,
         supported_technologies: partner.supportedTechnologies,
         updated_at: new Date().toISOString(),
@@ -844,33 +804,16 @@ export const dbService = {
 
   // Accessories & Hardware Add-ons
   async getAccessories(): Promise<AccessoryItem[]> {
-    try {
-      const { data, error } = await supabase.from('accessories').select('*').order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) {
-        return data.map((d: any): AccessoryItem => ({
-          id: d.id,
-          name: d.name,
-          nameEn: d.name_en || d.name,
-          category: (d.type || d.category || 'hardware') as any,
-          unit: d.unit || 'cái',
-          costPrice: Number(d.cost_price || Math.round((d.price || 0) * 0.5)),
-          sellingPrice: Number(d.price ?? d.selling_price ?? 0),
-          sku: d.sku || `ACC-${d.id.substring(0, 6).toUpperCase()}`,
-          stockCount: Number(d.stock_quantity ?? d.stock_count ?? 0),
-          lowStockThreshold: Number(d.low_stock_threshold || 10),
-          warehouseLocation: d.warehouse_location || 'Kệ A1 - Hộc 01',
-          supplier: d.supplier || 'VCUBE Fab Hub',
-          description: d.description || '',
-          imageUrl: d.image_url || '',
-          isActive: Boolean(d.in_stock ?? d.is_active ?? true),
-          compatibleWith: Array.isArray(d.compatible_with) ? d.compatible_with : ['Móc khóa', 'Vỏ hộp IoT', 'Đồ gá'],
-        }));
-      }
-    } catch (e) {
-      console.warn('Supabase getAccessories fallback to local:', e);
+    const { data, error } = await supabase
+      .from('accessories')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Không tải được danh mục phụ kiện: ${error.message}`);
     }
-    const local = typeof window !== 'undefined' ? localStorage.getItem('vcube_accessories') : null;
-    return local ? JSON.parse(local) : ACCESSORIES_CATALOG;
+    // Bảng rỗng ⇒ []. KHÔNG rơi về fixture ACCESSORIES_CATALOG, KHÔNG đọc localStorage.
+    return (data ?? []).map(rowToAccessory);
   },
 
   async saveAccessory(acc: AccessoryItem): Promise<{ success: boolean; error?: string }> {

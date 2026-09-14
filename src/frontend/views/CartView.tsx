@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
-import { CartItem } from '../../types';
+import React, { useEffect, useState } from 'react';
+import { CartItem, VatLine } from '../../types';
 import { useLanguage } from '../context/LanguageContext';
+import { useCartStore } from '../stores/useCartStore';
+import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
+import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
+import { usePricingGlobalSettings } from '../hooks/useSettings';
+import { Icon } from '@frontend/ui';
+import { Button } from '@frontend/ui';
 
 interface CartViewProps {
   cart: CartItem[];
@@ -8,6 +14,8 @@ interface CartViewProps {
   onRemoveItem: (id: string) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onShowToast: (message: string) => void;
+  /** Nguồn duy nhất cho phí ship / ngưỡng freeship (từ `site_content`). */
+  siteContent?: { standardShippingFee?: number; freeShippingThreshold?: number };
 }
 
 export const CartView: React.FC<CartViewProps> = ({
@@ -15,13 +23,23 @@ export const CartView: React.FC<CartViewProps> = ({
   onUpdateQuantity,
   onRemoveItem,
   onNavigate,
-  onShowToast
+  onShowToast,
+  siteContent
 }) => {
   const { language } = useLanguage();
   const isVi = language === 'vi';
 
+  // P0: mã giảm giá sống trong store để KHÔNG mất khi sang /checkout.
+  const appliedDiscount = useCartStore((s) => s.appliedDiscount);
+  const appliedPromoCode = useCartStore((s) => s.appliedPromoCode);
+  const clearAppliedDiscount = useCartStore((s) => s.clearAppliedDiscount);
+
+  // Đợt 9 (R1): tỉ lệ VAT đọc từ `pricing_global_settings.vat_percent` — hết 8% cứng.
+  // Hook đứng TRƯỚC `if (cart.length === 0) return …` bên dưới (luật hook của React).
+  const { data: pricingGlobal } = usePricingGlobalSettings();
+  const vatRate = vatRateFromPercent(pricingGlobal?.vatPercent);
+
   const [promoCode, setPromoCode] = useState('');
-  const [appliedDiscount, setAppliedDiscount] = useState<number>(0);
   const [promoMessage, setPromoMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
   const physicalItems = cart.filter(i => i.type === 'physical');
@@ -31,47 +49,71 @@ export const CartView: React.FC<CartViewProps> = ({
   const subtotalDigital = digitalItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
   const subtotal = subtotalPhysical + subtotalDigital;
 
-  // Free shipping threshold: 300,000 VND for physical parts
-  const freeShippingThreshold = 300000;
-  const shippingFee = physicalItems.length > 0 ? (subtotalPhysical >= freeShippingThreshold ? 0 : 30000) : 0;
+  // Phí ship lấy từ MỘT nguồn duy nhất (site_content, mặc định DEFAULT_SALES_RULES).
+  const freeShippingThreshold = siteContent?.freeShippingThreshold ?? DEFAULT_SALES_RULES.freeShippingThreshold;
+  const shippingFee = computeShippingFee(subtotalPhysical, physicalItems.length > 0, siteContent);
   const remainingForFreeShip = Math.max(0, freeShippingThreshold - subtotalPhysical);
-  const freeShipPercent = Math.min(100, Math.round((subtotalPhysical / freeShippingThreshold) * 100));
+  const freeShipPercent = freeShippingThreshold > 0
+    ? Math.min(100, Math.round((subtotalPhysical / freeShippingThreshold) * 100))
+    : 0;
 
-  const totalAmount = Math.max(0, subtotal + shippingFee - appliedDiscount);
+  // Giá niêm yết CHƯA gồm VAT; VAT là một dòng riêng (xem `lib/vat.ts`).
+  // `pricing_global_settings.vat_percent` NULL ⇒ `vat === null` ⇒ ẨN dòng VAT.
+  const afterDiscount = Math.max(0, subtotal + shippingFee - appliedDiscount);
+  const vat: VatLine | null = computeVat(afterDiscount, vatRate);
+  const totalAmount = vat ? vat.total : afterDiscount;
 
-  const handleApplyPromo = (codeToApply?: string) => {
-    const code = (codeToApply || promoCode).trim().toUpperCase();
+  /**
+   * TRUNG THỰC DỮ LIỆU (docs/design/data-honesty.md): schema KHÔNG có bảng khuyến mãi nào,
+   * nên không mã nào xác thực được. Ô này trước đây nhận 3 mã cứng — `TECH3D` (−20.000 đ),
+   * `VCUBE10` / `VN3DHUN` (−10%) — rồi trừ thẳng vào số tiền khách nhìn thấy: một khoản giảm
+   * giá không có nguồn nào trong hệ thống. Nay ô chỉ TỪ CHỐI và nói rõ lý do; KHÔNG mã nào
+   * làm thay đổi số tiền phải trả.
+   */
+  const handleApplyPromo = () => {
+    const code = promoCode.trim().toUpperCase();
     if (!code) return;
-
-    if (code === 'TECH3D') {
-      const disc = 20000;
-      setAppliedDiscount(disc);
-      setPromoMessage({ text: isVi ? 'Áp dụng mã TECH3D: Giảm 20.000 đ' : 'Promo TECH3D applied: 20,000 VND OFF', isError: false });
-      onShowToast(isVi ? 'Đã áp dụng mã giảm giá 20.000 đ!' : 'Applied 20,000 VND discount!');
-    } else if (code === 'VCUBE10' || code === 'VN3DHUB') {
-      const disc = Math.round(subtotal * 0.1);
-      setAppliedDiscount(disc);
-      setPromoMessage({ text: isVi ? `Áp dụng mã ${code}: Giảm 10% (-${disc.toLocaleString('vi-VN')} đ)` : `Promo ${code} applied: 10% OFF`, isError: false });
-      onShowToast(isVi ? 'Đã áp dụng mã ưu đãi 10%!' : 'Applied 10% discount!');
-    } else {
-      setPromoMessage({ text: isVi ? 'Mã ưu đãi không hợp lệ. Vui lòng kiểm tra lại.' : 'Invalid promo code. Please check again.', isError: true });
-    }
+    setPromoMessage({
+      text: isVi
+        ? `Không xác thực được mã "${code}": hệ thống chưa có danh sách khuyến mãi nào để đối chiếu, nên không khoản giảm giá nào được áp dụng.`
+        : `Cannot validate "${code}": there is no promotions source to check against, so no discount is applied.`,
+      isError: true
+    });
+    // Phản hồi ngay cạnh ô nhập lẫn ở toast: mã KHÔNG được áp dụng, và vì sao.
+    onShowToast(isVi
+      ? 'Mã ưu đãi không được áp dụng: hệ thống chưa có nguồn khuyến mãi để xác thực.'
+      : 'Promo code not applied: no promotions source exists to validate it.');
   };
+
+  // Khoản giảm giá do các mã cứng cũ vẫn nằm trong store (persist `vcube_cart_store`) nên vẫn
+  // trừ tiền ở /cart và /checkout. Gỡ MỘT LẦN khi mở giỏ hàng và nói rõ vì sao — không âm
+  // thầm giữ một khoản giảm giá không có nguồn xác thực.
+  useEffect(() => {
+    if (useCartStore.getState().appliedDiscount > 0) {
+      clearAppliedDiscount();
+      setPromoMessage({
+        text: isVi
+          ? 'Khoản giảm giá đang ghi trên đơn không có nguồn xác thực trong hệ thống nên đã được gỡ bỏ.'
+          : 'The discount previously applied had no verifiable source, so it has been removed.',
+        isError: true
+      });
+    }
+  }, [clearAppliedDiscount, isVi]);
 
   // EMPTY CART STATE
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] py-16 sm:py-24 px-4 sm:px-6 flex items-center justify-center">
-        <div className="max-w-md w-full text-center bg-white p-8 sm:p-10 rounded-2xl border border-[#CBD5E1] shadow-md space-y-6">
-          <div className="w-16 h-16 bg-[#00687A]/10 text-[#00687A] rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-            <span className="material-symbols-outlined text-3xl">shopping_cart</span>
+      <div className="min-h-screen bg-canvas py-16 sm:py-24 px-4 sm:px-6 flex items-center justify-center">
+        <div className="max-w-md w-full text-center bg-surface p-8 sm:p-10 rounded-lg shadow-e2 space-y-6">
+          <div className="w-16 h-16 bg-primary/10 text-primary rounded-lg flex items-center justify-center mx-auto shadow-e0">
+            <Icon name="shopping_cart" size={30} />
           </div>
 
           <div className="space-y-2">
-            <h2 className="font-extrabold text-xl text-[#091426]">
+            <h2 className="font-extrabold text-xl text-fg">
               {isVi ? 'Giỏ hàng của bạn đang trống' : 'Your cart is empty'}
             </h2>
-            <p className="text-xs text-[#64748B] font-mono leading-relaxed">
+            <p className="text-xs text-fg-subtle font-mono leading-relaxed">
               {isVi
                 ? 'Chưa có bản vẽ kỹ thuật CAD hoặc linh kiện in 3D nào được chọn. Hãy khám phá kho thư viện cơ khí tuyển chọn của VCUBE.'
                 : 'No CAD files or 3D printed parts added yet. Explore the curated mechanical catalog.'}
@@ -81,16 +123,16 @@ export const CartView: React.FC<CartViewProps> = ({
           <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
             <button
               onClick={() => onNavigate('explore')}
-              className="px-6 py-3.5 bg-[#00687A] hover:bg-[#005260] text-white font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer touch-target-btn"
+              className="px-6 py-3.5 bg-primary hover:bg-primary-hover text-primary-fg font-mono text-xs uppercase tracking-wider font-bold rounded-full transition-all shadow-e1 flex items-center justify-center gap-2 cursor-pointer touch-target-btn"
             >
-              <span className="material-symbols-outlined text-base">explore</span>
+              <Icon name="explore" size={18} />
               <span>{isVi ? 'Khám Phá Bản Vẽ CAD' : 'Explore CAD Catalog'}</span>
             </button>
             <button
               onClick={() => onNavigate('tool_3d')}
-              className="px-6 py-3.5 border border-[#CBD5E1] hover:border-[#00687A] hover:bg-[#F8FAFC] text-[#091426] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer touch-target-btn shadow-2xs"
+              className="px-6 py-3.5 border border-line-control hover:border-primary hover:bg-canvas text-fg font-mono text-xs uppercase tracking-wider font-bold rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer touch-target-btn shadow-e0"
             >
-              <span className="material-symbols-outlined text-base">upload_file</span>
+              <Icon name="upload_file" size={18} />
               <span>{isVi ? 'Báo Giá Mesh STL' : 'Instant Quote STL'}</span>
             </button>
           </div>
@@ -100,19 +142,19 @@ export const CartView: React.FC<CartViewProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#091426] py-6 sm:py-10 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
+    <div className="min-h-screen bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         {/* Header & Step Navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#CBD5E1]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-line">
           <div>
-            <div className="flex items-center gap-2 font-mono text-xs text-[#64748B] mb-1">
-              <span className="text-[#00687A] font-bold">BƯỚC 01/03</span>
+            <div className="flex items-center gap-2 font-mono text-xs text-fg-subtle mb-1">
+              <span className="text-primary font-bold">BƯỚC 01/03</span>
               <span>•</span>
               <span className="uppercase">Kiểm tra danh mục đặt hàng</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#091426]">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-fg">
               {isVi ? 'Giỏ Hàng & Cấu Hình Đơn' : 'Shopping Cart & Manifest'}
-              <span className="text-[#64748B] text-lg font-mono font-normal ml-2">
+              <span className="text-fg-subtle text-lg font-mono font-normal ml-2">
                 ({cart.reduce((a, b) => a + b.quantity, 0)} {isVi ? 'mục' : 'items'})
               </span>
             </h1>
@@ -120,37 +162,39 @@ export const CartView: React.FC<CartViewProps> = ({
 
           <button
             onClick={() => onNavigate('explore')}
-            className="text-xs font-mono font-bold text-[#00687A] hover:text-[#005260] flex items-center gap-1.5 self-start sm:self-auto px-3.5 py-2 rounded-xl bg-white border border-[#CBD5E1] shadow-2xs hover:border-[#00687A] transition-colors cursor-pointer"
+            className="text-xs font-mono font-bold text-primary hover:text-primary-hover flex items-center gap-1.5 self-start sm:self-auto px-3.5 py-2 rounded-full bg-surface border border-line-control shadow-e0 hover:border-primary transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-sm">arrow_back</span>
+            <Icon name="arrow_back" size={18} />
             <span>{isVi ? 'Tiếp tục chọn bản vẽ' : 'Continue Shopping'}</span>
           </button>
         </div>
 
         {/* Free Shipping Progress Banner for Physical Orders */}
         {physicalItems.length > 0 && (
-          <div className="bg-white border border-[#CBD5E1] p-4 rounded-2xl shadow-xs space-y-2">
+          <div className="bg-surface p-4 rounded-lg shadow-e1 space-y-2">
             <div className="flex items-center justify-between text-xs font-mono">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#00687A] text-lg">local_shipping</span>
+                <Icon name="local_shipping" size={20} className="text-primary" />
                 {remainingForFreeShip > 0 ? (
                   <span>
                     {isVi ? 'Mua thêm ' : 'Add '}
-                    <strong className="text-[#00687A]">{remainingForFreeShip.toLocaleString('vi-VN')} đ</strong>
+                    <strong className="text-primary">{remainingForFreeShip.toLocaleString('vi-VN')} đ</strong>
                     {isVi ? ' để được MIỄN PHÍ VẬN CHUYỂN toàn quốc!' : ' for FREE SHIPPING!'}
                   </span>
                 ) : (
-                  <span className="text-emerald-700 font-bold flex items-center gap-1">
-                    <span className="material-symbols-outlined text-base">verified</span>
-                    {isVi ? 'Đủ điều kiện MIỄN PHÍ GIAO HÀNG toàn quốc (Đơn > 300k)!' : 'FREE SHIPPING UNLOCKED!'}
+                  <span className="text-positive font-bold flex items-center gap-1">
+                    <Icon name="verified" size={18} />
+                    {isVi
+                      ? `Đủ điều kiện MIỄN PHÍ GIAO HÀNG toàn quốc (đơn từ ${freeShippingThreshold.toLocaleString('vi-VN')} đ)!`
+                      : `FREE SHIPPING UNLOCKED (orders from ${freeShippingThreshold.toLocaleString('vi-VN')} đ)!`}
                   </span>
                 )}
               </div>
-              <span className="font-bold text-[#00687A]">{freeShipPercent}%</span>
+              <span className="font-bold text-primary">{freeShipPercent}%</span>
             </div>
-            <div className="w-full bg-[#F1F5F9] h-2 rounded-full overflow-hidden border border-[#CBD5E1]/60">
+            <div className="w-full bg-line-subtle h-2 rounded-full overflow-hidden border border-line/60">
               <div
-                className="bg-[#00687A] h-full rounded-full transition-all duration-500"
+                className="bg-primary h-full rounded-full transition-all duration-500"
                 style={{ width: `${freeShipPercent}%` }}
               />
             </div>
@@ -163,55 +207,55 @@ export const CartView: React.FC<CartViewProps> = ({
           <div className="lg:col-span-8 space-y-6">
             {/* 1. DIGITAL CAD ASSETS SECTION */}
             {digitalItems.length > 0 && (
-              <div className="bg-white border border-[#CBD5E1] rounded-2xl p-5 sm:p-7 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-[#CBD5E1] pb-3">
+              <div className="bg-surface rounded-lg p-5 sm:p-7 shadow-e1 space-y-4">
+                <div className="flex items-center justify-between border-b border-line pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#00687A] text-lg">folder_zip</span>
-                    <h2 className="font-extrabold text-sm sm:text-base text-[#091426]">
+                    <Icon name="folder_zip" size={20} className="text-primary" />
+                    <h2 className="font-extrabold text-sm sm:text-base text-fg">
                       {isVi ? 'Bản Quyền File CAD Kỹ Thuật' : 'Digital CAD Files'} ({digitalItems.length})
                     </h2>
                   </div>
-                  <span className="text-[10px] font-mono text-cyan-800 bg-cyan-50 px-2 py-0.5 rounded-md border border-cyan-200">
+                  <span className="text-xs font-mono text-primary bg-primary-tint px-2 py-0.5 rounded-md border border-primary/30">
                     Tải Tức Thời • Phí Giao: 0 đ
                   </span>
                 </div>
 
-                <div className="divide-y divide-[#CBD5E1]">
+                <div className="divide-y divide-line">
                   {digitalItems.map((item) => (
                     <div key={item.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-3.5">
                         <img
                           src={item.image}
                           alt={item.name}
-                          className="w-14 h-14 rounded-xl object-cover border border-[#CBD5E1] bg-[#091426] shrink-0"
+                          className="w-14 h-14 rounded-lg object-cover border border-line bg-surface-inverse shrink-0"
                         />
                         <div className="space-y-1">
-                          <span className="text-[9px] font-mono text-[#00687A] font-bold uppercase tracking-wider block">
+                          <span className="text-xs font-mono text-primary font-bold uppercase tracking-wider block">
                             {item.designer}
                           </span>
-                          <h3 className="font-bold text-sm text-[#091426] leading-tight">{item.name}</h3>
-                          <div className="flex items-center gap-2 text-[11px] font-mono text-[#64748B]">
-                            <span>Định dạng: <strong className="text-[#091426]">{item.fileFormat || 'STL + STEP + 3MF'}</strong></span>
+                          <h3 className="font-bold text-sm text-fg leading-tight">{item.name}</h3>
+                          <div className="flex items-center gap-2 text-xs font-mono text-fg-subtle">
+                            <span>Định dạng: <strong className="text-fg">{item.fileFormat || 'STL + STEP + 3MF'}</strong></span>
                             <span>•</span>
-                            <span className="text-emerald-700 font-bold">{item.licenseType || 'Commercial License'}</span>
+                            <span className="text-positive font-bold">{item.licenseType || '—'}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between w-full sm:w-auto gap-4 sm:gap-6 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#CBD5E1]/60">
+                      <div className="flex items-center justify-between w-full sm:w-auto gap-4 sm:gap-6 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-line/60">
                         <div className="text-right font-mono">
-                          <span className="text-base font-extrabold text-[#00687A] block">
+                          <span className="text-base font-extrabold text-primary block">
                             {item.price.toLocaleString('vi-VN')} đ
                           </span>
-                          <span className="text-[10px] text-[#64748B]">Bản quyền vĩnh viễn</span>
+                          <span className="text-xs text-fg-subtle">Bản quyền vĩnh viễn</span>
                         </div>
 
                         <button
                           onClick={() => onRemoveItem(item.id)}
-                          className="p-2 text-[#64748B] hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer touch-target-btn"
+                          className="p-2 text-fg-subtle hover:text-danger hover:bg-danger-tint rounded-full transition-colors cursor-pointer touch-target-btn"
                           title="Xóa khỏi giỏ hàng"
                         >
-                          <span className="material-symbols-outlined text-lg">delete</span>
+                          <Icon name="delete" size={20} />
                         </button>
                       </div>
                     </div>
@@ -222,44 +266,44 @@ export const CartView: React.FC<CartViewProps> = ({
 
             {/* 2. PHYSICAL 3D PRINT FABRICATIONS SECTION */}
             {physicalItems.length > 0 && (
-              <div className="bg-white border border-[#CBD5E1] rounded-2xl p-5 sm:p-7 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-[#CBD5E1] pb-3">
+              <div className="bg-surface rounded-lg p-5 sm:p-7 shadow-e1 space-y-4">
+                <div className="flex items-center justify-between border-b border-line pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#091426] text-lg">precision_manufacturing</span>
-                    <h2 className="font-extrabold text-sm sm:text-base text-[#091426]">
+                    <Icon name="precision_manufacturing" size={20} className="text-fg" />
+                    <h2 className="font-extrabold text-sm sm:text-base text-fg">
                       {isVi ? 'Sản Phẩm In 3D Gia Công Vật Lý' : 'Physical 3D Prints'} ({physicalItems.length})
                     </h2>
                   </div>
-                  <span className="text-[10px] font-mono text-[#00687A] bg-[#00687A]/10 px-2 py-0.5 rounded-md">
-                    QC Dung Sai ±0.05mm
+                  <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                    {isVi ? 'Đo kiểm theo thoả thuận' : 'Inspection on agreement'}
                   </span>
                 </div>
 
-                <div className="divide-y divide-[#CBD5E1]">
+                <div className="divide-y divide-line">
                   {physicalItems.map((item) => (
                     <div key={item.id} className="py-4 sm:py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div className="flex items-start sm:items-center gap-3.5">
                         <img
                           src={item.image}
                           alt={item.name}
-                          className="w-16 h-16 rounded-xl object-cover border border-[#CBD5E1] bg-[#091426] shrink-0"
+                          className="w-16 h-16 rounded-lg object-cover border border-line bg-surface-inverse shrink-0"
                         />
                         <div className="space-y-1">
-                          <span className="text-[9px] font-mono text-[#00687A] font-bold uppercase tracking-wider block">
+                          <span className="text-xs font-mono text-primary font-bold uppercase tracking-wider block">
                             {item.designer}
                           </span>
-                          <h3 className="font-bold text-sm text-[#091426] leading-tight">{item.name}</h3>
+                          <h3 className="font-bold text-sm text-fg leading-tight">{item.name}</h3>
                           
-                          <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-[#64748B]">
-                            <span>Vật liệu: <strong className="text-[#091426]">{item.material}</strong></span>
+                          <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-fg-subtle">
+                            <span>Vật liệu: <strong className="text-fg">{item.material}</strong></span>
                             <span>•</span>
                             <span className="flex items-center gap-1">
                               Màu:
                               <span
-                                className="w-2.5 h-2.5 rounded-full inline-block border border-black/20"
-                                style={{ backgroundColor: item.colorHex || '#1C1C1C' }}
+                                className="w-2.5 h-2.5 rounded-full inline-block border border-line"
+                                style={{ backgroundColor: item.colorHex || 'var(--color-line)' }}
                               />
-                              <strong className="text-[#091426]">{item.color}</strong>
+                              <strong className="text-fg">{item.color}</strong>
                             </span>
                             {item.resolution && (
                               <>
@@ -270,28 +314,28 @@ export const CartView: React.FC<CartViewProps> = ({
                           </div>
 
                           {item.customText && (
-                            <p className="text-[11px] font-mono text-[#00687A] bg-[#00687A]/5 px-2 py-0.5 rounded inline-block">
+                            <p className="text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded-sm inline-block">
                               Khắc Laser: "{item.customText}"
                             </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between w-full sm:w-auto gap-4 sm:gap-6 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#CBD5E1]/60">
+                      <div className="flex items-center justify-between w-full sm:w-auto gap-4 sm:gap-6 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-line/60">
                         {/* Quantity Selector */}
-                        <div className="flex items-center border border-[#CBD5E1] rounded-xl bg-[#F8FAFC] overflow-hidden shadow-2xs">
+                        <div className="flex items-center border border-line rounded-lg bg-canvas overflow-hidden shadow-e0">
                           <button
                             onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                            className="px-3 py-1.5 hover:bg-white text-[#091426] font-bold text-xs font-mono touch-target-btn cursor-pointer transition-colors"
+                            className="px-3 py-1.5 hover:bg-surface-muted text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-colors"
                           >
                             -
                           </button>
-                          <span className="px-3.5 py-1.5 font-mono text-xs font-bold text-[#091426] bg-white border-x border-[#CBD5E1]">
+                          <span className="px-3.5 py-1.5 font-mono text-xs font-bold text-fg bg-surface border-x border-line">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                            className="px-3 py-1.5 hover:bg-white text-[#091426] font-bold text-xs font-mono touch-target-btn cursor-pointer transition-colors"
+                            className="px-3 py-1.5 hover:bg-surface-muted text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-colors"
                           >
                             +
                           </button>
@@ -299,10 +343,10 @@ export const CartView: React.FC<CartViewProps> = ({
 
                         {/* Price Breakdown */}
                         <div className="text-right font-mono min-w-[90px]">
-                          <span className="font-extrabold text-sm text-[#091426] block">
+                          <span className="font-extrabold text-sm text-fg block">
                             {(item.price * item.quantity).toLocaleString('vi-VN')} đ
                           </span>
-                          <span className="text-[10px] text-[#64748B]">
+                          <span className="text-xs text-fg-subtle">
                             {item.price.toLocaleString('vi-VN')} đ / cái
                           </span>
                         </div>
@@ -310,10 +354,10 @@ export const CartView: React.FC<CartViewProps> = ({
                         {/* Remove item */}
                         <button
                           onClick={() => onRemoveItem(item.id)}
-                          className="p-2 text-[#64748B] hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer touch-target-btn"
+                          className="p-2 text-fg-subtle hover:text-danger hover:bg-danger-tint rounded-full transition-colors cursor-pointer touch-target-btn"
                           title="Xóa linh kiện này"
                         >
-                          <span className="material-symbols-outlined text-lg">delete</span>
+                          <Icon name="delete" size={20} />
                         </button>
                       </div>
                     </div>
@@ -323,63 +367,47 @@ export const CartView: React.FC<CartViewProps> = ({
             )}
 
             {/* Interactive Promo Voucher Box */}
-            <div className="bg-white border border-[#CBD5E1] rounded-2xl p-5 shadow-xs space-y-3">
+            <div className="bg-surface rounded-lg p-5 shadow-e1 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-xs uppercase font-bold text-[#091426] flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[#00687A] text-base">confirmation_number</span>
+                <label htmlFor="cart-promo-code" className="font-mono text-xs uppercase font-bold text-fg flex items-center gap-1.5 cursor-pointer">
+                  <Icon name="confirmation_number" size={18} className="text-primary" />
                   {isVi ? 'Mã Giảm Giá / Ưu Đãi Doanh Nghiệp' : 'Promo Voucher'}
-                </span>
+                </label>
                 {appliedDiscount > 0 && (
-                  <span className="text-[11px] font-mono text-emerald-600 font-bold">
-                    - {appliedDiscount.toLocaleString('vi-VN')} đ
+                  <span className="text-xs font-mono text-positive font-bold">
+                    {appliedPromoCode ? `${appliedPromoCode} • ` : ''}- {appliedDiscount.toLocaleString('vi-VN')} đ
                   </span>
                 )}
               </div>
 
               <div className="flex gap-2">
                 <input
+                  id="cart-promo-code"
                   type="text"
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
-                  placeholder={isVi ? 'Nhập mã VCUBE10, TECH3D...' : 'Enter promo code...'}
-                  className="flex-1 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl px-3.5 py-2 text-xs font-mono uppercase text-[#091426] focus:outline-none focus:border-[#00687A]"
+                  placeholder={isVi ? 'Nhập mã ưu đãi...' : 'Enter promo code...'}
+                  className="flex-1 bg-canvas border border-line-control rounded-lg px-3.5 py-2 text-xs font-mono uppercase text-fg focus:outline-none focus:border-primary"
                 />
                 <button
                   type="button"
                   onClick={() => handleApplyPromo()}
-                  className="px-4 py-2 bg-[#091426] hover:bg-[#00687A] text-white font-mono text-xs uppercase font-bold rounded-xl transition-all cursor-pointer touch-target-btn shadow-2xs"
+                  className="px-4 py-2 bg-surface-inverse hover:bg-primary text-primary-fg font-mono text-xs uppercase font-bold rounded-full transition-all cursor-pointer touch-target-btn shadow-e0"
                 >
                   {isVi ? 'Áp dụng' : 'Apply'}
                 </button>
               </div>
 
-              {/* Quick voucher pill buttons */}
-              <div className="flex items-center gap-2 flex-wrap pt-1">
-                <span className="text-[10px] font-mono text-[#64748B]">Gợi ý:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPromoCode('VCUBE10');
-                    handleApplyPromo('VCUBE10');
-                  }}
-                  className="px-2.5 py-1 bg-[#F8FAFC] hover:bg-[#00687A]/10 border border-[#CBD5E1] hover:border-[#00687A] rounded-lg text-[10px] font-mono font-bold text-[#00687A] transition-colors cursor-pointer"
-                >
-                  VCUBE10 (-10%)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPromoCode('TECH3D');
-                    handleApplyPromo('TECH3D');
-                  }}
-                  className="px-2.5 py-1 bg-[#F8FAFC] hover:bg-[#00687A]/10 border border-[#CBD5E1] hover:border-[#00687A] rounded-lg text-[10px] font-mono font-bold text-[#00687A] transition-colors cursor-pointer"
-                >
-                  TECH3D (-20k)
-                </button>
-              </div>
+              {/* KHÔNG còn "mã gợi ý": các mã cũ (VCUBE10 / TECH3D / VN3DHUN) không có
+                  nguồn nào trong schema nên không được quảng cáo như mã thật. */}
+              <p className="text-xs font-mono text-fg-subtle leading-relaxed pt-1">
+                {isVi
+                  ? 'Hệ thống chưa có danh sách khuyến mãi để đối chiếu: mọi mã đều bị từ chối và không mã nào thay đổi số tiền phải trả.'
+                  : 'No promotions list exists to check against: every code is refused and none changes the amount due.'}
+              </p>
 
               {promoMessage && (
-                <p className={`text-xs font-mono mt-1 ${promoMessage.isError ? 'text-red-600' : 'text-emerald-700 font-bold'}`}>
+                <p className={`text-xs font-mono mt-1 ${promoMessage.isError ? 'text-danger' : 'text-positive font-bold'}`}>
                   {promoMessage.text}
                 </p>
               )}
@@ -388,23 +416,23 @@ export const CartView: React.FC<CartViewProps> = ({
 
           {/* Right Column: Sticky Order Summary Card */}
           <div className="lg:col-span-4">
-            <div className="bg-white border border-[#CBD5E1] rounded-2xl p-6 shadow-md space-y-6 lg:sticky lg:top-24">
-              <h2 className="font-extrabold text-base text-[#091426] border-b border-[#CBD5E1] pb-3 font-mono uppercase tracking-wide">
+            <div className="bg-surface border border-line rounded-lg p-6 shadow-e2 space-y-6 lg:sticky lg:top-24">
+              <h2 className="font-extrabold text-base text-fg border-b border-line pb-3 font-mono uppercase tracking-wide">
                 {isVi ? 'Tóm Tắt Đơn Hàng' : 'Order Summary'}
               </h2>
 
-              <div className="space-y-3 text-xs font-mono text-[#475569]">
+              <div className="space-y-3 text-xs font-mono text-fg-muted">
                 {digitalItems.length > 0 && (
                   <div className="flex justify-between">
                     <span>Tạm tính File CAD ({digitalItems.length}):</span>
-                    <span className="font-bold text-[#091426]">{subtotalDigital.toLocaleString('vi-VN')} đ</span>
+                    <span className="font-bold text-fg">{subtotalDigital.toLocaleString('vi-VN')} đ</span>
                   </div>
                 )}
 
                 {physicalItems.length > 0 && (
                   <div className="flex justify-between">
                     <span>Tạm tính In 3D ({physicalItems.reduce((a, b) => a + b.quantity, 0)} sp):</span>
-                    <span className="font-bold text-[#091426]">{subtotalPhysical.toLocaleString('vi-VN')} đ</span>
+                    <span className="font-bold text-fg">{subtotalPhysical.toLocaleString('vi-VN')} đ</span>
                   </div>
                 )}
 
@@ -412,50 +440,61 @@ export const CartView: React.FC<CartViewProps> = ({
                   <div className="flex items-center gap-1">
                     <span>Phí vận chuyển:</span>
                     {shippingFee === 0 && physicalItems.length > 0 && (
-                      <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">FREESHIP</span>
+                      <span className="text-xs bg-positive-tint text-positive px-1.5 py-0.2 rounded-sm font-bold">FREESHIP</span>
                     )}
                   </div>
-                  <span className={`font-bold ${shippingFee === 0 ? 'text-emerald-700' : 'text-[#091426]'}`}>
+                  <span className={`font-bold ${shippingFee === 0 ? 'text-positive' : 'text-fg'}`}>
                     {physicalItems.length === 0 ? '0 đ (Online)' : (shippingFee === 0 ? 'Miễn phí' : `${shippingFee.toLocaleString('vi-VN')} đ`)}
                   </span>
                 </div>
 
                 {appliedDiscount > 0 && (
-                  <div className="flex justify-between text-emerald-700 font-bold">
-                    <span>Giảm giá ưu đãi:</span>
+                  <div className="flex justify-between text-positive font-bold">
+                    <span>Giảm giá ưu đãi{appliedPromoCode ? ` (${appliedPromoCode})` : ''}:</span>
                     <span>- {appliedDiscount.toLocaleString('vi-VN')} đ</span>
                   </div>
                 )}
 
-                <div className="pt-3 border-t border-[#CBD5E1] flex justify-between items-baseline">
-                  <span className="text-sm font-bold text-[#091426]">Tổng thanh toán:</span>
+                {vat ? (
+                  <div className="flex justify-between">
+                    <span>{vatLabel(vat.rate)}:</span>
+                    <span className="font-bold text-fg">{vat.amount.toLocaleString('vi-VN')} đ</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-fg-subtle leading-relaxed">{vatNotConfiguredLabel(isVi)}</p>
+                )}
+
+                <div className="pt-3 border-t border-line flex justify-between items-baseline">
+                  <span className="text-sm font-bold text-fg">Tổng thanh toán:</span>
                   <div className="text-right">
-                    <span className="font-mono text-xl font-black text-[#00687A] block">
+                    <span className="font-mono text-xl font-black text-primary block">
                       {totalAmount.toLocaleString('vi-VN')} đ
                     </span>
-                    <span className="text-[10px] text-[#64748B] block">Đã bao gồm VAT & Kiểm định</span>
+                    <span className="text-xs text-fg-subtle block">
+                      {vatTotalNote(isVi, vatRate)}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Primary Checkout Action */}
-              <button
+              <Button size="lg" fullWidth className="font-mono"
                 onClick={() => onNavigate('checkout')}
-                className="w-full py-4 bg-[#00687A] hover:bg-[#005260] text-white font-mono font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer touch-target-btn active:scale-95"
+                
               >
                 <span>{isVi ? 'TIẾN HÀNH THANH TOÁN' : 'PROCEED TO CHECKOUT'}</span>
-                <span className="material-symbols-outlined text-base">arrow_forward</span>
-              </button>
+                <Icon name="arrow_forward" size={18} />
+              </Button>
 
               {/* Guarantee badges */}
-              <div className="pt-4 border-t border-[#CBD5E1] space-y-2 text-[10px] font-mono text-[#64748B]">
+              <div className="pt-4 border-t border-line space-y-2 text-xs font-mono text-fg-subtle">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#00687A] text-sm">lock</span>
+                  <Icon name="lock" size={16} className="text-primary" />
                   <span>Bảo mật giao dịch thanh toán mã hóa 256-bit</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#00687A] text-sm">verified</span>
-                  <span>Bảo hành hoàn tiền nếu sai lệch dung sai ±0.05mm</span>
+                  <Icon name="verified" size={16} className="text-primary" />
+                  <span>{isVi ? 'In lại miễn phí nếu lỗi kỹ thuật thuộc VCUBE (theo điều khoản)' : 'Free reprint for VCUBE-caused defects (per terms)'}</span>
                 </div>
               </div>
             </div>

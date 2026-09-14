@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '@frontend/ui';
 
 export interface MESStage {
   id: string;
@@ -16,31 +17,36 @@ export const MES_PIPELINE_STAGES: MESStage[] = [
   { id: 'heating', step: 4, label: 'Gia nhiệt máy', shortLabel: 'Gia nhiệt', icon: 'thermostat', desc: 'Cân bàn & đùn phôi' },
   { id: 'printing', step: 5, label: 'Đang in 3D', shortLabel: 'In 3D', icon: 'precision_manufacturing', desc: 'Thiêu kết / Đùn sợi' },
   { id: 'post_cure', step: 6, label: 'Xử lý bề mặt', shortLabel: 'Hậu kỳ', icon: 'cleaning_services', desc: 'Rửa cồn siêu âm & UV' },
-  { id: 'qc_check', step: 7, label: 'Đo kiểm QC', shortLabel: 'Đo kiểm', icon: 'verified', desc: 'Dung sai ±0.05mm' },
+  { id: 'qc_check', step: 7, label: 'Đo kiểm QC', shortLabel: 'Đo kiểm', icon: 'verified', desc: 'Theo thoả thuận' },
   { id: 'shipping', step: 8, label: 'Xuất xưởng giao', shortLabel: 'Đang giao', icon: 'local_shipping', desc: 'VCUBE Express' },
 ];
 
 interface OrderProgressProps {
-  currentStageIndex: number; // 0 to 7
-  layerProgress?: number; // 0 to 100%
+  /** null = xưởng chưa báo nấc nào. UI hiển thị "chưa có dữ liệu", KHÔNG mặc định nấc 4. */
+  currentStageIndex: number | null;
+  /** null = máy in chưa báo tiến độ lớp. UI hiển thị `—`, KHÔNG mặc định 64%. */
+  layerProgress?: number | null;
   variant?: 'compact' | 'full';
   status?: string;
   className?: string;
 }
 
 export const OrderProgress: React.FC<OrderProgressProps> = ({
-  currentStageIndex = 4,
-  layerProgress = 64,
+  currentStageIndex,
+  layerProgress,
   variant = 'compact',
   status,
   className = '',
 }) => {
   const isCancelled = status === 'cancelled';
+  const hasStage = typeof currentStageIndex === 'number';
+  // Nấc hiệu dụng chỉ dùng để tô sáng; khi chưa có dữ liệu thì không tô nấc nào.
+  const activeStage = hasStage ? (currentStageIndex as number) : -1;
 
   if (isCancelled) {
     return (
-      <div className={`p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 ${className}`}>
-        <span className="material-symbols-outlined text-lg">cancel</span>
+      <div className={`p-3 bg-danger-tint border border-danger/30 rounded-lg flex items-center gap-3 text-danger ${className}`}>
+        <Icon name="cancel" size={20} />
         <div className="text-xs font-mono">
           <span className="font-bold">ĐƠN HÀNG ĐÃ HỦY:</span> Tiến trình chế tác đã dừng và hoàn phí theo chính sách.
         </div>
@@ -55,21 +61,21 @@ export const OrderProgress: React.FC<OrderProgressProps> = ({
         {/* Progress bar segmented 8 steps */}
         <div className="flex items-center gap-1">
           {MES_PIPELINE_STAGES.map((stage, idx) => {
-            const isCompleted = idx < currentStageIndex;
-            const isCurrent = idx === currentStageIndex;
+            const isCompleted = idx < activeStage;
+            const isCurrent = idx === activeStage;
             return (
               <div key={stage.id} className="flex-1 flex flex-col items-center group relative">
                 <div
                   className={`h-1.5 w-full rounded-full transition-all duration-300 ${
                     isCompleted
-                      ? 'bg-[#00687A]'
+                      ? 'bg-primary'
                       : isCurrent
-                      ? 'bg-gradient-to-r from-[#00687A] to-[#57DFFE] animate-pulse ring-1 ring-[#57DFFE]'
-                      : 'bg-slate-200'
+                      ? 'bg-gradient-to-r from-primary to-accent animate-pulse ring-1 ring-accent'
+                      : 'bg-line-subtle'
                   }`}
                 />
                 {/* Micro tooltip on hover */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-[#091426] text-white text-[9px] px-2 py-1 rounded shadow-lg whitespace-nowrap pointer-events-none z-10">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-surface-inverse text-on-inverse text-xs px-2 py-1 rounded-sm shadow-e2 whitespace-nowrap pointer-events-none z-sticky">
                   {stage.step}. {stage.label}
                 </div>
               </div>
@@ -78,13 +84,19 @@ export const OrderProgress: React.FC<OrderProgressProps> = ({
         </div>
 
         {/* Status text row */}
-        <div className="flex items-center justify-between text-[10px] text-slate-500">
-          <span className="flex items-center gap-1.5 font-bold text-[#091426]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#57DFFE] animate-ping" />
-            Nấc {Math.min(8, currentStageIndex + 1)}/8: {MES_PIPELINE_STAGES[Math.min(7, currentStageIndex)]?.label}
+        <div className="flex items-center justify-between text-xs text-fg-subtle">
+          <span className="flex items-center gap-1.5 font-bold text-fg">
+            {hasStage ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
+                Nấc {Math.min(8, activeStage + 1)}/8: {MES_PIPELINE_STAGES[Math.min(7, activeStage)]?.label}
+              </>
+            ) : (
+              <span className="text-fg-subtle" title="Xưởng chưa báo nấc gia công">Nấc: — (chưa có dữ liệu từ xưởng)</span>
+            )}
           </span>
-          {currentStageIndex === 4 && (
-            <span className="text-[#00687A] font-bold">
+          {activeStage === 4 && typeof layerProgress === 'number' && (
+            <span className="text-primary font-bold">
               Tiến độ đùn lớp: {layerProgress}%
             </span>
           )}
@@ -99,33 +111,33 @@ export const OrderProgress: React.FC<OrderProgressProps> = ({
       {/* 8-Stage Interactive Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 font-mono">
         {MES_PIPELINE_STAGES.map((stage, idx) => {
-          const isCompleted = idx < currentStageIndex;
-          const isCurrent = idx === currentStageIndex;
+          const isCompleted = idx < activeStage;
+          const isCurrent = idx === activeStage;
           return (
             <div
               key={stage.id}
-              className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+              className={`p-3 rounded-lg border text-left transition-all flex flex-col justify-between ${
                 isCurrent
-                  ? 'border-[#00687A] bg-[#091426] text-white shadow-md ring-2 ring-[#00687A]/40 scale-[1.02]'
+                  ? 'border-primary bg-surface-inverse text-on-inverse shadow-e2 ring-2 ring-primary/40 scale-[1.02]'
                   : isCompleted
-                  ? 'border-teal-200 bg-teal-50/80 text-[#091426]'
-                  : 'border-slate-200 bg-[#F8FAFC] text-slate-400 opacity-60'
+                  ? 'border-primary/30 bg-primary-tint/80 text-fg'
+                  : 'border-line-subtle bg-canvas text-fg-subtle opacity-60'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className={`text-[10px] font-bold ${isCurrent ? 'text-[#57DFFE]' : isCompleted ? 'text-[#00687A]' : 'text-slate-400'}`}>
+                <span className={`text-xs font-bold ${isCurrent ? 'text-accent' : isCompleted ? 'text-primary' : 'text-fg-subtle'}`}>
                   0{stage.step}
                 </span>
-                <span className={`material-symbols-outlined text-sm ${isCurrent ? 'text-[#57DFFE] animate-spin-slow' : isCompleted ? 'text-[#00687A] font-bold' : 'text-slate-400'}`}>
-                  {isCompleted ? 'check_circle' : stage.icon}
-                </span>
+                <Icon name={isCompleted ? 'check_circle' : stage.icon} size={18} className={isCurrent ? 'text-accent animate-spin-slow' : isCompleted ? 'text-primary font-bold' : 'text-fg-subtle'} />
               </div>
               <div>
-                <p className={`font-bold text-[11px] leading-tight uppercase tracking-wider ${isCurrent ? 'text-white' : 'text-[#091426]'}`}>
+                <p className={`font-bold text-xs leading-tight uppercase tracking-wider ${isCurrent ? 'text-on-inverse' : 'text-fg'}`}>
                   {stage.shortLabel}
                 </p>
-                <p className={`text-[9px] mt-0.5 truncate ${isCurrent ? 'text-[#57DFFE]' : 'text-slate-500'}`}>
-                  {isCurrent && stage.id === 'printing' ? `${layerProgress}% Hoàn tất` : stage.desc}
+                <p className={`text-xs mt-0.5 truncate ${isCurrent ? 'text-accent' : 'text-fg-subtle'}`}>
+                  {isCurrent && stage.id === 'printing' && typeof layerProgress === 'number'
+                    ? `${layerProgress}% Hoàn tất`
+                    : stage.desc}
                 </p>
               </div>
             </div>

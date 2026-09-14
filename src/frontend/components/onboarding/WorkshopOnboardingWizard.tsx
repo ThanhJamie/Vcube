@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Button } from '@frontend/ui';
 import {
   Printer,
   Sparkles,
@@ -26,6 +27,8 @@ import {
   WorkshopMachine,
   WorkshopMaterial
 } from '../../types';
+import { useAuth } from '@frontend/context/AuthContext';
+import { WorkshopService } from '@backend/services/workshopService';
 
 export interface WorkshopOnboardingWizardProps {
   initialData?: Partial<WorkshopProfile>;
@@ -34,6 +37,12 @@ export interface WorkshopOnboardingWizardProps {
     machines: WorkshopMachine[];
     materials: WorkshopMaterial[];
   }) => void;
+  /**
+   * W1a: hồ sơ xưởng đã gửi nhưng còn `verified_status='Pending'` ⇒ `/lab` vẫn hiện wizard
+   * (theo brief Đợt 10 §W1a). Nhưng đó KHÔNG được là ngõ cụt: xưởng phải mở được bảng điều
+   * khiển của chính mình. Nút "Mở bảng điều khiển" gọi callback này.
+   */
+  onSkipToDashboard?: () => void;
   onCancel?: () => void;
   onNavigate?: (screen: string, payload?: any) => void;
   onShowToast?: (message: string) => void;
@@ -45,9 +54,6 @@ export interface PrinterPreset {
   name: string;
   brand: string;
   technology: 'FDM' | 'SLA' | 'SLS';
-  avgPowerKW: number;
-  purchasePrice: number;
-  lifetimeHours: number;
   buildVolumeMm: { x: number; y: number; z: number };
   badge?: string;
   description: string;
@@ -59,9 +65,6 @@ const POPULAR_PRINTER_PRESETS: PrinterPreset[] = [
     name: 'Bambu Lab X1-Carbon Combo',
     brand: 'Bambu Lab',
     technology: 'FDM',
-    avgPowerKW: 0.18,
-    purchasePrice: 35000000,
-    lifetimeHours: 10000,
     buildVolumeMm: { x: 256, y: 256, z: 256 },
     badge: 'Phổ biến nhất',
     description: 'Tốc độ 500mm/s, hỗ trợ đa màu AMS, camera AI chống spaghetti.'
@@ -71,9 +74,6 @@ const POPULAR_PRINTER_PRESETS: PrinterPreset[] = [
     name: 'Bambu Lab P1S Combo',
     brand: 'Bambu Lab',
     technology: 'FDM',
-    avgPowerKW: 0.16,
-    purchasePrice: 19500000,
-    lifetimeHours: 8000,
     buildVolumeMm: { x: 256, y: 256, z: 256 },
     badge: 'Hiệu năng cao',
     description: 'Buồng kín in ABS/PETG ổn định, giá thành đầu tư tối ưu cho hub.'
@@ -83,9 +83,6 @@ const POPULAR_PRINTER_PRESETS: PrinterPreset[] = [
     name: 'Creality K1 Max',
     brand: 'Creality',
     technology: 'FDM',
-    avgPowerKW: 0.22,
-    purchasePrice: 21000000,
-    lifetimeHours: 7000,
     buildVolumeMm: { x: 300, y: 300, z: 300 },
     badge: 'Khổ lớn 300mm',
     description: 'Bàn in 300x300x300mm, lidar kép tự cân bàn, sấy buồng chủ động.'
@@ -95,9 +92,6 @@ const POPULAR_PRINTER_PRESETS: PrinterPreset[] = [
     name: 'Elegoo Saturn 4 Ultra 12K',
     brand: 'Elegoo',
     technology: 'SLA',
-    avgPowerKW: 0.12,
-    purchasePrice: 13500000,
-    lifetimeHours: 5000,
     buildVolumeMm: { x: 218, y: 122, z: 220 },
     badge: 'Độ nét cao 12K',
     description: 'Công nghệ màn hình 12K Mono LCD, cảm biến tự cân bằng Tilt Release.'
@@ -107,9 +101,6 @@ const POPULAR_PRINTER_PRESETS: PrinterPreset[] = [
     name: 'Anycubic Kobra 2 Plus',
     brand: 'Anycubic',
     technology: 'FDM',
-    avgPowerKW: 0.20,
-    purchasePrice: 10500000,
-    lifetimeHours: 6000,
     buildVolumeMm: { x: 300, y: 300, z: 350 },
     badge: 'Tiết kiệm vốn',
     description: 'Tốc độ 500mm/s, khổ in cao 350mm, chi phí khấu hao thấp.'
@@ -119,9 +110,6 @@ const POPULAR_PRINTER_PRESETS: PrinterPreset[] = [
     name: 'Formlabs Form 4 SLA',
     brand: 'Formlabs',
     technology: 'SLA',
-    avgPowerKW: 0.22,
-    purchasePrice: 85000000,
-    lifetimeHours: 12000,
     buildVolumeMm: { x: 200, y: 125, z: 210 },
     badge: 'Công nghiệp y tế',
     description: 'Độ chính xác cấp công nghiệp, hỗ trợ resin kỹ thuật cao Tough/Rigid.'
@@ -139,92 +127,91 @@ const PRESET_MATERIAL_PALETTE = [
   { name: 'Trong Suốt', hex: '#CBD5E1' }
 ];
 
+/**
+ * `workshop_profiles.id` là **uuid** (`supabase/migrations/20260901_baseline_schema.sql`),
+ * nên KHÔNG được sinh id dạng `ws_<timestamp>` như bản cũ: Postgres từ chối
+ * (`invalid input syntax for type uuid`) và hồ sơ xưởng không bao giờ được tạo.
+ *
+ * `crypto.randomUUID()` chỉ có trong secure context — bản build tĩnh phục vụ qua IP LAN
+ * (`http://192.168.x.x:4197`) KHÔNG phải secure context, nên dùng `crypto.getRandomValues`
+ * (có ở mọi context) và fallback `Math.random` khi môi trường không có `crypto`.
+ */
+function createUuidV4(): string {
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> = ({
   initialData,
   onComplete,
+  onSkipToDashboard,
   onCancel,
   onNavigate,
   onShowToast
 }) => {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
   // -------------------------------------------------------------
   // Step 1: Workshop Information
   // -------------------------------------------------------------
-  const [workshopName, setWorkshopName] = useState(initialData?.workshopName || 'Xưởng In 3D Kỹ Thuật Số Hub');
-  const [contactPerson, setContactPerson] = useState('Nguyễn Văn Tuấn (Kỹ sư)');
-  const [contactPhone, setContactPhone] = useState(initialData?.contactPhone || '0988 123 456');
-  const [contactEmail, setContactEmail] = useState(initialData?.contactEmail || 'workshop@vcube.vn');
-  const [address, setAddress] = useState(initialData?.address || '128 Đường Xuân Thủy, Cầu Giấy, Hà Nội');
+  // data-honesty: mọi trường dưới đây là HỒ SƠ CỦA CHÍNH XƯỞNG đang đăng ký. Trước đây form
+  // được pre-fill bằng một xưởng bịa ("Xưởng In 3D Kỹ Thuật Số Hub", KS. Nguyễn Văn Tuấn,
+  // 128 Xuân Thủy – Cầu Giấy, workshop@vcube.vn, 2.850 đ/kWh): người dùng bấm "Hoàn tất" mà
+  // không nhập gì vẫn ghi được một xưởng không tồn tại. Nay để TRỐNG, người dùng phải khai.
+  const [workshopName, setWorkshopName] = useState(initialData?.workshopName || '');
+  const [contactPhone, setContactPhone] = useState(initialData?.contactPhone || '');
+  const [contactEmail, setContactEmail] = useState(initialData?.contactEmail || '');
+  const [address, setAddress] = useState(initialData?.address || '');
   const [region, setRegion] = useState<'Bắc' | 'Trung' | 'Nam'>((initialData?.region as any) || 'Bắc');
-  const [electricityRate, setElectricityRate] = useState<number>(2850); // VND/kWh (VN commercial average)
+  // '' = xưởng CHƯA khai đơn giá điện ⇒ không ghi số mặc định nào (không bịa 2.850 đ/kWh).
+  const [electricityRate, setElectricityRate] = useState<number | ''>(initialData?.electricityRateOverride ?? '');
 
   // -------------------------------------------------------------
   // Step 2: Machines Declaration
   // -------------------------------------------------------------
-  const [machines, setMachines] = useState<WorkshopMachine[]>([
-    {
-      id: `mch-${Date.now()}-1`,
-      workshopId: 'ws-pending',
-      machineName: 'Bambu Lab X1-Carbon #01',
-      machineType: 'FDM',
-      avgPowerKW: 0.18,
-      purchasePrice: 35000000,
-      lifetimeHours: 10000,
-      status: 'Free',
-      buildVolumeMm: { x: 256, y: 256, z: 256 }
-    }
-  ]);
+  // Bắt đầu TRỐNG: không dựng sẵn một "Bambu Lab X1-Carbon #01 giá 35 triệu" mà xưởng chưa khai.
+  const [machines, setMachines] = useState<WorkshopMachine[]>([]);
 
   // Temporary state for adding/editing a machine
   const [isAddingMachine, setIsAddingMachine] = useState(false);
   const [tempMachineName, setTempMachineName] = useState('');
   const [tempMachineType, setTempMachineType] = useState<'FDM' | 'SLA' | 'SLS'>('FDM');
-  const [tempAvgPowerKW, setTempAvgPowerKW] = useState<number>(0.18);
-  const [tempPurchasePrice, setTempPurchasePrice] = useState<number>(35000000);
-  const [tempLifetimeHours, setTempLifetimeHours] = useState<number>(10000);
-  const [tempVolumeX, setTempVolumeX] = useState<number>(256);
-  const [tempVolumeY, setTempVolumeY] = useState<number>(256);
-  const [tempVolumeZ, setTempVolumeZ] = useState<number>(256);
+  /**
+   * D2(A): BỎ 3 ô "công suất / giá mua / tuổi thọ khấu hao". Bảng `workshop_machines` KHÔNG
+   * có cột nào lưu 3 số đó, nên thu thập rồi vứt đi là làm người khai tưởng đã ghi được.
+   * Chi phí máy nay khai TRỰC TIẾP vào `hourly_rate` — cột CÓ THẬT, `saveMyMachine` ghi được.
+   * `''` = chưa khai (KHÔNG mặc định 0: 0 đ/giờ là một mức giá thật).
+   */
+  const [tempHourlyRate, setTempHourlyRate] = useState<number | ''>('');
+  // '' = chưa nhập khổ in (trước đây có sẵn số bịa 256³ mm).
+  const [tempVolumeX, setTempVolumeX] = useState<number | ''>('');
+  const [tempVolumeY, setTempVolumeY] = useState<number | ''>('');
+  const [tempVolumeZ, setTempVolumeZ] = useState<number | ''>('');
 
   // -------------------------------------------------------------
   // Step 3: Material Inventory Declaration
   // -------------------------------------------------------------
-  const [materials, setMaterials] = useState<WorkshopMaterial[]>([
-    {
-      id: `mat-${Date.now()}-1`,
-      workshopId: 'ws-pending',
-      materialName: 'eSUN PLA+ Đen Mờ High-Speed',
-      materialType: 'PLA',
-      pricePerKg: 250000,
-      colorHex: '#1E1E1E',
-      colorName: 'Đen Titan',
-      density: 1.24,
-      stockStatus: 'Tracking',
-      currentStockGrams: 5000,
-      lowStockThresholdGrams: 1000
-    },
-    {
-      id: `mat-${Date.now()}-2`,
-      workshopId: 'ws-pending',
-      materialName: 'Bambu Lab PETG Basic Trắng Sứ',
-      materialType: 'PETG',
-      pricePerKg: 290000,
-      colorHex: '#F8FAFC',
-      colorName: 'Trắng Sứ',
-      density: 1.27,
-      stockStatus: 'Tracking',
-      currentStockGrams: 3000,
-      lowStockThresholdGrams: 1000
-    }
-  ]);
+  // Bắt đầu TRỐNG (trước đây dựng sẵn 2 cuộn nhựa kèm giá nhập xưởng chưa từng khai).
+  const [materials, setMaterials] = useState<WorkshopMaterial[]>([]);
 
   // Temporary state for adding a material
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
   const [tempMaterialName, setTempMaterialName] = useState('');
   const [tempMaterialType, setTempMaterialType] = useState<WorkshopMaterial['materialType']>('PLA');
-  const [tempPricePerKg, setTempPricePerKg] = useState<number>(260000);
-  const [tempStockGrams, setTempStockGrams] = useState<number>(3000);
+  // '' = chưa nhập (trước đây 260.000 đ/kg và 3.000 g là số bịa được ghi thẳng vào kho xưởng).
+  const [tempPricePerKg, setTempPricePerKg] = useState<number | ''>('');
+  const [tempStockGrams, setTempStockGrams] = useState<number | ''>('');
+  // D8: ngưỡng cảnh báo là dữ kiện của TỪNG xưởng ⇒ bắt khai, KHÔNG tự điền 1000 g.
+  const [tempLowStockThreshold, setTempLowStockThreshold] = useState<number | ''>('');
   const [tempColorHex, setTempColorHex] = useState('#1E1E1E');
   const [tempColorName, setTempColorName] = useState('Đen Titan');
 
@@ -232,27 +219,18 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedProfile, setSubmittedProfile] = useState<WorkshopProfile | null>(null);
 
-  // Calculations for preview in Step 2
-  const currentDepreciationPerHour = useMemo(() => {
-    if (!tempLifetimeHours || tempLifetimeHours <= 0) return 0;
-    return Math.round(tempPurchasePrice / tempLifetimeHours);
-  }, [tempPurchasePrice, tempLifetimeHours]);
-
-  const currentElectricityPerHour = useMemo(() => {
-    return Math.round(tempAvgPowerKW * electricityRate);
-  }, [tempAvgPowerKW, electricityRate]);
-
-  const currentTotalMachinePerHour = useMemo(() => {
-    return currentDepreciationPerHour + currentElectricityPerHour;
-  }, [currentDepreciationPerHour, currentElectricityPerHour]);
+  /**
+   * Đơn giá giờ máy ĐANG nhập = đúng con số sẽ được lưu (`workshop_machines.hourly_rate`).
+   * `null` = chưa khai. Không cộng thêm khấu hao/tiền điện suy diễn từ trường không lưu được.
+   */
+  const currentHourlyRate = tempHourlyRate === '' ? null : Number(tempHourlyRate);
 
   // Load a preset machine into the editor form
   const handleSelectPreset = (preset: PrinterPreset) => {
     setTempMachineName(`${preset.name} #0${machines.length + 1}`);
     setTempMachineType(preset.technology);
-    setTempAvgPowerKW(preset.avgPowerKW);
-    setTempPurchasePrice(preset.purchasePrice);
-    setTempLifetimeHours(preset.lifetimeHours);
+    // D2(A): preset KHÔNG còn mang công suất/giá mua/tuổi thọ (3 trường không lưu được).
+    setTempHourlyRate('');
     setTempVolumeX(preset.buildVolumeMm.x);
     setTempVolumeY(preset.buildVolumeMm.y);
     setTempVolumeZ(preset.buildVolumeMm.z);
@@ -264,19 +242,26 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       onShowToast?.('Vui lòng nhập tên nhận diện cho máy in!');
       return;
     }
+    if (tempVolumeX === '' || tempVolumeY === '' || tempVolumeZ === '') {
+      onShowToast?.('Vui lòng nhập khổ in (X × Y × Z mm) — hệ thống không tự điền số mặc định.');
+      return;
+    }
+    if (tempHourlyRate !== '' && (!Number.isFinite(Number(tempHourlyRate)) || Number(tempHourlyRate) < 0)) {
+      onShowToast?.('Đơn giá giờ máy phải là số không âm, hoặc để trống nếu chưa khai.');
+      return;
+    }
     const newMachine: WorkshopMachine = {
       id: `mch-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       workshopId: 'ws-pending',
       machineName: tempMachineName.trim(),
       machineType: tempMachineType,
-      avgPowerKW: Number(tempAvgPowerKW) || 0.18,
-      purchasePrice: Number(tempPurchasePrice) || 20000000,
-      lifetimeHours: Number(tempLifetimeHours) || 8000,
+      // `null` = chưa khai đơn giá giờ (KHÔNG ghi 0 — 0 đ/giờ là một mức giá thật).
+      hourlyRate: tempHourlyRate === '' ? null : Number(tempHourlyRate),
       status: 'Free',
       buildVolumeMm: {
-        x: Number(tempVolumeX) || 256,
-        y: Number(tempVolumeY) || 256,
-        z: Number(tempVolumeZ) || 256
+        x: Number(tempVolumeX),
+        y: Number(tempVolumeY),
+        z: Number(tempVolumeZ)
       }
     };
     setMachines(prev => [...prev, newMachine]);
@@ -297,18 +282,24 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       onShowToast?.('Vui lòng nhập tên cuộn nhựa hoặc loại vật liệu!');
       return;
     }
+    if (tempPricePerKg === '' || tempStockGrams === '' || tempLowStockThreshold === '') {
+      onShowToast?.(
+        'Vui lòng nhập đơn giá nhập, khối lượng tồn kho và ngưỡng cảnh báo — hệ thống không tự điền số mặc định.',
+      );
+      return;
+    }
     const newMaterial: WorkshopMaterial = {
       id: `mat-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       workshopId: 'ws-pending',
       materialName: tempMaterialName.trim(),
       materialType: tempMaterialType,
-      pricePerKg: Number(tempPricePerKg) || 250000,
+      pricePerKg: Number(tempPricePerKg),
       colorHex: tempColorHex,
       colorName: tempColorName,
       density: tempMaterialType === 'PLA' ? 1.24 : tempMaterialType === 'PETG' ? 1.27 : 1.05,
       stockStatus: 'Tracking',
-      currentStockGrams: Number(tempStockGrams) || 1000,
-      lowStockThresholdGrams: 1000
+      currentStockGrams: Number(tempStockGrams),
+      lowStockThresholdGrams: Number(tempLowStockThreshold)
     };
     setMaterials(prev => [...prev, newMaterial]);
     setIsAddingMaterial(false);
@@ -325,9 +316,14 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
   };
 
   // Submit the entire onboarding profile
-  const handleSubmitOnboarding = () => {
+  const handleSubmitOnboarding = async () => {
     if (!workshopName.trim()) {
       onShowToast?.('Vui lòng nhập tên xưởng in!');
+      setCurrentStep(1);
+      return;
+    }
+    if (!address.trim() || !contactPhone.trim() || !contactEmail.trim()) {
+      onShowToast?.('Vui lòng nhập đủ địa chỉ xưởng, hotline điều phối và email kỹ thuật!');
       setCurrentStep(1);
       return;
     }
@@ -341,91 +337,172 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       setCurrentStep(3);
       return;
     }
+    if (!user?.id) {
+      onShowToast?.('Cần đăng nhập bằng tài khoản xưởng trước khi gửi hồ sơ.');
+      return;
+    }
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const generatedId = `ws-${Date.now().toString().slice(-6)}`;
-      const newWorkshop: WorkshopProfile = {
-        id: generatedId,
-        workshopName: workshopName.trim(),
-        address: address.trim(),
-        region: region,
-        totalMachines: machines.length,
-        activeMachinesNow: machines.length,
-        electricityRateOverride: electricityRate,
-        laborRateOverride: 65000,
-        verifiedStatus: 'Pending', // Mandatory requirement
-        contactPhone: contactPhone.trim(),
-        contactEmail: contactEmail.trim(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      const updatedMachines = machines.map(m => ({ ...m, workshopId: generatedId }));
-      const updatedMaterials = materials.map(m => ({ ...m, workshopId: generatedId }));
-
-      // Save to localStorage for seamless persistence
-      try {
-        localStorage.setItem('vcube_workshop_profile', JSON.stringify(newWorkshop));
-        localStorage.setItem('vcube_workshop_machines', JSON.stringify(updatedMachines));
-        localStorage.setItem('vcube_workshop_materials', JSON.stringify(updatedMaterials));
-      } catch (err) {
-        console.warn('Could not save to localStorage:', err);
+    // D2(B): KHÔNG tạo hồ sơ trùng cho cùng một tài khoản.
+    // Trước đây mỗi lần nộp đều `createUuidV4()` ⇒ user đã có hàng 'Pending' mà nộp lại thì
+    // sinh THÊM một hàng nữa (dữ liệu trôi, admin thấy nhiều hồ sơ cho một xưởng).
+    // Nay: dò hàng hiện có của chính user; có mà CHƯA 'Verified' ⇒ dùng lại `id` của hàng đó
+    // (upsert theo khoá chính = UPDATE). Chưa có hàng nào ⇒ mới sinh uuid mới.
+    let existingProfileId: string | null = null;
+    try {
+      const existing = await WorkshopService.getWorkshopProfileByUserId(user.id);
+      if (existing?.id && existing.verifiedStatus !== 'Verified') {
+        existingProfileId = existing.id;
       }
+    } catch (e) {
+      // Không đọc được (mạng/lỗi tạm) ⇒ đi tiếp như "chưa có hàng": KHÔNG chặn xưởng nộp hồ sơ.
+      console.warn('Không đọc được hồ sơ xưởng hiện có, sẽ lưu như hồ sơ mới:', e);
+    }
+    const isResubmit = existingProfileId !== null;
 
-      setSubmittedProfile(newWorkshop);
+    // Ghi THẬT qua WorkshopService — đây là tầng duy nhất chạm Supabase.
+    // Trước đây bước này CHỈ ghi localStorage rồi báo "Đã gửi hồ sơ… chờ Quản trị viên duyệt":
+    // không có hàng nào trong `workshop_profiles`, không ai duyệt được, và `verifiedStatus`
+    // 'Pending' chỉ là chữ trong RAM.
+    const saved = await WorkshopService.saveWorkshopProfile({
+      // Có hàng cũ ⇒ dùng lại id (UPDATE); chưa có ⇒ uuid hợp lệ mới (xem `createUuidV4`).
+      id: existingProfileId ?? createUuidV4(),
+      userId: user.id,
+      workshopName: workshopName.trim(),
+      address: address.trim(),
+      region: region,
+      totalMachines: machines.length,
+      activeMachinesNow: machines.length,
+      // Rỗng ⇒ CHƯA khai đơn giá điện. Không ghi 2.850 đ/kWh hộ xưởng.
+      electricityRateOverride: electricityRate === '' ? undefined : Number(electricityRate),
+      // `partner_id` KHÔNG bao giờ được gửi (admin gán khi duyệt — policy INSERT yêu cầu NULL).
+      // `verified_status`: chỉ khai khi tạo hàng MỚI ('Pending'). Nộp LẠI thì KHÔNG gửi —
+      // gửi kèm 2 cột đặc quyền vào một hàng đã có sẽ bị trigger chặn 42501 (trông như lỗi RLS).
+      ...(isResubmit ? {} : { verifiedStatus: 'Pending' as const }),
+      contactPhone: contactPhone.trim(),
+      contactEmail: contactEmail.trim(),
+    });
+
+    const savedId = saved?.data?.id;
+    if (!savedId || saved.error) {
       setIsSubmitting(false);
-      setCurrentStep(4); // Success step
+      onShowToast?.(
+        `Chưa lưu được hồ sơ xưởng lên máy chủ${saved?.error ? ` (${saved.error})` : ''}. Hồ sơ CHƯA được gửi.`
+      );
+      return;
+    }
 
-      if (onComplete) {
-        onComplete({
-          workshop: newWorkshop,
-          machines: updatedMachines,
-          materials: updatedMaterials
-        });
+    const updatedMachines = machines.map(m => ({ ...m, workshopId: savedId }));
+    const updatedMaterials = materials.map(m => ({ ...m, workshopId: savedId }));
+
+    // Nhóm hàm MỚI của W1b (`saveMyMachine` / `saveMyMaterial`) ghi đúng cột THẬT của
+    // `workshop_machines` / `workshop_materials`. Nhóm hàm CŨ của service upsert các cột
+    // KHÔNG tồn tại (`machine_name`, `avg_power_kw`, `purchase_price`, `build_volume_mm`…)
+    // nên Supabase trả lỗi — mà nhóm cũ lại `catch` rồi trả `success: true` ⇒ wizard báo
+    // thành công trong khi mất sạch dữ liệu (lỗi do coordinator báo, đã sửa ở đây).
+    // Vì vậy phải ĐẾM số lần ghi hỏng, không được nói chung chung là đã lưu hết.
+    //
+    // D2(A): `workshop_machines` KHÔNG có cột cho công suất / giá mua / tuổi thọ khấu hao nên
+    // wizard không còn thu thập chúng. Chi phí máy gửi qua `hourlyRate` (`hourly_rate`) —
+    // cột có thật; `null` = xưởng chưa khai, KHÔNG ghi 0.
+    let machineFails = 0;
+    for (const machine of machines) {
+      const res = await WorkshopService.saveMyMachine({
+        workshopProfileId: savedId,
+        name: machine.machineName,
+        technology: machine.machineType,
+        bedDimensions: machine.buildVolumeMm,
+        status: machine.status,
+        hourlyRate: machine.hourlyRate ?? null,
+      });
+      if (!res.success) {
+        machineFails += 1;
+        console.warn('Could not save workshop machine:', res.error);
       }
-      onShowToast?.('Đã gửi hồ sơ xưởng in thành công! Trạng thái đang chờ Quản trị viên duyệt.');
-    }, 900);
+    }
+
+    let materialFails = 0;
+    for (const material of materials) {
+      const res = await WorkshopService.saveMyMaterial({
+        workshopProfileId: savedId,
+        name: material.materialName,
+        type: material.materialType,
+        color: material.colorName || material.colorHex || '',
+        currentStockGrams: material.currentStockGrams,
+        lowStockThresholdGrams: material.lowStockThresholdGrams,
+        pricePerKg: material.pricePerKg,
+        stockStatus: material.stockStatus,
+      });
+      if (!res.success) {
+        materialFails += 1;
+        console.warn('Could not save workshop material:', res.error);
+      }
+    }
+
+    const newWorkshop: WorkshopProfile = saved.data as WorkshopProfile;
+
+    setSubmittedProfile(newWorkshop);
+    setIsSubmitting(false);
+    setCurrentStep(4); // Pending-review step
+
+    if (onComplete) {
+      onComplete({
+        workshop: newWorkshop,
+        machines: updatedMachines,
+        materials: updatedMaterials
+      });
+    }
+
+    // Toast phải nói ĐÚNG số mục chưa lưu được — không khẳng định "đã lưu hết".
+    if (machineFails > 0 || materialFails > 0) {
+      onShowToast?.(
+        `Hồ sơ xưởng đã gửi, nhưng ${machineFails} máy in / ${materialFails} vật liệu CHƯA lưu được — vào Bảng điều khiển để nhập lại.`
+      );
+    } else {
+      onShowToast?.(
+        `Đã lưu hồ sơ xưởng cùng ${machines.length} máy in và ${materials.length} vật liệu. Trạng thái: chờ Quản trị viên duyệt (Pending).`
+      );
+    }
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto my-6 px-4 font-sans text-slate-800">
+    <div className="w-full max-w-5xl mx-auto my-6 px-4 font-sans text-fg">
       {/* Top Header Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
-        <div className="bg-gradient-to-r from-[#00687A] via-[#0284C7] to-[#0369A1] p-6 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-surface rounded-lg shadow-e1 overflow-hidden mb-6">
+        <div className="bg-surface-inverse p-6 text-on-inverse flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner">
-              <Printer className="w-8 h-8 text-cyan-200" />
+            <div className="w-14 h-14 rounded-lg bg-on-inverse/10 backdrop-blur-md flex items-center justify-center border border-line shadow-e0">
+              <Printer className="w-8 h-8 text-primary" />
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-300/30 text-xs font-semibold text-cyan-100 mb-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-tint border border-primary/30 text-xs font-semibold text-primary mb-1">
                 <Sparkles className="w-3.5 h-3.5" />
                 MES Hub Onboarding Wizard
               </div>
               <h1 className="text-xl md:text-2xl font-bold tracking-tight">
                 Đăng Ký Đối Tác Xưởng In 3D (MES Partner)
               </h1>
-              <p className="text-sm text-cyan-100/90 mt-0.5">
-                Gia nhập mạng lưới điều phối gia công Geo-Dispatcher toàn quốc của VCUBE
+              <p className="text-sm text-primary/90 mt-0.5">
+                Khai báo cơ sở sản xuất của xưởng để VCUBE đối chiếu khi phân công đơn in
               </p>
             </div>
           </div>
 
           {currentStep < 4 && (
-            <div className="flex items-center gap-2 bg-black/20 px-3 py-1.5 rounded-xl border border-white/10 text-xs text-cyan-100">
-              <Clock className="w-4 h-4 text-cyan-300" />
-              <span>Thời gian hoàn tất: ~3 phút</span>
+            <div className="flex items-center gap-2 bg-on-inverse/10 px-3 py-1.5 rounded-lg border border-line text-xs text-accent">
+              <Clock className="w-4 h-4 text-primary" />
+              <span>3 bước: cơ sở · máy in · vật liệu</span>
             </div>
           )}
         </div>
 
         {/* Progress Step Bar */}
         {currentStep < 4 && (
-          <div className="grid grid-cols-3 border-b border-slate-200 bg-slate-50/80">
+          <div className="grid grid-cols-3 border-b border-line-subtle bg-canvas/80">
             {[
-              { step: 1, label: 'Thông Tin Xưởng', sub: 'Địa chỉ & Geo-Dispatcher', icon: Building2 },
-              { step: 2, label: 'Khai Báo Máy In', sub: 'Công suất & Khấu hao', icon: Printer },
+              { step: 1, label: 'Thông Tin Xưởng', sub: 'Địa chỉ & khu vực', icon: Building2 },
+              { step: 2, label: 'Khai Báo Máy In', sub: 'Đơn giá giờ & khổ in', icon: Printer },
               { step: 3, label: 'Nhựa Tồn Kho', sub: 'Loại nhựa & Giá nhập', icon: Layers }
             ].map(item => {
               const Icon = item.icon;
@@ -438,25 +515,25 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     if (isCompleted) setCurrentStep(item.step as any);
                   }}
                   className={`p-4 flex items-center gap-3 transition-colors ${
-                    isCompleted ? 'cursor-pointer hover:bg-emerald-50/60' : ''
-                  } ${isActive ? 'bg-white border-b-2 border-[#00687A]' : ''}`}
+                    isCompleted ? 'cursor-pointer hover:bg-positive-tint/60' : ''
+                  } ${isActive ? 'bg-surface border-b-2 border-primary' : ''}`}
                 >
                   <div
                     className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
                       isCompleted
-                        ? 'bg-emerald-500 text-white shadow-sm'
+                        ? 'bg-positive text-primary-fg shadow-e1'
                         : isActive
-                        ? 'bg-[#00687A] text-white shadow-sm'
-                        : 'bg-slate-200 text-slate-500'
+                        ? 'bg-primary text-primary-fg shadow-e1'
+                        : 'bg-line-subtle text-fg-muted'
                     }`}
                   >
                     {isCompleted ? <Check className="w-5 h-5" /> : item.step}
                   </div>
                   <div className="hidden sm:block">
-                    <div className={`text-xs font-bold uppercase tracking-wider ${isActive ? 'text-[#00687A]' : 'text-slate-600'}`}>
+                    <div className={`text-xs font-bold uppercase tracking-wider ${isActive ? 'text-primary' : 'text-fg-muted'}`}>
                       {item.label}
                     </div>
-                    <div className="text-[11px] text-slate-400 font-medium">{item.sub}</div>
+                    <div className="text-xs text-fg-subtle font-medium">{item.sub}</div>
                   </div>
                 </div>
               );
@@ -469,99 +546,107 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {/* STEP 1: Workshop Information */}
       {/* ========================================================================= */}
       {currentStep === 1 && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 space-y-6">
+        <div className="bg-surface rounded-lg shadow-e1 p-6 md:p-8 space-y-6">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-[#00687A]" />
+            <h2 className="text-lg font-bold text-fg flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" />
               Bước 1: Khai báo thông tin cơ sở sản xuất & Khu vực địa lý
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Hệ thống Geo-Dispatcher của VCUBE sử dụng khu vực này để tự động phân luồng đơn hàng gần nhất, giúp giảm thời gian giao hàng xuống dưới 24h.
+            <p className="text-sm text-fg-subtle mt-1">
+              Khu vực này được lưu vào hồ sơ xưởng để VCUBE đối chiếu khi phân công đơn in.
             </p>
           </div>
+
+          {initialData?.verifiedStatus === 'Pending' && (
+            <div className="p-4 rounded-lg bg-warning-tint/80 border border-warning/30 text-xs text-warning flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                <span>
+                  Hồ sơ xưởng <strong>{initialData?.workshopName}</strong> đã được gửi và đang ở trạng thái{' '}
+                  <strong>Pending</strong> (chờ Quản trị viên duyệt). Bạn có thể khai lại hồ sơ bên dưới,
+                  hoặc mở bảng điều khiển của xưởng ngay.
+                </span>
+              </div>
+              {onSkipToDashboard && (
+                <button
+                  type="button"
+                  onClick={onSkipToDashboard}
+                  className="shrink-0 px-4 py-2 rounded-lg bg-surface border border-warning/40 text-warning font-bold"
+                >
+                  Mở bảng điều khiển
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Workshop Name */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                Tên Xưởng In / Hub Gia Công <span className="text-red-500">*</span>
+              <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
+                Tên Xưởng In / Hub Gia Công <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
                 value={workshopName}
                 onChange={e => setWorkshopName(e.target.value)}
                 placeholder="VD: FabLab CNC & 3D Printing Cầu Giấy"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#00687A]/30 focus:border-[#00687A] text-sm"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
               />
-              <span className="text-[11px] text-slate-400">Tên thương hiệu xưởng sẽ hiển thị trên tem đóng gói bưu phẩm</span>
-            </div>
-
-            {/* Contact Person */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                Kỹ Sư Trưởng / Người Phụ Trách <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={contactPerson}
-                onChange={e => setContactPerson(e.target.value)}
-                placeholder="VD: KS. Nguyễn Văn Tuấn"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#00687A]/30 focus:border-[#00687A] text-sm"
-              />
+              <span className="text-xs text-fg-subtle">Tên thương hiệu xưởng sẽ hiển thị trên tem đóng gói bưu phẩm</span>
             </div>
 
             {/* Hotline Phone */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-slate-400" />
-                Số Điện Thoại Điều Phối Hotline <span className="text-red-500">*</span>
+              <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-fg-subtle" />
+                Số Điện Thoại Điều Phối Hotline <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
                 value={contactPhone}
                 onChange={e => setContactPhone(e.target.value)}
-                placeholder="VD: 0988 123 456"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#00687A]/30 focus:border-[#00687A] text-sm"
+                placeholder="Nhập hotline kỹ thuật"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
               />
-              <span className="text-[11px] text-slate-400">Nhận thông báo đơn hàng hỏa tốc qua Zalo / SMS</span>
+              <span className="text-xs text-fg-subtle">Nhận thông báo đơn hàng hỏa tốc qua Zalo / SMS</span>
             </div>
 
             {/* Contact Email */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5 text-slate-400" />
-                Email Kỹ Thuật Tiếp Nhận File 3D <span className="text-red-500">*</span>
+              <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5 text-fg-subtle" />
+                Email Kỹ Thuật Tiếp Nhận File 3D <span className="text-danger">*</span>
               </label>
               <input
                 type="email"
                 value={contactEmail}
                 onChange={e => setContactEmail(e.target.value)}
                 placeholder="VD: tech@xuongin3d.vn"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#00687A]/30 focus:border-[#00687A] text-sm"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
               />
             </div>
           </div>
 
           {/* Full Address */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-              Địa Chỉ Chi Tiết Xưởng In <span className="text-red-500">*</span>
+            <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-fg-subtle" />
+              Địa Chỉ Chi Tiết Xưởng In <span className="text-danger">*</span>
             </label>
             <input
               type="text"
               value={address}
               onChange={e => setAddress(e.target.value)}
               placeholder="Số nhà, ngõ/đường, Phường/Xã, Quận/Huyện, Tỉnh/TP"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#00687A]/30 focus:border-[#00687A] text-sm"
+              className="w-full px-3.5 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
             />
           </div>
 
-          {/* Geo-Dispatcher Region Selection */}
+          {/* Khu vực phục vụ của xưởng (Bắc / Trung / Nam) */}
           <div className="space-y-2 pt-2">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Zap className="w-4 h-4 text-amber-500" />
-              Khu Vực Phục Vụ (Thuật toán Geo-Dispatcher Bắc / Trung / Nam) <span className="text-red-500">*</span>
+            <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-warning" />
+              Khu Vực Phục Vụ (Bắc / Trung / Nam) <span className="text-danger">*</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
@@ -569,19 +654,19 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   id: 'Bắc',
                   title: 'Miền Bắc (Hub Hà Nội)',
                   desc: 'Hà Nội, Hải Phòng, Bắc Ninh, Quảng Ninh...',
-                  tag: 'Giao 2-4h nội thành'
+                  tag: 'Xưởng tại miền Bắc'
                 },
                 {
                   id: 'Trung',
                   title: 'Miền Trung (Hub Đà Nẵng)',
                   desc: 'Đà Nẵng, Huế, Quảng Nam, Quảng Ngãi...',
-                  tag: 'Giao 24h liên tỉnh'
+                  tag: 'Xưởng tại miền Trung'
                 },
                 {
                   id: 'Nam',
                   title: 'Miền Nam (Hub TP.HCM)',
                   desc: 'TP.HCM, Bình Dương, Đồng Nai, Long An...',
-                  tag: 'Giao 2-4h nội thành'
+                  tag: 'Xưởng tại miền Nam'
                 }
               ].map(item => {
                 const isSel = region === item.id;
@@ -590,22 +675,22 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     type="button"
                     key={item.id}
                     onClick={() => setRegion(item.id as any)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                    className={`p-4 rounded-lg border-2 text-left transition-all relative ${
                       isSel
-                        ? 'border-[#00687A] bg-teal-50/50 shadow-sm ring-2 ring-[#00687A]/20'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                        ? 'border-primary bg-primary-tint/50 shadow-e1 ring-2 ring-primary/20'
+                        : 'border-line-subtle hover:border-line bg-surface'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-sm text-slate-900">{item.title}</span>
+                      <span className="font-bold text-sm text-fg">{item.title}</span>
                       {isSel && (
-                        <div className="w-5 h-5 rounded-full bg-[#00687A] text-white flex items-center justify-center">
+                        <div className="w-5 h-5 rounded-full bg-primary text-primary-fg flex items-center justify-center">
                           <Check className="w-3.5 h-3.5" />
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 line-clamp-2">{item.desc}</p>
-                    <div className="mt-2 inline-block px-2 py-0.5 rounded bg-slate-100 text-[10px] font-semibold text-slate-600">
+                    <p className="text-xs text-fg-subtle line-clamp-2">{item.desc}</p>
+                    <div className="mt-2 inline-block px-2 py-0.5 rounded-sm bg-surface-muted text-xs font-semibold text-fg-muted">
                       {item.tag}
                     </div>
                   </button>
@@ -615,34 +700,35 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           </div>
 
           {/* Electricity base rate */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="p-4 bg-canvas rounded-lg border border-line-subtle flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-md bg-warning-tint text-warning flex items-center justify-center shrink-0">
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-slate-800">Đơn giá điện cơ sở của xưởng (VND/kWh)</h4>
-                <p className="text-xs text-slate-500">Dùng để tính tiền điện theo giờ in thực tế của từng máy in</p>
+                <h4 className="text-sm font-bold text-fg">Đơn giá điện cơ sở của xưởng (VND/kWh)</h4>
+                <p className="text-xs text-fg-subtle">Để trống nếu xưởng chưa khai — hệ thống KHÔNG tự điền đơn giá điện</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <input
                 type="number"
                 value={electricityRate}
-                onChange={e => setElectricityRate(Number(e.target.value) || 2850)}
-                className="w-28 px-3 py-1.5 rounded-lg border border-slate-300 text-right font-bold text-sm"
+                placeholder="Chưa khai"
+                onChange={e => setElectricityRate(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-28 px-3 py-1.5 rounded-lg border border-line text-right font-bold text-sm"
               />
-              <span className="text-xs font-semibold text-slate-600">đ/kWh</span>
+              <span className="text-xs font-semibold text-fg-muted">đ/kWh</span>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+          <div className="pt-4 border-t border-line-subtle flex items-center justify-between">
             {onCancel ? (
               <button
                 type="button"
                 onClick={onCancel}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 transition-colors"
+                className="px-4 py-2 text-sm font-semibold text-fg-muted hover:text-fg transition-colors"
               >
                 Hủy bỏ
               </button>
@@ -658,7 +744,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 }
                 setCurrentStep(2);
               }}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#00687A] hover:bg-[#005260] text-white font-bold text-sm shadow-sm transition-all"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-all"
             >
               Tiếp tục: Khai báo máy in
               <ArrowRight className="w-4 h-4" />
@@ -671,15 +757,15 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {/* STEP 2: Declare 3D Printers with Live Calculations */}
       {/* ========================================================================= */}
       {currentStep === 2 && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 space-y-6">
+        <div className="bg-surface rounded-lg shadow-e1 p-6 md:p-8 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Printer className="w-5 h-5 text-[#00687A]" />
-                Bước 2: Khai báo đội ngũ máy in & Công suất vận hành
+              <h2 className="text-lg font-bold text-fg flex items-center gap-2">
+                <Printer className="w-5 h-5 text-primary" />
+                Bước 2: Khai báo đội ngũ máy in & Đơn giá giờ máy
               </h2>
-              <p className="text-sm text-slate-500 mt-0.5">
-                Chọn từ các máy mẫu có sẵn hoặc thêm máy tùy biến. Hệ thống tự động tính Khấu hao/giờ và Tiền điện/giờ.
+              <p className="text-sm text-fg-subtle mt-0.5">
+                Chọn từ các máy mẫu có sẵn hoặc thêm máy tùy biến. Đơn giá giờ máy là con số DUY NHẤT được lưu vào hồ sơ xưởng.
               </p>
             </div>
             <button
@@ -687,15 +773,13 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               onClick={() => {
                 setTempMachineName(`Máy In 3D FDM #${machines.length + 1}`);
                 setTempMachineType('FDM');
-                setTempAvgPowerKW(0.18);
-                setTempPurchasePrice(25000000);
-                setTempLifetimeHours(8000);
-                setTempVolumeX(256);
-                setTempVolumeY(256);
-                setTempVolumeZ(256);
+                setTempHourlyRate('');
+                setTempVolumeX('');
+                setTempVolumeY('');
+                setTempVolumeZ('');
                 setIsAddingMachine(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shrink-0 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-inverse hover:bg-surface-inverse text-on-inverse text-xs font-bold shrink-0 transition-colors shadow-e1"
             >
               <Plus className="w-4 h-4" />
               Thêm Máy In Khác
@@ -704,8 +788,8 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {/* Preset Quick Selectors */}
           <div className="space-y-2">
-            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-warning" />
               Chọn nhanh máy mẫu phổ biến để nạp cấu hình chuẩn:
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -714,19 +798,17 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   type="button"
                   key={preset.id}
                   onClick={() => handleSelectPreset(preset)}
-                  className="p-2.5 rounded-xl border border-slate-200 hover:border-[#00687A] hover:bg-teal-50/40 text-left transition-all group"
+                  className="p-2.5 rounded-lg border border-line-subtle hover:border-primary hover:bg-primary-tint/40 text-left transition-all group"
                 >
-                  <div className="text-[10px] font-semibold text-[#00687A] uppercase tracking-wider mb-0.5">
+                  <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-0.5">
                     {preset.brand}
                   </div>
-                  <div className="font-bold text-xs text-slate-900 group-hover:text-[#00687A] line-clamp-1">
+                  <div className="font-bold text-xs text-fg group-hover:text-primary line-clamp-1">
                     {preset.name}
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-1">
-                    {preset.technology} • {preset.avgPowerKW} kW
-                  </div>
-                  <div className="text-[10px] font-medium text-emerald-600 mt-0.5">
-                    {(preset.purchasePrice / 1000000).toFixed(1)} tr đ
+                  <div className="text-xs text-fg-subtle mt-1">
+                    {preset.technology} • {preset.buildVolumeMm.x}×{preset.buildVolumeMm.y}×
+                    {preset.buildVolumeMm.z} mm
                   </div>
                 </button>
               ))}
@@ -735,16 +817,16 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {/* Machine Addition/Edit Modal / Form */}
           {isAddingMachine && (
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-teal-50/30 border-2 border-[#00687A]/30 space-y-4 shadow-sm animate-fadeIn">
+            <div className="p-5 rounded-lg bg-primary-tint border border-primary/30 space-y-4 shadow-e1 animate-fadeIn">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Printer className="w-4 h-4 text-[#00687A]" />
+                <h3 className="text-sm font-bold text-fg flex items-center gap-2">
+                  <Printer className="w-4 h-4 text-primary" />
                   Cấu hình chi tiết máy in
                 </h3>
                 <button
                   type="button"
                   onClick={() => setIsAddingMachine(false)}
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+                  className="text-xs font-semibold text-fg-subtle hover:text-fg"
                 >
                   Đóng lại
                 </button>
@@ -753,23 +835,23 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Machine Name */}
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Tên máy in / Ký hiệu định danh</label>
+                  <label className="text-xs font-semibold text-fg-muted">Tên máy in / Ký hiệu định danh</label>
                   <input
                     type="text"
                     value={tempMachineName}
                     onChange={e => setTempMachineName(e.target.value)}
                     placeholder="VD: Bambu Lab X1C - Máy số 1"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium focus:ring-1 focus:ring-[#00687A]"
+                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-medium focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
                 {/* Machine Tech */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Công nghệ in</label>
+                  <label className="text-xs font-semibold text-fg-muted">Công nghệ in</label>
                   <select
                     value={tempMachineType}
                     onChange={e => setTempMachineType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium focus:ring-1 focus:ring-[#00687A]"
+                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-medium focus:ring-1 focus:ring-primary"
                   >
                     <option value="FDM">FDM / FFF (Sợi nhựa)</option>
                     <option value="SLA">SLA / MSLA (Quang hóa Resin)</option>
@@ -779,68 +861,45 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
                 {/* Build Volume */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Khổ in (X × Y × Z mm)</label>
+                  <label className="text-xs font-semibold text-fg-muted">Khổ in (X × Y × Z mm)</label>
                   <div className="grid grid-cols-3 gap-1">
                     <input
                       type="number"
                       value={tempVolumeX}
-                      onChange={e => setTempVolumeX(Number(e.target.value) || 256)}
+                      onChange={e => setTempVolumeX(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="X"
-                      className="px-2 py-2 rounded-lg border border-slate-300 text-xs text-center font-bold"
+                      className="px-2 py-2 rounded-lg border border-line text-xs text-center font-bold"
                     />
                     <input
                       type="number"
                       value={tempVolumeY}
-                      onChange={e => setTempVolumeY(Number(e.target.value) || 256)}
+                      onChange={e => setTempVolumeY(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="Y"
-                      className="px-2 py-2 rounded-lg border border-slate-300 text-xs text-center font-bold"
+                      className="px-2 py-2 rounded-lg border border-line text-xs text-center font-bold"
                     />
                     <input
                       type="number"
                       value={tempVolumeZ}
-                      onChange={e => setTempVolumeZ(Number(e.target.value) || 256)}
+                      onChange={e => setTempVolumeZ(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="Z"
-                      className="px-2 py-2 rounded-lg border border-slate-300 text-xs text-center font-bold"
+                      className="px-2 py-2 rounded-lg border border-line text-xs text-center font-bold"
                     />
                   </div>
                 </div>
 
-                {/* Power KW */}
+                {/* Đơn giá giờ máy — CỘT CÓ THẬT `workshop_machines.hourly_rate` */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                    <span>Công suất TB (kW)</span>
-                    <span className="text-[10px] text-slate-400">Không phải công suất đỉnh</span>
+                  <label className="text-xs font-semibold text-fg-muted flex items-center justify-between">
+                    <span>Đơn giá giờ máy (VND/giờ)</span>
+                    <span className="text-xs text-fg-subtle">Để trống = chưa khai</span>
                   </label>
                   <input
                     type="number"
-                    step="0.01"
-                    value={tempAvgPowerKW}
-                    onChange={e => setTempAvgPowerKW(Number(e.target.value) || 0.1)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-bold text-amber-700"
-                  />
-                </div>
-
-                {/* Purchase Price */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Giá mua máy (VND)</label>
-                  <input
-                    type="number"
-                    step="500000"
-                    value={tempPurchasePrice}
-                    onChange={e => setTempPurchasePrice(Number(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-bold text-slate-800"
-                  />
-                </div>
-
-                {/* Lifetime Hours */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Tuổi thọ khấu hao (Giờ)</label>
-                  <input
-                    type="number"
-                    step="500"
-                    value={tempLifetimeHours}
-                    onChange={e => setTempLifetimeHours(Number(e.target.value) || 5000)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-bold text-slate-800"
+                    step="1000"
+                    value={tempHourlyRate}
+                    onChange={e => setTempHourlyRate(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="VD: 60000"
+                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-bold text-fg"
                   />
                 </div>
 
@@ -849,49 +908,36 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   <button
                     type="button"
                     onClick={handleSaveMachine}
-                    className="w-full py-2.5 rounded-lg bg-[#00687A] hover:bg-[#005260] text-white font-bold text-sm shadow-sm transition-colors"
+                    className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-colors"
                   >
                     Lưu Máy In Này
                   </button>
                 </div>
               </div>
 
-              {/* LIVE PREVIEW BOX: Khấu hao / giờ & Tiền điện / giờ */}
-              <div className="p-4 rounded-xl bg-white border border-teal-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+              {/* ĐƠN GIÁ GIỜ MÁY — con số DUY NHẤT được lưu (`workshop_machines.hourly_rate`) */}
+              <div className="p-4 rounded-lg bg-surface border border-primary/30 shadow-e1 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-teal-100 text-[#00687A] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-md bg-primary-tint text-primary flex items-center justify-center shrink-0">
                     <Coins className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#00687A]">
-                      Ước Tính Chi Phí Máy Theo Giờ Thực Tế (Live Machine Rates)
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                      Đơn giá giờ máy sẽ ghi vào hồ sơ
                     </span>
-                    <div className="text-xs text-slate-500">
-                      Được nhúng trực tiếp vào công thức tính Inkiri BOM để chia sẻ doanh thu cho xưởng
+                    <div className="text-xs text-fg-subtle">
+                      Lưu ở cột <code className="font-mono">workshop_machines.hourly_rate</code>. Bỏ trống =
+                      chưa khai — hệ thống KHÔNG tự điền con số nào.
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-                  <div className="text-right">
-                    <div className="text-[11px] text-slate-500">Khấu hao / giờ</div>
-                    <div className="text-sm font-bold text-indigo-700">
-                      {currentDepreciationPerHour.toLocaleString('vi-VN')} đ/h
-                    </div>
-                  </div>
-                  <div className="text-slate-300 font-light text-xl">+</div>
-                  <div className="text-right">
-                    <div className="text-[11px] text-slate-500">Tiền điện / giờ</div>
-                    <div className="text-sm font-bold text-amber-700">
-                      {currentElectricityPerHour.toLocaleString('vi-VN')} đ/h
-                    </div>
-                  </div>
-                  <div className="text-slate-300 font-light text-xl">=</div>
-                  <div className="p-2 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-right">
-                    <div className="text-[10px] uppercase font-bold text-emerald-700">Tổng máy / giờ</div>
-                    <div className="text-sm font-extrabold text-emerald-800">
-                      {currentTotalMachinePerHour.toLocaleString('vi-VN')} đ/h
-                    </div>
+                <div className="p-2 px-3 rounded-lg bg-positive-tint border border-positive/30 text-right">
+                  <div className="text-xs uppercase font-bold text-positive">Đơn giá / giờ</div>
+                  <div className="text-sm font-extrabold text-positive">
+                    {currentHourlyRate != null
+                      ? `${currentHourlyRate.toLocaleString('vi-VN')} đ/h`
+                      : '— chưa khai'}
                   </div>
                 </div>
               </div>
@@ -900,29 +946,27 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {/* Current declared machines list */}
           <div className="space-y-3">
-            <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+            <div className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between">
               <span>Danh sách máy in của xưởng ({machines.length} máy sẵn sàng)</span>
-              <span className="text-slate-400 font-normal">Trạng thái mặc định: Free (Sẵn sàng nhận lệnh)</span>
+              <span className="text-fg-subtle font-normal">Trạng thái mặc định: Free (Sẵn sàng nhận lệnh)</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {machines.map((machine, idx) => {
-                const depPerHour = Math.round(machine.purchasePrice / (machine.lifetimeHours || 8000));
-                const elecPerHour = Math.round(machine.avgPowerKW * electricityRate);
                 return (
                   <div
                     key={machine.id}
-                    className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 bg-white shadow-xs relative flex flex-col justify-between gap-3"
+                    className="p-4 rounded-lg border border-line-subtle hover:border-line bg-surface shadow-e1 relative flex flex-col justify-between gap-3"
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-teal-50 text-[#00687A] flex items-center justify-center font-bold text-xs">
+                          <div className="w-8 h-8 rounded-sm bg-primary-tint text-primary flex items-center justify-center font-bold text-xs">
                             #{idx + 1}
                           </div>
                           <div>
-                            <h4 className="font-bold text-sm text-slate-900">{machine.machineName}</h4>
-                            <div className="text-xs text-slate-500">
+                            <h4 className="font-bold text-sm text-fg">{machine.machineName}</h4>
+                            <div className="text-xs text-fg-subtle">
                               {machine.machineType} • {machine.buildVolumeMm?.x}×{machine.buildVolumeMm?.y}×{machine.buildVolumeMm?.z} mm
                             </div>
                           </div>
@@ -931,39 +975,37 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                         <button
                           type="button"
                           onClick={() => handleRemoveMachine(machine.id)}
-                          className="text-slate-400 hover:text-red-500 p-1 transition-colors"
+                          className="text-fg-subtle hover:text-danger p-1 transition-colors"
                           title="Xóa máy in"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 text-xs">
+                      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-line-subtle text-xs">
                         <div>
-                          <div className="text-[10px] text-slate-400">Giá mua</div>
-                          <div className="font-semibold text-slate-700">
-                            {(machine.purchasePrice / 1000000).toFixed(1)} tr
+                          <div className="text-xs text-fg-subtle">Khổ in (mm)</div>
+                          <div className="font-semibold text-fg-muted tabular-nums">
+                            {machine.buildVolumeMm
+                              ? `${machine.buildVolumeMm.x}×${machine.buildVolumeMm.y}×${machine.buildVolumeMm.z}`
+                              : '—'}
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-slate-400">Khấu hao/h</div>
-                          <div className="font-semibold text-indigo-700">
-                            {depPerHour.toLocaleString('vi-VN')} đ
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-slate-400">Tiền điện/h</div>
-                          <div className="font-semibold text-amber-700">
-                            {elecPerHour.toLocaleString('vi-VN')} đ
+                          <div className="text-xs text-fg-subtle">Đơn giá giờ máy</div>
+                          <div className="font-semibold text-fg tabular-nums">
+                            {machine.hourlyRate != null
+                              ? `${machine.hourlyRate.toLocaleString('vi-VN')} đ/h`
+                              : 'Chưa khai'}
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
-                      <span className="text-slate-500">Công suất: {machine.avgPowerKW} kW ({machine.lifetimeHours}h tuổi thọ)</span>
-                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <div className="flex items-center justify-between text-xs bg-canvas px-2.5 py-1.5 rounded-lg border border-line-subtle">
+                      <span className="text-fg-subtle">Phân loại: {machine.machineType}</span>
+                      <span className="inline-flex items-center gap-1 font-semibold text-positive">
+                        <span className="w-1.5 h-1.5 rounded-full bg-positive" />
                         Trạng thái: Sẵn sàng
                       </span>
                     </div>
@@ -974,11 +1016,11 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           </div>
 
           {/* Action buttons */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+          <div className="pt-4 border-t border-line-subtle flex items-center justify-between">
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-fg-muted hover:text-fg transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Quay lại Bước 1
@@ -992,7 +1034,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 }
                 setCurrentStep(3);
               }}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#00687A] hover:bg-[#005260] text-white font-bold text-sm shadow-sm transition-all"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-all"
             >
               Tiếp tục: Khai báo tồn kho nhựa
               <ArrowRight className="w-4 h-4" />
@@ -1005,27 +1047,27 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {/* STEP 3: Declare Material / Filament Inventory */}
       {/* ========================================================================= */}
       {currentStep === 3 && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 space-y-6">
+        <div className="bg-surface rounded-lg shadow-e1 p-6 md:p-8 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Layers className="w-5 h-5 text-[#00687A]" />
+              <h2 className="text-lg font-bold text-fg flex items-center gap-2">
+                <Layers className="w-5 h-5 text-primary" />
                 Bước 3: Khai báo phôi nhựa & Vật liệu tồn kho ban đầu
               </h2>
-              <p className="text-sm text-slate-500 mt-0.5">
-                Khai báo các cuộn nhựa đang có tại xưởng để Geo-Dispatcher điều phối các đơn hàng có màu sắc & vật liệu tương thích.
+              <p className="text-sm text-fg-subtle mt-0.5">
+                Khai báo các cuộn nhựa đang có tại xưởng. Dữ liệu được lưu vào vật liệu của chính xưởng bạn.
               </p>
             </div>
             <button
               type="button"
               onClick={() => {
-                setTempMaterialName('Bambu Lab PLA Matte Đen');
+                setTempMaterialName('');
                 setTempMaterialType('PLA');
-                setTempPricePerKg(250000);
-                setTempStockGrams(3000);
+                setTempPricePerKg('');
+                setTempStockGrams('');
                 setIsAddingMaterial(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shrink-0 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-inverse hover:bg-surface-inverse text-on-inverse text-xs font-bold shrink-0 transition-colors shadow-e1"
             >
               <Plus className="w-4 h-4" />
               Thêm Cuộn Nhựa Mới
@@ -1034,16 +1076,16 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {/* Material Modal Form */}
           {isAddingMaterial && (
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-teal-50/30 border-2 border-[#00687A]/30 space-y-4 shadow-sm animate-fadeIn">
+            <div className="p-5 rounded-lg bg-primary-tint border border-primary/30 space-y-4 shadow-e1 animate-fadeIn">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-[#00687A]" />
+                <h3 className="text-sm font-bold text-fg flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-primary" />
                   Khai báo cuộn phôi nhựa mới
                 </h3>
                 <button
                   type="button"
                   onClick={() => setIsAddingMaterial(false)}
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+                  className="text-xs font-semibold text-fg-subtle hover:text-fg"
                 >
                   Đóng lại
                 </button>
@@ -1052,23 +1094,23 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Material Name */}
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Tên cuộn nhựa / Thương hiệu</label>
+                  <label className="text-xs font-semibold text-fg-muted">Tên cuộn nhựa / Thương hiệu</label>
                   <input
                     type="text"
                     value={tempMaterialName}
                     onChange={e => setTempMaterialName(e.target.value)}
                     placeholder="VD: eSUN PLA+ Đen Mờ, SUNLU PETG..."
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium focus:ring-1 focus:ring-[#00687A]"
+                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-medium focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
                 {/* Material Type */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Loại vật liệu</label>
+                  <label className="text-xs font-semibold text-fg-muted">Loại vật liệu</label>
                   <select
                     value={tempMaterialType}
                     onChange={e => setTempMaterialType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium focus:ring-1 focus:ring-[#00687A]"
+                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-medium focus:ring-1 focus:ring-primary"
                   >
                     <option value="PLA">PLA / PLA+ (Phổ biến, dễ in)</option>
                     <option value="PETG">PETG (Bền cơ, chịu nước ngoài trời)</option>
@@ -1081,35 +1123,50 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
                 {/* Initial Stock in Grams */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Tồn kho ban đầu (Gram)</label>
+                  <label className="text-xs font-semibold text-fg-muted">Tồn kho ban đầu (Gram)</label>
                   <input
                     type="number"
                     step="500"
                     value={tempStockGrams}
-                    onChange={e => setTempStockGrams(Number(e.target.value) || 1000)}
+                    onChange={e => setTempStockGrams(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 3000g = 3 cuộn"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-bold text-[#00687A]"
+                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-bold text-primary"
                   />
                 </div>
 
                 {/* Price per KG */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Đơn giá nhập (VND/kg)</label>
+                  <label className="text-xs font-semibold text-fg-muted">Đơn giá nhập (VND/kg)</label>
                   <input
                     type="number"
                     step="10000"
                     value={tempPricePerKg}
-                    onChange={e => setTempPricePerKg(Number(e.target.value) || 200000)}
+                    onChange={e => setTempPricePerKg(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 250000"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-bold text-slate-800"
+                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-bold text-fg"
+                  />
+                </div>
+
+                {/* Low stock threshold — do XUONG khai, khong tu dien */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-fg-muted">
+                    Ngưỡng cảnh báo tồn kho (gram)
+                  </label>
+                  <input
+                    type="number"
+                    step="100"
+                    value={tempLowStockThreshold}
+                    onChange={e => setTempLowStockThreshold(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="VD: 1000"
+                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-bold text-fg"
                   />
                 </div>
 
                 {/* Color Swatch Picker */}
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                  <label className="text-xs font-semibold text-fg-muted flex items-center justify-between">
                     <span>Màu sắc phôi: {tempColorName}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">{tempColorHex}</span>
+                    <span className="text-xs text-fg-subtle font-mono">{tempColorHex}</span>
                   </label>
                   <div className="flex items-center gap-2 flex-wrap">
                     {PRESET_MATERIAL_PALETTE.map(p => (
@@ -1121,7 +1178,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                           setTempColorName(p.name);
                         }}
                         className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                          tempColorHex === p.hex ? 'scale-115 border-[#00687A] ring-2 ring-[#00687A]/30' : 'border-slate-300'
+                          tempColorHex === p.hex ? 'scale-115 border-primary ring-2 ring-primary/30' : 'border-line'
                         }`}
                         style={{ backgroundColor: p.hex }}
                         title={p.name}
@@ -1134,7 +1191,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                         setTempColorHex(e.target.value);
                         setTempColorName('Màu tự chọn');
                       }}
-                      className="w-7 h-7 rounded-full cursor-pointer border border-slate-300 p-0 overflow-hidden"
+                      className="w-7 h-7 rounded-full cursor-pointer border border-line p-0 overflow-hidden"
                       title="Màu tùy chỉnh"
                     />
                   </div>
@@ -1145,7 +1202,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   <button
                     type="button"
                     onClick={handleSaveMaterial}
-                    className="w-full py-2.5 rounded-lg bg-[#00687A] hover:bg-[#005260] text-white font-bold text-sm shadow-sm transition-colors"
+                    className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-colors"
                   >
                     Lưu Cuộn Nhựa Này
                   </button>
@@ -1156,9 +1213,9 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {/* Declared Materials List */}
           <div className="space-y-3">
-            <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+            <div className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between">
               <span>Danh mục phôi sẵn sàng ({materials.length} loại nhựa)</span>
-              <span className="text-slate-400 font-normal">
+              <span className="text-fg-subtle font-normal">
                 Tổng khối lượng: {materials.reduce((acc, m) => acc + m.currentStockGrams, 0).toLocaleString('vi-VN')} g
               </span>
             </div>
@@ -1167,22 +1224,22 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               {materials.map(mat => (
                 <div
                   key={mat.id}
-                  className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 bg-white shadow-xs flex items-center justify-between gap-3"
+                  className="p-4 rounded-lg border border-line-subtle hover:border-line bg-surface shadow-e1 flex items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-xl border border-slate-300 shadow-inner flex items-center justify-center shrink-0"
+                      className="w-10 h-10 rounded-md border border-line shadow-e0 flex items-center justify-center shrink-0"
                       style={{ backgroundColor: mat.colorHex }}
                     >
                       <span
-                        className="text-[9px] font-bold uppercase tracking-wider px-1 rounded bg-black/40 text-white"
+                        className="text-xs font-bold uppercase tracking-wider px-1 rounded-sm bg-surface-inverse/70 text-on-inverse"
                       >
                         {mat.materialType}
                       </span>
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-slate-900">{mat.materialName}</h4>
-                      <div className="text-xs text-slate-500">
+                      <h4 className="font-bold text-sm text-fg">{mat.materialName}</h4>
+                      <div className="text-xs text-fg-subtle">
                         {mat.colorName || 'Chuẩn'} • Giá nhập: {mat.pricePerKg.toLocaleString('vi-VN')} đ/kg
                       </div>
                     </div>
@@ -1190,10 +1247,10 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <div className="text-xs font-extrabold text-[#00687A]">
+                      <div className="text-xs font-extrabold text-primary">
                         {(mat.currentStockGrams / 1000).toFixed(1)} kg
                       </div>
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-xs text-fg-subtle">
                         {mat.currentStockGrams.toLocaleString('vi-VN')} g
                       </div>
                     </div>
@@ -1201,7 +1258,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     <button
                       type="button"
                       onClick={() => handleRemoveMaterial(mat.id)}
-                      className="text-slate-400 hover:text-red-500 p-1 transition-colors"
+                      className="text-fg-subtle hover:text-danger p-1 transition-colors"
                       title="Xóa vật liệu"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1213,41 +1270,42 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           </div>
 
           {/* Notice about Auto Price Update & Audit Log */}
-          <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-start gap-3">
-            <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="p-4 rounded-lg bg-warning-tint/80 border border-warning/30 text-warning text-xs flex items-start gap-3">
+            <Info className="w-5 h-5 text-warning shrink-0 mt-0.5" />
             <div>
               <span className="font-bold">Lưu ý về cơ chế cập nhật đơn giá và kiểm kê:</span>
-              <p className="mt-0.5 text-amber-800">
-                Sau khi xưởng hoàn tất đăng ký, mỗi khi bạn nhập thêm phôi nhựa với đơn giá khác đơn giá hiện tại, hệ thống sẽ tự động cập nhật đơn giá tính toán và lưu vết vào <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">material_inventory_logs</code> để kiểm toán minh bạch.
+              <p className="mt-0.5 text-warning">
+                Mỗi lần ghi nhập/xuất kho ở bảng điều khiển, hệ thống lưu một dòng vào <code className="bg-warning-tint px-1 py-0.5 rounded-sm font-mono">material_inventory_logs</code> để kiểm toán. Đơn giá nhập bạn khai ở đây không tự đổi đơn giá báo cho khách.
               </p>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+          <div className="pt-4 border-t border-line-subtle flex items-center justify-between">
             <button
               type="button"
               onClick={() => setCurrentStep(2)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-fg-muted hover:text-fg transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Quay lại Bước 2
             </button>
-            <button
+            <Button
+              size="md"
+              loading={isSubmitting}
               type="button"
               onClick={handleSubmitOnboarding}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-7 py-2.5 rounded-xl bg-gradient-to-r from-[#00687A] to-[#0284C7] hover:from-[#005260] hover:to-[#0369A1] text-white font-bold text-sm shadow-md transition-all disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span>Đang khởi tạo hồ sơ xưởng...</span>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-cyan-200" />
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
                   Hoàn tất & Gửi hồ sơ phê duyệt
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -1256,60 +1314,57 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {/* STEP 4: Success & Pending Approval State (verified_status = 'Pending') */}
       {/* ========================================================================= */}
       {currentStep === 4 && submittedProfile && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center space-y-6 animate-fadeIn">
-          <div className="w-20 h-20 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto ring-8 ring-amber-50">
+        <div className="bg-surface rounded-lg shadow-e1 p-8 text-center space-y-6 animate-fadeIn">
+          <div className="w-20 h-20 rounded-full bg-warning-tint text-warning flex items-center justify-center mx-auto ring-8 ring-warning-tint">
             <Clock className="w-10 h-10 animate-pulse" />
           </div>
 
           <div className="max-w-xl mx-auto space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-xs font-bold text-amber-800">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-tint border border-warning/40 text-xs font-bold text-warning">
+              <span className="w-2 h-2 rounded-full bg-warning animate-ping" />
               verified_status: Pending (Chờ Admin Duyệt)
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Đã Gửi Hồ Sơ Xưởng In Thành Công!
+            <h2 className="text-2xl font-bold text-fg tracking-tight">
+              Đã Lưu Hồ Sơ Xưởng In
             </h2>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-fg-muted">
               Hồ sơ cơ sở <strong>"{submittedProfile.workshopName}"</strong> tại khu vực{' '}
-              <strong>Miền {submittedProfile.region}</strong> đã được gửi tới Ban Quản Trị VCUBE MES.
+              <strong>Miền {submittedProfile.region}</strong> đã được lưu với trạng thái chờ duyệt (Pending).
             </p>
           </div>
 
           {/* Summary Card */}
-          <div className="max-w-lg mx-auto bg-slate-50 rounded-2xl p-5 border border-slate-200 text-left space-y-3">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <div className="max-w-lg mx-auto bg-canvas rounded-lg p-5 border border-line-subtle text-left space-y-3">
+            <div className="text-xs font-bold text-fg-subtle uppercase tracking-wider">
               Tóm tắt hồ sơ vừa khai báo:
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="text-slate-500">Mã định danh xưởng:</div>
-              <div className="font-mono font-bold text-slate-800">{submittedProfile.id}</div>
+              <div className="text-fg-subtle">Mã định danh xưởng:</div>
+              <div className="font-mono font-bold text-fg">{submittedProfile.id}</div>
 
-              <div className="text-slate-500">Số lượng máy in:</div>
-              <div className="font-bold text-slate-800">{machines.length} máy FDM/SLA</div>
+              <div className="text-fg-subtle">Số lượng máy in:</div>
+              <div className="font-bold text-fg">{machines.length} máy FDM/SLA</div>
 
-              <div className="text-slate-500">Tổng phôi nhựa tồn kho:</div>
-              <div className="font-bold text-slate-800">
+              <div className="text-fg-subtle">Tổng phôi nhựa tồn kho:</div>
+              <div className="font-bold text-fg">
                 {(materials.reduce((a, b) => a + b.currentStockGrams, 0) / 1000).toFixed(1)} kg ({materials.length} cuộn)
               </div>
 
-              <div className="text-slate-500">Địa bàn Geo-Dispatcher:</div>
-              <div className="font-bold text-[#00687A]">Miền {submittedProfile.region}</div>
-
-              <div className="text-slate-500">Thời gian cam kết SLA:</div>
-              <div className="font-bold text-emerald-600">Phản hồi trong 24 giờ làm việc</div>
+              <div className="text-fg-subtle">Khu vực phục vụ:</div>
+              <div className="font-bold text-primary">Miền {submittedProfile.region}</div>
             </div>
           </div>
 
           {/* Instructions */}
-          <div className="max-w-lg mx-auto p-4 rounded-xl bg-blue-50/80 border border-blue-200 text-blue-900 text-xs text-left space-y-1.5">
-            <div className="font-bold flex items-center gap-1.5 text-blue-800">
-              <ShieldCheck className="w-4 h-4 text-blue-600" />
+          <div className="max-w-lg mx-auto p-4 rounded-lg bg-info-tint/80 border border-info/30 text-info text-xs text-left space-y-1.5">
+            <div className="font-bold flex items-center gap-1.5 text-info">
+              <ShieldCheck className="w-4 h-4 text-info" />
               Các bước tiếp theo dành cho Đối tác Xưởng:
             </div>
-            <ul className="list-disc list-inside space-y-1 text-blue-800/90 pl-1">
-              <li>Admin VCUBE sẽ liên hệ qua điện thoại ({submittedProfile.contactPhone}) để xác thực hình ảnh xưởng.</li>
-              <li>Bạn có thể in thử nghiệm tệp <em>VCUBE Tolerance Calibration Cube</em> để kiểm tra độ sai số máy (&lt; 0.05mm).</li>
-              <li>Sau khi được cấp chứng nhận "Verified", bạn sẽ tự động nhận lệnh in qua Dashboard MES.</li>
+            <ul className="list-disc list-inside space-y-1 text-info/90 pl-1">
+              <li>Hồ sơ đang ở trạng thái <strong>Pending</strong>. Quyền xưởng chỉ có hiệu lực sau khi Quản trị viên chuyển <code className="font-mono">verified_status</code> sang <strong>Verified</strong>.</li>
+              <li>Bạn có thể mở bảng điều khiển xưởng in ngay để khai báo máy in, vật liệu và xem dữ liệu của chính xưởng mình.</li>
+              <li>Đầu mối liên hệ là hotline/email bạn vừa khai{submittedProfile.contactPhone ? `: ${submittedProfile.contactPhone}` : ''}.</li>
             </ul>
           </div>
 
@@ -1318,15 +1373,17 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             <button
               type="button"
               onClick={() => {
-                if (onNavigate) {
-                  onNavigate('workshop_settings');
+                if (onSkipToDashboard) {
+                  onSkipToDashboard();
+                } else if (onNavigate) {
+                  onNavigate('lab');
                 } else {
                   window.location.reload();
                 }
               }}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#00687A] hover:bg-[#005260] text-white font-bold text-sm shadow-sm transition-all"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-all"
             >
-              Mở Trang Cấu Hình Xưởng (Workshop Settings)
+              Mở Bảng Điều Khiển Xưởng
             </button>
             <button
               type="button"
@@ -1335,7 +1392,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   onNavigate('home');
                 }
               }}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-all"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-line hover:bg-canvas text-fg-muted font-semibold text-sm transition-all"
             >
               Về Trang Chủ VCUBE
             </button>

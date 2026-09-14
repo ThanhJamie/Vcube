@@ -6,24 +6,60 @@ import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import JSZip from 'jszip';
 import { ModelPart, SlicerPresetInfo, FilamentPaletteItem, PlateInfo } from '../types';
 
+/** Ma loi doc tep — tang tren (`Tool3DView`) hien `error.message` trong panel loi trung thuc. */
+export type MeshParseErrorCode =
+  | 'unsupported_format'
+  | 'corrupt_file'
+  | 'degenerate_geometry'
+  | 'not_measurable';
+
+/**
+ * R2 (data-honesty MP-02/MP-03/MP-05): loi CO KIEU cho moi truong hop KHONG doc duoc tep.
+ *
+ * Vi sao co lop nay: ban cu `catch` loi cua `STLLoader` roi **thay bang mot hop 85 x 32 x 60 mm
+ * dung san bang `THREE.BoxGeometry`** va tra ve nhu mot luoi hop le ⇒ UI in
+ * "85.0 x 60.0 x 32.0 mm / 12 tam giac" va the tich bia do di thang vao bao gia.
+ * Tu day: khong doc duoc thi NEM LOI — khong bao gio dung hinh hoc thay the cho tep cua khach.
+ */
+export class MeshParseError extends Error {
+  readonly code: MeshParseErrorCode;
+  readonly fileName: string;
+
+  constructor(code: MeshParseErrorCode, fileName: string, message: string) {
+    super(message);
+    this.name = 'MeshParseError';
+    this.code = code;
+    this.fileName = fileName;
+  }
+}
+
+/**
+ * Ket qua doc tep. QUY UOC: `null` = CHUA DO DUOC (khac han `0` = do duoc va bang 0).
+ * Moi truong `number` o day deu la ket qua cua mot phep do that tren chinh tep khach tai len.
+ */
 export interface ParsedMeshResult {
   geometry?: THREE.BufferGeometry;
   objectGroup?: THREE.Group;
   dimensions: { x: number; y: number; z: number };
-  volume: number; // cm3
-  surfaceArea: number; // cm2
+  volume: number; // cm3 — tich phan phan ky tren chinh luoi cua tep (khong suy tu bbox)
+  surfaceArea: number; // cm2 — tong dien tich tam giac
   triangleCount: number;
-  isWatertight: boolean;
-  nonManifoldEdges: number;
-  invertedNormals: number;
-  minWallThickness: number;
+  /** `null` = chua phan tich duoc (vi du luoi vuot tran chi phi) — KHONG duoc hieu la "kin". */
+  isWatertight: boolean | null;
+  nonManifoldEdges: number | null;
+  /** So mat quay nguoc huong voi da so luoi (do tu huong quan canh + dau the tich khoi kin). */
+  invertedNormals: number | null;
+  /** MP-10: bien ho = so canh chi co 1 mat — tach rieng khoi "phap tuyen nghich". */
+  boundaryEdges?: number | null;
+  /** mm — do bang phep do chieu day; `null` = chua do duoc (khong dung hang so 1.4/1.5/1.6/1.8). */
+  minWallThickness: number | null;
   parts: ModelPart[];
   materialsDetected?: string[];
   slicerPreset?: SlicerPresetInfo;
   plates?: PlateInfo[];
   activePlateIndex?: number;
   overhangTriangles?: number;
-  overhangPercentage?: number;
+  overhangPercentage?: number | null;
 }
 
 /**
@@ -115,27 +151,173 @@ export function calculateSurfaceArea(geometry: THREE.BufferGeometry): number {
 }
 
 /**
- * Scan mesh for non-manifold edges, open boundaries, inverted normals, and overhang triangles.
- * Zero-allocation scalar implementation with strict memory bounds to eliminate Out-Of-Memory exceptions.
+ * R2 (MP-10): ket qua phan tich luoi. `null` = CHUA DO DUOC — khac han `0` (do duoc va bang 0).
  */
-export function analyzeMeshDefects(geometry: THREE.BufferGeometry): {
-  nonManifoldCount: number;
-  invertedNormalsCount: number;
-  minWallThickness: number;
-  isWatertight: boolean;
+export interface MeshDefectAnalysis {
+  /** So canh co nhieu hon 2 mat ke. */
+  nonManifoldCount: number | null;
+  /** So mat quay NGUOC huong voi da so luoi. */
+  invertedNormalsCount: number | null;
+  /** MP-10: bien ho (canh chi co 1 mat) — tach rieng, KHONG duoc goi la "phap tuyen nghich". */
+  boundaryEdges: number | null;
+  /** mm — do bang phep do chieu day; `null` = khong do duoc. */
+  minWallThickness: number | null;
+  isWatertight: boolean | null;
   overhangTriangles: number;
   overhangPercentage: number;
-} {
+}
+
+/**
+ * Tran chi phi cho phep dung ban do canh (Map khoa chuoi). Tren nguong nay bo doc tra
+ * `null` = "CHUA PHAN TICH" — ban cu bo qua buoc nay roi van tra CO KIN gan cung.
+ */
+export const MAX_TOPOLOGY_TRIANGLES = 60000;
+
+/** Ngan sach phep thu tia-tam giac cho phep do chieu day (du chinh xac, khong treo UI). */
+const THICKNESS_RAY_BUDGET = 1200000;
+
+function unmeasuredDefects(): MeshDefectAnalysis {
+  return {
+    nonManifoldCount: null,
+    invertedNormalsCount: null,
+    boundaryEdges: null,
+    minWallThickness: null,
+    isWatertight: null,
+    overhangTriangles: 0,
+    overhangPercentage: 0
+  };
+}
+
+/**
+ * R2 (MP-12/MP-13/MP-17): do chieu day thanh nho nhat bang cach BAN TIA.
+ *
+ * Phuong phap: lay mau toi da 64 tam giac; tu tam moi tam giac ban mot tia theo huong phap tuyen am
+ * (di vao trong vat the) va ghi khoang cach toi **mat thoat** gan nhat — mat ma tia xuyen qua tu
+ * phia sau va gan vuong goc voi tia. Day la phep DO tren chinh luoi cua tep, KHONG phai hang so
+ * 1.4/1.5/1.6/1.8 nhu ban cu. Khong do duoc (luoi qua lon so voi ngan sach, hoan toan ho, hoac
+ * khong tia nao gap mat thoat) ⇒ tra `null` = "chua do duoc".
+ *
+ * Gioi han da biet (ghi ro de khong qua loi): gia tri la cuc tieu tren cac mat LAY MAU, khong phai
+ * cuc tieu tuyet doi cua toan luoi; tia xien qua mat (goc lech > ~78 do so voi phap tuyen mat thoat)
+ * bi bo de tranh so rac.
+ */
+function measureMinimumWallThickness(
+  geometry: THREE.BufferGeometry,
+  rayBudget: number
+): number | null {
+  const posAttr = geometry.attributes.position;
+  if (!posAttr) return null;
+
+  const pos = posAttr.array as ArrayLike<number>;
+  const index = geometry.index ? (geometry.index.array as ArrayLike<number>) : null;
+  // LUU Y: KHONG duoc kiem tra `posAttr.count` o day. Luoi INDEXED co the chi con 8 dinh cho 12 tam
+  // giac (vi du khoi hop da han dinh bang `mergeVertices`), nen nguong phai tinh theo SO TAM GIAC.
+  const triangleCount = index ? index.length / 3 : posAttr.count / 3;
+  if (!Number.isFinite(triangleCount) || triangleCount < 2) return null;
+
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  const bb = geometry.boundingBox;
+  if (!bb) return null;
+  const diag = Math.sqrt(
+    (bb.max.x - bb.min.x) ** 2 + (bb.max.y - bb.min.y) ** 2 + (bb.max.z - bb.min.z) ** 2
+  );
+  if (!(diag > 0)) return null;
+
+  const samples = Math.min(64, Math.floor(rayBudget / triangleCount));
+  if (samples < 1) return null; // luoi qua lon so voi ngan sach ⇒ chua do duoc
+
+  const eps = Math.max(1e-3, diag * 1e-5);
+  const stride = Math.max(1, Math.floor(triangleCount / samples));
+  let best = Infinity;
+
+  for (let s = 0; s < triangleCount; s += stride) {
+    let a0: number, b0: number, c0: number;
+    if (index) {
+      a0 = index[s * 3] * 3; b0 = index[s * 3 + 1] * 3; c0 = index[s * 3 + 2] * 3;
+    } else {
+      a0 = s * 9; b0 = s * 9 + 3; c0 = s * 9 + 6;
+    }
+    const ax = pos[a0], ay = pos[a0 + 1], az = pos[a0 + 2];
+    const e1x = pos[b0] - ax, e1y = pos[b0 + 1] - ay, e1z = pos[b0 + 2] - az;
+    const e2x = pos[c0] - ax, e2y = pos[c0 + 1] - ay, e2z = pos[c0 + 2] - az;
+
+    let nx = e1y * e2z - e1z * e2y;
+    let ny = e1z * e2x - e1x * e2z;
+    let nz = e1x * e2y - e1y * e2x;
+    const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz);
+    if (!(nLen > 1e-12)) continue; // tam giac suy bien
+    nx /= nLen; ny /= nLen; nz /= nLen;
+
+    // Diem xuat phat: tam tam giac lui vao trong mot doan rat nho; huong: -phap tuyen
+    const ox = (ax + pos[b0] + pos[c0]) / 3 - nx * eps;
+    const oy = (ay + pos[b0 + 1] + pos[c0 + 1]) / 3 - ny * eps;
+    const oz = (az + pos[b0 + 2] + pos[c0 + 2]) / 3 - nz * eps;
+    const dx = -nx, dy = -ny, dz = -nz;
+
+    for (let k = 0; k < triangleCount; k++) {
+      let i0: number, i1: number, i2: number;
+      if (index) {
+        i0 = index[k * 3] * 3; i1 = index[k * 3 + 1] * 3; i2 = index[k * 3 + 2] * 3;
+      } else {
+        i0 = k * 9; i1 = k * 9 + 3; i2 = k * 9 + 6;
+      }
+      const v0x = pos[i0] - ax, v0y = pos[i0 + 1] - ay, v0z = pos[i0 + 2] - az;
+      const k1x = pos[i1] - ax - v0x, k1y = pos[i1 + 1] - ay - v0y, k1z = pos[i1 + 2] - az - v0z;
+      const k2x = pos[i2] - ax - v0x, k2y = pos[i2 + 1] - ay - v0y, k2z = pos[i2 + 2] - az - v0z;
+
+      const px = dy * k2z - dz * k2y;
+      const py = dz * k2x - dx * k2z;
+      const pz = dx * k2y - dy * k2x;
+      const det = k1x * px + k1y * py + k1z * pz;
+      // Chi nhan mat phia SAU cua tia (tia di RA khoi vat the qua mat do).
+      if (det > -1e-12) continue;
+      const invDet = 1 / det;
+
+      const tx = ox - ax - v0x, ty = oy - ay - v0y, tz = oz - az - v0z;
+      const u = (tx * px + ty * py + tz * pz) * invDet;
+      if (u < 0 || u > 1) continue;
+      const qx = ty * k1z - tz * k1y;
+      const qy = tz * k1x - tx * k1z;
+      const qz = tx * k1y - ty * k1x;
+      const v = (dx * qx + dy * qy + dz * qz) * invDet;
+      if (v < 0 || u + v > 1) continue;
+
+      const tHit = (k2x * qx + k2y * qy + k2z * qz) * invDet;
+      if (!(tHit > eps) || tHit >= best) continue;
+
+      // Mat thoat phai gan vuong goc voi tia; neu khong day la tia xien qua mep.
+      const fnx = k1y * k2z - k1z * k2y;
+      const fny = k1z * k2x - k1x * k2z;
+      const fnz = k1x * k2y - k1y * k2x;
+      const fLen = Math.sqrt(fnx * fnx + fny * fny + fnz * fnz);
+      if (!(fLen > 1e-12)) continue;
+      if ((dx * fnx + dy * fny + dz * fnz) / fLen < 0.2) continue;
+
+      best = tHit;
+    }
+  }
+
+  return Number.isFinite(best) ? Number(best.toFixed(2)) : null;
+}
+
+/**
+ * Scan mesh for non-manifold edges, open boundaries, inverted normals, and overhang triangles.
+ * Zero-allocation scalar implementation with strict memory bounds to eliminate Out-Of-Memory exceptions.
+ *
+ * R2 (MP-10): `invertedNormalsCount` truoc day bi dat bang so BIEN HO (va bi cat tran o 12) roi duoc
+ * dan nhan "Vector Phap Tuyen Nghich". Nay:
+ *   - `boundaryEdges` = so canh chi co 1 mat (do that);
+ *   - `invertedNormalsCount` = so mat quan NGUOC huong voi da so (suy tu huong quan canh hai chieu;
+ *     voi luoi kin thi kiem tra them huong tong the bang dau the tich khoi).
+ * Khong tinh duoc (luoi vuot tran chi phi) ⇒ tra `null`, KHONG tra `true`/`0` gia.
+ */
+export function analyzeMeshDefects(
+  geometry: THREE.BufferGeometry,
+  options?: { thicknessRayBudget?: number }
+): MeshDefectAnalysis {
   const posAttr = geometry.attributes.position;
   if (!posAttr || posAttr.count < 3) {
-    return {
-      nonManifoldCount: 0,
-      invertedNormalsCount: 0,
-      minWallThickness: 1.5,
-      isWatertight: false,
-      overhangTriangles: 0,
-      overhangPercentage: 0
-    };
+    return unmeasuredDefects();
   }
 
   const pos = posAttr.array as ArrayLike<number>;
@@ -143,16 +325,21 @@ export function analyzeMeshDefects(geometry: THREE.BufferGeometry): {
   const totalTriangles = index ? index.length / 3 : posAttr.count / 3;
 
   // 1. Fast Overhang Analysis in pure scalar math (Zero Vector3 allocated)
+  //    + the tich CO DAU (dung dau de kiem tra huong tong the cua luoi kin).
   let overhangCount = 0;
+  let signedVolume6 = 0;
   const cos45 = 0.70710678; // cos(45 deg)
 
   if (index) {
     const len = index.length;
     for (let i = 0; i < len; i += 3) {
       const i1 = index[i] * 3, i2 = index[i + 1] * 3, i3 = index[i + 2] * 3;
-      const ax = pos[i2] - pos[i1], ay = pos[i2 + 1] - pos[i1 + 1], az = pos[i2 + 2] - pos[i1 + 2];
-      const bx = pos[i3] - pos[i1], by = pos[i3 + 1] - pos[i1 + 1], bz = pos[i3 + 2] - pos[i1 + 2];
-      const ny = az * bx - ax * bz; // Y component of face normal
+      const x1 = pos[i1], y1 = pos[i1 + 1], z1 = pos[i1 + 2];
+      const x2 = pos[i2], y2 = pos[i2 + 1], z2 = pos[i2 + 2];
+      const x3 = pos[i3], y3 = pos[i3 + 1], z3 = pos[i3 + 2];
+      const ax = x2 - x1, ay = y2 - y1, az = z2 - z1;
+      const bx = x3 - x1, by = y3 - y1, bz = z3 - z1;
+      const ny = az * bx - ax * bz;
       const nx = ay * bz - az * by;
       const nz = ax * by - ay * bx;
       const lenNorm = Math.sqrt(nx * nx + ny * ny + nz * nz);
@@ -162,12 +349,16 @@ export function analyzeMeshDefects(geometry: THREE.BufferGeometry): {
           overhangCount++;
         }
       }
+      signedVolume6 += (x1 * (y2 * z3 - y3 * z2) + x2 * (y3 * z1 - y1 * z3) + x3 * (y1 * z2 - y2 * z1));
     }
   } else {
     const len = pos.length;
     for (let i = 0; i < len; i += 9) {
-      const ax = pos[i + 3] - pos[i], ay = pos[i + 4] - pos[i + 1], az = pos[i + 5] - pos[i + 2];
-      const bx = pos[i + 6] - pos[i], by = pos[i + 7] - pos[i + 1], bz = pos[i + 8] - pos[i + 2];
+      const x1 = pos[i], y1 = pos[i + 1], z1 = pos[i + 2];
+      const x2 = pos[i + 3], y2 = pos[i + 4], z2 = pos[i + 5];
+      const x3 = pos[i + 6], y3 = pos[i + 7], z3 = pos[i + 8];
+      const ax = x2 - x1, ay = y2 - y1, az = z2 - z1;
+      const bx = x3 - x1, by = y3 - y1, bz = z3 - z1;
       const ny = az * bx - ax * bz;
       const nx = ay * bz - az * by;
       const nz = ax * by - ay * bx;
@@ -177,20 +368,32 @@ export function analyzeMeshDefects(geometry: THREE.BufferGeometry): {
           overhangCount++;
         }
       }
+      signedVolume6 += (x1 * (y2 * z3 - y3 * z2) + x2 * (y3 * z1 - y1 * z3) + x3 * (y1 * z2 - y2 * z1));
     }
   }
 
-  const overhangPercentage = totalTriangles > 0 
-    ? Number(((overhangCount / totalTriangles) * 100).toFixed(1)) 
+  const overhangPercentage = totalTriangles > 0
+    ? Number(((overhangCount / totalTriangles) * 100).toFixed(1))
     : 0;
+
+  if (!(totalTriangles > 0)) {
+    return { ...unmeasuredDefects(), overhangTriangles: overhangCount, overhangPercentage };
+  }
+
+  // Luoi vuot tran chi phi ⇒ NOI RO la chua phan tich (khong duoc tra co kin gan cung).
+  if (totalTriangles > MAX_TOPOLOGY_TRIANGLES) {
+    return { ...unmeasuredDefects(), overhangTriangles: overhangCount, overhangPercentage };
+  }
 
   // 2. Topological Manifold Edge Analysis with spatial vertex quantization
   // Quantizes coordinates to identify shared edges across unindexed STL triangles
   let nonManifold = 0;
   let boundaryEdges = 0;
+  let windingConflicts = 0;
 
-  if (totalTriangles <= 60000) {
-    const edgeMap = new Map<string, number>();
+  {
+    const edgeUsage = new Map<string, number>();
+    const edgeWinding = new Map<string, number>();
 
     // Coordinate hash helper (quantized to 0.05mm tolerance) to detect shared geometric vertices regardless of unindexed raw STLs
     const getVertexHash = (idx: number): string => {
@@ -201,6 +404,8 @@ export function analyzeMeshDefects(geometry: THREE.BufferGeometry): {
     };
 
     const count = index ? index.length : posAttr.count;
+    const faceEdges: Array<[string, string, string]> = [];
+    const faceWinding: Array<[number, number, number]> = [];
 
     for (let i = 0; i < count; i += 3) {
       const i1 = index ? index[i] : i;
@@ -212,32 +417,120 @@ export function analyzeMeshDefects(geometry: THREE.BufferGeometry): {
       const v3 = getVertexHash(i3);
 
       // Skip degenerate triangles where vertices collapse
-      if (v1 === v2 || v2 === v3 || v3 === v1) continue;
+      if (v1 === v2 || v2 === v3 || v3 === v1) {
+        faceEdges.push(['', '', '']);
+        faceWinding.push([0, 0, 0]);
+        continue;
+      }
 
       const e1 = v1 < v2 ? `${v1}#${v2}` : `${v2}#${v1}`;
       const e2 = v2 < v3 ? `${v2}#${v3}` : `${v3}#${v2}`;
       const e3 = v3 < v1 ? `${v3}#${v1}` : `${v1}#${v3}`;
 
-      edgeMap.set(e1, (edgeMap.get(e1) || 0) + 1);
-      edgeMap.set(e2, (edgeMap.get(e2) || 0) + 1);
-      edgeMap.set(e3, (edgeMap.get(e3) || 0) + 1);
+      edgeUsage.set(e1, (edgeUsage.get(e1) || 0) + 1);
+      edgeUsage.set(e2, (edgeUsage.get(e2) || 0) + 1);
+      edgeUsage.set(e3, (edgeUsage.get(e3) || 0) + 1);
+      // Huong quan: +1 khi di theo thu tu chuan cua khoa, -1 khi nguoc lai. Voi luoi quan nhat quan,
+      // moi canh trong duoc di qua 1 lan moi chieu ⇒ tong = 0.
+      edgeWinding.set(e1, (edgeWinding.get(e1) || 0) + (v1 < v2 ? 1 : -1));
+      edgeWinding.set(e2, (edgeWinding.get(e2) || 0) + (v2 < v3 ? 1 : -1));
+      edgeWinding.set(e3, (edgeWinding.get(e3) || 0) + (v3 < v1 ? 1 : -1));
+
+      faceEdges.push([e1, e2, e3]);
+      faceWinding.push([v1 < v2 ? 1 : -1, v2 < v3 ? 1 : -1, v3 < v1 ? 1 : -1]);
     }
 
-    edgeMap.forEach((usage) => {
+    edgeUsage.forEach((usage, key) => {
       if (usage > 2) nonManifold++;
       if (usage === 1) boundaryEdges++;
     });
+
+    // Mat bi coi la QUAY NGUOC khi MOI canh trong (usage === 2) cua no deu xung dot huong voi mat ke.
+    for (let f = 0; f < faceEdges.length; f++) {
+      const edges = faceEdges[f];
+      if (!edges[0]) continue; // tam giac suy bien
+      let shared = 0;
+      let conflicted = 0;
+      for (let e = 0; e < 3; e++) {
+        if ((edgeUsage.get(edges[e]) || 0) !== 2) continue;
+        shared++;
+        if ((edgeWinding.get(edges[e]) || 0) !== 0) conflicted++;
+      }
+      if (shared > 0 && conflicted === shared) windingConflicts++;
+    }
   }
 
   const isWatertight = boundaryEdges === 0 && nonManifold === 0;
+  // Luoi KIN quan nhat quan nhung quay het vao trong ⇒ the tich co dau am ⇒ TOAN BO mat bi nguoc.
+  const invertedNormalsCount = isWatertight
+    ? (signedVolume6 < 0 ? Math.round(totalTriangles) : windingConflicts)
+    : windingConflicts;
 
   return {
     nonManifoldCount: nonManifold,
-    invertedNormalsCount: boundaryEdges > 0 ? Math.min(12, boundaryEdges) : 0,
-    minWallThickness: 1.4,
+    invertedNormalsCount,
+    boundaryEdges,
+    minWallThickness: measureMinimumWallThickness(
+      geometry,
+      options?.thicknessRayBudget ?? THICKNESS_RAY_BUDGET
+    ),
     isWatertight,
     overhangTriangles: overhangCount,
     overhangPercentage
+  };
+}
+
+/**
+ * R2: gop so do cua nhieu chi tiet (3MF/OBJ) thanh so do cua ca tep.
+ * Quy tac: co it nhat mot chi tiet chua do duoc ⇒ tra `null` cho chi so do (khong doan);
+ * chieu day thanh lay MIN cua cac chi tiet do duoc; goc nho tinh lai theo tong so tam giac.
+ */
+export function aggregateDefects(
+  entries: Array<{ defects: MeshDefectAnalysis; triangleCount: number }>
+): MeshDefectAnalysis {
+  if (entries.length === 0) return unmeasuredDefects();
+
+  let allWatertight = true;
+  let watertightKnown = true;
+  let nonManifold = 0;
+  let nonManifoldKnown = true;
+  let inverted = 0;
+  let invertedKnown = true;
+  let boundary = 0;
+  let boundaryKnown = true;
+  let minWallThickness: number | null = null;
+  let overhangTriangles = 0;
+  let triangles = 0;
+
+  for (const entry of entries) {
+    const d = entry.defects;
+    triangles += entry.triangleCount;
+    overhangTriangles += d.overhangTriangles;
+    if (d.isWatertight === null) watertightKnown = false;
+    else allWatertight = allWatertight && d.isWatertight;
+    if (d.nonManifoldCount === null) nonManifoldKnown = false;
+    else nonManifold += d.nonManifoldCount;
+    if (d.invertedNormalsCount === null) invertedKnown = false;
+    else inverted += d.invertedNormalsCount;
+    if (d.boundaryEdges === null) boundaryKnown = false;
+    else boundary += d.boundaryEdges;
+    if (d.minWallThickness !== null) {
+      minWallThickness = minWallThickness === null
+        ? d.minWallThickness
+        : Math.min(minWallThickness, d.minWallThickness);
+    }
+  }
+
+  return {
+    nonManifoldCount: nonManifoldKnown ? nonManifold : null,
+    invertedNormalsCount: invertedKnown ? inverted : null,
+    boundaryEdges: boundaryKnown ? boundary : null,
+    minWallThickness,
+    isWatertight: watertightKnown ? allWatertight : null,
+    overhangTriangles,
+    overhangPercentage: triangles > 0
+      ? Number(((overhangTriangles / triangles) * 100).toFixed(1))
+      : 0
   };
 }
 
@@ -254,42 +547,16 @@ export const autoRepairGeometry = (
   originalGeometry: THREE.BufferGeometry
 ): THREE.BufferGeometry => createRepairedMesh(originalGeometry);
 
-/**
- * Split connected components into simulated multi-shell parts
- */
-export function simulateSplitShells(basePart: ModelPart, volume: number): ModelPart[] {
-  const part1: ModelPart = {
-    id: `part-${Date.now()}-shell-1`,
-    name: `${basePart.name} [Vỏ Thân Chính 01]`,
-    color: 'Xanh Teal Công Nghiệp',
-    colorHex: '#00687a',
-    materialId: 'petg-pro',
-    visible: true,
-    triangleCount: Math.round(basePart.triangleCount * 0.58),
-    volumeCm3: Number((volume * 0.6).toFixed(2)),
-    extruderIndex: 1
-  };
-
-  const part2: ModelPart = {
-    id: `part-${Date.now()}-shell-2`,
-    name: `${basePart.name} [Lõi Cơ Khí 02]`,
-    color: 'Cam Cảnh Báo Cơ Khí',
-    colorHex: '#ea580c',
-    materialId: 'pla-tough',
-    visible: true,
-    triangleCount: Math.round(basePart.triangleCount * 0.42),
-    volumeCm3: Number((volume * 0.4).toFixed(2)),
-    extruderIndex: 2
-  };
-
-  return [part1, part2];
-}
-
-export const splitConnectedComponents = (
-  basePart: ModelPart,
-  _dimensions: { x: number; y: number; z: number },
-  volume: number
-): ModelPart[] => simulateSplitShells(basePart, volume);
+// D9 (Đợt 10): HAI HÀM TÁCH-KHỐI-GIẢ CỦA BỘ ĐỌC ĐÃ BỊ XOÁ (tên cũ ghi ở
+// `docs/plans/22-backlog-and-decisions.md` mục D9 và `docs/design/data-honesty.md` mục MP-09).
+//
+// Vì sao xoá: chúng KHÔNG chạy phân tích thành phần rời rạc. Chúng nhân số tam giác ×0.58/×0.42 và
+// thể tích ×0.6/×0.4, đặt tên hai chi tiết bịa ("[Vỏ Thân Chính 01]" / "[Lõi Cơ Khí 02]") rồi trả
+// về như một kết quả tách khối thật; tầng UI còn đổi định dạng tệp sang 3MF (đổi cả báo giá). Nút
+// tương ứng ở `ObjectTreePanel` cũng đã bị bỏ ⇒ hai export này không còn caller nào.
+//
+// Nếu sau này cần tính năng thật: phân tích connected-components trên index buffer (mỗi thành phần
+// rời rạc là một phần, số tam giác/thể tích TÍNH TỪ CHÍNH thành phần đó). KHÔNG dựng lại hàm bịa.
 
 // -------------------------------------------------------------
 // XML & 3MF DOM HELPER FUNCTIONS (Namespace & Browser Resilient)
@@ -355,22 +622,22 @@ async function extract3MFMetadata(
 ): Promise<SlicerPresetInfo> {
   const palettes: FilamentPaletteItem[] = [];
   const plates: PlateInfo[] = [];
-  let software = '3MF Universal Standard';
-  let printerModel = 'Bambu Lab X1-Carbon / P1S / A1 (0.4 nozzle)';
-  let nozzleDiameter = 0.4;
-  let layerHeight = 0.20;
-  let initialLayerHeight = 0.20;
-  let infillDensity = '15%';
-  let infillPattern = 'gyroid';
-  let wallLoops = 2;
-  let topShellLayers = 4;
-  let bottomShellLayers = 3;
-  let printSpeed = 200;
-  let estimatedPrintTimeFormatted = '1h 24m';
-  let estimatedPrintTimeSeconds = 5040;
+  // R2 (MP-13/MP-14): KHÔNG khởi tạo sẵn các thông số slicer "trông như thật" rồi trả về như thể
+  // đó là dữ liệu của tệp. Trường nào tệp không khai báo ⇒ `undefined` = "tệp không kèm dữ liệu slicer".
+  let software = 'Chưa rõ phần mềm tạo tệp 3MF';
+  let printerModel: string | undefined = undefined;
+  let nozzleDiameter: number | undefined = undefined;
+  let layerHeight: number | undefined = undefined;
+  let initialLayerHeight: number | undefined = undefined;
+  let infillDensity: string | undefined = undefined;
+  let infillPattern: string | undefined = undefined;
+  let wallLoops: number | undefined = undefined;
+  let topShellLayers: number | undefined = undefined;
+  let bottomShellLayers: number | undefined = undefined;
+  let estimatedPrintTimeFormatted: string | undefined = undefined;
+  let estimatedPrintTimeSeconds: number | undefined = undefined;
   let totalFilamentGrams = 0;
   let totalFilamentMeters = 0;
-  let plateCount = 1;
   let activePlateIndex = 1;
 
   // 1. Check Metadata from .model XML
@@ -386,24 +653,20 @@ async function extract3MFMetadata(
       }
     }
 
-    // Basematerials colors
+    // Basematerials colors — CHỈ lấy đúng thứ tệp khai báo (mã màu + tên). Không đoán vật liệu,
+    // không gán hãng / khối lượng riêng / giá: tệp 3MF KHÔNG chứa giá vật tư (MP-14).
     const baseNodes = getElementsByLocalName(doc, 'base');
-    baseNodes.forEach((base, idx) => {
+    baseNodes.forEach((base) => {
       const dispColor = base.getAttribute('displaycolor');
-      const name = base.getAttribute('name') || `Filament Slot ${idx + 1}`;
+      const name = base.getAttribute('name') || '';
       if (dispColor) {
         const hex = dispColor.slice(0, 7);
         if (!palettes.some(p => p.colorHex.toLowerCase() === hex.toLowerCase())) {
           palettes.push({
             index: palettes.length + 1,
             colorHex: hex,
-            name: name,
-            materialType: name.toUpperCase().includes('PETG') ? 'PETG' : name.toUpperCase().includes('TPU') ? 'TPU' : 'PLA Basic',
-            vendor: 'Bambu Lab',
-            density: 1.24,
-            usedGrams: 0,
-            usedMeters: 0,
-            costPerKg: 350000
+            name: name || `Màu ${palettes.length + 1} (khai báo trong tệp)`,
+            materialType: ''
           });
         }
       }
@@ -411,7 +674,7 @@ async function extract3MFMetadata(
 
     // Color group colors
     const colorNodes = getElementsByLocalName(doc, 'color');
-    colorNodes.forEach((c, idx) => {
+    colorNodes.forEach((c) => {
       const hexVal = c.getAttribute('color');
       if (hexVal) {
         const hex = hexVal.slice(0, 7);
@@ -419,13 +682,8 @@ async function extract3MFMetadata(
           palettes.push({
             index: palettes.length + 1,
             colorHex: hex,
-            name: `Màu AMS Slot ${palettes.length + 1}`,
-            materialType: 'PLA Tough',
-            vendor: 'Bambu Lab',
-            density: 1.24,
-            usedGrams: 0,
-            usedMeters: 0,
-            costPerKg: 350000
+            name: `Màu ${palettes.length + 1} (bảng màu trong tệp)`,
+            materialType: ''
           });
         }
       }
@@ -440,7 +698,7 @@ async function extract3MFMetadata(
       const parser = new DOMParser();
       const sDoc = parser.parseFromString(sliceInfoText, 'application/xml');
 
-      software = 'Bambu Studio / OrcaSlicer (Slicing Config)';
+      software = 'Bambu Studio / OrcaSlicer (theo slice_info.config trong tệp)';
 
       // Filament nodes in slice_info
       const filamentNodes = getElementsByLocalName(sDoc, 'filament');
@@ -448,26 +706,29 @@ async function extract3MFMetadata(
         palettes.length = 0; // Clear and populate from slice_info
         filamentNodes.forEach((fNode, idx) => {
           const id = parseInt(fNode.getAttribute('id') || String(idx + 1), 10);
-          const color = fNode.getAttribute('color') || DEFAULT_PART_PALETTE[idx % DEFAULT_PART_PALETTE.length].hex;
-          const type = fNode.getAttribute('type') || 'PLA';
-          const vendor = fNode.getAttribute('vendor') || 'Bambu Lab';
+          const colorAttr = fNode.getAttribute('color');
+          const type = fNode.getAttribute('type') || '';
+          const vendor = fNode.getAttribute('vendor') || undefined;
           const usedG = parseFloat(fNode.getAttribute('used_g') || '0') || 0;
           const usedM = parseFloat(fNode.getAttribute('used_m') || '0') || 0;
-          const density = parseFloat(fNode.getAttribute('density') || '1.24') || 1.24;
+          const densityAttr = parseFloat(fNode.getAttribute('density') || '0');
 
           totalFilamentGrams += usedG;
           totalFilamentMeters += usedM;
 
           palettes.push({
             index: id || idx + 1,
-            colorHex: color.startsWith('#') ? color.slice(0, 7) : `#${color.slice(0, 6)}`,
-            name: `${vendor} ${type} (AMS Slot ${id || idx + 1})`,
+            // Tệp không khai báo mã màu ⇒ dùng màu hiển thị mặc định của trình xem và GHI RÕ trong tên,
+            // không trình bày nó như "màu có trong tệp".
+            colorHex: colorAttr
+              ? (colorAttr.startsWith('#') ? colorAttr.slice(0, 7) : `#${colorAttr.slice(0, 6)}`)
+              : DEFAULT_PART_PALETTE[idx % DEFAULT_PART_PALETTE.length].hex,
+            name: `${vendor || 'Không rõ hãng'} ${type || 'không rõ vật liệu'} (AMS Slot ${id || idx + 1})${colorAttr ? '' : ' — màu do trình xem gán'}`,
             materialType: type,
-            vendor: vendor,
-            density: density,
-            usedGrams: Number(usedG.toFixed(1)),
-            usedMeters: Number(usedM.toFixed(2)),
-            costPerKg: type.includes('CF') ? 550000 : type.includes('PETG') ? 350000 : 300000
+            vendor,
+            density: densityAttr > 0 ? densityAttr : undefined,
+            usedGrams: usedG > 0 ? Number(usedG.toFixed(1)) : undefined,
+            usedMeters: usedM > 0 ? Number(usedM.toFixed(2)) : undefined
           });
         });
       }
@@ -475,21 +736,20 @@ async function extract3MFMetadata(
       // Plate & prediction time
       const plateNodes = getElementsByLocalName(sDoc, 'plate');
       if (plateNodes.length > 0) {
-        plateCount = plateNodes.length;
         plateNodes.forEach((pNode, pIdx) => {
           const id = parseInt(pNode.getAttribute('id') || pNode.getAttribute('index') || String(pIdx + 1), 10);
           const pName = pNode.getAttribute('name') || `Plate ${id}`;
           const predSec = parseInt(pNode.getAttribute('prediction') || '0', 10);
           const weightG = parseFloat(pNode.getAttribute('weight') || pNode.getAttribute('filament_weight') || '0') || 0;
           const lengthM = parseFloat(pNode.getAttribute('filament_length') || '0') || 0;
-          const bedType = pNode.getAttribute('bed_type') || 'Textured PEI Plate';
+          const bedType = pNode.getAttribute('bed_type') || undefined;
 
-          let predFormatted = '35m';
-          if (predSec > 0) {
-            const hrs = Math.floor(predSec / 3600);
-            const mins = Math.floor((predSec % 3600) / 60);
-            predFormatted = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-          }
+          // R2 (MP-13): tệp không ghi `prediction` ⇒ KHÔNG bịa '35m'/'45m'.
+          const predFormatted = predSec > 0
+            ? (Math.floor(predSec / 3600) > 0
+                ? `${Math.floor(predSec / 3600)}h ${Math.floor((predSec % 3600) / 60)}m`
+                : `${Math.floor((predSec % 3600) / 60)}m`)
+            : undefined;
 
           plates.push({
             index: id,
@@ -499,7 +759,6 @@ async function extract3MFMetadata(
             filamentGrams: weightG > 0 ? Number(weightG.toFixed(1)) : undefined,
             filamentMeters: lengthM > 0 ? Number(lengthM.toFixed(2)) : undefined,
             bedType,
-            partCount: 0,
             partIds: []
           });
         });
@@ -532,28 +791,36 @@ async function extract3MFMetadata(
       const content = await projectSettingsFile.async('text');
       if (content.trim().startsWith('{')) {
         const json = JSON.parse(content);
+        const num = (v: unknown): number | undefined => {
+          const parsed = typeof v === 'string' ? parseFloat(v) : typeof v === 'number' ? v : NaN;
+          return Number.isFinite(parsed) ? parsed : undefined;
+        };
+
         if (json.printer_model) printerModel = json.printer_model;
-        if (json.layer_height) layerHeight = parseFloat(json.layer_height) || layerHeight;
-        if (json.initial_layer_print_height) initialLayerHeight = parseFloat(json.initial_layer_print_height) || initialLayerHeight;
-        if (json.infill_sparse_density) infillDensity = `${json.infill_sparse_density}%`;
-        if (json.infill_pattern) infillPattern = json.infill_pattern;
-        if (json.wall_loops) wallLoops = parseInt(json.wall_loops, 10) || wallLoops;
+        // R2 (MP-13): chỉ nhận giá trị CÓ trong tệp; thiếu ⇒ giữ `undefined` (0.20 / 15% / gyroid / 2 / 200
+        // trước đây là hằng số của bộ đọc, không phải của tệp).
+        nozzleDiameter = num(json.nozzle_diameter) ?? nozzleDiameter;
+        layerHeight = num(json.layer_height) ?? layerHeight;
+        initialLayerHeight = num(json.initial_layer_print_height) ?? initialLayerHeight;
+        if (json.infill_sparse_density !== undefined && json.infill_sparse_density !== null && json.infill_sparse_density !== '') {
+          infillDensity = `${json.infill_sparse_density}%`;
+        }
+        if (typeof json.infill_pattern === 'string' && json.infill_pattern) infillPattern = json.infill_pattern;
+        wallLoops = num(json.wall_loops) ?? wallLoops;
+        topShellLayers = num(json.top_shell_layers) ?? topShellLayers;
+        bottomShellLayers = num(json.bottom_shell_layers) ?? bottomShellLayers;
 
         if (Array.isArray(json.filament_colour) && palettes.length === 0) {
           json.filament_colour.forEach((colStr: string, idx: number) => {
             const hex = colStr.startsWith('#') ? colStr.slice(0, 7) : `#${colStr.slice(0, 6)}`;
-            const type = (Array.isArray(json.filament_type) && json.filament_type[idx]) || 'PLA';
-            const vendor = (Array.isArray(json.filament_vendor) && json.filament_vendor[idx]) || 'Bambu Lab';
+            const type = (Array.isArray(json.filament_type) && json.filament_type[idx]) || '';
+            const vendor = (Array.isArray(json.filament_vendor) && json.filament_vendor[idx]) || undefined;
             palettes.push({
               index: idx + 1,
               colorHex: hex,
-              name: `${vendor} ${type} (AMS Slot ${idx + 1})`,
+              name: `${vendor || 'Không rõ hãng'} ${type || 'không rõ vật liệu'} (AMS Slot ${idx + 1})`,
               materialType: type,
-              vendor: vendor,
-              density: 1.24,
-              usedGrams: 0,
-              usedMeters: 0,
-              costPerKg: 320000
+              vendor
             });
           });
         }
@@ -563,33 +830,9 @@ async function extract3MFMetadata(
     }
   }
 
-  // Fallback palettes if none found
-  if (palettes.length === 0) {
-    palettes.push(
-      {
-        index: 1,
-        colorHex: '#00687a',
-        name: 'Bambu PLA Basic Cyan',
-        materialType: 'PLA Basic',
-        vendor: 'Bambu Lab',
-        density: 1.24,
-        usedGrams: 28.5,
-        usedMeters: 9.5,
-        costPerKg: 300000
-      },
-      {
-        index: 2,
-        colorHex: '#ea580c',
-        name: 'Bambu PETG-Pro Orange',
-        materialType: 'PETG',
-        vendor: 'Bambu Lab',
-        density: 1.27,
-        usedGrams: 14.2,
-        usedMeters: 4.6,
-        costPerKg: 350000
-      }
-    );
-  }
+  // R2 (MP-13/MP-14): KHÔNG còn "palette dự phòng" bịa (Bambu PLA Basic 28.5 g / PETG 14.2 g với
+  // giá suy từ tên vật liệu). Tệp không khai báo màu/vật liệu ⇒ danh sách RỖNG; giao diện tự dùng
+  // màu hiển thị mặc định của trình xem.
 
   return {
     software,
@@ -602,26 +845,15 @@ async function extract3MFMetadata(
     wallLoops,
     topShellLayers,
     bottomShellLayers,
-    printSpeed,
     estimatedPrintTimeFormatted,
     estimatedPrintTimeSeconds,
-    totalFilamentGrams: Number(totalFilamentGrams.toFixed(1)) || 42.7,
-    totalFilamentMeters: Number(totalFilamentMeters.toFixed(2)) || 14.1,
-    plateCount: plates.length > 0 ? plates.length : plateCount,
+    // R2 (MP-13): tệp không kèm số đo ⇒ `undefined` ("không có dữ liệu slicer trong tệp"),
+    // KHÔNG rơi về 42.7 g / 14.1 m như thể đó là preset của máy cắt lớp.
+    totalFilamentGrams: totalFilamentGrams > 0 ? Number(totalFilamentGrams.toFixed(1)) : undefined,
+    totalFilamentMeters: totalFilamentMeters > 0 ? Number(totalFilamentMeters.toFixed(2)) : undefined,
+    plateCount: plates.length,
     activePlateIndex,
-    plates: plates.length > 0 ? plates : [
-      {
-        index: 1,
-        name: 'Plate 1 (Bàn in chính)',
-        predictionSeconds: estimatedPrintTimeSeconds,
-        predictionFormatted: estimatedPrintTimeFormatted || '45m',
-        filamentGrams: totalFilamentGrams > 0 ? Number(totalFilamentGrams.toFixed(1)) : 28.5,
-        filamentMeters: totalFilamentMeters > 0 ? Number(totalFilamentMeters.toFixed(2)) : 9.5,
-        bedType: 'Textured PEI Plate',
-        partCount: 1,
-        partIds: []
-      }
-    ],
+    plates,
     palettes
   };
 }
@@ -775,6 +1007,11 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
   const rootGroup = new THREE.Group();
   rootGroup.name = '3MF_Root_Assembly';
   const parts: ModelPart[] = [];
+  // R2 (MP-12): số đo khuyết tật THẬT của từng chi tiết (thay cho cờ kín / 0 cạnh / 0 mặt nghịch /
+  // chiều dày gán cứng ở khối `return`),
+  // và danh sách hình học để đo chiều dày theo một ngân sách tia dùng chung.
+  const defectEntries: Array<{ defects: MeshDefectAnalysis; triangleCount: number }> = [];
+  const thicknessEntries: Array<{ geometry: THREE.BufferGeometry; triangleCount: number }> = [];
   let partIndex = 1;
   let totalTriangles = 0;
   let totalVolume = 0;
@@ -813,10 +1050,15 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
     const triCount = finalGeom.index ? finalGeom.index.count / 3 : finalGeom.attributes.position.count / 3;
     const vol = calculateVolume(finalGeom);
     const area = calculateSurfaceArea(finalGeom);
+    // R2 (MP-12): phân tích biên hở / cạnh non-manifold / pháp tuyến nghịch TRÊN CHÍNH lưới của chi tiết.
+    // Chiều dày để `null` ở bước này; đo sau bằng ngân sách chia đều (measureGroupThickness).
+    const defects = analyzeMeshDefects(finalGeom, { thicknessRayBudget: 0 });
 
     totalTriangles += triCount;
     totalVolume += vol;
     totalSurfaceArea += area;
+    defectEntries.push({ defects, triangleCount: triCount });
+    thicknessEntries.push({ geometry: finalGeom, triangleCount: triCount });
 
     parts.push({
       id: partId,
@@ -907,22 +1149,30 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
   normalizedGroup.add(rootGroup);
   normalizedGroup.updateMatrixWorld(true);
 
-  const finalVolume = Number(totalVolume.toFixed(2)) || Number(((size.x * size.y * size.z * 0.45) / 1000).toFixed(2));
-  const finalSurfaceArea = Number(totalSurfaceArea.toFixed(2)) || Number(((2 * (size.x * size.y + size.y * size.z + size.z * size.x)) / 100).toFixed(2));
+  // R2 (MP-06): thể tích/diện tích CHỈ lấy từ tích phân trên lưới thật. Không rơi về
+  // `hộp bao × 0.45` / công thức hộp bao — đó chính là "số bịa nuôi giá".
+  const finalVolume = Number(totalVolume.toFixed(2));
+  const finalSurfaceArea = Number(totalSurfaceArea.toFixed(2));
+  if (!Number.isFinite(finalVolume) || !(finalVolume > 0) || !Number.isFinite(finalSurfaceArea) || !(finalSurfaceArea > 0)) {
+    throw new MeshParseError(
+      'not_measurable',
+      fileName,
+      'Không đo được thể tích/diện tích từ lưới trong tệp 3MF (tích phân bằng 0 hoặc không hữu hạn). Hệ thống không suy từ hộp bao và không tạo báo giá cho tệp này.'
+    );
+  }
 
   const computedPlates: PlateInfo[] = (slicerPreset.plates && slicerPreset.plates.length > 0)
     ? slicerPreset.plates.map((plate, pIdx) => {
         const plateParts = parts.filter(p => (p.plateIndex || 1) === plate.index);
-        const partCount = plateParts.length > 0 ? plateParts.length : (pIdx === 0 ? Math.max(1, parts.length) : 1);
+        const partCount = plateParts.length > 0 ? plateParts.length : (pIdx === 0 ? parts.length : 0);
         const partIds = plateParts.map(p => p.id);
-        const plateVol = plateParts.reduce((acc, p) => acc + (p.volumeCm3 || 0), 0) || (finalVolume / (slicerPreset.plates?.length || 1));
-        const filamentG = plate.filamentGrams || Number((plateVol * 1.24).toFixed(1));
 
         return {
+          // R2 (MP-13): khối lượng nhựa/giờ in CHỈ giữ đúng thứ tệp khai báo (`...plate`). Không suy
+          // `thể tích × 1.24 g/cm3` rồi bày ra như preset của máy cắt lớp.
           ...plate,
           partCount,
           partIds,
-          filamentGrams: filamentG,
           dimensions: {
             x: Number(size.x.toFixed(1)),
             y: Number(size.z.toFixed(1)),
@@ -932,14 +1182,11 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
       })
     : [
         {
+          // Tệp không kèm dữ liệu bàn in ⇒ chỉ nêu thứ ĐO ĐƯỢC (số chi tiết + kích thước khay).
+          // Không bịa 3600 giây / '45m' / khối lượng nhựa / loại bàn in.
           index: 1,
-          name: 'Plate 1 (Bàn in chính)',
-          predictionSeconds: slicerPreset.estimatedPrintTimeSeconds || 3600,
-          predictionFormatted: slicerPreset.estimatedPrintTimeFormatted || '45m',
-          filamentGrams: Number((finalVolume * 1.24).toFixed(1)),
-          filamentMeters: Number((finalVolume * 0.4).toFixed(2)),
-          bedType: 'Textured PEI Plate',
-          partCount: parts.length > 0 ? parts.length : 1,
+          name: 'Bàn in 1 (lưới đọc từ tệp — tệp không kèm dữ liệu slicer)',
+          partCount: parts.length,
           partIds: parts.map(p => p.id),
           dimensions: {
             x: Number(size.x.toFixed(1)),
@@ -948,6 +1195,12 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
           }
         }
       ];
+
+  // R2 (MP-12): gộp số đo các chi tiết + đo chiều dày trên tối đa 4 chi tiết lớn nhất.
+  const defects: MeshDefectAnalysis = {
+    ...aggregateDefects(defectEntries),
+    minWallThickness: measureGroupThickness(thicknessEntries, THICKNESS_RAY_BUDGET)
+  };
 
   return {
     objectGroup: normalizedGroup,
@@ -959,24 +1212,15 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
     volume: finalVolume,
     surfaceArea: finalSurfaceArea,
     triangleCount: Math.round(totalTriangles),
-    isWatertight: true,
-    nonManifoldEdges: 0,
-    invertedNormals: 0,
-    minWallThickness: 1.6,
-    parts: parts.length > 0 ? parts : [
-      {
-        id: `part-1-${Date.now()}`,
-        name: fileName.replace(/\.[^/.]+$/, ''),
-        color: slicerPreset.palettes[0]?.name || 'Xanh Teal Công Nghiệp',
-        colorHex: slicerPreset.palettes[0]?.colorHex || '#00687a',
-        materialId: 'petg-pro',
-        visible: true,
-        triangleCount: Math.round(totalTriangles),
-        volumeCm3: finalVolume,
-        extruderIndex: 1,
-        plateIndex: 1
-      }
-    ],
+    // R2 (MP-12): số đo khuyết tật THẬT của cả tệp (gộp từ các chi tiết) — không còn hằng số.
+    isWatertight: defects.isWatertight,
+    nonManifoldEdges: defects.nonManifoldCount,
+    invertedNormals: defects.invertedNormalsCount,
+    boundaryEdges: defects.boundaryEdges,
+    minWallThickness: defects.minWallThickness,
+    overhangTriangles: defects.overhangTriangles,
+    overhangPercentage: defects.overhangPercentage,
+    parts,
     slicerPreset: {
       ...slicerPreset,
       plates: computedPlates,
@@ -989,9 +1233,12 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
 
 /**
  * Off-thread binary STL parser running in dedicated Web Worker.
- * Prevents UI thread freeze and V8 GC pressure for files > 2MB.
+ *
+ * R2 (MP-05): worker trả về HÌNH HỌC đã đọc, hoặc `null` = KHÔNG ĐỌC ĐƯỢC. Bản cũ thay kết quả
+ * rỗng của worker bằng `85.0 / 60.0 / 32.0`, `volume 25.0`, `surfaceArea 120.0` rồi báo giá trên
+ * những con số đó. Mọi số đo nay được tính lại từ chính `positions` mà worker trả về.
  */
-async function parseStlWithWorker(file: File): Promise<ParsedMeshResult | null> {
+async function parseStlWithWorker(file: File): Promise<THREE.BufferGeometry | null> {
   if (typeof window === 'undefined' || typeof Worker === 'undefined') return null;
 
   return new Promise((resolve) => {
@@ -1009,52 +1256,27 @@ async function parseStlWithWorker(file: File): Promise<ParsedMeshResult | null> 
         const data = e.data;
         worker.terminate();
 
-        if (!data || !data.success || !data.positions) {
+        const positions = data?.positions;
+        // Không có lưới / 0 tam giác ⇒ COI NHƯ KHÔNG ĐỌC ĐƯỢC (không suy ra số đo thay thế).
+        if (!data || !data.success || !positions || !positions.length || !(data.triangleCount > 0)) {
+          resolve(null);
+          return;
+        }
+        const dims = data.dimensionsMm;
+        if (!dims || !(dims.x > 0) || !(dims.y > 0) || !(dims.z > 0) || !(data.volumeCm3 > 0)) {
           resolve(null);
           return;
         }
 
         const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         if (data.normals) {
           geometry.setAttribute('normal', new THREE.BufferAttribute(data.normals, 3));
         } else {
           geometry.computeVertexNormals();
         }
         geometry.computeBoundingBox();
-
-        const defectAnalysis = analyzeMeshDefects(geometry);
-
-        resolve({
-          geometry,
-          dimensions: {
-            x: data.dimensionsMm?.x || 85.0,
-            y: data.dimensionsMm?.y || 60.0,
-            z: data.dimensionsMm?.z || 32.0,
-          },
-          volume: data.volumeCm3 || 25.0,
-          surfaceArea: data.surfaceAreaCm2 || 120.0,
-          triangleCount: data.triangleCount,
-          isWatertight: defectAnalysis.isWatertight,
-          nonManifoldEdges: defectAnalysis.nonManifoldCount,
-          invertedNormals: defectAnalysis.invertedNormalsCount,
-          minWallThickness: defectAnalysis.minWallThickness,
-          overhangTriangles: defectAnalysis.overhangTriangles,
-          overhangPercentage: defectAnalysis.overhangPercentage,
-          parts: [
-            {
-              id: `part-${Date.now()}`,
-              name: file.name.replace(/\.[^/.]+$/, ''),
-              color: 'Xanh Teal Công Nghiệp',
-              colorHex: '#00687a',
-              materialId: 'pla-basic',
-              visible: true,
-              triangleCount: data.triangleCount,
-              volumeCm3: data.volumeCm3 || 25.0,
-              extruderIndex: 1
-            }
-          ]
-        });
+        resolve(geometry);
       };
 
       worker.onerror = () => {
@@ -1077,7 +1299,229 @@ async function parseStlWithWorker(file: File): Promise<ParsedMeshResult | null> 
 }
 
 /**
- * Parse an uploaded File (3MF, STL, OBJ, STEP) into real Three.js Geometry/Group and extract exact metrics
+ * R2 (MP-12): đo chiều dày cho NHIỀU chi tiết với MỘT ngân sách tia dùng chung.
+ * Chỉ đo trên tối đa 4 chi tiết lớn nhất (chi phí bị chặn), lấy MIN của các chi tiết đo được;
+ * không đo được chi tiết nào ⇒ `null` ("chưa đo được"), không rơi về hằng số 1.5/1.6/1.8.
+ */
+function measureGroupThickness(
+  entries: Array<{ geometry: THREE.BufferGeometry; triangleCount: number }>,
+  rayBudget: number
+): number | null {
+  const sorted = [...entries].sort((a, b) => b.triangleCount - a.triangleCount).slice(0, 4);
+  if (sorted.length === 0) return null;
+  const perPart = Math.max(1, Math.floor(rayBudget / sorted.length));
+  let best: number | null = null;
+  for (const entry of sorted) {
+    const thickness = measureMinimumWallThickness(entry.geometry, perPart);
+    if (thickness !== null) best = best === null ? thickness : Math.min(best, thickness);
+  }
+  return best;
+}
+
+/**
+ * R2 (MP-03/MP-06): đo MỘT lưới tam giác (STL) từ chính hình học đã đọc.
+ * Không đọc được / suy biến / tích phân bằng 0 ⇒ ném `MeshParseError` — KHÔNG thay bằng hộp
+ * 85×32×60, KHÔNG suy thể tích từ hộp bao, KHÔNG có số đo thay thế.
+ */
+function measureTriangularMesh(geometry: THREE.BufferGeometry, fileName: string): {
+  geometry: THREE.BufferGeometry;
+  dimensions: { x: number; y: number; z: number };
+  volume: number;
+  surfaceArea: number;
+  triangleCount: number;
+  defects: MeshDefectAnalysis;
+} {
+  const posAttr = geometry.attributes.position;
+  if (!posAttr || posAttr.count < 3) {
+    geometry.dispose();
+    throw new MeshParseError(
+      'corrupt_file',
+      fileName,
+      'Lưới đọc được không có tam giác nào. Hệ thống không dựng hình học thay thế và không tạo báo giá cho tệp này.'
+    );
+  }
+
+  // For geometries under 35,000 vertices, merge vertices to recover topological indices
+  // For larger files, keep rawGeometry directly for ultra-fast 60 FPS rendering without memory exhaustion
+  let mesh = geometry;
+  if (posAttr.count < 35000) {
+    try {
+      const rawBox = new THREE.Box3().setFromBufferAttribute(posAttr as THREE.BufferAttribute);
+      const rawSize = new THREE.Vector3();
+      rawBox.getSize(rawSize);
+      const relativeTolerance = Math.max(rawSize.length() * 1e-4, 1e-5);
+      mesh = BufferGeometryUtils.mergeVertices(geometry, relativeTolerance);
+      geometry.dispose();
+    } catch {
+      mesh = geometry;
+    }
+  }
+
+  mesh.computeBoundingBox();
+  mesh.computeVertexNormals();
+
+  const size = new THREE.Vector3();
+  if (mesh.boundingBox) mesh.boundingBox.getSize(size);
+  const dimensions = {
+    x: Number(size.x.toFixed(1)),
+    y: Number(size.y.toFixed(1)),
+    z: Number(size.z.toFixed(1))
+  };
+  if (!(dimensions.x > 0.01) || !(dimensions.y > 0.01) || !(dimensions.z > 0.01)) {
+    mesh.dispose();
+    throw new MeshParseError(
+      'degenerate_geometry',
+      fileName,
+      'Không đo được kích thước 3 chiều từ lưới (lưới suy biến hoặc phẳng). Hệ thống không suy kích thước từ hộp dựng sẵn.'
+    );
+  }
+
+  const triangleCount = mesh.index ? mesh.index.count / 3 : mesh.attributes.position.count / 3;
+  const volume = calculateVolume(mesh);
+  const surfaceArea = calculateSurfaceArea(mesh);
+  if (!(triangleCount >= 1) || !Number.isFinite(volume) || !(volume > 0) || !Number.isFinite(surfaceArea) || !(surfaceArea > 0)) {
+    mesh.dispose();
+    throw new MeshParseError(
+      'not_measurable',
+      fileName,
+      'Không đo được thể tích/diện tích từ lưới (tích phân bằng 0 hoặc không hữu hạn). Hệ thống KHÔNG suy số đo từ hộp bao và không báo giá cho tệp này.'
+    );
+  }
+
+  return {
+    geometry: mesh,
+    dimensions,
+    volume,
+    surfaceArea,
+    triangleCount,
+    defects: analyzeMeshDefects(mesh)
+  };
+}
+
+/**
+ * R2 (MP-06/MP-12/MP-13/MP-17): đo TOÀN BỘ số liệu của một NHÓM lưới (OBJ, và đường dự phòng 3MF)
+ * từ chính hình học đã đọc: kích thước của cả nhóm, thể tích / diện tích / số tam giác của TỪNG
+ * chi tiết, và phân tích khuyết tật thật. Không còn số tam giác / thể tích dựng sẵn cho từng chi
+ * tiết, cũng không suy thể tích từ hộp bao (× 0.3 / × 0.4).
+ *
+ * `swapYAndZ`: 3MF là hệ Z-up và đã được xoay về Y-up trước khi đo ⇒ khi báo cho UI (trục Z = chiều
+ * cao khỏi bàn in) phải hoán đổi Y/Z; OBJ giữ nguyên hệ của tệp.
+ */
+function measureGroup(
+  objectGroup: THREE.Group,
+  fileName: string,
+  swapYAndZ = false
+): ParsedMeshResult {
+  objectGroup.updateMatrixWorld(true);
+
+  const box = new THREE.Box3().setFromObject(objectGroup);
+  const size = new THREE.Vector3();
+  if (!box.isEmpty()) box.getSize(size);
+  const rawDimensions = {
+    x: Number(size.x.toFixed(1)),
+    y: Number(size.y.toFixed(1)),
+    z: Number(size.z.toFixed(1))
+  };
+  if (!(rawDimensions.x > 0.01) || !(rawDimensions.y > 0.01) || !(rawDimensions.z > 0.01)) {
+    throw new MeshParseError(
+      'degenerate_geometry',
+      fileName,
+      'Không đo được kích thước 3 chiều của nhóm lưới trong tệp. Hệ thống không suy kích thước từ hộp dựng sẵn.'
+    );
+  }
+  const dimensions = swapYAndZ
+    ? { x: rawDimensions.x, y: rawDimensions.z, z: rawDimensions.y }
+    : rawDimensions;
+
+  const parts: ModelPart[] = [];
+  const defectEntries: Array<{ defects: MeshDefectAnalysis; triangleCount: number }> = [];
+  const thicknessEntries: Array<{ geometry: THREE.BufferGeometry; triangleCount: number }> = [];
+  let totalTriangles = 0;
+  let totalVolume = 0;
+  let totalSurfaceArea = 0;
+  let partIdx = 1;
+
+  objectGroup.traverse((child) => {
+    if (!(child as THREE.Mesh).isMesh) return;
+    const mesh = child as THREE.Mesh;
+    if (!mesh.geometry || !mesh.geometry.attributes || !mesh.geometry.attributes.position) return;
+
+    // Đo trên bản SAO đã áp ma trận thế giới (OBJ có thể đặt transform ở node cha).
+    const measured = mesh.geometry.clone();
+    measured.applyMatrix4(mesh.matrixWorld);
+    measured.computeBoundingBox();
+    measured.computeVertexNormals();
+
+    const triCount = measured.index ? measured.index.count / 3 : measured.attributes.position.count / 3;
+    if (!(triCount >= 1)) {
+      measured.dispose();
+      return;
+    }
+
+    const vol = calculateVolume(measured);
+    const area = calculateSurfaceArea(measured);
+    const defects = analyzeMeshDefects(measured, { thicknessRayBudget: 0 });
+    const palette = DEFAULT_PART_PALETTE[(partIdx - 1) % DEFAULT_PART_PALETTE.length];
+
+    parts.push({
+      id: `part-${partIdx}-${Date.now()}`,
+      name: mesh.name || `Chi tiết ${partIdx}`,
+      color: palette.name,
+      colorHex: palette.hex,
+      materialId: 'pla-basic',
+      visible: true,
+      // R2 (MP-17): số tam giác / thể tích của TỪNG chi tiết đều ĐO từ lưới của chi tiết đó.
+      triangleCount: Math.round(triCount),
+      volumeCm3: Number(vol.toFixed(2)),
+      extruderIndex: 1
+    });
+    defectEntries.push({ defects, triangleCount: triCount });
+    thicknessEntries.push({ geometry: measured, triangleCount: triCount });
+    totalTriangles += triCount;
+    totalVolume += vol;
+    totalSurfaceArea += area;
+    partIdx++;
+  });
+
+  if (parts.length === 0) {
+    thicknessEntries.forEach((entry) => entry.geometry.dispose());
+    throw new MeshParseError(
+      'corrupt_file',
+      fileName,
+      'Tệp không chứa lưới tam giác nào để đo. Hệ thống không dựng mô hình thay thế và không tạo báo giá cho tệp này.'
+    );
+  }
+
+  const defects: MeshDefectAnalysis = {
+    ...aggregateDefects(defectEntries),
+    minWallThickness: measureGroupThickness(thicknessEntries, THICKNESS_RAY_BUDGET)
+  };
+  // Bản sao chỉ để đo ⇒ giải phóng ngay; nhóm gốc (đang render) không bị đụng tới.
+  thicknessEntries.forEach((entry) => entry.geometry.dispose());
+
+  return {
+    objectGroup,
+    dimensions,
+    volume: Number(totalVolume.toFixed(2)),
+    surfaceArea: Number(totalSurfaceArea.toFixed(2)),
+    triangleCount: Math.round(totalTriangles),
+    isWatertight: defects.isWatertight,
+    nonManifoldEdges: defects.nonManifoldCount,
+    invertedNormals: defects.invertedNormalsCount,
+    boundaryEdges: defects.boundaryEdges,
+    minWallThickness: defects.minWallThickness,
+    overhangTriangles: defects.overhangTriangles,
+    overhangPercentage: defects.overhangPercentage,
+    parts
+  };
+}
+
+/**
+ * Parse an uploaded File (3MF, STL, OBJ, STEP) into real Three.js Geometry/Group and extract exact metrics.
+ *
+ * R2 (MP-02): STEP/STP/IGES và mọi định dạng khác ⇒ NÉM `MeshParseError('unsupported_format')`.
+ * Bản cũ trả một khối CAD mô phỏng dựng sẵn (92×72×34 mm, thể tích 54.2, surfaceArea 215, cờ kín
+ * gán cứng) và những con số đó đi thẳng vào báo giá.
  */
 export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
   const fileName = file.name.toLowerCase();
@@ -1090,10 +1534,11 @@ export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
     try {
       return await parse3MFNative(arrayBuffer, file.name);
     } catch (nativeErr) {
-      console.warn('Native 3MF parser encountered issue, trying ThreeMFLoader fallback:', nativeErr);
+      if (nativeErr instanceof MeshParseError) throw nativeErr;
+      console.warn('Bộ đọc 3MF gốc gặp lỗi, thử ThreeMFLoader:', nativeErr);
     }
 
-    // Secondary fallback: ThreeMFLoader
+    // Secondary fallback: ThreeMFLoader — số đo vẫn phải ĐO từ hình học vừa đọc.
     try {
       if (typeof window !== 'undefined') {
         (window as any).JSZip = JSZip;
@@ -1102,143 +1547,46 @@ export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
       const objectGroup = loader.parse(arrayBuffer);
       objectGroup.rotation.x = -Math.PI / 2;
       objectGroup.updateMatrixWorld(true);
-
-      const box = new THREE.Box3().setFromObject(objectGroup);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-
-      let totalTriangles = 0;
-      const parts: ModelPart[] = [];
-      let partIdx = 1;
-
-      objectGroup.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh;
-          if (mesh.geometry) {
-            mesh.geometry.computeVertexNormals();
-            const triCount = mesh.geometry.attributes.position ? mesh.geometry.attributes.position.count / 3 : 0;
-            totalTriangles += triCount;
-
-            const palette = DEFAULT_PART_PALETTE[(partIdx - 1) % DEFAULT_PART_PALETTE.length];
-            const partVol = Number(((size.x * size.y * size.z * (0.7 / Math.max(1, objectGroup.children.length))) / 1000).toFixed(2));
-
-            parts.push({
-              id: `part-${partIdx}-${Date.now()}`,
-              name: mesh.name || `3MF Component Shell ${partIdx}`,
-              color: palette.name,
-              colorHex: palette.hex,
-              materialId: partIdx % 2 === 1 ? 'petg-pro' : 'pla-tough',
-              visible: true,
-              triangleCount: Math.round(triCount) || 10000,
-              volumeCm3: partVol || 18.5,
-              extruderIndex: ((partIdx - 1) % 4) + 1
-            });
-            partIdx++;
-          }
-        }
-      });
-
-      const estVolume = Number(((size.x * size.y * size.z * 0.45) / 1000).toFixed(2)) || 54.2;
-      const estSurfaceArea = Number(((2 * (size.x * size.y + size.y * size.z + size.z * size.x)) / 100).toFixed(2));
-
-      return {
-        objectGroup,
-        dimensions: {
-          x: Number(size.x.toFixed(1)) || 90.0,
-          y: Number(size.z.toFixed(1)) || 90.0,
-          z: Number(size.y.toFixed(1)) || 35.0
-        },
-        volume: estVolume,
-        surfaceArea: estSurfaceArea,
-        triangleCount: Math.round(totalTriangles) || 38000,
-        isWatertight: true,
-        nonManifoldEdges: 0,
-        invertedNormals: 0,
-        minWallThickness: 1.8,
-        parts: parts.length > 0 ? parts : [
-          {
-            id: `part-1-${Date.now()}`,
-            name: '3MF Assembly Root',
-            color: 'Xanh Teal Công Nghiệp',
-            colorHex: '#00687a',
-            materialId: 'pla-tough',
-            visible: true,
-            triangleCount: 38000,
-            volumeCm3: estVolume,
-            extruderIndex: 1
-          }
-        ]
-      };
+      return measureGroup(objectGroup, file.name, true);
     } catch (threeErr) {
-      console.error('All 3MF loaders failed:', threeErr);
-      throw threeErr;
+      console.error('Tất cả bộ đọc 3MF đều lỗi:', threeErr);
+      if (threeErr instanceof MeshParseError) throw threeErr;
+      throw new MeshParseError(
+        'corrupt_file',
+        file.name,
+        'Không đọc được cấu trúc tệp 3MF (gói ZIP / model XML). Hệ thống không dựng hình học thay thế và không tạo báo giá cho tệp này.'
+      );
     }
   }
 
   // 2. STL LOADER (Offscreen Worker for >2MB, STLLoader for small files)
   if (fileName.endsWith('.stl')) {
+    let rawGeometry: THREE.BufferGeometry | null = null;
+
     if (file.size > 2 * 1024 * 1024) {
       try {
-        const workerResult = await parseStlWithWorker(file);
-        if (workerResult) return workerResult;
+        rawGeometry = await parseStlWithWorker(file);
       } catch (err) {
-        console.warn('Off-thread worker fallback to main thread STLLoader:', err);
+        console.warn('Bộ đọc STL trong Web Worker lỗi, quay về đọc trên luồng chính:', err);
       }
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const loader = new STLLoader();
-    let rawGeometry: THREE.BufferGeometry;
-    try {
-      rawGeometry = loader.parse(arrayBuffer);
-    } catch (parseErr) {
-      console.warn('STLLoader failed to parse binary/ascii, creating CAD solid proxy:', parseErr);
-      rawGeometry = new THREE.BoxGeometry(85, 32, 60);
-    }
-
-    // Safety check: degenerate or empty geometry
-    if (!rawGeometry.attributes.position || rawGeometry.attributes.position.count < 3) {
-      rawGeometry.dispose();
-      rawGeometry = new THREE.BoxGeometry(85, 32, 60);
-    }
-
-    const posAttr = rawGeometry.attributes.position as THREE.BufferAttribute;
-    const box = new THREE.Box3().setFromBufferAttribute(posAttr);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const safeSize = {
-      x: Number.isFinite(size.x) && size.x > 0.01 ? Number(size.x.toFixed(1)) : 85.0,
-      y: Number.isFinite(size.y) && size.y > 0.01 ? Number(size.y.toFixed(1)) : 60.0,
-      z: Number.isFinite(size.z) && size.z > 0.01 ? Number(size.z.toFixed(1)) : 32.0,
-    };
-
-    // For geometries under 35,000 vertices, merge vertices to recover topological indices
-    // For larger files, keep rawGeometry directly for ultra-fast 60 FPS rendering without memory exhaustion
-    let geometry = rawGeometry;
-    if (posAttr.count < 35000) {
+    if (!rawGeometry) {
+      const arrayBuffer = await file.arrayBuffer();
+      const loader = new STLLoader();
       try {
-        const relativeTolerance = Math.max(size.length() * 1e-4, 1e-5);
-        geometry = BufferGeometryUtils.mergeVertices(rawGeometry, relativeTolerance);
-        rawGeometry.dispose();
-      } catch {
-        geometry = rawGeometry;
+        rawGeometry = loader.parse(arrayBuffer);
+      } catch (parseErr) {
+        // R2 (MP-03): chỗ này trước đây dựng một hộp 85 x 32 x 60 mm thay cho tệp lỗi.
+        throw new MeshParseError(
+          'corrupt_file',
+          file.name,
+          'Không đọc được cấu trúc STL (không phải STL nhị phân hợp lệ và cũng không có khối "facet normal"/"vertex" của STL ASCII). Hệ thống KHÔNG tạo dữ liệu thay thế cho tệp này.'
+        );
       }
     }
 
-    geometry.computeBoundingBox();
-    geometry.computeVertexNormals();
-
-    const triangleCount = geometry.index ? geometry.index.count / 3 : geometry.attributes.position.count / 3;
-    let volume = calculateVolume(geometry);
-    if (!Number.isFinite(volume) || volume <= 0) {
-      volume = Number(((safeSize.x * safeSize.y * safeSize.z * 0.42) / 1000).toFixed(2));
-    }
-    let surfaceArea = calculateSurfaceArea(geometry);
-    if (!Number.isFinite(surfaceArea) || surfaceArea <= 0) {
-      surfaceArea = Number(((2 * (safeSize.x * safeSize.y + safeSize.y * safeSize.z + safeSize.z * safeSize.x)) / 100).toFixed(2));
-    }
-    const defectAnalysis = analyzeMeshDefects(geometry);
+    const measured = measureTriangularMesh(rawGeometry, file.name);
 
     const parts: ModelPart[] = [
       {
@@ -1248,24 +1596,25 @@ export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
         colorHex: '#00687a',
         materialId: 'pla-basic',
         visible: true,
-        triangleCount: Math.round(triangleCount) || 12000,
-        volumeCm3: volume,
+        triangleCount: Math.round(measured.triangleCount),
+        volumeCm3: measured.volume,
         extruderIndex: 1
       }
     ];
 
     return {
-      geometry,
-      dimensions: safeSize,
-      volume,
-      surfaceArea,
-      triangleCount: Math.round(triangleCount) || 12000,
-      isWatertight: defectAnalysis.isWatertight,
-      nonManifoldEdges: defectAnalysis.nonManifoldCount,
-      invertedNormals: defectAnalysis.invertedNormalsCount,
-      minWallThickness: defectAnalysis.minWallThickness,
-      overhangTriangles: defectAnalysis.overhangTriangles,
-      overhangPercentage: defectAnalysis.overhangPercentage,
+      geometry: measured.geometry,
+      dimensions: measured.dimensions,
+      volume: measured.volume,
+      surfaceArea: measured.surfaceArea,
+      triangleCount: Math.round(measured.triangleCount),
+      isWatertight: measured.defects.isWatertight,
+      nonManifoldEdges: measured.defects.nonManifoldCount,
+      invertedNormals: measured.defects.invertedNormalsCount,
+      boundaryEdges: measured.defects.boundaryEdges,
+      minWallThickness: measured.defects.minWallThickness,
+      overhangTriangles: measured.defects.overhangTriangles,
+      overhangPercentage: measured.defects.overhangPercentage,
       parts
     };
   }
@@ -1274,114 +1623,26 @@ export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
   if (fileName.endsWith('.obj')) {
     const text = await file.text();
     const loader = new OBJLoader();
-    const objectGroup = loader.parse(text);
-
-    const box = new THREE.Box3().setFromObject(objectGroup);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    let totalTriangles = 0;
-    const parts: ModelPart[] = [];
-    let partIdx = 1;
-
-    objectGroup.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        if (mesh.geometry) {
-          mesh.geometry.computeVertexNormals();
-          const triCount = mesh.geometry.attributes.position ? mesh.geometry.attributes.position.count / 3 : 0;
-          totalTriangles += triCount;
-
-          const palette = DEFAULT_PART_PALETTE[(partIdx - 1) % DEFAULT_PART_PALETTE.length];
-          parts.push({
-            id: `part-${partIdx}-${Date.now()}`,
-            name: mesh.name || `Object Mesh ${partIdx}`,
-            color: palette.name,
-            colorHex: palette.hex,
-            materialId: 'petg-pro',
-            visible: true,
-            triangleCount: Math.round(triCount),
-            volumeCm3: Number(((size.x * size.y * size.z * 0.3) / 1000).toFixed(2)),
-            extruderIndex: partIdx
-          });
-          partIdx++;
-        }
-      }
-    });
-
-    const estVolume = Number(((size.x * size.y * size.z * 0.4) / 1000).toFixed(2));
-    const estSurfaceArea = Number(((2 * (size.x * size.y + size.y * size.z + size.z * size.x)) / 100).toFixed(2));
-
-    return {
-      objectGroup,
-      dimensions: {
-        x: Number(size.x.toFixed(1)),
-        y: Number(size.y.toFixed(1)),
-        z: Number(size.z.toFixed(1))
-      },
-      volume: estVolume,
-      surfaceArea: estSurfaceArea,
-      triangleCount: Math.round(totalTriangles) || 16000,
-      isWatertight: true,
-      nonManifoldEdges: 0,
-      invertedNormals: 0,
-      minWallThickness: 1.5,
-      parts: parts.length > 0 ? parts : [
-        {
-          id: `part-${Date.now()}`,
-          name: file.name.replace(/\.[^/.]+$/, ''),
-          color: 'Xanh Teal Công Nghiệp',
-          colorHex: '#00687a',
-          materialId: 'petg-pro',
-          visible: true,
-          triangleCount: 16000,
-          volumeCm3: estVolume,
-          extruderIndex: 1
-        }
-      ]
-    };
+    let objectGroup: THREE.Group;
+    try {
+      objectGroup = loader.parse(text);
+    } catch (parseErr) {
+      throw new MeshParseError(
+        'corrupt_file',
+        file.name,
+        'Không đọc được cấu trúc OBJ. Hệ thống không dựng hình học thay thế và không tạo báo giá cho tệp này.'
+      );
+    }
+    return measureGroup(objectGroup, file.name);
   }
 
-  // STEP or other CAD formats (Parametric CAD Solid Proxy)
-  const defaultDims = { x: 92.0, y: 72.0, z: 34.0 };
-  const estVol = 54.2;
-
-  // Build Parametric STEP Solid Mesh Proxy: Industrial Housing with chamfer & boss
-  const baseGeo = new THREE.BoxGeometry(defaultDims.x, defaultDims.z * 0.65, defaultDims.y);
-  baseGeo.translate(0, (defaultDims.z * 0.65) / 2, 0);
-
-  const bossGeo = new THREE.CylinderGeometry(18, 20, defaultDims.z * 0.35, 32);
-  bossGeo.translate(0, defaultDims.z * 0.65 + (defaultDims.z * 0.35) / 2, 0);
-
-  const mergedGeo = BufferGeometryUtils.mergeGeometries([baseGeo, bossGeo]);
-  mergedGeo.computeVertexNormals();
-  baseGeo.dispose();
-  bossGeo.dispose();
-
-  const parts: ModelPart[] = [
-    {
-      id: `part-step-1-${Date.now()}`,
-      name: file.name.replace(/\.[^/.]+$/, '') + ' [B-Rep Solid CAD]',
-      color: 'Xanh Teal Công Nghiệp',
-      colorHex: '#00687a',
-      materialId: 'pa-cf-carbon',
-      visible: true,
-      triangleCount: Math.round(mergedGeo.attributes.position.count / 3),
-      volumeCm3: estVol,
-      extruderIndex: 1
-    }
-  ];
-
-  return {
-    geometry: mergedGeo,
-    dimensions: defaultDims,
-    volume: estVol,
-    surfaceArea: 215.0,
-    triangleCount: Math.round(mergedGeo.attributes.position.count / 3),
-    isWatertight: true,
-    nonManifoldEdges: 0,
-    invertedNormals: 0,
-    minWallThickness: 2.4,
-    parts
-  };
+  // 4. STEP / IGES / định dạng khác: KHÔNG có bộ đọc hình học ⇒ nói thẳng, không dựng mô hình thay thế.
+  const extension = file.name.includes('.') ? file.name.split('.').pop() : undefined;
+  throw new MeshParseError(
+    'unsupported_format',
+    file.name,
+    `Chưa có bộ đọc hình học cho định dạng ${extension ? `".${extension}"` : 'này'} nên KHÔNG có số đo nào cho tệp này. `
+      + 'Hệ thống không dựng mô hình mô phỏng thay thế và không tạo báo giá từ tệp chưa đọc được — '
+      + 'vui lòng tải bản tessellation (.stl / .3mf / .obj) hoặc gửi yêu cầu thẩm định thủ công.'
+  );
 }

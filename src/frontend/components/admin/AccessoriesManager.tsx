@@ -1,5 +1,40 @@
 import React, { useState } from 'react';
 import { AccessoryItem } from '../../types';
+import { Icon, InfoTip } from '@frontend/ui';
+import { EMPTY_VALUE } from '../../lib/format';
+
+/**
+ * Đợt S (#1): phòng vệ cho cột nullable — hôm nay `rowToAccessory` vẫn quy NULL về `0`
+ * (`n(v)` không truyền default) nên hiển thị `0 đ`; nếu về sau mapper trả `null` thật thì
+ * `.toLocaleString()` sẽ **crash trắng** và component này đã sẵn sàng hiện `—`.
+ */
+const numText = (v: number | null | undefined, suffix = ''): string =>
+  typeof v === 'number' && Number.isFinite(v) ? `${v.toLocaleString('vi-VN')}${suffix}` : EMPTY_VALUE;
+
+/**
+ * Đợt T: ô nhập số để trống ⇒ `null` ("chưa cấu hình"), KHÔNG quy về 0.
+ * `Number('')` trả 0 nên không thể dùng lại `Number(x) || 0` như trước.
+ */
+const parseNumOrNull = (v: unknown): number | null => {
+  if (v === '' || v === null || v === undefined) return null;
+  const parsed = Number(v);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+/** Giá trị cho `<input type="number">`: chỉ nhận số hữu hạn, còn lại để trống. */
+const numInputValue = (v: number | null | undefined): string | number =>
+  typeof v === 'number' && Number.isFinite(v) ? v : '';
+
+/** Thiếu số (`null` / `undefined` / `NaN`) — không được dùng làm toán hạng. */
+const isMissingNum = (v: number | null | undefined): boolean =>
+  !(typeof v === 'number' && Number.isFinite(v));
+
+/**
+ * Đợt T: cảnh báo "sắp hết" CHỈ khi biết CẢ tồn kho LẪN ngưỡng.
+ * Trước đây `null <= null` luôn `true` nên phụ kiện chưa cấu hình bị báo động giả.
+ */
+const isLowStock = (a: AccessoryItem): boolean =>
+  !isMissingNum(a.stockCount) && !isMissingNum(a.lowStockThreshold) && a.stockCount <= a.lowStockThreshold;
 
 interface AccessoriesManagerProps {
   accessories: AccessoryItem[];
@@ -21,11 +56,10 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     nameEn: '',
     category: 'keychain',
     unit: 'cái',
-    costPrice: 2000,
-    sellingPrice: 5000,
-    sku: `ACC-${Math.floor(1000 + Math.random() * 9000)}`,
-    stockCount: 100,
-    lowStockThreshold: 20,
+    // Đợt T: KHÔNG điền sẵn số liệu bịa cho giá vốn / giá bán / tồn kho / ngưỡng cảnh báo.
+    // Để trống ⇒ lưu `null` = "chưa cấu hình" và UI hiện `—`.
+    // Không sinh mã: SKU do admin tự nhập (bắt buộc) — không bịa mã định danh.
+    sku: '',
     warehouseLocation: 'Kệ A1 - Hộc 01',
     supplier: 'Xưởng Kim Khí Tân Bình',
     description: '',
@@ -55,6 +89,12 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
   });
 
   const handleQuickStockAdjust = (id: string, delta: number) => {
+    const target = accessories.find(item => item.id === id);
+    // Đợt T: tồn kho chưa cấu hình (`null`) ⇒ KHÔNG coi là 0 rồi cộng ra số bịa.
+    if (!target || isMissingNum(target.stockCount)) {
+      onShowToast('Phụ kiện này chưa có số tồn kho — mở "Sửa" và nhập tồn kho thực tế trước.');
+      return;
+    }
     const updated = accessories.map(item => {
       if (item.id === id) {
         const newCount = Math.max(0, item.stockCount + delta);
@@ -91,17 +131,22 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       onShowToast('Vui lòng nhập tên phụ kiện!');
       return;
     }
+    if (!newItemForm.sku?.trim()) {
+      onShowToast('Vui lòng nhập mã SKU phụ kiện!');
+      return;
+    }
     const newItem: AccessoryItem = {
       id: `acc-${Date.now()}`,
       name: newItemForm.name,
       nameEn: newItemForm.nameEn || '',
       category: newItemForm.category || 'keychain',
       unit: newItemForm.unit || 'cái',
-      costPrice: Number(newItemForm.costPrice) || 0,
-      sellingPrice: Number(newItemForm.sellingPrice) || 0,
-      sku: newItemForm.sku || `ACC-${Date.now()}`,
-      stockCount: Number(newItemForm.stockCount) || 0,
-      lowStockThreshold: Number(newItemForm.lowStockThreshold) || 10,
+      // Đợt T: để trống ⇒ `null` (chưa cấu hình) — KHÔNG 0 và KHÔNG ngưỡng mặc định.
+      costPrice: parseNumOrNull(newItemForm.costPrice),
+      sellingPrice: parseNumOrNull(newItemForm.sellingPrice),
+      sku: newItemForm.sku.trim(),
+      stockCount: parseNumOrNull(newItemForm.stockCount),
+      lowStockThreshold: parseNumOrNull(newItemForm.lowStockThreshold),
       warehouseLocation: newItemForm.warehouseLocation || 'Kho Tổng',
       supplier: newItemForm.supplier || '',
       description: newItemForm.description || '',
@@ -124,35 +169,39 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     onShowToast(`Đã cập nhật phụ kiện: "${editingItem.name}"`);
   };
 
-  const lowStockCount = accessories.filter(a => a.stockCount <= a.lowStockThreshold).length;
+  // Đợt T: chỉ đếm khi biết CẢ tồn kho LẪN ngưỡng (trước đây `null <= null` luôn `true` ⇒ báo động giả).
+  const lowStockCount = accessories.filter(isLowStock).length;
 
   return (
     <div className="space-y-6">
       {/* Header Banner & Stats */}
-      <div className="bg-white p-5 border border-[#C5C6CD] rounded shadow-xs">
+      <div className="bg-surface p-5 border border-line rounded-sm shadow-e1">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-bold text-[#091426] flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#00687A]">extension</span>
+            <h2 className="text-base font-bold text-fg flex items-center gap-2">
+              <Icon name="extension" size={24} className="text-primary" />
               Quản Lý Phụ Kiện, Linh Kiện & Đóng Gói (Hardware & Packaging)
             </h2>
-            <p className="text-xs text-[#545F73] mt-0.5">
-              Cấu hình giá vốn xưởng, giá báo cho khách, vị trí kho và theo dõi mức tồn kho thực tế cho móc khóa, ốc cấy ren, nam châm, bao bì...
-            </p>
+            <div className="mt-0.5">
+              <InfoTip label="Phụ kiện quản lý những trường nào?">
+                Cấu hình giá vốn xưởng, giá báo cho khách, vị trí kho và theo dõi mức tồn kho thực tế cho móc khóa,
+                ốc cấy ren, nam châm, bao bì…
+              </InfoTip>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
             {lowStockCount > 0 && (
-              <div className="px-3 py-1.5 bg-amber-50 border border-amber-300 rounded flex items-center gap-1.5 text-xs text-amber-900 font-bold">
-                <span className="material-symbols-outlined text-sm text-amber-600">warning</span>
+              <div className="px-3 py-1.5 bg-warning-tint border border-warning/30 rounded-sm flex items-center gap-1.5 text-xs text-warning font-bold">
+                <Icon name="warning" size={16} className="text-warning" />
                 {lowStockCount} mặt hàng sắp hết
               </div>
             )}
             <button
               onClick={() => setIsNewModalOpen(true)}
-              className="px-4 py-2 bg-[#00687A] text-white rounded text-xs font-bold uppercase tracking-wider hover:bg-[#005463] flex items-center gap-1.5 shadow-xs"
+              className="px-4 py-2 bg-primary text-primary-fg rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-primary-hover flex items-center gap-1.5 shadow-e1"
             >
-              <span className="material-symbols-outlined text-sm">add_circle</span>
+              <Icon name="add_circle" size={16} />
               Thêm Phụ Kiện Mới
             </button>
           </div>
@@ -160,26 +209,26 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white p-4 border border-[#C5C6CD] rounded flex flex-col md:flex-row items-center justify-between gap-3">
+      <div className="bg-surface p-4 border border-line rounded-sm flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 w-full md:w-auto flex-1 max-w-md">
           <div className="relative w-full">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-[#545F73] text-sm">search</span>
+            <Icon name="search" size={16} className="absolute left-3 top-2.5 text-fg-muted" />
             <input
               type="text"
               placeholder="Tìm theo tên phụ kiện, mã SKU, vị trí kệ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-[#C5C6CD] rounded text-xs focus:outline-none focus:border-[#00687A]"
+              className="w-full pl-9 pr-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-primary"
             />
           </div>
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          <span className="text-[11px] text-[#545F73] font-bold shrink-0">Danh mục:</span>
+          <span className="text-xs text-fg-muted font-bold shrink-0">Danh mục:</span>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 border border-[#C5C6CD] rounded text-xs font-bold bg-white focus:outline-none focus:border-[#00687A]"
+            className="px-3 py-2 border border-line rounded-sm text-xs font-bold bg-surface focus:outline-none focus:border-primary"
           >
             {categories.map(c => (
               <option key={c.id} value={c.id}>
@@ -191,10 +240,10 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       </div>
 
       {/* Accessories Table */}
-      <div className="bg-white border border-[#C5C6CD] rounded overflow-hidden shadow-xs">
+      <div className="bg-surface rounded-sm overflow-hidden shadow-e1">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#F4F6F9] border-b border-[#C5C6CD] text-[#545F73] uppercase font-tech text-[10px] tracking-wider">
+            <thead className="bg-surface-muted border-b border-line text-fg-muted uppercase font-tech text-xs tracking-wider">
               <tr>
                 <th className="py-3 px-4">Tên Phụ Kiện / SKU</th>
                 <th className="py-3 px-4">Phân Loại</th>
@@ -206,32 +255,47 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                 <th className="py-3 px-4 text-right">Thao Tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E5EEFF]">
-              {filteredAccessories.length > 0 ? (
+            <tbody className="divide-y divide-line-subtle">
+              {accessories.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-10 px-4 text-center">
+                    <Icon name="extension" size={32} className="text-fg-subtle mx-auto" />
+                    <p className="mt-2 text-sm font-bold text-fg">Chưa có phụ kiện nào trong cơ sở dữ liệu</p>
+                    <p className="mt-1 text-xs text-fg-muted max-w-xl mx-auto">
+                      Bảng <span className="font-tech">accessories</span> đang rỗng — nền tảng không tự sinh phụ kiện mẫu.
+                      Hãy thêm phụ kiện thật bằng nút "Thêm Phụ Kiện Mới".
+                    </p>
+                  </td>
+                </tr>
+              ) : filteredAccessories.length > 0 ? (
                 filteredAccessories.map((item) => {
-                  const isLow = item.stockCount <= item.lowStockThreshold;
-                  const grossMargin = item.sellingPrice > 0 ? Math.round(((item.sellingPrice - item.costPrice) / item.sellingPrice) * 100) : 0;
+                  const isLow = isLowStock(item);
+                  const stockUnknown = isMissingNum(item.stockCount);
+                  // Đợt T: thiếu giá vốn hoặc giá bán ⇒ KHÔNG hiện "+0% margin" (số bịa).
+                  const grossMargin = isMissingNum(item.sellingPrice) || isMissingNum(item.costPrice) || item.sellingPrice <= 0
+                    ? null
+                    : Math.round(((item.sellingPrice - item.costPrice) / item.sellingPrice) * 100);
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={item.id} className="hover:bg-canvas/70 transition-colors">
                       {/* Name & SKU */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           <img
                             src={item.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80'}
                             alt={item.name}
-                            className="w-10 h-10 rounded object-cover border border-[#C5C6CD] shrink-0"
+                            className="w-10 h-10 rounded-sm object-cover border border-line shrink-0"
                           />
                           <div>
-                            <p className="font-bold text-[#091426] leading-snug">{item.name}</p>
-                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#545F73]">
-                              <span className="font-tech font-bold text-[#00687A]">{item.sku}</span>
+                            <p className="font-bold text-fg leading-snug">{item.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5 text-xs text-fg-muted">
+                              <span className="font-tech font-bold text-primary">{item.sku || '—'}</span>
                               {item.supplier && <span>• NCC: {item.supplier}</span>}
                             </div>
                             {item.compatibleWith && item.compatibleWith.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {item.compatibleWith.map((c, i) => (
-                                  <span key={i} className="text-[9px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded font-sans">
+                                  <span key={i} className="text-xs bg-surface-muted text-fg-muted px-1.5 py-0.2 rounded-sm font-sans">
                                     {c}
                                   </span>
                                 ))}
@@ -242,25 +306,28 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                       </td>
 
                       {/* Category */}
-                      <td className="py-3 px-4 font-sans text-[#545F73] capitalize">
-                        <span className="px-2 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-bold">
+                      <td className="py-3 px-4 font-sans text-fg-muted capitalize">
+                        <span className="px-2 py-0.5 bg-info-tint text-info rounded-sm text-xs font-bold">
                           {item.category}
                         </span>
-                        <div className="text-[10px] text-[#7D7565] mt-0.5">ĐVT: {item.unit}</div>
+                        <div className="text-xs text-fg-muted mt-0.5">ĐVT: {item.unit}</div>
                       </td>
 
                       {/* Cost Price */}
-                      <td className="py-3 px-4 text-right font-tech text-[#545F73]">
-                        {item.costPrice.toLocaleString('vi-VN')} đ
+                      <td className="py-3 px-4 text-right font-tech text-fg-muted">
+                        {numText(item.costPrice, ' đ')}
                       </td>
 
                       {/* Selling Price */}
                       <td className="py-3 px-4 text-right">
-                        <span className="font-tech font-bold text-[#091426]">
-                          {item.sellingPrice.toLocaleString('vi-VN')} đ
+                        <span className="font-tech font-bold text-fg">
+                          {numText(item.sellingPrice, ' đ')}
                         </span>
-                        <div className="text-[10px] text-emerald-700 font-tech font-semibold">
-                          +{grossMargin}% margin
+                        <div
+                          className={`text-xs font-tech font-semibold ${grossMargin === null ? 'text-fg-subtle' : 'text-positive'}`}
+                          title={grossMargin === null ? 'Chưa đủ giá vốn và giá bán để tính biên lợi nhuận' : undefined}
+                        >
+                          {grossMargin === null ? `${EMPTY_VALUE} margin` : `+${grossMargin}% margin`}
                         </div>
                       </td>
 
@@ -268,15 +335,15 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                       <td className="py-3 px-4">
                         <div className="flex flex-col items-center gap-1">
                           <div className="flex items-center gap-1.5">
-                            <span className={`font-tech font-bold text-sm ${isLow ? 'text-red-700' : 'text-[#091426]'}`}>
-                              {item.stockCount}
+                            <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>
+                              {numText(item.stockCount)}
                             </span>
-                            <span className="text-[10px] text-[#545F73]">{item.unit}</span>
+                            <span className="text-xs text-fg-muted">{item.unit}</span>
                           </div>
 
                           {isLow && (
-                            <span className="px-1.5 py-0.2 bg-red-100 text-red-800 rounded text-[9px] font-bold animate-pulse">
-                              Sắp hết (&lt;={item.lowStockThreshold})
+                            <span className="px-1.5 py-0.2 bg-danger-tint text-danger rounded-sm text-xs font-bold animate-pulse">
+                              Sắp hết (&lt;={numText(item.lowStockThreshold)})
                             </span>
                           )}
 
@@ -285,24 +352,27 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                             <button
                               type="button"
                               onClick={() => handleQuickStockAdjust(item.id, -10)}
-                              className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-tech font-bold"
-                              title="Giảm 10"
+                              className="px-1.5 py-0.5 bg-surface-muted hover:bg-line-subtle text-fg-muted rounded-sm text-xs font-tech font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                              disabled={stockUnknown}
+                              title={stockUnknown ? 'Chưa có số tồn kho — không điều chỉnh nhanh được' : 'Giảm 10'}
                             >
                               -10
                             </button>
                             <button
                               type="button"
                               onClick={() => handleQuickStockAdjust(item.id, 10)}
-                              className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-tech font-bold"
-                              title="Thêm 10"
+                              className="px-1.5 py-0.5 bg-surface-muted hover:bg-line-subtle text-fg-muted rounded-sm text-xs font-tech font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                              disabled={stockUnknown}
+                              title={stockUnknown ? 'Chưa có số tồn kho — không điều chỉnh nhanh được' : 'Thêm 10'}
                             >
                               +10
                             </button>
                             <button
                               type="button"
                               onClick={() => handleQuickStockAdjust(item.id, 50)}
-                              className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded text-[10px] font-tech font-bold"
-                              title="Nhập 50"
+                              className="px-1.5 py-0.5 bg-positive-tint hover:bg-positive/20 text-positive rounded-sm text-xs font-tech font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                              disabled={stockUnknown}
+                              title={stockUnknown ? 'Chưa có số tồn kho — không điều chỉnh nhanh được' : 'Nhập 50'}
                             >
                               +50
                             </button>
@@ -311,9 +381,9 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                       </td>
 
                       {/* Warehouse Location */}
-                      <td className="py-3 px-4 font-sans text-xs text-[#091426]">
-                        <div className="flex items-center gap-1 font-tech font-bold text-[#00687A]">
-                          <span className="material-symbols-outlined text-sm">shelves</span>
+                      <td className="py-3 px-4 font-sans text-xs text-fg">
+                        <div className="flex items-center gap-1 font-tech font-bold text-primary">
+                          <Icon name="shelves" size={16} />
                           {item.warehouseLocation || 'Chưa định vị'}
                         </div>
                       </td>
@@ -323,10 +393,10 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                         <button
                           type="button"
                           onClick={() => handleToggleActive(item.id)}
-                          className={`px-2.5 py-1 rounded text-[10px] font-tech font-bold transition-all ${
+                          className={`px-2.5 py-1 rounded-sm text-xs font-tech font-bold transition-all ${
                             item.isActive
-                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                              ? 'bg-positive-tint text-positive hover:bg-positive/30'
+                              : 'bg-surface-muted text-fg-muted hover:bg-line-subtle'
                           }`}
                         >
                           {item.isActive ? 'Đang Dùng' : 'Tạm Ẩn'}
@@ -339,18 +409,18 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                           <button
                             type="button"
                             onClick={() => setEditingItem(item)}
-                            className="p-1.5 bg-[#E5EEFF] hover:bg-[#D0E2FF] text-[#00687A] rounded transition-colors"
+                            className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-sm transition-colors"
                             title="Chỉnh sửa thông số"
                           >
-                            <span className="material-symbols-outlined text-sm">edit</span>
+                            <Icon name="edit" size={16} />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteItem(item.id, item.name)}
-                            className="p-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded transition-colors"
+                            className="p-1.5 bg-danger-tint hover:bg-danger-tint text-danger rounded-sm transition-colors"
                             title="Xóa phụ kiện"
                           >
-                            <span className="material-symbols-outlined text-sm">delete</span>
+                            <Icon name="delete" size={16} />
                           </button>
                         </div>
                       </td>
@@ -359,7 +429,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-xs text-[#545F73]">
+                  <td colSpan={8} className="py-8 text-center text-xs text-fg-muted">
                     Không tìm thấy phụ kiện nào phù hợp với từ khóa hoặc bộ lọc.
                   </td>
                 </tr>
@@ -371,53 +441,53 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
 
       {/* MODAL: Thêm Phụ Kiện Mới */}
       {isNewModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#C5C6CD] pb-3">
-              <h3 className="font-bold text-sm text-[#091426] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#00687A]">add_circle</span>
+        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-e3">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 className="font-bold text-sm text-fg flex items-center gap-2">
+                <Icon name="add_circle" size={24} className="text-primary" />
                 Thêm Phụ Kiện / Bao Bì Mới Vào Hệ Thống
               </h3>
-              <button
+              <button aria-label="Đóng"
                 type="button"
                 onClick={() => setIsNewModalOpen(false)}
-                className="text-[#545F73] hover:text-black"
+                className="text-fg-muted hover:text-fg"
               >
-                <span className="material-symbols-outlined">close</span>
+                <Icon name="close" size={24} />
               </button>
             </div>
 
             <form onSubmit={handleSaveNewItem} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-[#091426] block mb-1">Tên Phụ Kiện (Tiếng Việt) *</label>
+                  <label className="font-bold text-fg block mb-1">Tên Phụ Kiện (Tiếng Việt) *</label>
                   <input
                     type="text"
                     required
                     placeholder="Ví dụ: Khoen móc khóa Inox 304 có dây xích 25mm"
                     value={newItemForm.name}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded focus:outline-none focus:border-[#00687A]"
+                    className="w-full p-2 border border-line rounded-sm focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Mã SKU Quản Lý *</label>
+                  <label className="font-bold text-fg block mb-1">Mã SKU Quản Lý *</label>
                   <input
                     type="text"
                     required
                     value={newItemForm.sku}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, sku: e.target.value }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech"
+                    className="w-full p-2 border border-line rounded-sm font-tech"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Phân Loại</label>
+                  <label className="font-bold text-fg block mb-1">Phân Loại</label>
                   <select
                     value={newItemForm.category}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, category: e.target.value as any }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-bold bg-white"
+                    className="w-full p-2 border border-line rounded-sm font-bold bg-surface"
                   >
                     <option value="keychain">Móc Khóa & Dây Đeo (Keychain)</option>
                     <option value="fastener">Ốc Cấy Ren & Tán Nhiệt (Inserts)</option>
@@ -430,107 +500,107 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Đơn Vị Tính (ĐVT)</label>
+                  <label className="font-bold text-fg block mb-1">Đơn Vị Tính (ĐVT)</label>
                   <input
                     type="text"
                     placeholder="cái, bộ, con, sợi, hộp, túi..."
                     value={newItemForm.unit}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, unit: e.target.value }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded"
+                    className="w-full p-2 border border-line rounded-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Vị Trí Kệ Kho</label>
+                  <label className="font-bold text-fg block mb-1">Vị Trí Kệ Kho</label>
                   <input
                     type="text"
                     placeholder="Kệ A1 - Hộc 02"
                     value={newItemForm.warehouseLocation}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, warehouseLocation: e.target.value }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech"
+                    className="w-full p-2 border border-line rounded-sm font-tech"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Giá Vốn Nhập Xưởng (VNĐ)</label>
+                  <label className="font-bold text-fg block mb-1">Giá Vốn Nhập Xưởng (VNĐ)</label>
                   <input
                     type="number"
                     min="0"
                     step="100"
-                    value={newItemForm.costPrice}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, costPrice: Number(e.target.value) }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech font-bold"
+                    value={numInputValue(newItemForm.costPrice)}
+                    onChange={(e) => setNewItemForm(prev => ({ ...prev, costPrice: parseNumOrNull(e.target.value) }))}
+                    className="w-full p-2 border border-line rounded-sm font-tech font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Giá Báo / Bán Cho Khách (VNĐ)</label>
+                  <label className="font-bold text-fg block mb-1">Giá Báo / Bán Cho Khách (VNĐ)</label>
                   <input
                     type="number"
                     min="0"
                     step="500"
-                    value={newItemForm.sellingPrice}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, sellingPrice: Number(e.target.value) }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech font-bold text-[#00687A]"
+                    value={numInputValue(newItemForm.sellingPrice)}
+                    onChange={(e) => setNewItemForm(prev => ({ ...prev, sellingPrice: parseNumOrNull(e.target.value) }))}
+                    className="w-full p-2 border border-line rounded-sm font-tech font-bold text-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Tồn Kho Ban Đầu</label>
+                  <label className="font-bold text-fg block mb-1">Tồn Kho Ban Đầu</label>
                   <input
                     type="number"
                     min="0"
-                    value={newItemForm.stockCount}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, stockCount: Number(e.target.value) }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech font-bold"
+                    value={numInputValue(newItemForm.stockCount)}
+                    onChange={(e) => setNewItemForm(prev => ({ ...prev, stockCount: parseNumOrNull(e.target.value) }))}
+                    className="w-full p-2 border border-line rounded-sm font-tech font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Ngưỡng Báo Sắp Hết</label>
+                  <label className="font-bold text-fg block mb-1">Ngưỡng Báo Sắp Hết</label>
                   <input
                     type="number"
                     min="1"
-                    value={newItemForm.lowStockThreshold}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, lowStockThreshold: Number(e.target.value) }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech text-red-700 font-bold"
+                    value={numInputValue(newItemForm.lowStockThreshold)}
+                    onChange={(e) => setNewItemForm(prev => ({ ...prev, lowStockThreshold: parseNumOrNull(e.target.value) }))}
+                    className="w-full p-2 border border-line rounded-sm font-tech text-danger font-bold"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-[#091426] block mb-1">Nhà Cung Cấp</label>
+                  <label className="font-bold text-fg block mb-1">Nhà Cung Cấp</label>
                   <input
                     type="text"
                     placeholder="Xưởng Kim Khí Tân Bình, Fasteners VN..."
                     value={newItemForm.supplier}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, supplier: e.target.value }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded"
+                    className="w-full p-2 border border-line rounded-sm"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-[#091426] block mb-1">Mô Tả Kỹ Thuật</label>
+                  <label className="font-bold text-fg block mb-1">Mô Tả Kỹ Thuật</label>
                   <textarea
                     rows={2}
                     placeholder="Đặc tính kim loại, dung sai, khả năng chịu lực..."
                     value={newItemForm.description}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full p-2 border border-[#C5C6CD] rounded"
+                    className="w-full p-2 border border-line rounded-sm"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#C5C6CD]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setIsNewModalOpen(false)}
-                  className="px-4 py-2 border border-[#C5C6CD] rounded font-bold hover:bg-black/5"
+                  className="px-4 py-2 border border-line rounded-sm font-bold hover:bg-surface-muted"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#00687A] text-white rounded font-bold uppercase hover:bg-[#005463]"
+                  className="px-5 py-2 bg-primary text-primary-fg rounded-sm font-bold uppercase hover:bg-primary-hover"
                 >
                   Lưu Phụ Kiện
                 </button>
@@ -542,52 +612,52 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
 
       {/* MODAL: Sửa Phụ Kiện */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#C5C6CD] pb-3">
-              <h3 className="font-bold text-sm text-[#091426] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#00687A]">edit</span>
+        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-e3">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 className="font-bold text-sm text-fg flex items-center gap-2">
+                <Icon name="edit" size={24} className="text-primary" />
                 Chỉnh Sửa Phụ Kiện: {editingItem.name}
               </h3>
-              <button
+              <button aria-label="Đóng"
                 type="button"
                 onClick={() => setEditingItem(null)}
-                className="text-[#545F73] hover:text-black"
+                className="text-fg-muted hover:text-fg"
               >
-                <span className="material-symbols-outlined">close</span>
+                <Icon name="close" size={24} />
               </button>
             </div>
 
             <form onSubmit={handleSaveEditItem} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-[#091426] block mb-1">Tên Phụ Kiện *</label>
+                  <label className="font-bold text-fg block mb-1">Tên Phụ Kiện *</label>
                   <input
                     type="text"
                     required
                     value={editingItem.name}
                     onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded focus:outline-none focus:border-[#00687A]"
+                    className="w-full p-2 border border-line rounded-sm focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Mã SKU *</label>
+                  <label className="font-bold text-fg block mb-1">Mã SKU *</label>
                   <input
                     type="text"
                     required
                     value={editingItem.sku}
                     onChange={(e) => setEditingItem({ ...editingItem, sku: e.target.value })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech"
+                    className="w-full p-2 border border-line rounded-sm font-tech"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Phân Loại</label>
+                  <label className="font-bold text-fg block mb-1">Phân Loại</label>
                   <select
                     value={editingItem.category}
                     onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value as any })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-bold bg-white"
+                    className="w-full p-2 border border-line rounded-sm font-bold bg-surface"
                   >
                     <option value="keychain">Móc Khóa & Dây Đeo (Keychain)</option>
                     <option value="fastener">Ốc Cấy Ren & Tán Nhiệt (Inserts)</option>
@@ -600,101 +670,101 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Đơn Vị Tính</label>
+                  <label className="font-bold text-fg block mb-1">Đơn Vị Tính</label>
                   <input
                     type="text"
                     value={editingItem.unit}
                     onChange={(e) => setEditingItem({ ...editingItem, unit: e.target.value })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded"
+                    className="w-full p-2 border border-line rounded-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Vị Trí Kệ Kho</label>
+                  <label className="font-bold text-fg block mb-1">Vị Trí Kệ Kho</label>
                   <input
                     type="text"
                     value={editingItem.warehouseLocation || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, warehouseLocation: e.target.value })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech"
+                    className="w-full p-2 border border-line rounded-sm font-tech"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Giá Vốn Nhập Xưởng (VNĐ)</label>
+                  <label className="font-bold text-fg block mb-1">Giá Vốn Nhập Xưởng (VNĐ)</label>
                   <input
                     type="number"
                     min="0"
-                    value={editingItem.costPrice}
-                    onChange={(e) => setEditingItem({ ...editingItem, costPrice: Number(e.target.value) })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech font-bold"
+                    value={numInputValue(editingItem.costPrice)}
+                    onChange={(e) => setEditingItem({ ...editingItem, costPrice: parseNumOrNull(e.target.value) })}
+                    className="w-full p-2 border border-line rounded-sm font-tech font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Giá Báo Khách (VNĐ)</label>
+                  <label className="font-bold text-fg block mb-1">Giá Báo Khách (VNĐ)</label>
                   <input
                     type="number"
                     min="0"
-                    value={editingItem.sellingPrice}
-                    onChange={(e) => setEditingItem({ ...editingItem, sellingPrice: Number(e.target.value) })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech font-bold text-[#00687A]"
+                    value={numInputValue(editingItem.sellingPrice)}
+                    onChange={(e) => setEditingItem({ ...editingItem, sellingPrice: parseNumOrNull(e.target.value) })}
+                    className="w-full p-2 border border-line rounded-sm font-tech font-bold text-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Số Lượng Tồn Kho</label>
+                  <label className="font-bold text-fg block mb-1">Số Lượng Tồn Kho</label>
                   <input
                     type="number"
                     min="0"
-                    value={editingItem.stockCount}
-                    onChange={(e) => setEditingItem({ ...editingItem, stockCount: Number(e.target.value) })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech font-bold"
+                    value={numInputValue(editingItem.stockCount)}
+                    onChange={(e) => setEditingItem({ ...editingItem, stockCount: parseNumOrNull(e.target.value) })}
+                    className="w-full p-2 border border-line rounded-sm font-tech font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-[#091426] block mb-1">Ngưỡng Báo Hết</label>
+                  <label className="font-bold text-fg block mb-1">Ngưỡng Báo Hết</label>
                   <input
                     type="number"
                     min="1"
-                    value={editingItem.lowStockThreshold}
-                    onChange={(e) => setEditingItem({ ...editingItem, lowStockThreshold: Number(e.target.value) })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded font-tech text-red-700 font-bold"
+                    value={numInputValue(editingItem.lowStockThreshold)}
+                    onChange={(e) => setEditingItem({ ...editingItem, lowStockThreshold: parseNumOrNull(e.target.value) })}
+                    className="w-full p-2 border border-line rounded-sm font-tech text-danger font-bold"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-[#091426] block mb-1">Nhà Cung Cấp</label>
+                  <label className="font-bold text-fg block mb-1">Nhà Cung Cấp</label>
                   <input
                     type="text"
                     value={editingItem.supplier || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, supplier: e.target.value })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded"
+                    className="w-full p-2 border border-line rounded-sm"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-[#091426] block mb-1">Mô Tả</label>
+                  <label className="font-bold text-fg block mb-1">Mô Tả</label>
                   <textarea
                     rows={2}
                     value={editingItem.description || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                    className="w-full p-2 border border-[#C5C6CD] rounded"
+                    className="w-full p-2 border border-line rounded-sm"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#C5C6CD]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setEditingItem(null)}
-                  className="px-4 py-2 border border-[#C5C6CD] rounded font-bold hover:bg-black/5"
+                  className="px-4 py-2 border border-line rounded-sm font-bold hover:bg-surface-muted"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#00687A] text-white rounded font-bold uppercase hover:bg-[#005463]"
+                  className="px-5 py-2 bg-primary text-primary-fg rounded-sm font-bold uppercase hover:bg-primary-hover"
                 >
                   Lưu Thay Đổi
                 </button>
