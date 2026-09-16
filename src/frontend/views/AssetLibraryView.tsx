@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DigitalAsset } from '../types';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
 import { supabase } from '../../backend/supabase/client';
-import { Icon, Button } from '@frontend/ui';
+import { Icon, Button, Modal } from '@frontend/ui';
 
 interface AssetLibraryViewProps {
   assets: DigitalAsset[];
@@ -269,26 +269,13 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
 
         {/* 3D Quick Inspect Modal */}
         {previewAsset && (
-          <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-3 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="bg-surface border border-line w-full max-w-2xl overflow-hidden shadow-e3 space-y-4 p-5 sm:p-8 text-fg rounded-lg">
-              <div className="flex items-center justify-between border-b border-line pb-4">
-                <div>
-                  <h3 className="font-bold text-base sm:text-lg text-fg">{previewAsset.name}</h3>
-                  <p className="text-xs text-fg-muted font-sans mt-0.5">
-                    Xem trước dạng khối minh hoạ — không phải hình học thật của file.
-                  </p>
-                </div>
-                <Button
-                  iconOnly
-                  variant="ghost"
-                  size="sm"
-                  className="text-fg-muted hover:text-fg hover:bg-surface-muted"
-                  onClick={() => setPreviewAsset(null)}
-                  aria-label="Đóng xem trước"
-                  leadingIcon={<Icon name="close" size={20} />}
-                />
-              </div>
-
+          <Modal
+            open
+            onClose={() => setPreviewAsset(null)}
+            size="lg"
+            title={previewAsset.name}
+            description="Xem trước dạng khối minh hoạ — không phải hình học thật của file."
+          >
               <div className="bg-surface-muted p-2 border border-line rounded-lg">
                 <ThreeModelViewer
                   modelType={previewAsset.model3DType || 'gear'}
@@ -320,8 +307,7 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
                   {canDownload(previewAsset) ? `Tải Tập Tin ${previewAsset.format}` : 'Chưa hỗ trợ tải trực tiếp'}
                 </Button>
               </div>
-            </div>
-          </div>
+          </Modal>
         )}
       </div>
     </div>

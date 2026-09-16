@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Order } from '../types';
 import { OrderProgress } from '../components/OrderProgress';
-import { Icon, Button, Badge } from '@frontend/ui';
+import { Icon, Button, Badge, Modal } from '@frontend/ui';
 import { formatCurrency } from '../lib/format';
 
 interface MyOrdersViewProps {
@@ -365,31 +365,15 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
 
       {/* Tolerance Claim Interactive Modal */}
       {warrantyModal.isOpen && (
-        <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-surface rounded-lg max-w-lg w-full border border-line shadow-e3 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 bg-surface text-fg flex items-center justify-between border-b border-line">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-md bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-                  <Icon name="verified_user" size={20} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-fg">YÊU CẦU BẢO HÀNH DUNG SAI KỸ THUẬT</h3>
-                  <p className="text-xs text-fg-muted font-mono">
-                    Ghi nhận sai lệch kích thước / bề mặt để xưởng kiểm tra
-                  </p>
-                </div>
-              </div>
-              <button
-                aria-label="Đóng"
-                onClick={() => setWarrantyModal(prev => ({ ...prev, isOpen: false }))}
-                className="text-fg-muted hover:text-fg p-1.5 rounded-full hover:bg-surface-muted cursor-pointer transition-colors"
-              >
-                <Icon name="close" size={18} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setWarrantyModal(prev => ({ ...prev, isOpen: false }))}
+          size="lg"
+          title="YÊU CẦU BẢO HÀNH DUNG SAI KỸ THUẬT"
+          description="Ghi nhận sai lệch kích thước / bề mặt để xưởng kiểm tra"
+        >
             {warrantyModal.submitted ? (
-              <div role="alert" className="p-8 text-center space-y-3">
+              <div role="alert" className="p-4 text-center space-y-3">
                 <div className="w-12 h-12 rounded-full bg-warning-tint text-warning flex items-center justify-center mx-auto">
                   <Icon name="error" size={28} />
                 </div>
@@ -483,8 +467,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                 </div>
               </form>
             )}
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
