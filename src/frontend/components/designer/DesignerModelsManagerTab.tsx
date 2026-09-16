@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../../../types';
 import { ThreeModelViewer } from '../ThreeModelViewer';
-import { Button, ConfirmDialog, Icon } from '@frontend/ui';
+import { Button, ConfirmDialog, DataTable, EmptyState, Icon } from '@frontend/ui';
+import type { DataTableColumn } from '@frontend/ui';
+import { formatCurrency } from '@frontend/lib/format';
+import { useLanguage } from '../../context/LanguageContext';
 
 export interface DesignerModelsManagerTabProps {
   products: Product[];
@@ -21,6 +24,8 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
   onShowToast,
   onNavigateToUpload,
 }) => {
+  const { language } = useLanguage();
+  const isVi = language === 'vi';
   // Filter state
   const [modelCategoryFilter, setModelCategoryFilter] = useState('all');
   const [modelStatusFilter, setModelStatusFilter] = useState('all');
@@ -143,6 +148,100 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
     });
   }, [myProducts, modelCategoryFilter, modelStatusFilter, searchModelQuery]);
 
+  /** Cột bảng ấn phẩm dùng primitive `DataTable`. */
+  const modelColumns = useMemo<DataTableColumn<Product>[]>(() => [
+    {
+      key: 'name',
+      header: isVi ? 'Ấn Phẩm & SKU' : 'Model & SKU',
+      value: (p) => p.name,
+      render: (prod) => (
+        <div className="flex items-center gap-3">
+          {prod.images?.[0] ? (
+            <img src={prod.images[0]} alt={prod.name} className="w-12 h-12 object-cover border border-line rounded-sm shrink-0 bg-surface-inverse" />
+          ) : (
+            <span className="w-12 h-12 border border-line rounded-sm shrink-0 bg-surface-muted text-fg-subtle flex items-center justify-center">
+              <Icon name="deployed_code" size={20} />
+            </span>
+          )}
+          <div>
+            <span className="font-bold text-fg block leading-tight">{prod.name}</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="font-tech text-xs text-fg-muted">SKU: {prod.sku || '—'}</span>
+              <span className="px-1.5 py-0.5 bg-line-subtle text-fg font-tech text-xs rounded-sm uppercase">{prod.category}</span>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    { key: 'designer', header: isVi ? 'Tác Giả' : 'Designer', value: (p) => p.designer || '', render: (prod) => <span className="font-medium text-xs">{prod.designer || '—'}</span> },
+    {
+      key: 'licenseType',
+      header: isVi ? 'Giấy Phép' : 'License',
+      value: (p) => p.licenseType || 'Standard',
+      render: (prod) => (
+        <span className="px-2 py-0.5 bg-primary/10 border border-line rounded-sm text-xs font-bold text-primary">
+          {prod.licenseType || 'Standard'}
+        </span>
+      ),
+    },
+    { key: 'priceDigital', header: isVi ? 'Giá Tải File Số' : 'Digital price', numeric: true, value: (p) => p.priceDigital ?? 0, render: (prod) => <span className="font-bold text-fg text-xs">{formatCurrency(prod.priceDigital)}</span> },
+    { key: 'pricePhysical', header: isVi ? 'Giá In 3D Vật Lý' : 'Physical price', numeric: true, value: (p) => p.pricePhysical ?? 0, render: (prod) => <span className="font-bold text-fg text-xs">{formatCurrency(prod.pricePhysical)}</span> },
+    {
+      key: 'status',
+      header: isVi ? 'Trạng Thái' : 'Status',
+      align: 'center',
+      value: (p) => p.status || 'Published',
+      render: (prod) => (
+        <button
+          onClick={() => handleToggleProductStatus(prod)}
+          title={isVi ? 'Bấm để đổi trạng thái' : 'Click to toggle status'}
+          className={`px-2.5 py-1 text-xs font-tech font-bold uppercase rounded-full transition-colors ${
+            prod.status === 'Under Review'
+              ? 'bg-warning/10 text-warning border border-warning/30'
+              : prod.status === 'Draft'
+              ? 'bg-line-subtle text-fg-muted border border-line-control'
+              : 'bg-positive/10 text-positive border border-positive/30'
+          }`}
+        >
+          {prod.status || 'Published'}
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      header: isVi ? 'Hành Động' : 'Actions',
+      align: 'right',
+      render: (prod) => (
+        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+          <button
+            onClick={() => handleOpenEditModal(prod)}
+            className="px-2.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg rounded-full text-xs uppercase font-bold transition-colors inline-flex items-center gap-1 touch-target-btn shadow-e1"
+          >
+            <Icon name="edit" size={18} />
+            {isVi ? 'Sửa & Giá' : 'Edit'}
+          </button>
+          <button
+            onClick={() => setPreviewProduct(prod)}
+            className="px-2.5 py-1.5 border border-line-control hover:bg-line-subtle text-fg rounded-full text-xs uppercase font-bold transition-colors inline-flex items-center gap-1 touch-target-btn"
+          >
+            <Icon name="view_in_ar" size={18} />
+            {isVi ? 'Xem 3D' : '3D'}
+          </button>
+          <Button
+            iconOnly
+            size="sm"
+            variant="danger-ghost"
+            aria-label={isVi ? `Xoá ${prod.name}` : `Delete ${prod.name}`}
+            title={isVi ? 'Xóa ấn phẩm' : 'Delete'}
+            onClick={() => handleDeleteConfirm(prod)}
+            leadingIcon={<Icon name="delete" size={14} />}
+          />
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi]);
+
   return (
     <div className="space-y-4">
       <ConfirmDialog
@@ -204,140 +303,22 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
       </div>
 
       {/* Models Table */}
-      <div className="bg-surface border border-line rounded-sm overflow-hidden shadow-e1">
-        <div className="responsive-table-wrapper">
-          <table className="text-left text-xs w-full">
-            <thead className="bg-primary/10 border-b border-line text-fg-muted font-tech text-xs uppercase tracking-wider">
-              <tr>
-                <th className="p-3.5">Ấn Phẩm &amp; SKU</th>
-                <th className="p-3.5">Tác Giả</th>
-                <th className="p-3.5">Giấy Phép</th>
-                <th className="p-3.5 text-right">Giá Tải File Số</th>
-                <th className="p-3.5 text-right">Giá In 3D Vật Lý</th>
-                <th className="p-3.5 text-center">Trạng Thái</th>
-                <th className="p-3.5 text-right">Hành Động</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-subtle">
-              {filteredProducts.map((prod) => (
-                <tr key={prod.id} className="hover:bg-canvas transition-colors">
-                  <td className="p-3.5 flex items-center gap-3">
-                    {prod.images?.[0] ? (
-                      <img
-                        src={prod.images[0]}
-                        alt={prod.name}
-                        className="w-12 h-12 object-cover border border-line rounded-sm shrink-0 bg-surface-inverse"
-                      />
-                    ) : (
-                      <span className="w-12 h-12 border border-line rounded-sm shrink-0 bg-surface-muted text-fg-subtle flex items-center justify-center">
-                        <Icon name="deployed_code" size={20} />
-                      </span>
-                    )}
-                    <div>
-                      <span className="font-bold text-fg block leading-tight">{prod.name}</span>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="font-tech text-xs text-fg-muted">SKU: {prod.sku || '—'}</span>
-                        <span className="px-1.5 py-0.2 bg-line-subtle text-fg font-tech text-xs rounded-sm uppercase">
-                          {prod.category}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="p-3.5 text-fg font-sans">
-                    <span className="font-medium text-xs">{prod.designer}</span>
-                  </td>
-
-                  <td className="p-3.5 font-tech text-fg">
-                    <span className="px-2 py-0.5 bg-primary/10 border border-line rounded-sm text-xs font-bold text-primary">
-                      {prod.licenseType || 'Standard'}
-                    </span>
-                  </td>
-
-                  <td className="p-3.5 font-tech text-right">
-                    <span className="font-bold text-fg block text-xs">
-                      {(prod.priceDigital || 0).toLocaleString('vi-VN')} đ
-                    </span>
-                    <span className="text-xs text-primary">
-                      Nhận ~{Math.round((prod.priceDigital || 0) * 0.9).toLocaleString('vi-VN')} đ
-                    </span>
-                  </td>
-
-                  <td className="p-3.5 font-tech text-right">
-                    <span className="font-bold text-fg block text-xs">
-                      {(prod.pricePhysical || 0).toLocaleString('vi-VN')} đ
-                    </span>
-                    <span className="text-xs text-fg-muted">
-                      Nhận ~{Math.round((prod.pricePhysical || 0) * 0.1).toLocaleString('vi-VN')} đ / sp
-                    </span>
-                  </td>
-
-                  <td className="p-3.5 text-center">
-                    <button
-                      onClick={() => handleToggleProductStatus(prod)}
-                      title="Bấm để đổi trạng thái"
-                      className={`px-2.5 py-1 text-xs font-tech font-bold uppercase rounded-full transition-colors ${
-                        prod.status === 'Under Review'
-                          ? 'bg-warning/10 text-warning border border-warning/30'
-                          : prod.status === 'Draft'
-                          ? 'bg-line-subtle text-fg-muted border border-line-control'
-                          : 'bg-positive/10 text-positive border border-positive/30'
-                      }`}
-                    >
-                      {prod.status || 'Published'}
-                    </button>
-                  </td>
-
-                  <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
-                    {/* Sửa thông tin & Giá */}
-                    <button
-                      onClick={() => handleOpenEditModal(prod)}
-                      className="px-2.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg rounded-full text-xs uppercase font-bold transition-colors inline-flex items-center gap-1 touch-target-btn shadow-e1"
-                    >
-                      <Icon name="edit" size={18} />
-                      Sửa &amp; Giá
-                    </button>
-
-                    {/* Xem 3D */}
-                    <button
-                      onClick={() => setPreviewProduct(prod)}
-                      className="px-2.5 py-1.5 border border-line-control hover:bg-line-subtle text-fg rounded-full text-xs uppercase font-bold transition-colors inline-flex items-center gap-1 touch-target-btn"
-                    >
-                      <Icon name="view_in_ar" size={18} />
-                      Xem 3D
-                    </button>
-
-                    {/* Xóa */}
-                    <Button
-                      iconOnly
-                      size="sm"
-                      variant="danger-ghost"
-                      aria-label="Xoá ấn phẩm"
-                      title="Xóa ấn phẩm"
-                      onClick={() => handleDeleteConfirm(prod)}
-                      leadingIcon={<Icon name="delete" size={14} />}
-                    />
-                  </td>
-                </tr>
-              ))}
-
-              {filteredProducts.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-8 text-center text-fg-muted text-xs">
-                    Không tìm thấy ấn phẩm nào phù hợp với bộ lọc.{' '}
-                    <button
-                      onClick={onNavigateToUpload}
-                      className="text-primary font-bold hover:underline ml-1"
-                    >
-                      Đăng tải ấn phẩm mới?
-                    </button>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable<Product>
+        columns={modelColumns}
+        rows={filteredProducts}
+        getRowId={(row) => row.id}
+        caption={isVi ? 'Ấn phẩm của tôi' : 'My models'}
+        tableLabel={isVi ? 'Ấn phẩm của tôi' : 'My models'}
+        defaultSort={[{ key: 'name', direction: 'asc' }]}
+        emptyState={
+          <EmptyState
+            live
+            title={isVi ? 'Không tìm thấy ấn phẩm nào phù hợp' : 'No matching models'}
+            description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc.' : 'Clear the search or change the filter.'}
+            action={<Button variant="primary" size="sm" onClick={onNavigateToUpload}>{isVi ? 'Đăng tải ấn phẩm mới' : 'Upload new model'}</Button>}
+          />
+        }
+      />
 
       {/* MODAL 1: EDIT PRODUCT DETAILS & PRICING */}
       {editingProduct && (
