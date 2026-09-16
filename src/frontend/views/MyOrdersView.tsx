@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Order } from '../types';
 import { OrderProgress } from '../components/OrderProgress';
 import { Icon, Button, Badge } from '@frontend/ui';
+import { formatCurrency } from '../lib/format';
 
 interface MyOrdersViewProps {
   orders: Order[];
@@ -304,7 +305,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                         {ord.payment.method ? ` • ${ord.payment.method}` : ''}:{' '}
                       </span>
                       <strong className="text-base font-extrabold text-fg font-mono ml-1">
-                        {ord.payment.total.toLocaleString('vi-VN')} ₫
+                        {formatCurrency(ord.payment.total)}
                       </strong>
                       <span className="text-xs text-fg-subtle ml-2 block sm:inline">
                         • Giao tới: {ord.shippingAddress.fullName} ({ord.shippingAddress.city})
@@ -388,9 +389,9 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
             </div>
 
             {warrantyModal.submitted ? (
-              <div className="p-8 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-positive-tint text-positive flex items-center justify-center mx-auto">
-                  <Icon name="check" size={28} />
+              <div role="alert" className="p-8 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-warning-tint text-warning flex items-center justify-center mx-auto">
+                  <Icon name="error" size={28} />
                 </div>
                 <h4 className="font-bold text-base text-fg">Chưa gửi được yêu cầu</h4>
                 <p className="text-xs text-fg-muted">

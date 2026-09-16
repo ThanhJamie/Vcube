@@ -34,7 +34,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const appliedDiscount = useCartStore((st) => st.appliedDiscount);
 
   // Cấu hình tỉ lệ thuế VAT
-  const { data: pricingGlobal } = usePricingGlobalSettings();
+  const { data: pricingGlobal, loading: pricingLoading, error: pricingError } = usePricingGlobalSettings();
   const vatRate = vatRateFromPercent(pricingGlobal?.vatPercent);
 
   // Keyboard Escape listener
@@ -104,7 +104,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-surface shadow-e3 flex flex-col animate-in slide-in-from-right duration-300">
+        <div className="w-full sm:w-[28rem] bg-surface shadow-e3 flex flex-col animate-in slide-in-from-right duration-300">
           
           {/* Drawer Header */}
           <div className="p-4 sm:p-5 border-b border-line flex items-center justify-between bg-canvas">
@@ -188,7 +188,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         alt={item.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300';
+                          // Không thay bằng ảnh stock bịa: ẩn ảnh hỏng và để lộ nền trung tính.
+                          const el = e.currentTarget;
+                          el.style.visibility = 'hidden';
                         }}
                       />
                       <span className={`absolute bottom-0 inset-x-0 text-xs font-mono text-center font-bold py-0.2 ${
@@ -248,7 +250,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             <button
                               type="button"
                               onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                              className="px-2.5 py-0.5 hover:bg-surface-muted active:scale-90 text-fg-muted transition-all cursor-pointer text-xs select-none"
+                              className="flex min-h-9 min-w-9 items-center justify-center px-2 py-1 hover:bg-surface-muted active:scale-90 text-fg-muted transition-colors cursor-pointer text-xs select-none"
                             >
                               -
                             </button>
@@ -258,7 +260,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             <button
                               type="button"
                               onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                              className="px-2.5 py-0.5 hover:bg-surface-muted active:scale-90 text-fg-muted transition-all cursor-pointer text-xs select-none"
+                              className="flex min-h-9 min-w-9 items-center justify-center px-2 py-1 hover:bg-surface-muted active:scale-90 text-fg-muted transition-colors cursor-pointer text-xs select-none"
                             >
                               +
                             </button>
@@ -310,6 +312,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <span>{vatLabel(vat.rate)}:</span>
                     <span className="tabular-nums">{vat.amount.toLocaleString('vi-VN')} đ</span>
                   </div>
+                ) : pricingError ? (
+                  <p className="text-xs text-danger leading-relaxed">
+                    {isVi ? `Không đọc được cấu hình VAT: ${pricingError}` : `Could not read VAT config: ${pricingError}`}
+                  </p>
+                ) : pricingLoading && pricingGlobal === null ? (
+                  <p className="text-xs text-fg-subtle leading-relaxed">{isVi ? 'Đang đọc cấu hình VAT…' : 'Loading VAT configuration…'}</p>
                 ) : (
                   <p className="text-xs text-fg-subtle leading-relaxed">{vatNotConfiguredLabel(isVi)}</p>
                 )}

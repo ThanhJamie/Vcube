@@ -36,7 +36,7 @@ export const CartView: React.FC<CartViewProps> = ({
 
   // Đợt 9 (R1): tỉ lệ VAT đọc từ `pricing_global_settings.vat_percent` — hết 8% cứng.
   // Hook đứng TRƯỚC `if (cart.length === 0) return …` bên dưới (luật hook của React).
-  const { data: pricingGlobal } = usePricingGlobalSettings();
+  const { data: pricingGlobal, loading: pricingLoading, error: pricingError } = usePricingGlobalSettings();
   const vatRate = vatRateFromPercent(pricingGlobal?.vatPercent);
 
   const [promoCode, setPromoCode] = useState('');
@@ -219,7 +219,7 @@ export const CartView: React.FC<CartViewProps> = ({
                     </h2>
                   </div>
                   <span className="text-xs font-mono text-primary bg-primary-tint px-2 py-0.5 rounded-md border border-primary/30">
-                    Tải Tức Thời • Phí Giao: 0 đ
+                    {isVi ? 'Tệp số • Không phí vận chuyển' : 'Digital • No shipping fee'}
                   </span>
                 </div>
 
@@ -238,7 +238,7 @@ export const CartView: React.FC<CartViewProps> = ({
                           </span>
                           <h3 className="font-bold text-sm text-fg leading-tight">{item.name}</h3>
                           <div className="flex items-center gap-2 text-xs font-mono text-fg-subtle">
-                            <span>Định dạng: <strong className="text-fg">{item.fileFormat || 'STL + STEP + 3MF'}</strong></span>
+                            <span>Định dạng: <strong className="text-fg">{item.fileFormat || '—'}</strong></span>
                             <span>•</span>
                             <span className="text-positive font-bold">{item.licenseType || '—'}</span>
                           </div>
@@ -250,7 +250,7 @@ export const CartView: React.FC<CartViewProps> = ({
                           <span className="text-base font-extrabold text-primary block">
                             {item.price.toLocaleString('vi-VN')} đ
                           </span>
-                          <span className="text-xs text-fg-subtle">Bản quyền vĩnh viễn</span>
+                          <span className="text-xs text-fg-subtle">{isVi ? 'Giá một tệp' : 'Per file'}</span>
                         </div>
 
                         <Button
@@ -453,7 +453,7 @@ export const CartView: React.FC<CartViewProps> = ({
                     )}
                   </div>
                   <span className={`font-bold ${shippingFee === 0 ? 'text-positive' : 'text-fg'}`}>
-                    {physicalItems.length === 0 ? '0 đ (Online)' : (shippingFee === 0 ? 'Miễn phí' : `${shippingFee.toLocaleString('vi-VN')} đ`)}
+                    {physicalItems.length === 0 ? (isVi ? 'Không áp dụng' : 'N/A') : (shippingFee === 0 ? (isVi ? 'Miễn phí' : 'Free') : `${shippingFee.toLocaleString('vi-VN')} đ`)}
                   </span>
                 </div>
 
@@ -469,6 +469,12 @@ export const CartView: React.FC<CartViewProps> = ({
                     <span>{vatLabel(vat.rate)}:</span>
                     <span className="font-bold text-fg">{vat.amount.toLocaleString('vi-VN')} đ</span>
                   </div>
+                ) : pricingError ? (
+                  <p className="text-xs text-danger leading-relaxed">
+                    {isVi ? `Không đọc được cấu hình VAT: ${pricingError}` : `Could not read VAT config: ${pricingError}`}
+                  </p>
+                ) : pricingLoading && pricingGlobal === null ? (
+                  <p className="text-xs text-fg-subtle leading-relaxed">{isVi ? 'Đang đọc cấu hình VAT…' : 'Loading VAT configuration…'}</p>
                 ) : (
                   <p className="text-xs text-fg-subtle leading-relaxed">{vatNotConfiguredLabel(isVi)}</p>
                 )}

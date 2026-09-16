@@ -361,7 +361,10 @@ export const dbService = {
         status_stage_index: order.statusStageIndex,
         layer_progress: order.layerProgress || 0,
         payment_method: order.payment?.method || '',
-        payment_status: order.payment?.isPaid ? 'paid' : 'unpaid',
+        // Ghi ĐÚNG trạng thái thanh toán đã chốt ở checkout ('cod' | 'awaiting_payment' | 'paid').
+        // Trước đây luôn quy về 'unpaid' nên COD bị đọc lại thành "chờ thanh toán" ở
+        // hoá đơn/theo dõi/đơn của tôi (mâu thuẫn với màn xác nhận).
+        payment_status: order.payment?.status ?? (order.payment?.isPaid ? 'paid' : 'unpaid'),
         items: order.items,
         shipping_address: order.shippingAddress,
         carrier: order.carrier,

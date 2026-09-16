@@ -4,7 +4,7 @@ import { vatLabel, vatNotConfiguredLabel, vatRateFromPercent } from '../lib/vat'
 import { Icon } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
-import { EMPTY_VALUE, formatDateTime } from '../lib/format';
+import { EMPTY_VALUE, formatCurrency, formatDateTime } from '../lib/format';
 
 /**
  * `Order.date` đến từ HAI nguồn khác nhau:
@@ -52,7 +52,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
   // Đợt 9 (R1): hoá đơn cần biết `vat_percent` HIỆN TẠI chỉ để phân biệt "đơn không ghi
   // nhận VAT" với "VAT chưa được cấu hình" — số tiền in ra vẫn là số ĐÃ GHI trên đơn.
   // Hook đứng TRƯỚC `if (!isOpen || !order) return null;` (luật hook của React).
-  const { data: pricingGlobal } = usePricingGlobalSettings();
+  const { data: pricingGlobal, loading: pricingLoading, error: pricingError } = usePricingGlobalSettings();
 
   useEffect(() => {
     const unsubscribe = subscribeSettings((snap) => setLegal(snap.app_settings));
@@ -72,15 +72,16 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
   // đơn tự bịa `Math.round(subtotal * 0.08)` trên subtotalPhysical rồi cộng vào
   // tổng, ra một con số khác cả checkout lẫn quote.
   const p = order.payment;
-  const subtotal = (p.subtotalPhysical || 0) + (p.subtotalDigital || 0);
   // Đợt 9 (R1): tỉ lệ VAT của hoá đơn là tỉ lệ ĐÃ GHI trên đơn (`payment.vatRate`) — nguồn
   // của nó ở /checkout là `pricing_global_settings.vat_percent`. KHÔNG rơi về 8% như trước:
   // đơn không ghi tỉ lệ ⇒ hoá đơn không in dòng VAT (PC-04: chỉ in số đã ghi nhận).
   const recordedVatRate = typeof p.vatRate === 'number' && Number.isFinite(p.vatRate) ? p.vatRate : null;
   const recordedVat = recordedVatRate === null ? null : vatLabel(recordedVatRate);
   const liveVatRate = vatRateFromPercent(pricingGlobal?.vatPercent);
-  const vatAmount = p.tax || 0;
-  const grandTotal = p.total || 0;
+  // Giữ nguyên `null`: hoá đơn KHÔNG được bịa "0 ₫" khi đơn thiếu tổng/tax.
+  const vatAmount = typeof p.tax === 'number' && Number.isFinite(p.tax) ? p.tax : null;
+  const grandTotal = typeof p.total === 'number' && Number.isFinite(p.total) ? p.total : null;
+  const vatPending = pricingLoading && pricingGlobal === null && !pricingError;
   const isPaid = p.isPaid === true || p.status === 'paid';
   const isCod = p.status === 'cod';
 
@@ -206,9 +207,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
                       {item.material || <Unknown title="Không ghi nhận vật liệu" />}
                     </td>
                     <td className="p-3 text-center font-mono font-bold">{item.quantity}</td>
-                    <td className="p-3 text-right font-mono">{item.price.toLocaleString('vi-VN')} ₫</td>
+                    <td className="p-3 text-right font-mono">{formatCurrency(item.price)}</td>
                     <td className="p-3 text-right font-mono font-bold text-fg">
-                      {(item.price * item.quantity).toLocaleString('vi-VN')} ₫
+                      {formatCurrency(item.price * item.quantity)}
                     </td>
                   </tr>
                 ))}
@@ -240,30 +241,36 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
               {p.subtotalDigital > 0 && (
                 <div className="flex justify-between text-fg-subtle">
                   <span>Tạm tính file CAD:</span>
-                  <span>{p.subtotalDigital.toLocaleString('vi-VN')} ₫</span>
+                  <span>{formatCurrency(p.subtotalDigital)}</span>
                 </div>
               )}
               {p.subtotalPhysical > 0 && (
                 <div className="flex justify-between text-fg-subtle">
                   <span>Tạm tính in 3D:</span>
-                  <span>{p.subtotalPhysical.toLocaleString('vi-VN')} ₫</span>
+                  <span>{formatCurrency(p.subtotalPhysical)}</span>
                 </div>
               )}
               {p.discount > 0 && (
                 <div className="flex justify-between text-positive font-bold">
                   <span>Giảm giá ưu đãi:</span>
-                  <span>- {p.discount.toLocaleString('vi-VN')} ₫</span>
+                  <span>- {formatCurrency(p.discount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-fg-subtle">
                 <span>Phí vận chuyển:</span>
-                <span>{p.shippingFee ? `${p.shippingFee.toLocaleString('vi-VN')} ₫` : '0 ₫'}</span>
+                <span>{formatCurrency(p.shippingFee)}</span>
               </div>
               {recordedVat !== null ? (
                 <div className="flex justify-between text-fg-subtle">
                   <span>{`Thuế GTGT — ${recordedVat}:`}</span>
-                  <span>{vatAmount.toLocaleString('vi-VN')} ₫</span>
+                  <span>{vatAmount === null ? EMPTY_VALUE : formatCurrency(vatAmount)}</span>
                 </div>
+              ) : pricingError ? (
+                <p className="text-xs text-danger font-sans leading-relaxed">
+                  Không đọc được cấu hình VAT: {pricingError}
+                </p>
+              ) : vatPending ? (
+                <p className="text-xs text-fg-subtle font-sans leading-relaxed">Đang đọc cấu hình VAT…</p>
               ) : (
                 <p className="text-xs text-fg-subtle font-sans leading-relaxed">
                   {liveVatRate === null
@@ -273,11 +280,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
               )}
               <div className="border-t border-line pt-2 flex justify-between font-bold text-sm text-fg">
                 <span>TỔNG CỘNG THANH TOÁN:</span>
-                <span className="text-primary text-base">{grandTotal.toLocaleString('vi-VN')} ₫</span>
+                <span className="text-primary text-base">
+                  {grandTotal === null ? EMPTY_VALUE : formatCurrency(grandTotal)}
+                </span>
               </div>
               <p className="text-xs text-fg-subtle font-sans leading-relaxed pt-1">
-                Tổng cộng khớp với số tiền đã ghi nhận trên đơn {order.orderNumber}
-                {subtotal !== (p.total || 0) && vatAmount === 0 ? ' (chưa bao gồm VAT)' : ''}.
+                Tổng cộng là số tiền đã ghi nhận trên đơn {order.orderNumber}
+                {grandTotal === null ? ' — chưa có số tiền được ghi nhận.' : '.'}
               </p>
             </div>
           </div>

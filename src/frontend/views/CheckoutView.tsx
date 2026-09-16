@@ -8,7 +8,7 @@ import { useCartStore } from '../stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
-import { Icon, Button } from '@frontend/ui';
+import { Icon, Button, EmptyState } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
 import { OrderService } from '../../backend/services/orderService';
 
@@ -57,8 +57,10 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
   // Đợt 9 (R1): tỉ lệ VAT đọc từ `pricing_global_settings.vat_percent` — hết 8% cứng.
   // Hook đứng TRƯỚC mọi early return của component (luật hook của React).
-  const { data: pricingGlobal } = usePricingGlobalSettings();
+  const { data: pricingGlobal, loading: pricingLoading, error: pricingError } = usePricingGlobalSettings();
   const vatRate = vatRateFromPercent(pricingGlobal?.vatPercent);
+  /** Đang đọc cấu hình VAT (chưa có cache) — KHÔNG được kết luận "chưa cấu hình". */
+  const vatPending = pricingLoading && pricingGlobal === null && !pricingError;
 
   const bankName = transferSettings?.bankName?.trim() || '';
   const bankAccount = transferSettings?.bankAccount?.trim() || '';
@@ -115,15 +117,9 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     setIsProcessing(true);
     setOrderError(null);
 
-    try {
-      confetti({
-        particleCount: 90,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
-    } catch {
-      // silent fallback
-    }
+    const prefersReducedMotion =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
 
@@ -178,7 +174,9 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         address,
         city,
         district,
-        note: needsVatInvoice ? `${note} [VAT: ${companyName} - MST: ${taxId}]` : note
+        note: needsVatInvoice
+          ? `${note} [VAT: ${companyName} - MST: ${taxId}${companyAddress ? ` - ĐC: ${companyAddress}` : ''}]`
+          : note
       },
       // OT-11: không bịa hãng vận chuyển và mã vận đơn. Chỉ điền khi đơn vị
       // vận chuyển thực sự trả về; UI render "Chưa có mã vận đơn".
@@ -214,6 +212,20 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         createdAtIso,
       });
 
+      // Chỉ bắn confetti SAU khi DB đã nhận đơn (trước đây bắn trước khi ghi ⇒ chúc mừng
+      // nhầm khi tạo đơn thất bại). Tôn trọng `prefers-reduced-motion`.
+      if (!prefersReducedMotion) {
+        try {
+          confetti({
+            particleCount: 90,
+            spread: 80,
+            origin: { y: 0.6 }
+          });
+        } catch {
+          // silent fallback
+        }
+      }
+
       // Chỉ tới đây — khi DB ĐÃ nhận đơn — mới được chuyển sang màn hình thành công.
       onOrderCompleted(savedOrder);
       onNavigate('order_success', { order: savedOrder });
@@ -227,6 +239,30 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       setIsProcessing(false);
     }
   };
+
+  // Critical: giỏ rỗng (deep-link hoặc đã xoá ở tab khác) KHÔNG được render form
+  // thanh toán rồi tạo đơn 0đ trong DB.
+  if (cart.length === 0) {
+    return (
+      <div className="min-h-dvh bg-canvas text-fg py-16 sm:py-24 px-4 sm:px-6 flex items-center justify-center">
+        <EmptyState
+          bordered
+          icon={<Icon name="shopping_cart" size={22} />}
+          title={isVi ? 'Giỏ hàng của bạn đang trống' : 'Your cart is empty'}
+          description={
+            isVi
+              ? 'Thêm sản phẩm hoặc tệp CAD vào giỏ trước khi thanh toán.'
+              : 'Add a product or CAD file to your cart before checking out.'
+          }
+          action={
+            <Button onClick={() => onNavigate('cart')}>
+              {isVi ? 'Về giỏ hàng' : 'Back to cart'}
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
@@ -388,6 +424,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     onChange={(e) => setCity(e.target.value)}
                     className="w-full bg-canvas border border-line-control px-3 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary cursor-pointer"
                   >
+                    <option value="" disabled>Chọn Tỉnh / Thành phố…</option>
                     <option value="Hà Nội">Hà Nội (Hub Miền Bắc - 24h)</option>
                     <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh (Hub Miền Nam - 24h)</option>
                     <option value="Đà Nẵng">Đà Nẵng (Hub Miền Trung - 36h)</option>
@@ -724,6 +761,14 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     <span>{vatLabel(vat.rate)}:</span>
                     <span className="font-bold text-fg">{vat.amount.toLocaleString('vi-VN')} đ</span>
                   </div>
+                ) : pricingError ? (
+                  <p className="text-xs text-danger leading-relaxed">
+                    {isVi ? `Không đọc được cấu hình VAT: ${pricingError}` : `Could not read VAT configuration: ${pricingError}`}
+                  </p>
+                ) : vatPending ? (
+                  <p className="text-xs text-fg-subtle leading-relaxed">
+                    {isVi ? 'Đang đọc cấu hình VAT…' : 'Loading VAT configuration…'}
+                  </p>
                 ) : (
                   <p className="text-xs text-fg-subtle leading-relaxed">{vatNotConfiguredLabel(isVi)}</p>
                 )}

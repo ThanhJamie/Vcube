@@ -308,7 +308,10 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
                 <Button
                   variant="primary"
                   size="md"
+                  disabled={!canDownload(previewAsset)}
+                  title={!canDownload(previewAsset) ? 'Kho file chưa hỗ trợ tải trực tiếp cho tệp này.' : undefined}
                   onClick={() => {
+                    if (!canDownload(previewAsset)) return;
                     void handleDownloadFile(previewAsset);
                     setPreviewAsset(null);
                   }}

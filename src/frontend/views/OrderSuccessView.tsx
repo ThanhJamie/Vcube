@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Order } from '../../types';
 import { useLanguage } from '../context/LanguageContext';
 import { Icon, Button } from '@frontend/ui';
-import { EMPTY_VALUE, formatDateTime } from '../lib/format';
+import { EMPTY_VALUE, formatCurrency, formatDateTime } from '../lib/format';
 
 /**
  * `Order.date` đến từ HAI nguồn khác nhau:
@@ -182,14 +182,23 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
                   </p>
                 </div>
               </div>
-              <Button
-                size="md"
-                variant="primary"
-                onClick={() => onNavigate('assets')}
-                leadingIcon={<Icon name="download" size={18} />}
-              >
-                <span>Mở Kho Tệp CAD</span>
-              </Button>
+              {order.secureAccessToken ? (
+                // Đơn khách (guest): `/assets` nằm sau đăng nhập ⇒ KHÔNG dẫn vào ngõ cụt.
+                <p className="text-xs font-mono text-fg-subtle max-w-[16rem] text-right">
+                  {isVi
+                    ? 'Đăng nhập bằng email đặt hàng để mở Kho Tệp CAD.'
+                    : 'Sign in with the order email to open the CAD library.'}
+                </p>
+              ) : (
+                <Button
+                  size="md"
+                  variant="primary"
+                  onClick={() => onNavigate('assets')}
+                  leadingIcon={<Icon name="download" size={18} />}
+                >
+                  <span>Mở Kho Tệp CAD</span>
+                </Button>
+              )}
             </div>
           )}
 
@@ -243,7 +252,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
                   </div>
                 </div>
                 <span className="font-bold text-xs text-fg shrink-0 ml-3">
-                  {(item.price * item.quantity).toLocaleString('vi-VN')} đ
+                  {formatCurrency(item.price * item.quantity)}
                 </span>
               </div>
             ))}
@@ -257,7 +266,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
           <div className="flex items-center justify-between text-xs font-mono">
             <span className="text-xs text-fg-subtle uppercase">{isVi ? 'Tổng tiền đơn hàng:' : 'Order total:'}</span>
             <span className="font-mono font-black text-base sm:text-lg text-primary">
-              {order.payment.total.toLocaleString('vi-VN')} đ
+              {formatCurrency(order.payment.total)}
             </span>
           </div>
         </div>

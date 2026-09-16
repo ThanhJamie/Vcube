@@ -4,6 +4,7 @@ import { Order } from '../types';
 import { OrderProgress } from '../components/OrderProgress';
 import { dbService } from '../../backend/supabase/database';
 import { Icon, Button } from '@frontend/ui';
+import { formatCurrency } from '../lib/format';
 
 interface OrderTrackingViewProps {
   order?: Order;
@@ -235,7 +236,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   }
 
   // ---------------------------------------------------------------- ORDER DETAIL
-  const isVi = true;
   // null = chưa có dữ liệu từ xưởng ⇒ render `—` thay vì mặc định 64% / nấc 4.
   const layerProgress = currentOrder.layerProgress ?? null;
   const currentStageIndex = currentOrder.statusStageIndex ?? null;
@@ -452,7 +452,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   Linh Kiện Trong Đơn Hàng ({currentOrder.items.length})
                 </h3>
                 <span className="text-xs font-mono text-fg-subtle">
-                  Tổng: {currentOrder.payment.total.toLocaleString('vi-VN')} ₫
+                  Tổng: {formatCurrency(currentOrder.payment.total)}
                 </span>
               </div>
 
@@ -480,7 +480,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                       </div>
                     </div>
                     <span className="font-mono font-bold text-sm text-primary shrink-0 ml-3">
-                      {(item.price * item.quantity).toLocaleString('vi-VN')} ₫
+                      {formatCurrency(item.price * item.quantity)}
                     </span>
                   </div>
                 ))}
