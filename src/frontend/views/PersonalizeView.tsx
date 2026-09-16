@@ -98,7 +98,9 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
   const firstAvailableColor = declaredColors.find((c) => c.available !== false) || declaredColors[0] || null;
   const [selectedColorHex, setSelectedColorHex] = useState<string>(firstAvailableColor?.hex || VIEWER_NEUTRAL_HEX);
   const [selectedColorName, setSelectedColorName] = useState<string>(firstAvailableColor?.name || '');
-  const [engravingText, setEngravingText] = useState('PROTOTYPE-01');
+  // Bắt đầu TRỐNG: trước đây mặc định 'PROTOTYPE-01' khiến đơn mặc định "đã yêu cầu khắc chữ"
+  // dù khách chưa nhập gì (bịa nội dung khách hàng).
+  const [engravingText, setEngravingText] = useState('');
   const [selectedFont, setSelectedFont] = useState('JetBrains Mono');
   const [fontSizeMm, setFontSizeMm] = useState(12);
   const [engravingDepth, setEngravingDepth] = useState<'laser' | 'embossed' | 'recessed'>('embossed');

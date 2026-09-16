@@ -133,8 +133,6 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
         deadline: deadlineLabels[deadline] || deadline,
         targetSpecs: {
           material: materialLabels[material] || material,
-          infill: '30%',
-          nozzle: '0.4mm',
         },
         customerId: user?.uid,
       });

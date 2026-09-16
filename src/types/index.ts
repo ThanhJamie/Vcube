@@ -629,9 +629,10 @@ export interface CustomDesignRequest {
   deadline: string;
   serviceType: string;
   targetSpecs: {
-    material: string;
-    infill: string;
-    nozzle: string;
+    material?: string;
+    /** Chỉ ghi khi khách/admin thực sự nêu; thiếu ⇒ để trống, KHÔNG bịa. */
+    infill?: string;
+    nozzle?: string;
   };
   referenceFiles: {
     name: string;

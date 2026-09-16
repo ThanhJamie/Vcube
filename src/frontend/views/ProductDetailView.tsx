@@ -562,29 +562,36 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 </div>
               )}
 
-              {/* Tab 4: Slicing Profiles */}
+              {/* Tab 4: Slicing Profiles — chỉ in thông số đã khai ở cấp SẢN PHẨM.
+                  KHÔNG hardcode profile máy (Bambu X1C 215–230°C…) và KHÔNG gắn nhãn
+                  "In được" cho mọi sản phẩm: đó là khẳng định không có nguồn. */}
               {activeTab === 'slicing' && (
                 <div className="space-y-3 text-xs font-mono">
-                  <div className="p-3.5 bg-positive-tint border border-positive/30 rounded-md flex items-center justify-between gap-3">
-                    <span className="text-fg">Bambu Lab X1C / P1S / A1 — profile tham khảo:</span>
-                    <Badge variant="success">{isVi ? 'In được' : 'Printable'}</Badge>
+                  <div className="p-3.5 bg-canvas border border-line rounded-md text-fg-muted">
+                    {isVi
+                      ? 'Thông số cắt lớp ở cấp sản phẩm. Nhiệt độ đùn/bàn in phụ thuộc vật liệu & máy cụ thể — xưởng xác nhận khi báo giá.'
+                      : 'Product-level slicing parameters. Extruder/bed temperatures depend on the specific material and machine — the workshop confirms them in the quote.'}
                   </div>
                   <Card padding="sm" className="bg-surface-muted font-mono space-y-1.5">
                     <div className="flex justify-between">
-                      <span className="text-fg-muted">Nhiệt độ đùn khuyên dùng:</span>
-                      <span className="font-bold text-fg">215°C - 230°C</span>
+                      <span className="text-fg-muted">{isVi ? 'Độ phân giải lớp:' : 'Layer resolution:'}</span>
+                      <span className="font-bold text-fg">{product.specs?.resolution || EMPTY_VALUE}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-fg-muted">Nhiệt độ bàn in (Heatbed):</span>
-                      <span className="font-bold text-fg">55°C - 65°C</span>
+                      <span className="text-fg-muted">{isVi ? 'Infill mặc định:' : 'Default infill:'}</span>
+                      <span className="font-bold text-fg">{product.specs?.infillDefault || EMPTY_VALUE}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-fg-muted">Kiểu Infill tối ưu:</span>
-                      <span className="font-bold text-primary">Gyroid 35% (Chịu lực đa hướng)</span>
+                      <span className="text-fg-muted">{isVi ? 'Công nghệ gia công:' : 'Technology:'}</span>
+                      <span className="font-bold text-fg">{product.specs?.technology || EMPTY_VALUE}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-fg-muted">Số vòng thành (Wall Loops):</span>
-                      <span className="font-bold text-fg">4 Loops (Độ bền tối đa)</span>
+                      <span className="text-fg-muted">{isVi ? 'Kích thước phủ bì:' : 'Overall size:'}</span>
+                      <span className="font-bold text-fg">{product.specs?.dimensions || EMPTY_VALUE}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-fg-muted">{isVi ? 'Nhiệt độ đùn / bàn in:' : 'Extruder / bed temp:'}</span>
+                      <span className="font-bold text-fg-subtle">{EMPTY_VALUE}</span>
                     </div>
                   </Card>
                 </div>
