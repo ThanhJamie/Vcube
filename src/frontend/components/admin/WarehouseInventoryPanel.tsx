@@ -150,7 +150,8 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
   const handleAccessoryStockAdjust = (id: string, delta: number) => {
     const updated = accessories.map(a => {
       if (a.id === id) {
-        const count = Math.max(0, a.stockCount + delta);
+        const base = declaredNumber(a.stockCount) ?? 0;
+        const count = Math.max(0, base + delta);
         return { ...a, stockCount: count };
       }
       return a;
@@ -256,6 +257,107 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
               key={btn.delta}
               type="button"
               onClick={() => handleMaterialStockAdjust(mat.id, btn.delta)}
+              className={`px-2 py-1 rounded-sm font-tech font-bold text-xs ${btn.cls}`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi]);
+
+  const filteredAccessoriesList = useMemo(
+    () =>
+      accessories.filter((a) => {
+        const matchSearch =
+          a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          a.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (a.warehouseLocation && a.warehouseLocation.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchLocation = selectedLocation === 'all' || a.warehouseLocation === selectedLocation;
+        const matchLow = filterType !== 'low_stock' || isAccessoryLow(a);
+        return matchSearch && matchLocation && matchLow;
+      }),
+    [accessories, searchTerm, selectedLocation, filterType]
+  );
+
+  /** Cột bảng phụ kiện dùng primitive `DataTable`. */
+  const accessoryColumns = useMemo<DataTableColumn<AccessoryItem>[]>(() => [
+    {
+      key: 'name',
+      header: 'PK / SKU',
+      value: (a) => a.name,
+      render: (acc) => (
+        <div className="flex items-center gap-2.5">
+          {acc.imageUrl ? (
+            <img src={acc.imageUrl} alt={acc.name} className="w-8 h-8 rounded-sm object-cover border border-line" />
+          ) : (
+            <span className="w-8 h-8 rounded-sm border border-line bg-surface-muted text-fg-subtle flex items-center justify-center shrink-0">
+              <Icon name="inventory" size={16} />
+            </span>
+          )}
+          <div>
+            <p className="font-bold text-fg">{acc.name}</p>
+            <span className="font-tech text-xs text-primary font-semibold">{acc.sku || '—'}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      header: isVi ? 'Phân Loại' : 'Category',
+      value: (a) => a.category,
+      render: (acc) => <span className="px-2 py-0.5 bg-info-tint text-info rounded-sm text-xs font-bold capitalize">{acc.category}</span>,
+    },
+    {
+      key: 'warehouseLocation',
+      header: isVi ? 'Vị Trí Kệ' : 'Shelf',
+      value: (a) => a.warehouseLocation || '',
+      render: (acc) => (
+        <span className="flex items-center gap-1 font-tech font-bold text-xs text-primary">
+          <Icon name="shelves" size={14} />
+          {acc.warehouseLocation || '—'}
+        </span>
+      ),
+    },
+    { key: 'costPrice', header: isVi ? 'Giá Vốn' : 'Cost', numeric: true, value: (a) => a.costPrice ?? 0, render: (acc) => <span className="text-fg-muted">{numText(acc.costPrice, ' đ')}</span> },
+    { key: 'sellingPrice', header: isVi ? 'Giá Báo Khách' : 'Sell', numeric: true, value: (a) => a.sellingPrice ?? 0, render: (acc) => <span className="font-bold text-fg">{numText(acc.sellingPrice, ' đ')}</span> },
+    {
+      key: 'stockCount',
+      header: isVi ? 'Tồn Kho' : 'Stock',
+      align: 'center',
+      value: (a) => a.stockCount ?? 0,
+      render: (acc) => {
+        const threshold = declaredNumber(acc.lowStockThreshold);
+        const isLow = isAccessoryLow(acc);
+        return (
+          <div className="flex flex-col items-center">
+            <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>{numText(acc.stockCount)} {acc.unit}</span>
+            {isLow && (
+              <span className="text-xs font-bold text-danger bg-danger-tint px-1.5 py-0.5 rounded-sm mt-0.5">
+                Cảnh báo hết (&lt;={numText(threshold)})
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: isVi ? 'Nhập / Xuất Nhanh' : 'Quick adjust',
+      align: 'right',
+      render: (acc) => (
+        <div className="flex items-center justify-end gap-1">
+          {[
+            { delta: -10, label: '-10', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
+            { delta: 10, label: '+10', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
+            { delta: 50, label: '+50', cls: 'bg-positive-tint hover:bg-positive/20 text-positive' },
+          ].map((btn) => (
+            <button
+              key={btn.delta}
+              type="button"
+              onClick={() => handleAccessoryStockAdjust(acc.id, btn.delta)}
               className={`px-2 py-1 rounded-sm font-tech font-bold text-xs ${btn.cls}`}
             >
               {btn.label}
@@ -477,124 +579,21 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface-muted border-b border-line text-fg-muted uppercase font-tech text-xs tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-4">Tên Phụ Kiện / Mã SKU</th>
-                  <th className="py-2.5 px-4">Phân Loại</th>
-                  <th className="py-2.5 px-4">Vị Trí Kệ</th>
-                  <th className="py-2.5 px-4 text-right">Giá Vốn</th>
-                  <th className="py-2.5 px-4 text-right">Giá Báo Khách</th>
-                  <th className="py-2.5 px-4 text-center">Tồn Kho</th>
-                  <th className="py-2.5 px-4 text-right">Nhập / Xuất Nhanh</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-subtle">
-                {accessories
-                  .filter(a => {
-                    const matchSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      a.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      (a.warehouseLocation && a.warehouseLocation.toLowerCase().includes(searchTerm.toLowerCase()));
-                    const matchLocation = selectedLocation === 'all' || a.warehouseLocation === selectedLocation;
-                    const matchLow = filterType !== 'low_stock' || isAccessoryLow(a);
-                    return matchSearch && matchLocation && matchLow;
-                  })
-                  .map((acc) => {
-                    // Ngưỡng `null` = CHƯA cấu hình ⇒ không có cơ sở kết luận "sắp hết".
-                    const threshold = declaredNumber(acc.lowStockThreshold);
-                    const isLow = isAccessoryLow(acc);
-
-                    return (
-                      <tr key={acc.id} className="hover:bg-canvas transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
-                            {acc.imageUrl ? (
-                              <img
-                                src={acc.imageUrl}
-                                alt={acc.name}
-                                className="w-8 h-8 rounded-sm object-cover border border-line"
-                              />
-                            ) : (
-                              <span className="w-8 h-8 rounded-sm border border-line bg-surface-muted text-fg-subtle flex items-center justify-center shrink-0">
-                                <Icon name="inventory" size={16} />
-                              </span>
-                            )}
-                            <div>
-                              <p className="font-bold text-fg">{acc.name}</p>
-                              <span className="font-tech text-xs text-primary font-semibold">{acc.sku}</span>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4 font-sans capitalize text-fg-muted">
-                          <span className="px-2 py-0.5 bg-info-tint text-info rounded-sm text-xs font-bold">
-                            {acc.category}
-                          </span>
-                        </td>
-
-                        <td className="py-3 px-4 font-tech font-bold text-xs text-primary">
-                          <div className="flex items-center gap-1">
-                            <Icon name="shelves" size={14} />
-                            {acc.warehouseLocation || 'Kho Tổng'}
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4 text-right font-tech text-fg-muted">
-                          {numText(acc.costPrice, ' đ')}
-                        </td>
-
-                        <td className="py-3 px-4 text-right font-tech font-bold text-fg">
-                          {numText(acc.sellingPrice, ' đ')}
-                        </td>
-
-                        <td className="py-3 px-4 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>
-                              {numText(acc.stockCount)} {acc.unit}
-                            </span>
-                            {isLow && (
-                              <span className="text-xs font-bold text-danger bg-danger-tint px-1.5 py-0.2 rounded-sm mt-0.5">
-                                Cảnh báo hết (&lt;={numText(threshold)})
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleAccessoryStockAdjust(acc.id, -10)}
-                              className="px-2 py-1 bg-surface-muted hover:bg-line-subtle text-fg-muted rounded-sm font-tech font-bold text-xs"
-                              title="Giảm 10"
-                            >
-                              -10
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleAccessoryStockAdjust(acc.id, 10)}
-                              className="px-2 py-1 bg-surface-muted hover:bg-line-subtle text-fg-muted rounded-sm font-tech font-bold text-xs"
-                              title="Tăng 10"
-                            >
-                              +10
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleAccessoryStockAdjust(acc.id, 50)}
-                              className="px-2 py-1 bg-positive-tint hover:bg-positive/20 text-positive rounded-sm font-tech font-bold text-xs"
-                              title="Nhập 50"
-                            >
-                              +50
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<AccessoryItem>
+            columns={accessoryColumns}
+            rows={filteredAccessoriesList}
+            getRowId={(row) => row.id}
+            caption={isVi ? 'Tồn kho phụ kiện' : 'Accessory inventory'}
+            tableLabel={isVi ? 'Tồn kho phụ kiện' : 'Accessory inventory'}
+            defaultSort={[{ key: 'name', direction: 'asc' }]}
+            emptyState={
+              <EmptyState
+                live
+                title={isVi ? 'Không có phụ kiện phù hợp' : 'No matching accessories'}
+                description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc vị trí.' : 'Clear the search or change the location filter.'}
+              />
+            }
+          />
         </div>
       )}
     </div>
