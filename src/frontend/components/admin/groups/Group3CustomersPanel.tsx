@@ -3,7 +3,8 @@ import { useCustomerAdminStore, CustomerRow, isB2b } from '../../../../stores/us
 import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { AppUserProfile } from '../../../../types';
-import { Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import { Button, DataTable, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import type { DataTableColumn } from '@frontend/ui';
 
 export type KycStatus = 'verified' | 'pending_review' | 'rejected' | 'unverified';
 
@@ -269,6 +270,141 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       setSavingNdaId(null);
     }
   };
+
+  /** Cột bảng khách hàng (NDA) dùng primitive `DataTable`. */
+  const customerColumns = useMemo<DataTableColumn<CustomerDisplayRow>[]>(() => [
+    {
+      key: 'name',
+      header: isVi ? 'Khách Hàng / Đơn Vị' : 'Client entity',
+      value: (c) => c.name || '',
+      render: (c) => (
+        <div>
+          <div className="font-bold text-fg">{c.name || '—'}</div>
+          {c.company && <div className="text-xs text-fg-subtle font-normal">{c.company}</div>}
+        </div>
+      ),
+    },
+    { key: 'type', header: isVi ? 'Phân loại' : 'Type', value: (c) => c.type, render: (c) => <span className="px-2 py-0.5 bg-surface-muted font-bold text-xs rounded-sm text-fg-muted">{c.type}</span> },
+    { key: 'taxId', header: isVi ? 'Mã số thuế' : 'Tax ID', value: (c) => c.row.taxId || '', render: (c) => <span className="text-fg-muted">{c.row.taxId || '—'}</span> },
+    {
+      key: 'ndaSignedAt',
+      header: isVi ? 'Ngày ký kết' : 'Signed date',
+      value: (c) => c.row.ndaSignedAt || '',
+      render: (c) => <span className="text-fg-subtle">{c.row.ndaSignedAt ? new Date(c.row.ndaSignedAt).toLocaleDateString('vi-VN') : '—'}</span>,
+    },
+    {
+      key: 'ndaSigned',
+      header: isVi ? 'Trạng thái' : 'Status',
+      value: (c) => (c.row.ndaSigned ? 'signed' : 'unsigned'),
+      render: (c) => (
+        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${c.row.ndaSigned ? 'bg-positive-tint text-positive' : 'bg-surface-muted text-fg-subtle'}`}>
+          {c.row.ndaSigned ? (isVi ? 'Đã Ghi Nhận' : 'Signed') : (isVi ? 'Chưa Ký' : 'Unsigned')}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: isVi ? 'Hành động' : 'Actions',
+      align: 'right',
+      render: (c) =>
+        c.row.ndaSigned ? (
+          <button
+            onClick={() => void handleSetNda(c.row, false)}
+            disabled={savingNdaId === c.row.id}
+            className="px-2.5 py-1 bg-danger-tint text-danger text-xs font-semibold rounded-sm cursor-pointer disabled:opacity-60"
+          >
+            {isVi ? 'Thu Hồi' : 'Revoke'}
+          </button>
+        ) : (
+          <button
+            onClick={() => void handleSetNda(c.row, true)}
+            disabled={savingNdaId === c.row.id}
+            className="px-3 py-1 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-sm cursor-pointer disabled:opacity-60"
+          >
+            {isVi ? 'Ghi Đã Ký' : 'Mark signed'}
+          </button>
+        ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi, savingNdaId]);
+
+  /** Cột bảng KYC dùng primitive `DataTable`. */
+  const kycColumns = useMemo<DataTableColumn<KycRow>[]>(() => [
+    {
+      key: 'user',
+      header: isVi ? 'Người dùng / Pháp nhân' : 'User / Entity',
+      value: (r) => r.displayName || '',
+      render: (r) => (
+        <div>
+          <div className="font-bold text-fg">{r.displayName}</div>
+          <div className="text-xs text-fg-subtle font-mono">{r.email}</div>
+          {r.company && <div className="text-xs text-primary">{r.company}</div>}
+        </div>
+      ),
+    },
+    { key: 'role', header: isVi ? 'Vai trò' : 'Role', value: (r) => r.role, render: (r) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted rounded-sm font-bold text-xs uppercase">{r.role}</span> },
+    {
+      key: 'kycStatus',
+      header: isVi ? 'Trạng thái KYC' : 'KYC status',
+      value: (r) => r.kycStatus,
+      render: (r) => (
+        <span
+          className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+            r.kycStatus === 'verified'
+              ? 'bg-positive-tint text-positive border border-positive/30'
+              : r.kycStatus === 'pending_review'
+              ? 'bg-warning-tint text-warning border border-warning/30'
+              : r.kycStatus === 'rejected'
+              ? 'bg-danger-tint text-danger border border-danger/30'
+              : 'bg-surface-muted text-fg-muted'
+          }`}
+        >
+          {r.kycStatus}
+        </span>
+      ),
+    },
+    {
+      key: 'accountStatus',
+      header: isVi ? 'Tài khoản' : 'Account',
+      value: (r) => r.accountStatus,
+      render: (r) => <span className={`text-xs font-bold uppercase ${r.accountStatus === 'active' ? 'text-positive' : 'text-danger'}`}>{r.accountStatus}</span>,
+    },
+    {
+      key: 'orders',
+      header: isVi ? 'Đơn / Chi tiêu' : 'Orders / Spend',
+      numeric: true,
+      value: (r) => r.totalSpent,
+      render: (r) => (
+        <div>
+          <div>{r.totalOrders}</div>
+          <div className="text-xs text-fg-subtle">{formatVnd(r.totalSpent)}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: isVi ? 'Thao tác' : 'Actions',
+      align: 'right',
+      render: (r) => (
+        <div className="flex items-center justify-end gap-1.5">
+          {r.kycStatus !== 'verified' && (
+            <button onClick={() => void handleApproveKyc(r)} className="px-2.5 py-1 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-sm cursor-pointer">
+              {isVi ? 'Duyệt' : 'Approve'}
+            </button>
+          )}
+          {r.kycStatus !== 'rejected' && (
+            <button onClick={() => setReviewingKyc(r)} className="px-2.5 py-1 bg-danger-tint text-danger text-xs font-bold rounded-sm cursor-pointer">
+              {isVi ? 'Từ chối' : 'Reject'}
+            </button>
+          )}
+          <button onClick={() => setReviewingKyc(r)} className="px-2.5 py-1 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-sm cursor-pointer">
+            {isVi ? 'Hồ sơ' : 'Review'}
+          </button>
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi]);
 
   return (
     <div className="space-y-6">
@@ -710,74 +846,14 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
               }
             />
             ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-canvas border-b border-line-subtle text-fg-subtle font-bold uppercase text-xs">
-                  <tr>
-                    <th className="py-3 px-4">{isVi ? 'Khách Hàng / Đơn Vị' : 'Client Entity'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Phân loại' : 'Type'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Mã số thuế' : 'Tax ID'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Ngày ký kết' : 'Signed Date'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Trạng thái' : 'Status'}</th>
-                    <th className="py-3 px-4 text-right">{isVi ? 'Hành động' : 'Actions'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line-subtle">
-                  {displayRows.map((c) => (
-                    <tr key={c.row.id} className="hover:bg-canvas/70 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-fg">
-                        <div>{c.name || '—'}</div>
-                        {c.company && <div className="text-xs text-fg-subtle font-normal">{c.company}</div>}
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <span className="px-2 py-0.5 bg-surface-muted font-bold text-xs rounded-sm text-fg-muted">
-                          {c.type}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 font-mono text-fg-muted">
-                        {c.row.taxId || '—'}
-                      </td>
-                      <td className="py-3.5 px-3 text-fg-subtle">
-                        {c.row.ndaSignedAt ? new Date(c.row.ndaSignedAt).toLocaleDateString('vi-VN') : '—'}
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                            c.row.ndaSigned
-                              ? 'bg-positive-tint text-positive'
-                              : 'bg-surface-muted text-fg-subtle'
-                          }`}
-                        >
-                          {c.row.ndaSigned
-                            ? (isVi ? 'Đã Ghi Nhận' : 'Signed')
-                            : (isVi ? 'Chưa Ký' : 'Unsigned')}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        {!c.row.ndaSigned && (
-                          <button
-                            onClick={() => void handleSetNda(c.row, true)}
-                            disabled={savingNdaId === c.row.id}
-                            className="px-3 py-1 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-sm cursor-pointer disabled:opacity-60"
-                          >
-                            {isVi ? 'Ghi Đã Ký' : 'Mark signed'}
-                          </button>
-                        )}
-                        {c.row.ndaSigned && (
-                          <button
-                            onClick={() => void handleSetNda(c.row, false)}
-                            disabled={savingNdaId === c.row.id}
-                            className="px-2.5 py-1 bg-danger-tint hover:bg-danger-tint text-danger text-xs font-semibold rounded-sm cursor-pointer disabled:opacity-60"
-                          >
-                            {isVi ? 'Thu Hồi' : 'Revoke'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<CustomerDisplayRow>
+              columns={customerColumns}
+              rows={displayRows}
+              getRowId={(row) => row.row.id}
+              caption={isVi ? 'Danh sách khách hàng' : 'Customer list'}
+              tableLabel={isVi ? 'Danh sách khách hàng' : 'Customer list'}
+              defaultSort={[{ key: 'name', direction: 'asc' }]}
+            />
             )}
           </div>
         </div>
@@ -975,98 +1051,21 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
               }
             />
             ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-canvas border-b border-line-subtle text-fg-subtle font-bold uppercase text-xs">
-                  <tr>
-                    <th className="py-3 px-4">{isVi ? 'Người dùng / Pháp nhân' : 'User / Entity'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Vai trò' : 'Role'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Trạng thái KYC' : 'KYC Status'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Tài khoản' : 'Account'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Đơn / Chi tiêu' : 'Orders / Spend'}</th>
-                    <th className="py-3 px-4 text-right">{isVi ? 'Thao tác' : 'Actions'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line-subtle">
-                  {isKycLoading && kycRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-fg-subtle">
-                        {isVi ? 'Đang tải hồ sơ KYC từ Supabase...' : 'Loading KYC profiles from Supabase...'}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredKycRows.map((r) => (
-                      <tr key={r.uid} className="hover:bg-canvas/70 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-fg">{r.displayName}</div>
-                          <div className="text-xs text-fg-subtle font-mono">{r.email}</div>
-                          {r.company && <div className="text-xs text-primary">{r.company}</div>}
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 bg-surface-muted text-fg-muted rounded-sm font-bold text-xs uppercase">
-                            {r.role}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                              r.kycStatus === 'verified'
-                                ? 'bg-positive-tint text-positive border border-positive/30'
-                                : r.kycStatus === 'pending_review'
-                                ? 'bg-warning-tint text-warning border border-warning/30 animate-pulse'
-                                : r.kycStatus === 'rejected'
-                                ? 'bg-danger-tint text-danger border border-danger/30'
-                                : 'bg-surface-muted text-fg-muted'
-                            }`}
-                          >
-                            {r.kycStatus}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span
-                            className={`text-xs font-bold uppercase ${
-                              r.accountStatus === 'active' ? 'text-positive' : 'text-danger'
-                            }`}
-                          >
-                            {r.accountStatus}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 font-mono text-fg-muted">
-                          <div>{r.totalOrders}</div>
-                          <div className="text-xs text-fg-subtle">{formatVnd(r.totalSpent)}</div>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {r.kycStatus !== 'verified' && (
-                              <button
-                                onClick={() => void handleApproveKyc(r)}
-                                className="px-2.5 py-1 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-sm cursor-pointer"
-                              >
-                                {isVi ? 'Duyệt' : 'Approve'}
-                              </button>
-                            )}
-                            {r.kycStatus !== 'rejected' && (
-                              <button
-                                onClick={() => setReviewingKyc(r)}
-                                className="px-2.5 py-1 bg-danger-tint hover:bg-danger-tint text-danger text-xs font-bold rounded-sm cursor-pointer"
-                              >
-                                {isVi ? 'Từ chối' : 'Reject'}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setReviewingKyc(r)}
-                              className="px-2.5 py-1 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-sm cursor-pointer"
-                            >
-                              {isVi ? 'Hồ sơ' : 'Review'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<KycRow>
+              columns={kycColumns}
+              rows={filteredKycRows}
+              getRowId={(row) => row.uid}
+              loading={isKycLoading && kycRows.length === 0}
+              caption={isVi ? 'Hồ sơ KYC' : 'KYC profiles'}
+              tableLabel={isVi ? 'Hồ sơ KYC' : 'KYC profiles'}
+              emptyState={
+                <EmptyState
+                  live
+                  title={isVi ? 'Không có hồ sơ KYC phù hợp' : 'No matching KYC profiles'}
+                  description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc trạng thái.' : 'Clear the search or change the status filter.'}
+                />
+              }
+            />
             )}
           </div>
 
