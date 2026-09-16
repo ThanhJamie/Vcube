@@ -6,7 +6,6 @@ import { ThreeModelViewer } from '../components/ThreeModelViewer';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { CustomIdeaRequestModal } from '../components/custom/CustomIdeaRequestModal';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
-import { MaterialComparisonMatrix } from '../components/MaterialComparisonMatrix';
 import { ServiceShowcaseSection } from '../components/services/ServiceShowcaseSection';
 import { SEOHead } from '../components/SEOHead';
 import { useLanguage } from '../context/LanguageContext';
@@ -114,7 +113,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const { language, t } = useLanguage();
   const isVi = language === 'vi';
   const locale = isVi ? 'vi-VN' : 'en-US';
-  const materialsList = materials && materials.length > 0 ? materials : MATERIALS_CATALOG;
   /**
    * D8/Đợt P: `DEFAULT_INKIRI_FORMULA_CONFIG` KHÔNG còn là nguồn giá trị. Không có cấu hình
    * thật ⇒ `null` và mọi con số phái sinh đều là `—` kèm InfoTip nêu ĐÍCH DANH thông số thiếu
@@ -1087,16 +1085,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span>{isVi ? 'Tải File Của Bạn Lên' : 'Upload Your CAD File'}</span>
             </Button>
           </Card>
-        </div>
-      </section>
-
-      {/* 4. Technical Material Comparison Matrix */}
-      <section id="material-comparison-matrix" className="py-20 sm:py-24 px-4 sm:px-6 md:px-12 bg-canvas border-t border-line">
-        <div className="max-w-7xl mx-auto">
-          <MaterialComparisonMatrix
-            materials={materialsList}
-            onNavigate={onNavigate}
-          />
         </div>
       </section>
 
