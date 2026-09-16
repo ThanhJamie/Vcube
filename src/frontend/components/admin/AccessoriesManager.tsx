@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AccessoryItem } from '../../types';
-import { Icon, InfoTip, ConfirmDialog } from '@frontend/ui';
+import { Icon, InfoTip, ConfirmDialog, DataTable, EmptyState } from '@frontend/ui';
+import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE } from '../../lib/format';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Đợt S (#1): phòng vệ cho cột nullable — hôm nay `rowToAccessory` vẫn quy NULL về `0`
@@ -47,6 +49,8 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
   onUpdateAccessories,
   onShowToast
 }) => {
+  const { language } = useLanguage();
+  const isVi = language === 'vi';
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [editingItem, setEditingItem] = useState<AccessoryItem | null>(null);
@@ -170,6 +174,176 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
   // Đợt T: chỉ đếm khi biết CẢ tồn kho LẪN ngưỡng (trước đây `null <= null` luôn `true` ⇒ báo động giả).
   const lowStockCount = accessories.filter(isLowStock).length;
 
+  /** Cột bảng phụ kiện dùng primitive `DataTable` (sort + phân trang + empty ngoài bảng). */
+  const accessoryColumns = useMemo<DataTableColumn<AccessoryItem>[]>(() => [
+    {
+      key: 'name',
+      header: isVi ? 'Tên Phụ Kiện / SKU' : 'Accessory / SKU',
+      value: (a) => a.name,
+      render: (item) => (
+        <div className="flex items-center gap-3">
+          {item.imageUrl ? (
+            <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-sm object-cover border border-line shrink-0" />
+          ) : (
+            <span className="w-10 h-10 rounded-sm border border-line bg-surface-muted text-fg-subtle flex items-center justify-center shrink-0">
+              <Icon name="inventory" size={18} />
+            </span>
+          )}
+          <div>
+            <p className="font-bold text-fg leading-snug">{item.name}</p>
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-fg-muted">
+              <span className="font-tech font-bold text-primary">{item.sku || '—'}</span>
+              {item.supplier && <span>• NCC: {item.supplier}</span>}
+            </div>
+            {item.compatibleWith && item.compatibleWith.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {item.compatibleWith.map((c, i) => (
+                  <span key={i} className="text-xs bg-surface-muted text-fg-muted px-1.5 py-0.5 rounded-sm font-sans">{c}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      header: isVi ? 'Phân Loại' : 'Category',
+      value: (a) => a.category,
+      render: (item) => (
+        <div>
+          <span className="px-2 py-0.5 bg-info-tint text-info rounded-sm text-xs font-bold capitalize">{item.category}</span>
+          <div className="text-xs text-fg-muted mt-0.5">ĐVT: {item.unit}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'costPrice',
+      header: isVi ? 'Giá Vốn Xưởng' : 'Cost price',
+      numeric: true,
+      value: (a) => a.costPrice ?? 0,
+      render: (item) => <span className="text-fg-muted">{numText(item.costPrice, ' đ')}</span>,
+    },
+    {
+      key: 'sellingPrice',
+      header: isVi ? 'Giá Báo Khách' : 'Sell price',
+      numeric: true,
+      value: (a) => a.sellingPrice ?? 0,
+      render: (item) => {
+        const grossMargin =
+          isMissingNum(item.sellingPrice) || isMissingNum(item.costPrice) || item.sellingPrice <= 0
+            ? null
+            : Math.round(((item.sellingPrice - item.costPrice) / item.sellingPrice) * 100);
+        return (
+          <div>
+            <span className="font-tech font-bold text-fg">{numText(item.sellingPrice, ' đ')}</span>
+            <div className={`text-xs font-tech font-semibold ${grossMargin === null ? 'text-fg-subtle' : 'text-positive'}`}>
+              {grossMargin === null ? `${EMPTY_VALUE} margin` : `+${grossMargin}% margin`}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'stockCount',
+      header: isVi ? 'Tồn Kho' : 'Stock',
+      align: 'center',
+      value: (a) => a.stockCount ?? 0,
+      render: (item) => {
+        const isLow = isLowStock(item);
+        const stockUnknown = isMissingNum(item.stockCount);
+        return (
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex items-center gap-1.5">
+              <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>{numText(item.stockCount)}</span>
+              <span className="text-xs text-fg-muted">{item.unit}</span>
+            </div>
+            {isLow && (
+              <span className="px-1.5 py-0.5 bg-danger-tint text-danger rounded-sm text-xs font-bold">
+                Sắp hết (&lt;={numText(item.lowStockThreshold)})
+              </span>
+            )}
+            <div className="flex items-center gap-1 mt-1">
+              {[
+                { delta: -10, label: '-10', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
+                { delta: 10, label: '+10', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
+                { delta: 50, label: '+50', cls: 'bg-positive-tint hover:bg-positive/20 text-positive' },
+              ].map((btn) => (
+                <button
+                  key={btn.delta}
+                  type="button"
+                  onClick={() => handleQuickStockAdjust(item.id, btn.delta)}
+                  className={`px-1.5 py-0.5 rounded-sm text-xs font-tech font-bold disabled:opacity-40 disabled:cursor-not-allowed ${btn.cls}`}
+                  disabled={stockUnknown}
+                  title={stockUnknown ? 'Chưa có số tồn kho — không điều chỉnh nhanh được' : btn.label}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'warehouseLocation',
+      header: isVi ? 'Vị Trí Kệ Kho' : 'Shelf location',
+      value: (a) => a.warehouseLocation || '',
+      render: (item) => (
+        <span className="flex items-center gap-1 font-tech font-bold text-primary">
+          <Icon name="shelves" size={16} />
+          {item.warehouseLocation || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'isActive',
+      header: isVi ? 'Trạng Thái' : 'Status',
+      align: 'center',
+      value: (a) => (a.isActive ? 'active' : 'hidden'),
+      render: (item) => (
+        <button
+          type="button"
+          onClick={() => handleToggleActive(item.id)}
+          aria-pressed={item.isActive}
+          className={`px-2.5 py-1 rounded-sm text-xs font-tech font-bold transition-colors ${
+            item.isActive ? 'bg-positive-tint text-positive hover:bg-positive/30' : 'bg-surface-muted text-fg-muted hover:bg-line-subtle'
+          }`}
+        >
+          {item.isActive ? 'Đang Dùng' : 'Tạm Ẩn'}
+        </button>
+      ),
+    },
+    {
+      key: 'actions',
+      header: isVi ? 'Thao Tác' : 'Actions',
+      align: 'right',
+      render: (item) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setEditingItem(item)}
+            className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-sm transition-colors"
+            aria-label={isVi ? `Sửa ${item.name}` : `Edit ${item.name}`}
+            title={isVi ? 'Chỉnh sửa thông số' : 'Edit'}
+          >
+            <Icon name="edit" size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDeleteItem(item.id, item.name)}
+            className="p-1.5 bg-danger-tint text-danger rounded-sm transition-colors"
+            aria-label={isVi ? `Xoá ${item.name}` : `Delete ${item.name}`}
+            title={isVi ? 'Xóa phụ kiện' : 'Delete'}
+          >
+            <Icon name="delete" size={16} />
+          </button>
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi]);
+
   return (
     <div className="space-y-6">
       <ConfirmDialog
@@ -257,211 +431,43 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
         </div>
       </div>
 
-      {/* Accessories Table */}
-      <div className="bg-surface rounded-sm overflow-hidden shadow-e1">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-surface-muted border-b border-line text-fg-muted uppercase font-tech text-xs tracking-wider">
-              <tr>
-                <th className="py-3 px-4">Tên Phụ Kiện / SKU</th>
-                <th className="py-3 px-4">Phân Loại</th>
-                <th className="py-3 px-4 text-right">Giá Vốn Xưởng</th>
-                <th className="py-3 px-4 text-right">Giá Báo Khách</th>
-                <th className="py-3 px-4 text-center">Tồn Kho</th>
-                <th className="py-3 px-4">Vị Trí Kệ Kho</th>
-                <th className="py-3 px-4 text-center">Trạng Thái</th>
-                <th className="py-3 px-4 text-right">Thao Tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-subtle">
-              {accessories.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-10 px-4 text-center">
-                    <Icon name="extension" size={32} className="text-fg-subtle mx-auto" />
-                    <p className="mt-2 text-sm font-bold text-fg">Chưa có phụ kiện nào trong cơ sở dữ liệu</p>
-                    <p className="mt-1 text-xs text-fg-muted max-w-xl mx-auto">
-                      Bảng <span className="font-tech">accessories</span> đang rỗng — nền tảng không tự sinh phụ kiện mẫu.
-                      Hãy thêm phụ kiện thật bằng nút "Thêm Phụ Kiện Mới".
-                    </p>
-                  </td>
-                </tr>
-              ) : filteredAccessories.length > 0 ? (
-                filteredAccessories.map((item) => {
-                  const isLow = isLowStock(item);
-                  const stockUnknown = isMissingNum(item.stockCount);
-                  // Đợt T: thiếu giá vốn hoặc giá bán ⇒ KHÔNG hiện "+0% margin" (số bịa).
-                  const grossMargin = isMissingNum(item.sellingPrice) || isMissingNum(item.costPrice) || item.sellingPrice <= 0
-                    ? null
-                    : Math.round(((item.sellingPrice - item.costPrice) / item.sellingPrice) * 100);
-
-                  return (
-                    <tr key={item.id} className="hover:bg-canvas/70 transition-colors">
-                      {/* Name & SKU */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          {item.imageUrl ? (
-                            <img
-                              src={item.imageUrl}
-                              alt={item.name}
-                              className="w-10 h-10 rounded-sm object-cover border border-line shrink-0"
-                            />
-                          ) : (
-                            <span className="w-10 h-10 rounded-sm border border-line bg-surface-muted text-fg-subtle flex items-center justify-center shrink-0">
-                              <Icon name="inventory" size={18} />
-                            </span>
-                          )}
-                          <div>
-                            <p className="font-bold text-fg leading-snug">{item.name}</p>
-                            <div className="flex items-center gap-2 mt-0.5 text-xs text-fg-muted">
-                              <span className="font-tech font-bold text-primary">{item.sku || '—'}</span>
-                              {item.supplier && <span>• NCC: {item.supplier}</span>}
-                            </div>
-                            {item.compatibleWith && item.compatibleWith.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {item.compatibleWith.map((c, i) => (
-                                  <span key={i} className="text-xs bg-surface-muted text-fg-muted px-1.5 py-0.2 rounded-sm font-sans">
-                                    {c}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Category */}
-                      <td className="py-3 px-4 font-sans text-fg-muted capitalize">
-                        <span className="px-2 py-0.5 bg-info-tint text-info rounded-sm text-xs font-bold">
-                          {item.category}
-                        </span>
-                        <div className="text-xs text-fg-muted mt-0.5">ĐVT: {item.unit}</div>
-                      </td>
-
-                      {/* Cost Price */}
-                      <td className="py-3 px-4 text-right font-tech text-fg-muted">
-                        {numText(item.costPrice, ' đ')}
-                      </td>
-
-                      {/* Selling Price */}
-                      <td className="py-3 px-4 text-right">
-                        <span className="font-tech font-bold text-fg">
-                          {numText(item.sellingPrice, ' đ')}
-                        </span>
-                        <div
-                          className={`text-xs font-tech font-semibold ${grossMargin === null ? 'text-fg-subtle' : 'text-positive'}`}
-                          title={grossMargin === null ? 'Chưa đủ giá vốn và giá bán để tính biên lợi nhuận' : undefined}
-                        >
-                          {grossMargin === null ? `${EMPTY_VALUE} margin` : `+${grossMargin}% margin`}
-                        </div>
-                      </td>
-
-                      {/* Stock Count with Quick Adjust */}
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>
-                              {numText(item.stockCount)}
-                            </span>
-                            <span className="text-xs text-fg-muted">{item.unit}</span>
-                          </div>
-
-                          {isLow && (
-                            <span className="px-1.5 py-0.2 bg-danger-tint text-danger rounded-sm text-xs font-bold animate-pulse">
-                              Sắp hết (&lt;={numText(item.lowStockThreshold)})
-                            </span>
-                          )}
-
-                          {/* Quick Adjust Buttons */}
-                          <div className="flex items-center gap-1 mt-1">
-                            <button
-                              type="button"
-                              onClick={() => handleQuickStockAdjust(item.id, -10)}
-                              className="px-1.5 py-0.5 bg-surface-muted hover:bg-line-subtle text-fg-muted rounded-sm text-xs font-tech font-bold disabled:opacity-40 disabled:cursor-not-allowed"
-                              disabled={stockUnknown}
-                              title={stockUnknown ? 'Chưa có số tồn kho — không điều chỉnh nhanh được' : 'Giảm 10'}
-                            >
-                              -10
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickStockAdjust(item.id, 10)}
-                              className="px-1.5 py-0.5 bg-surface-muted hover:bg-line-subtle text-fg-muted rounded-sm text-xs font-tech font-bold disabled:opacity-40 disabled:cursor-not-allowed"
-                              disabled={stockUnknown}
-                              title={stockUnknown ? 'Chưa có số tồn kho — không điều chỉnh nhanh được' : 'Thêm 10'}
-                            >
-                              +10
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickStockAdjust(item.id, 50)}
-                              className="px-1.5 py-0.5 bg-positive-tint hover:bg-positive/20 text-positive rounded-sm text-xs font-tech font-bold disabled:opacity-40 disabled:cursor-not-allowed"
-                              disabled={stockUnknown}
-                              title={stockUnknown ? 'Chưa có số tồn kho — không điều chỉnh nhanh được' : 'Nhập 50'}
-                            >
-                              +50
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Warehouse Location */}
-                      <td className="py-3 px-4 font-sans text-xs text-fg">
-                        <div className="flex items-center gap-1 font-tech font-bold text-primary">
-                          <Icon name="shelves" size={16} />
-                          {item.warehouseLocation || 'Chưa định vị'}
-                        </div>
-                      </td>
-
-                      {/* Status Toggle */}
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleActive(item.id)}
-                          className={`px-2.5 py-1 rounded-sm text-xs font-tech font-bold transition-all ${
-                            item.isActive
-                              ? 'bg-positive-tint text-positive hover:bg-positive/30'
-                              : 'bg-surface-muted text-fg-muted hover:bg-line-subtle'
-                          }`}
-                        >
-                          {item.isActive ? 'Đang Dùng' : 'Tạm Ẩn'}
-                        </button>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setEditingItem(item)}
-                            className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-sm transition-colors"
-                            title="Chỉnh sửa thông số"
-                          >
-                            <Icon name="edit" size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteItem(item.id, item.name)}
-                            className="p-1.5 bg-danger-tint hover:bg-danger-tint text-danger rounded-sm transition-colors"
-                            title="Xóa phụ kiện"
-                          >
-                            <Icon name="delete" size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-xs text-fg-muted">
-                    Không tìm thấy phụ kiện nào phù hợp với từ khóa hoặc bộ lọc.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* Accessories Table — primitive DataTable */}
+      {accessories.length === 0 ? (
+        <div className="bg-surface rounded-sm p-6 shadow-e1">
+          <EmptyState
+            icon={<Icon name="extension" size={20} />}
+            title={isVi ? 'Chưa có phụ kiện nào trong cơ sở dữ liệu' : 'No accessories yet'}
+            description={isVi
+              ? 'Bảng accessories đang rỗng — nền tảng không tự sinh phụ kiện mẫu. Hãy thêm phụ kiện thật.'
+              : 'The accessories table is empty — no sample data is generated. Add real accessories.'}
+            action={
+              <button
+                type="button"
+                onClick={() => setIsNewModalOpen(true)}
+                className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-lg cursor-pointer"
+              >
+                {isVi ? 'Thêm Phụ Kiện Mới' : 'Add accessory'}
+              </button>
+            }
+          />
         </div>
-      </div>
+      ) : (
+        <DataTable<AccessoryItem>
+          columns={accessoryColumns}
+          rows={filteredAccessories}
+          getRowId={(row) => row.id}
+          caption={isVi ? 'Danh sách phụ kiện' : 'Accessory list'}
+          tableLabel={isVi ? 'Danh sách phụ kiện' : 'Accessory list'}
+          defaultSort={[{ key: 'name', direction: 'asc' }]}
+          emptyState={
+            <EmptyState
+              live
+              title={isVi ? 'Không tìm thấy phụ kiện phù hợp' : 'No matching accessories'}
+              description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc phân loại.' : 'Clear the search or change the category filter.'}
+            />
+          }
+        />
+      )}
 
       {/* MODAL: Thêm Phụ Kiện Mới */}
       {isNewModalOpen && (
