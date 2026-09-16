@@ -10,13 +10,13 @@
 - **C3**: chặn giỏ rỗng, confetti sau khi lưu, money/formatCurrency, VAT loading, COD persist, CartDrawer (width/Unsplash/tap), OrderSuccess guest, MyOrders warranty, AssetLibrary.
 - **C4a–f**: admin write-path (accessories/materials/printers), formula qua service audited, nav `machines`, load orders, label `unit_price_multiplier`, estimator null-guard, region enum; **migration 36 cột `site_content`**; honest saves + ConfirmDialog + bỏ ảnh bịa + nullable `current_stock_grams`; **Designer** bỏ dữ liệu bịa (payout/overview/wizard/quote) + **RLS scope `custom_design_requests`**; Lab onboarding bước 4; Lab stats dedupe; **InvoiceModal → `<dialog>`**.
 - Ghi chú: migration `20260901` + `20261010` cần chạy lại trên DB (idempotent).
+- **Bổ sung**: `/quote` hết lộ giá vốn (`MachineComparisonModal showCost`), 3 modal tool3d + InvoiceModal + StlVs3mf + MachineComparison → `<dialog>`; Header drawer focus trap; Lab table loading/retry; Lab có hành động **"Đánh dấu đã giao"** (đơn tới `completed`); HomeView skeleton khi nạp catalog; Lab stats hết double-count.
 
-## Còn lại (chưa làm)
-- `DataTable` adoption cho admin/lab/designer (sort/pagination) — hiện dùng `<table>` tự chế.
-- Migrate ~30 overlay tự chế còn lại sang `Modal`/`Sheet` + `Header` drawer focus trap.
-- Lab: thêm trạng thái "delivered/completed" (pipeline MES hiện dừng ở "Xuất xưởng giao"); `onRetry`/loading cho các bảng.
-- Storefront: hero fit viewport (restructure), catalog skeleton, `content-visibility` cho list dài.
-- Đổi `picsum`/ảnh tham chiếu (nếu dùng `imagegen`) — chỉ nội bộ.
+## Còn lại (refactor lớn — không phải bug)
+- **DataTable adoption** cho các bảng admin/lab/designer còn dùng `<table>` tự chế (sort/pagination/bulk). Đây là refactor cơ học nhưng chạm nhiều file admin; nên làm theo từng panel.
+- Migrate ~28 overlay tự chế còn lại (admin/lab/designer) sang `Modal`/`Sheet`.
+- Storefront: hero fit viewport (restructure thiết kế), `content-visibility` cho list dài, i18n nốt vài chuỗi.
+- `AdminStorefrontPanel`/`AdminSeoPanel`: guard unsaved-changes khi điều hướng.
 - **C5**: verify browser 390/768/1440 (cần Playwright MCP hoặc kiểm thủ công).
 
 ## 1. Đã sửa ở Phase 1 (không báo lại)
