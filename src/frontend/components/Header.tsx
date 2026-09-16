@@ -4,7 +4,7 @@ import { CartItem, SiteContentConfig, UserRole } from '../types';
 import { useAuth, DEMO_ROLE_SWITCHER_ENABLED } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserAvatarMenu } from './auth/UserAvatarMenu';
-import { Icon } from '@frontend/ui';
+import { Icon, useBodyScrollLock } from '@frontend/ui';
 
 interface HeaderProps {
   currentScreen: string;
@@ -86,6 +86,41 @@ export const Header: React.FC<HeaderProps> = ({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
+  }, [mobileMenuOpen]);
+
+  // Khoá cuộn nền + focus trap + trả focus về phần tử đã mở khi đóng.
+  useBodyScrollLock(mobileMenuOpen);
+  const mobilePanelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const panel = mobilePanelRef.current;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const focusables = () =>
+      Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+    focusables()[0]?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const els = focusables();
+      if (els.length === 0) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus?.();
+    };
   }, [mobileMenuOpen]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -327,6 +362,7 @@ export const Header: React.FC<HeaderProps> = ({
           />
           <div
             id="vcube-mobile-nav"
+            ref={mobilePanelRef}
             role="dialog"
             aria-modal="true"
             aria-label={language === 'vi' ? 'Menu điều hướng' : 'Navigation menu'}

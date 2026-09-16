@@ -123,15 +123,18 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
 
   const [machines, setMachines] = useState<MyMachine[]>([]);
   const [machinesError, setMachinesError] = useState<string | null>(null);
+  const [loadingMachines, setLoadingMachines] = useState(false);
 
   const [materials, setMaterials] = useState<MyMaterial[]>([]);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
 
   const [logs, setLogs] = useState<MyInventoryLog[]>([]);
   const [logsError, setLogsError] = useState<string | null>(null);
 
   const [accessories, setAccessories] = useState<MyAccessory[]>([]);
   const [accessoriesError, setAccessoriesError] = useState<string | null>(null);
+  const [loadingAccessories, setLoadingAccessories] = useState(false);
 
   const [fleetCatalog, setFleetCatalog] = useState<PrinterFleetRef[]>([]);
   const [materialCatalog, setMaterialCatalog] = useState<MaterialCatalogRef[]>([]);
@@ -201,26 +204,32 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
 
   const loadMachines = useCallback(async () => {
     if (!workshopKey) return;
+    setLoadingMachines(true);
     const res = await workshopService.getMyMachines(workshopKey);
     setMachines(res.data);
     setMachinesError(res.error);
+    setLoadingMachines(false);
   }, [workshopKey]);
 
   const loadMaterialsAndLogs = useCallback(async () => {
     if (!workshopKey) return;
+    setLoadingMaterials(true);
     const res = await workshopService.getMyMaterials(workshopKey);
     setMaterials(res.data);
     setMaterialsError(res.error);
     const logRes = await workshopService.getMyInventoryLogs(res.data.map((m) => m.id));
     setLogs(logRes.data);
     setLogsError(logRes.error);
+    setLoadingMaterials(false);
   }, [workshopKey]);
 
   const loadAccessories = useCallback(async () => {
     if (!workshopKey) return;
+    setLoadingAccessories(true);
     const res = await workshopService.getMyAccessories(workshopKey);
     setAccessories(res.data);
     setAccessoriesError(res.error);
+    setLoadingAccessories(false);
   }, [workshopKey]);
 
   useEffect(() => {
@@ -1487,6 +1496,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
               pagination
               defaultPageSize={10}
               loading={loadingOrders}
+              onRetry={loadQueue}
               loadingLabel="Đang tải hàng đợi việc"
               error={ordersError}
               errorTitle="Không tải được hàng đợi việc"
@@ -1556,6 +1566,8 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
               caption="Máy in của xưởng"
               tableLabel="Máy in của xưởng"
               pagination={false}
+              loading={loadingMachines}
+              onRetry={loadMachines}
               error={machinesError}
               errorTitle="Không tải được danh sách máy in"
               emptyState={
@@ -1606,6 +1618,8 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
               caption="Vật liệu của xưởng"
               tableLabel="Vật liệu của xưởng"
               pagination={false}
+              loading={loadingMaterials}
+              onRetry={loadMaterialsAndLogs}
               error={materialsError}
               errorTitle="Không tải được danh sách vật liệu"
               emptyState={
@@ -1669,6 +1683,8 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
               caption="Phụ kiện của xưởng"
               tableLabel="Phụ kiện của xưởng"
               pagination={false}
+              loading={loadingAccessories}
+              onRetry={loadAccessories}
               error={accessoriesError}
               errorTitle="Không tải được danh sách phụ kiện"
               emptyState={

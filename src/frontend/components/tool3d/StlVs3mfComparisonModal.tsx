@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Icon } from '@frontend/ui';
+import React from 'react';
+import { Icon, Modal } from '@frontend/ui';
 
 interface StlVs3mfComparisonModalProps {
   isOpen: boolean;
@@ -8,20 +7,6 @@ interface StlVs3mfComparisonModalProps {
 }
 
 export const StlVs3mfComparisonModal: React.FC<StlVs3mfComparisonModalProps> = ({ isOpen, onClose }) => {
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   const comparisonData = [
@@ -76,35 +61,25 @@ export const StlVs3mfComparisonModal: React.FC<StlVs3mfComparisonModalProps> = (
     }
   ];
 
-  return createPortal(
-    <div 
-      className="fixed inset-0 z-[9999] bg-surface-inverse/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="xl"
+      showCloseButton={false}
+      title={
+        <span>
+          <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold block mb-1">
+            Tiêu Chuẩn Sản Xuất Bồi Đắp // 3MF vs STL Benchmark
+          </span>
+          <span className="block font-sans font-bold text-lg sm:text-xl text-fg">
+            So Sánh Kỹ Thuật: Định Dạng STL &amp; 3MF
+          </span>
+        </span>
+      }
     >
-      <div className="bg-surface rounded-lg max-w-3xl w-full max-h-[90vh] flex flex-col shadow-e3 animate-in zoom-in-95 duration-200 overflow-hidden my-auto">
-        {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-line flex items-center justify-between bg-canvas shrink-0">
-          <div>
-            <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold block mb-1">
-              Tiêu Chuẩn Sản Xuất Bồi Đắp // 3MF vs STL Benchmark
-            </span>
-            <h2 className="font-sans font-bold text-lg sm:text-xl text-fg">
-              So Sánh Kỹ Thuật: Định Dạng STL & 3MF
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-line-subtle text-fg-muted hover:text-fg transition-colors rounded-lg cursor-pointer"
-            title="Đóng (ESC)"
-          >
-            <Icon name="close" size={24} />
-          </button>
-        </div>
-
         {/* Content Table */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-4">
+        <div className="p-5 sm:p-6 space-y-4">
           <p className="text-xs text-fg-muted leading-relaxed">
             <strong className="text-fg">3MF (3D Manufacturing Format)</strong> là định dạng chuẩn mở được phát triển bởi 
             <em className="text-primary font-semibold"> 3MF Consortium</em> (gồm Microsoft, Autodesk, HP, Prusa, Bambu Lab). 
@@ -157,13 +132,11 @@ export const StlVs3mfComparisonModal: React.FC<StlVs3mfComparisonModalProps> = (
         <div className="p-4 sm:p-5 border-t border-line bg-canvas flex justify-end shrink-0">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 bg-surface-inverse hover:bg-surface-inverse text-on-inverse text-xs font-mono uppercase tracking-wider font-bold rounded-lg transition-all shadow-e1 cursor-pointer"
+            className="px-6 py-2.5 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse text-xs font-mono uppercase tracking-wider font-bold rounded-lg transition-colors shadow-e1 cursor-pointer"
           >
             Đã Hiểu Tiêu Chuẩn 3MF
           </button>
         </div>
-      </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };
