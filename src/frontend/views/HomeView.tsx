@@ -365,7 +365,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
               {/* Instant CAD Dropzone Widget */}
               <div
+                role="button"
+                tabIndex={0}
+                aria-label={isVi ? 'Tải tệp CAD lên để báo giá' : 'Upload a CAD file to quote'}
                 onClick={() => heroFileInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    heroFileInputRef.current?.click();
+                  }
+                }}
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -544,21 +553,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 {/* Bottom Footer Action Bar on 3D Chassis */}
-                <div className="px-4 py-3 bg-surface-inverse/95 border-t border-line-subtle flex flex-col sm:flex-row items-center justify-between gap-3 z-10">
+                <div className="px-4 py-3 bg-surface-inverse/95 border-t border-line-subtle flex items-center justify-center gap-3 z-10">
                   <div className="flex items-center gap-2 text-xs font-mono text-on-inverse/70">
                     <Icon name="touch_app" size={16} className="text-accent shrink-0" />
                     <span>
                       {isVi ? 'Kéo chuột để xoay 360° • Cuộn để thu phóng' : 'Drag to rotate 360° • Scroll to zoom'}
                     </span>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => onNavigate('quote')}
-                    leadingIcon={<Icon name="upload_file" size={16} />}
-                    className="shrink-0 w-full sm:w-auto shadow-md shadow-primary/20"
-                  >
-                    <span>{isVi ? 'Báo Giá Mẫu Này' : 'Quote This Model'}</span>
-                  </Button>
                 </div>
               </div>
 
@@ -800,8 +801,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 >
                   {/* Card Image Area with Quick 3D Inspect Overlay */}
                   <div
-                    className="relative aspect-4/3 bg-surface-muted border-b border-line cursor-pointer overflow-hidden"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={isVi ? `Xem chi tiết: ${product.name}` : `View details: ${product.name}`}
+                    className="relative aspect-4/3 bg-surface-muted border-b border-line cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => handleSelectProductAction(product, 'product_detail')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSelectProductAction(product, 'product_detail');
+                      }
+                    }}
                   >
                     <img
                       src={product.thumbnailUrl || product.images?.[0]}
@@ -866,12 +876,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       </div>
 
                       {/* Title */}
-                      <h3
+                      <button
+                        type="button"
                         onClick={() => handleSelectProductAction(product, 'product_detail')}
-                        className="font-bold text-base text-fg hover:text-primary transition-colors cursor-pointer line-clamp-2 leading-snug"
+                        className="font-bold text-base text-fg hover:text-primary transition-colors cursor-pointer line-clamp-2 leading-snug text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                       >
                         {product.name}
-                      </h3>
+                      </button>
 
                       {/* CAD Specs Micro Grid */}
                       <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-line-subtle font-tech text-xs text-fg-muted">
@@ -974,13 +985,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <table className="w-full text-left text-xs font-sans">
                   <thead className="bg-surface-muted text-fg-muted border-b border-line font-tech text-xs uppercase tracking-wider">
                     <tr>
-                      <th className="py-3 px-4">Linh Kiện CAD</th>
-                      <th className="py-3 px-3">Danh Mục</th>
-                      <th className="py-3 px-3">Kích Thước</th>
-                      <th className="py-3 px-3">Thời Gian In</th>
-                      <th className="py-3 px-3">Giá File Số</th>
-                      <th className="py-3 px-3">Giá In Vật Lý</th>
-                      <th className="py-3 px-4 text-right">Thao Tác</th>
+                      <th className="py-3 px-4">{isVi ? 'Linh Kiện CAD' : 'CAD Part'}</th>
+                      <th className="py-3 px-3">{isVi ? 'Danh Mục' : 'Category'}</th>
+                      <th className="py-3 px-3">{isVi ? 'Kích Thước' : 'Dimensions'}</th>
+                      <th className="py-3 px-3">{isVi ? 'Thời Gian In' : 'Print time'}</th>
+                      <th className="py-3 px-3">{isVi ? 'Giá File Số' : 'Digital price'}</th>
+                      <th className="py-3 px-3">{isVi ? 'Giá In Vật Lý' : 'Physical price'}</th>
+                      <th className="py-3 px-4 text-right">{isVi ? 'Thao Tác' : 'Actions'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line-subtle">
@@ -994,12 +1005,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               className="w-12 h-12 object-cover rounded-md shrink-0"
                             />
                             <div>
-                              <h4
+                              <button
+                                type="button"
                                 onClick={() => handleSelectProductAction(product, 'product_detail')}
-                                className="font-bold text-sm text-fg hover:text-primary cursor-pointer"
+                                className="font-bold text-sm text-fg hover:text-primary cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                               >
                                 {product.name}
-                              </h4>
+                              </button>
                               <span className="text-xs text-fg-muted font-tech block">
                                 By {product.designer || EMPTY_VALUE} • SKU: {product.sku || EMPTY_VALUE}
                               </span>

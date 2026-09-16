@@ -1020,18 +1020,19 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             )}
                           </div>
 
-                          <h3
+                          <button
+                            type="button"
                             onClick={() => {
                               onSelectProduct(product);
                               onNavigate('product_detail', { product });
                             }}
-                            className="font-bold text-sm text-fg hover:text-primary transition-colors cursor-pointer line-clamp-2 leading-snug"
-                            title={product.name}
-                          >
-                            {product.name}
-                          </h3>
+                            className="font-bold text-sm text-fg hover:text-primary transition-colors cursor-pointer line-clamp-2 leading-snug text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                             title={product.name}
+                           >
+                             {product.name}
+                           </button>
 
-                          {/* Thông số thật của sản phẩm; thiếu dữ liệu ⇒ không hiện */}
+                           {/* Thông số thật của sản phẩm; thiếu dữ liệu ⇒ không hiện */}
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-fg-muted">
                             {product.specs?.dimensions && (
                               <span className="inline-flex items-center gap-1">
@@ -1169,12 +1170,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   <table className="w-full text-left text-xs font-sans">
                     <thead className="bg-surface-muted text-fg-muted border-b border-line font-mono text-xs uppercase tracking-wider">
                       <tr>
-                        <th className="py-3 px-4">Linh Kiện CAD</th>
-                        <th className="py-3 px-3">Danh Mục</th>
-                        <th className="py-3 px-3">Kích Thước</th>
+                        <th className="py-3 px-4">{isVi ? 'Linh Kiện CAD' : 'CAD Part'}</th>
+                        <th className="py-3 px-3">{isVi ? 'Danh Mục' : 'Category'}</th>
+                        <th className="py-3 px-3">{isVi ? 'Kích Thước' : 'Dimensions'}</th>
                         <th className="py-3 px-3">
                           <span className="inline-flex items-center gap-1">
-                            Thời Gian In
+                            {isVi ? 'Thời Gian In' : 'Print time'}
                             <InfoTip label={isVi ? 'Ô "—" ở cột này nghĩa là gì?' : 'What does "—" in this column mean?'}>
                               {isVi
                                 ? 'Người bán chưa khai thời gian in cho bản vẽ này. Ô để trống hiện — thay vì một con số đoán hộ.'
