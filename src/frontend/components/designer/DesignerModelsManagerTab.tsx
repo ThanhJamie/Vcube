@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../../../types';
 import { ThreeModelViewer } from '../ThreeModelViewer';
-import { Button, ConfirmDialog, DataTable, EmptyState, Icon } from '@frontend/ui';
+import { Button, ConfirmDialog, DataTable, EmptyState, Icon, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';
 import { useLanguage } from '../../context/LanguageContext';
@@ -322,23 +322,12 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
 
       {/* MODAL 1: EDIT PRODUCT DETAILS & PRICING */}
       {editingProduct && (
-        <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-surface rounded-lg max-w-2xl w-full p-6 space-y-4 text-fg shadow-e3 my-8">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <div className="flex items-center gap-2">
-                <Icon name="edit" size={24} className="text-primary" />
-                <h3 className="font-bold text-sm text-fg uppercase">
-                  Chỉnh Sửa Ấn Phẩm &amp; Giá In (Catalog DB)
-                </h3>
-              </div>
-              <button
-                onClick={() => setEditingProduct(null)}
-                className="text-fg-subtle hover:text-fg"
-              >
-                ✕
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setEditingProduct(null)}
+          size="lg"
+          title={<span className="flex items-center gap-2"><Icon name="edit" size={22} className="text-primary" />{isVi ? 'Chỉnh Sửa Ấn Phẩm & Giá In (Catalog DB)' : 'Edit model & pricing'}</span>}
+        >
             <form onSubmit={handleSaveEditProduct} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -527,28 +516,18 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL 2: 3D PREVIEW INSPECTION */}
       {previewProduct && (
-        <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-4">
-          <div className="bg-surface rounded-lg max-w-2xl w-full p-6 space-y-4 text-fg shadow-e3">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <div>
-                <h3 className="font-bold text-sm text-fg">{previewProduct.name}</h3>
-                <p className="text-xs font-tech text-fg-muted">
-                  SKU: {previewProduct.sku || '—'} • {previewProduct.category}
-                </p>
-              </div>
-              <button
-                onClick={() => setPreviewProduct(null)}
-                className="text-fg-subtle hover:text-fg"
-              >
-                ✕
-              </button>
-            </div>
+        <Modal
+          open
+          onClose={() => setPreviewProduct(null)}
+          size="lg"
+          title={previewProduct.name}
+          description={`SKU: ${previewProduct.sku || '—'} • ${previewProduct.category}`}
+        >
 
             <div className="bg-surface-inverse border border-surface-inverse-raised rounded-sm p-2">
               <ThreeModelViewer
@@ -599,8 +578,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                 Chỉnh Sửa Bản Vẽ Này
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
