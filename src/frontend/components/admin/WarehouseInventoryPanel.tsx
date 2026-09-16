@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MaterialProfile, AccessoryItem } from '../../types';
-import { Icon, InfoTip } from '@frontend/ui';
+import { Icon, InfoTip, DataTable, EmptyState } from '@frontend/ui';
+import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE } from '../../lib/format';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Đợt S (#1): `materials.cost_per_kg` / `price_per_gram` / `stock_rolls_count` … nay là
@@ -65,6 +67,8 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
   onUpdateAccessories,
   onShowToast
 }) => {
+  const { language } = useLanguage();
+  const isVi = language === 'vi';
   const [filterType, setFilterType] = useState<'all' | 'materials' | 'accessories' | 'low_stock'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
@@ -154,6 +158,114 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
     onUpdateAccessories(updated);
     onShowToast(`Đã cập nhật tồn kho phụ kiện (${delta > 0 ? `+${delta}` : delta})`);
   };
+
+  const filteredMaterials = useMemo(
+    () =>
+      materials.filter((m) => {
+        const matchSearch =
+          m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (m.brand || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchLow = filterType !== 'low_stock' || isMaterialLow(m);
+        return matchSearch && matchLow;
+      }),
+    [materials, searchTerm, filterType]
+  );
+
+  /** Cột bảng vật liệu dùng primitive `DataTable`. */
+  const materialColumns = useMemo<DataTableColumn<MaterialProfile>[]>(() => [
+    {
+      key: 'name',
+      header: isVi ? 'Tên Vật Liệu' : 'Material',
+      value: (m) => m.name,
+      render: (mat) => (
+        <div className="flex items-center gap-2">
+          <div className="flex -space-x-1">
+            {mat.colors.slice(0, 3).map((col, idx) => (
+              <span key={idx} className="w-3.5 h-3.5 rounded-full border border-line shadow-e1 inline-block" style={{ backgroundColor: col }} />
+            ))}
+          </div>
+          <div>
+            <p className="font-bold text-fg">{mat.name}</p>
+            <p className="text-xs text-fg-muted">{mat.recommendedFor || '—'}</p>
+          </div>
+        </div>
+      ),
+    },
+    { key: 'brand', header: isVi ? 'Thương Hiệu' : 'Brand', value: (m) => m.brand || '', render: (mat) => <span className="text-fg-muted">{mat.brand || '—'}</span> },
+    {
+      key: 'costPerKg',
+      header: isVi ? 'Giá Vốn / kg' : 'Cost / kg',
+      numeric: true,
+      value: (m) => costPerKgOf(m) ?? 0,
+      render: (mat) => <span className="text-fg-muted">{numText(costPerKgOf(mat), ' đ')}</span>,
+    },
+    {
+      key: 'pricePerGram',
+      header: isVi ? 'Giá Báo / g' : 'Price / g',
+      numeric: true,
+      value: (m) => m.pricePerGram ?? 0,
+      render: (mat) => <span className="font-bold text-primary">{numText(mat.pricePerGram, ' đ/g')}</span>,
+    },
+    {
+      key: 'stockRollsCount',
+      header: isVi ? 'Tồn Kho (Cuộn)' : 'Stock (rolls)',
+      align: 'center',
+      value: (m) => m.stockRollsCount ?? 0,
+      render: (mat) => {
+        const count = declaredNumber(mat.stockRollsCount);
+        const isLow = isMaterialLow(mat);
+        return (
+          <div className="flex flex-col items-center">
+            <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>{numText(count, ' cuộn')}</span>
+            {isLow && (
+              <span className="text-xs font-bold text-danger bg-danger-tint px-1.5 py-0.5 rounded-sm mt-0.5">
+                Cần nhập thêm (&lt;={MATERIAL_LOW_STOCK_THRESHOLD})
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'quoteStatus',
+      header: isVi ? 'Trạng Thái Báo Giá' : 'Quote status',
+      align: 'center',
+      render: (mat) => {
+        const count = declaredNumber(mat.stockRollsCount);
+        if (count === null) {
+          return <span className="px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-surface-muted text-fg-muted">{isVi ? 'Chưa khai tồn' : 'Stock not declared'}</span>;
+        }
+        if (mat.inStock && count > 0) {
+          return <span className="px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-positive-tint text-positive">{isVi ? 'Sẵn Sàng Cho Khách' : 'Available'}</span>;
+        }
+        return <span className="px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-danger-tint text-danger">{isVi ? 'Tạm Hết Hàng' : 'Out of stock'}</span>;
+      },
+    },
+    {
+      key: 'actions',
+      header: isVi ? 'Nhập / Xuất Kho' : 'Adjust stock',
+      align: 'right',
+      render: (mat) => (
+        <div className="flex items-center justify-end gap-1">
+          {[
+            { delta: -1, label: '-1', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
+            { delta: 1, label: '+1', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
+            { delta: 5, label: '+5', cls: 'bg-positive-tint hover:bg-positive/20 text-positive' },
+          ].map((btn) => (
+            <button
+              key={btn.delta}
+              type="button"
+              onClick={() => handleMaterialStockAdjust(mat.id, btn.delta)}
+              className={`px-2 py-1 rounded-sm font-tech font-bold text-xs ${btn.cls}`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi]);
 
   return (
     <div className="space-y-6">
@@ -333,128 +445,21 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface-muted border-b border-line text-fg-muted uppercase font-tech text-xs tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-4">Tên Vật Liệu</th>
-                  <th className="py-2.5 px-4">Thương Hiệu</th>
-                  <th className="py-2.5 px-4 text-right">Giá Vốn / kg</th>
-                  <th className="py-2.5 px-4 text-right">Giá Báo / g</th>
-                  <th className="py-2.5 px-4 text-center">Tồn Kho (Cuộn)</th>
-                  <th className="py-2.5 px-4 text-center">Trạng Thái Báo Giá</th>
-                  <th className="py-2.5 px-4 text-right">Nhập / Xuất Kho</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-subtle">
-                {materials
-                  .filter(m => {
-                    const matchSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      (m.brand || '').toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchLow = filterType !== 'low_stock' || isMaterialLow(m);
-                    return matchSearch && matchLow;
-                  })
-                  .map((mat) => {
-                    // `null` = CHƯA khai tồn ⇒ hiện `—`, KHÔNG hiện `0`, KHÔNG gắn "sắp hết".
-                    const count = declaredNumber(mat.stockRollsCount);
-                    const isLow = isMaterialLow(mat);
-                    const costKg = costPerKgOf(mat);
-
-                    return (
-                      <tr key={mat.id} className="hover:bg-canvas transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex -space-x-1">
-                              {mat.colors.slice(0, 3).map((col, idx) => (
-                                <span
-                                  key={idx}
-                                  className="w-3.5 h-3.5 rounded-full border border-line shadow-e1 inline-block"
-                                  style={{ backgroundColor: col }}
-                                />
-                              ))}
-                            </div>
-                            <div>
-                              <p className="font-bold text-fg">{mat.name}</p>
-                              <p className="text-xs text-fg-muted">{mat.recommendedFor || 'In mẫu kỹ thuật'}</p>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4 font-sans text-fg-muted">
-                          {mat.brand}
-                        </td>
-
-                        <td className="py-3 px-4 text-right font-tech text-fg-muted">
-                          {numText(costKg, ' đ')}
-                        </td>
-
-                        <td className="py-3 px-4 text-right font-tech font-bold text-primary">
-                          {numText(mat.pricePerGram, ' đ/g')}
-                        </td>
-
-                        <td className="py-3 px-4 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>
-                              {numText(count, ' cuộn')}
-                            </span>
-                            {isLow && (
-                              <span className="text-xs font-bold text-danger bg-danger-tint px-1.5 py-0.2 rounded-sm mt-0.5">
-                                Cần nhập thêm (&lt;={MATERIAL_LOW_STOCK_THRESHOLD})
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4 text-center">
-                          {count === null ? (
-                            <span className="px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-surface-muted text-fg-muted">
-                              Chưa khai tồn
-                            </span>
-                          ) : mat.inStock && count > 0 ? (
-                            <span className="px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-positive-tint text-positive">
-                              Sẵn Sàng Cho Khách
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-danger-tint text-danger">
-                              Tạm Hết Hàng
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleMaterialStockAdjust(mat.id, -1)}
-                              className="px-2 py-1 bg-surface-muted hover:bg-line-subtle text-fg-muted rounded-sm font-tech font-bold text-xs"
-                              title="Xuất 1 cuộn"
-                            >
-                              -1
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMaterialStockAdjust(mat.id, 1)}
-                              className="px-2 py-1 bg-surface-muted hover:bg-line-subtle text-fg-muted rounded-sm font-tech font-bold text-xs"
-                              title="Nhập 1 cuộn"
-                            >
-                              +1
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMaterialStockAdjust(mat.id, 5)}
-                              className="px-2 py-1 bg-positive-tint hover:bg-positive/20 text-positive rounded-sm font-tech font-bold text-xs"
-                              title="Nhập 5 cuộn"
-                            >
-                              +5
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<MaterialProfile>
+            columns={materialColumns}
+            rows={filteredMaterials}
+            getRowId={(row) => row.id}
+            caption={isVi ? 'Tồn kho vật liệu' : 'Material inventory'}
+            tableLabel={isVi ? 'Tồn kho vật liệu' : 'Material inventory'}
+            defaultSort={[{ key: 'name', direction: 'asc' }]}
+            emptyState={
+              <EmptyState
+                live
+                title={isVi ? 'Không có vật liệu phù hợp' : 'No matching materials'}
+                description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc.' : 'Clear the search or change the filter.'}
+              />
+            }
+          />
         </div>
       )}
 
