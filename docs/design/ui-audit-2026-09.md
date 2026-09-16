@@ -3,6 +3,22 @@
 > Nguồn: 7 audit agent (E1–E7) theo `docs/design/taste-contract.md`, sau commit `41302c0`.
 > **Cách dùng**: đây là backlog thi công UI/UX. Bất biến repo (data-honesty, token, icon, light-first) luôn thắng skill.
 
+## 0. Đã xử lý (cập nhật cuối)
+- **Phase 1**: FAB, ModelViewer3D on-demand, `/quote` (input value, try/finally, money guard + boundary, file picker, STL unit modal), icon glyphs/gate.
+- **C1**: `h-dvh`, sàn chữ 12px, hex/token, reduced-motion JS.
+- **C2a/C2b**: header, CadQuickView honesty, MaterialComparisonMatrix (dùng `materials` thật), ProductDetail slicer, ServiceShowcase, hero telemetry, Personalize default, CustomIdea targetSpecs, i18n header bảng, keyboard a11y, bỏ CTA trùng.
+- **C3**: chặn giỏ rỗng, confetti sau khi lưu, money/formatCurrency, VAT loading, COD persist, CartDrawer (width/Unsplash/tap), OrderSuccess guest, MyOrders warranty, AssetLibrary.
+- **C4a–f**: admin write-path (accessories/materials/printers), formula qua service audited, nav `machines`, load orders, label `unit_price_multiplier`, estimator null-guard, region enum; **migration 36 cột `site_content`**; honest saves + ConfirmDialog + bỏ ảnh bịa + nullable `current_stock_grams`; **Designer** bỏ dữ liệu bịa (payout/overview/wizard/quote) + **RLS scope `custom_design_requests`**; Lab onboarding bước 4; Lab stats dedupe; **InvoiceModal → `<dialog>`**.
+- Ghi chú: migration `20260901` + `20261010` cần chạy lại trên DB (idempotent).
+
+## Còn lại (chưa làm)
+- `DataTable` adoption cho admin/lab/designer (sort/pagination) — hiện dùng `<table>` tự chế.
+- Migrate ~30 overlay tự chế còn lại sang `Modal`/`Sheet` + `Header` drawer focus trap.
+- Lab: thêm trạng thái "delivered/completed" (pipeline MES hiện dừng ở "Xuất xưởng giao"); `onRetry`/loading cho các bảng.
+- Storefront: hero fit viewport (restructure), catalog skeleton, `content-visibility` cho list dài.
+- Đổi `picsum`/ảnh tham chiếu (nếu dùng `imagegen`) — chỉ nội bộ.
+- **C5**: verify browser 390/768/1440 (cần Playwright MCP hoặc kiểm thủ công).
+
 ## 1. Đã sửa ở Phase 1 (không báo lại)
 FAB (rAF + overlap khi ngừng cuộn), ModelViewer3D on-demand loop + FPS ref, `/quote` file input value + try/finally, money guard QuoteSummaryPanel + PanelErrorBoundary, icon glyphs + touch affordance, CadQuickView/StlUnitConfirm → `<dialog>`, header blur, reduced-motion toàn cục, gate `check-icon-names`.
 
