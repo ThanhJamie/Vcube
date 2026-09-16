@@ -3,7 +3,8 @@ import { useDesignerAdminStore, DesignerRow } from '../../../../stores/useDesign
 import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { AppUserProfile } from '../../../../types';
-import { Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import { Button, DataTable, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import type { DataTableColumn } from '@frontend/ui';
 
 export interface Group2DesignersPanelProps {
   onShowToast?: (message: string) => void;
@@ -188,6 +189,32 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
         : `Failed to change tier: ${res.error}`
     );
   };
+
+  /** Cột bảng thống kê designer dùng primitive `DataTable`. */
+  const analyticsColumns = useMemo<DataTableColumn<DesignerRow>[]>(() => [
+    {
+      key: 'designer',
+      header: 'Designer',
+      value: (d) => d.displayName || d.id,
+      render: (d) => (
+        <div>
+          <div className="font-bold text-fg">{d.displayName || '—'}</div>
+          <div className="text-xs text-fg-subtle font-mono">{d.id}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'royaltyPercent',
+      header: isVi ? 'Trần hoa hồng' : 'Royalty cap',
+      numeric: true,
+      value: (d) => d.royaltyPercent ?? 0,
+      render: (d) => <span className="font-bold text-primary">{d.royaltyPercent !== null ? `${d.royaltyPercent}%` : '—'}</span>,
+    },
+    { key: 'totalSales', header: 'total_sales', numeric: true, value: (d) => d.totalSales ?? 0, render: (d) => numOrDash(d.totalSales) },
+    { key: 'rating', header: isVi ? 'Đánh giá' : 'Rating', numeric: true, value: (d) => d.rating ?? 0, render: (d) => numOrDash(d.rating) },
+    { key: 'verifiedStatus', header: isVi ? 'Xác thực' : 'Verified', value: (d) => d.verifiedStatus || '', render: (d) => <span className="text-fg-muted">{d.verifiedStatus || '—'}</span> },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi]);
 
   return (
     <div className="space-y-6">
@@ -652,35 +679,14 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
               }
             />
           ) : (
-            <div className="overflow-x-auto bg-surface rounded-lg border border-line-subtle shadow-e0">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-canvas border-b border-line-subtle text-fg-subtle font-bold uppercase text-xs">
-                  <tr>
-                    <th className="py-3 px-4">Designer</th>
-                    <th className="py-3 px-3">{isVi ? 'Trần hoa hồng' : 'Royalty cap'}</th>
-                    <th className="py-3 px-3">total_sales</th>
-                    <th className="py-3 px-3">{isVi ? 'Đánh giá' : 'Rating'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Xác thực' : 'Verified'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line-subtle">
-                  {designers.map((d) => (
-                    <tr key={d.id} className="hover:bg-canvas/70 transition-colors">
-                      <td className="py-3 px-4 font-bold text-fg">
-                        <div>{d.displayName || '—'}</div>
-                        <div className="text-xs text-fg-subtle font-mono">{d.id}</div>
-                      </td>
-                      <td className="py-3 px-3 font-mono font-bold text-primary">
-                        {d.royaltyPercent !== null ? `${d.royaltyPercent}%` : '—'}
-                      </td>
-                      <td className="py-3 px-3 font-mono text-fg">{numOrDash(d.totalSales)}</td>
-                      <td className="py-3 px-3 font-mono text-fg">{numOrDash(d.rating)}</td>
-                      <td className="py-3 px-3 text-fg-muted">{d.verifiedStatus || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<DesignerRow>
+              columns={analyticsColumns}
+              rows={designers}
+              getRowId={(row) => row.id}
+              caption={isVi ? 'Thống kê theo designer' : 'Per-designer analytics'}
+              tableLabel={isVi ? 'Thống kê theo designer' : 'Per-designer analytics'}
+              defaultSort={[{ key: 'totalSales', direction: 'desc' }]}
+            />
           )}
         </div>
       )}
