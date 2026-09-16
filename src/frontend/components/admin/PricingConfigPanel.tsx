@@ -30,7 +30,7 @@ interface PricingConfigPanelProps {
   onUpdateMaterials: (materials: MaterialProfile[]) => void;
   onUpdatePrinters: (printers: PrinterProfile[]) => void;
   onUpdateAccessories: (accessories: AccessoryItem[]) => void;
-  onUpdatePricingConfig: (config: InkiriCostFormulaConfig) => void;
+  onUpdatePricingConfig: (config: InkiriCostFormulaConfig) => Promise<{ success: boolean; error?: string }> | void;
   onShowToast: (message: string) => void;
 }
 
@@ -408,7 +408,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
   };
 
   // Handle Save Formula — CHẶN LƯU khi còn trường chưa cấu hình (không ghi số đoán vào DB).
-  const handleSaveFormula = (e?: React.SyntheticEvent) => {
+  const handleSaveFormula = async (e?: React.SyntheticEvent) => {
     e?.preventDefault();
     if (dbFormulaState === 'error') {
       onShowToast('KHÔNG lưu: không đọc được cấu hình hiện tại từ Supabase — tránh ghi đè bằng dữ liệu tạm.');
@@ -421,10 +421,14 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
       onShowToast(`KHÔNG lưu: còn ${count} trường chưa cấu hình hoặc không hợp lệ — xem lỗi ngay cạnh từng ô nhập.`);
       return;
     }
-    onUpdatePricingConfig(formulaForm as unknown as InkiriCostFormulaConfig);
-    // Đợt U: admin đã xem và bấm LƯU ⇒ form không còn là số mẫu nữa (băng-rôn tắt).
+    // Chỉ báo thành công khi DB THẬT SỰ nhận (service validate + audit); nếu không, nêu lỗi thật.
+    const result = await onUpdatePricingConfig(formulaForm as unknown as InkiriCostFormulaConfig);
     setFormulaIsReference(false);
-    onShowToast('Đã lưu cấu hình công thức tính giá Inkiri toàn hệ thống!');
+    if (!result || result.success) {
+      onShowToast('Đã lưu cấu hình công thức tính giá Inkiri toàn hệ thống!');
+    } else {
+      onShowToast(`KHÔNG lưu được công thức: ${result.error || 'lỗi không xác định'}`);
+    }
   };
 
   // Handle Save `pricing_global_settings` (VAT · điện · nhân công)
@@ -2593,7 +2597,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 </div>
 
                 <div>
-                  <label htmlFor="mat-multiplier" className="block font-semibold mb-1 text-fg">Hệ Số Đơn Giá (× giá theo gram)</label>
+                  <label htmlFor="mat-multiplier" className="block font-semibold mb-1 text-fg">Hệ số suy đơn giá nhựa (đ/g từ giá vốn)</label>
                   <input
                     id="mat-multiplier"
                     type="number"
@@ -2607,7 +2611,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
                   />
                   <FieldError id="mat-multiplier" message={materialIssues.unitPriceMultiplier} />
-                  <p className="text-xs text-fg-muted mt-1">Hệ số nhân vào đơn giá tính khách (dùng cho vật liệu khó in). Nhập 1 nếu không chênh lệch.</p>
+                  <p className="text-xs text-fg-muted mt-1">Chỉ dùng để SUY đơn giá nhựa (đ/g) từ giá vốn: giá vốn/kg ÷ 1000 × hệ số. KHÔNG phải hệ số nhân giá bán — để trống ô đơn giá/g thì engine mới dùng hệ số này.</p>
                 </div>
 
                 <div>

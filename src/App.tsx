@@ -33,7 +33,7 @@ import { AuthProvider, useAuth } from '@frontend/context/AuthContext';
 import { LanguageProvider, useLanguage } from '@frontend/context/LanguageContext';
 import { dbService } from './backend/supabase/database';
 import { rowToProduct } from './backend/supabase/mappers';
-import { settingsAccessors, subscribeSettings } from './backend/services/settingsService';
+import { settingsAccessors, subscribeSettings, savePricingConfig as savePricingConfigAudited } from './backend/services/settingsService';
 import { WorkshopService } from '@backend/services/workshopService';
 import { supabase } from './backend/supabase/client';
 import { Header } from '@frontend/components/Header';
@@ -802,6 +802,24 @@ function MainApp() {
   }, []);
 
   /**
+   * Admin cần thấy TOÀN BỘ đơn (RLS `vcube_orders_admin_all` cho phép) để Overview, badge
+   * sidebar và cảnh báo chờ thanh toán có số thật. Trước đây App không nạp `orders` từ DB nên
+   * các chỗ đó luôn rỗng.
+   */
+  useEffect(() => {
+    if (role !== 'admin') return;
+    let alive = true;
+    dbService.getOrders()
+      .then((list) => {
+        if (alive && Array.isArray(list)) setOrders(list);
+      })
+      .catch((err) => console.warn('Could not load orders for admin:', err));
+    return () => {
+      alive = false;
+    };
+  }, [role]);
+
+  /**
    * FAB "Trợ lý tự động" (lớp phủ `fixed`) tự ẩn khi cuộn XUỐNG, hiện lại khi cuộn LÊN.
    *
    * Vì sao: R3 đo trên /explore (1440×900, bước 50px, 22 vị trí) — FAB đè nút "Tải File
@@ -903,9 +921,18 @@ function MainApp() {
     } catch (e) {
       console.warn('Could not save pricing config', e);
     }
-    const res = await dbService.savePricingConfig(newConfig);
-    if (!res.success) {
-      console.warn('Could not persist pricing config to Supabase:', res.error);
+    // Ghi qua service ĐÃ KIỂM SOÁT (validate + audit log + cache + realtime). Trả kết quả
+    // thật để UI không báo "đã lưu" khi DB từ chối (trước đây luôn báo thành công).
+    try {
+      const res = await savePricingConfigAudited(newConfig);
+      if (!res.success) {
+        console.warn('Could not persist pricing config to Supabase:', res.error);
+      }
+      return res;
+    } catch (e: any) {
+      const error = e?.message || 'Lỗi không xác định khi lưu công thức.';
+      console.warn('Could not persist pricing config to Supabase:', error);
+      return { success: false, error };
     }
   };
 
@@ -932,28 +959,47 @@ function MainApp() {
   }, [pricingConfig, marketplaceFeePercent]);
 
   const handleUpdateMaterials = (newMaterials: MaterialProfile[]) => {
+    // Xoá trên DB những vật liệu đã bị bỏ khỏi danh sách (trước đây chỉ upsert phần còn lại
+    // nên hàng đã xoá vẫn sống trong DB và quay lại sau khi tải lại).
+    const removed = materials.filter((m) => !newMaterials.some((n) => n.id === m.id));
     setMaterials(newMaterials);
     try {
       localStorage.setItem('vcube_materials', JSON.stringify(newMaterials));
     } catch (e) {
       console.warn('Could not save materials', e);
     }
-    // Asynchronously upsert to Supabase
     newMaterials.forEach((m) => {
       dbService.saveMaterial(m).catch((e) => console.warn('Failed to sync material to Supabase:', e));
+    });
+    removed.forEach((m) => {
+      dbService.deleteMaterial(m.id).catch((e) => console.warn('Failed to delete material from Supabase:', e));
     });
   };
 
   const handleUpdatePrinters = (newPrinters: PrinterProfile[]) => {
+    const removed = printers.filter((p) => !newPrinters.some((n) => n.id === p.id));
     setPrinters(newPrinters);
     try {
       localStorage.setItem('vcube_printers', JSON.stringify(newPrinters));
     } catch (e) {
       console.warn('Could not save printers', e);
     }
-    // Asynchronously upsert to Supabase
     newPrinters.forEach((p) => {
       dbService.savePrinter(p).catch((e) => console.warn('Failed to sync printer to Supabase:', e));
+    });
+    removed.forEach((p) => {
+      dbService.deletePrinter(p.id).catch((e) => console.warn('Failed to delete printer from Supabase:', e));
+    });
+  };
+
+  const handleUpdateAccessories = (newAccessories: AccessoryItem[]) => {
+    const removed = accessories.filter((a) => !newAccessories.some((n) => n.id === a.id));
+    setAccessories(newAccessories);
+    newAccessories.forEach((a) => {
+      dbService.saveAccessory(a).catch((e) => console.warn('Failed to sync accessory to Supabase:', e));
+    });
+    removed.forEach((a) => {
+      dbService.deleteAccessory(a.id).catch((e) => console.warn('Failed to delete accessory from Supabase:', e));
     });
   };
 
@@ -1663,7 +1709,7 @@ function MainApp() {
                   onUpdateSiteContent={handleUpdateSiteContent}
                   onUpdateMaterials={handleUpdateMaterials}
                   onUpdatePrinters={handleUpdatePrinters}
-                  onUpdateAccessories={setAccessories}
+                  onUpdateAccessories={handleUpdateAccessories}
                   onUpdatePricingConfig={handleUpdatePricingConfig}
                   onNavigate={handleNavigate}
                   onShowToast={showToast}
@@ -1694,7 +1740,7 @@ function MainApp() {
                   onUpdateSiteContent={handleUpdateSiteContent}
                   onUpdateMaterials={handleUpdateMaterials}
                   onUpdatePrinters={handleUpdatePrinters}
-                  onUpdateAccessories={setAccessories}
+                  onUpdateAccessories={handleUpdateAccessories}
                   onUpdatePricingConfig={handleUpdatePricingConfig}
                   onNavigate={handleNavigate}
                   onShowToast={showToast}

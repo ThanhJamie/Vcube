@@ -531,12 +531,12 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                         <div className="truncate">
                           <p className="font-bold text-fg truncate">{acc.name}</p>
                           <div className="flex items-center gap-2 text-xs text-fg-muted">
-                            <span>Vốn: {acc.costPrice.toLocaleString('vi-VN')} đ</span>
+                            <span>Vốn: {money(acc.costPrice)} đ</span>
                             <span>•</span>
-                            <span className="text-primary font-bold">Báo khách: {acc.sellingPrice.toLocaleString('vi-VN')} đ</span>
+                            <span className="text-primary font-bold">Báo khách: {money(acc.sellingPrice)} đ</span>
                             <span>•</span>
-                            <span className={totalNeeded === null ? 'text-fg-muted font-bold' : acc.stockCount < totalNeeded ? 'text-danger font-bold' : 'text-positive font-bold'}>
-                              Kho còn: {acc.stockCount} {acc.unit} ({acc.warehouseLocation || 'Kho'})
+                            <span className={totalNeeded === null || !isConfiguredNumber(acc.stockCount) ? 'text-fg-muted font-bold' : acc.stockCount < totalNeeded ? 'text-danger font-bold' : 'text-positive font-bold'}>
+                              Kho còn: {isConfiguredNumber(acc.stockCount) ? `${acc.stockCount} ${acc.unit}` : '—'} ({acc.warehouseLocation || 'Kho'})
                             </span>
                           </div>
                         </div>

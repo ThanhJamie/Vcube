@@ -97,10 +97,13 @@ function digitsOnly(raw: string): string {
   return raw.replace(/[^\d]/g, '');
 }
 
+// Enum khu vực THỐNG NHẤT với wizard/types/stores: Bắc / Trung / Nam.
+// ('Đông' là giá trị cũ không còn dùng; nếu profile còn 'Đông' thì select hiển thị giá trị đó
+//  qua nhánh legacy bên dưới để không bị trắng.)
 const REGION_OPTIONS = [
   { value: 'Bắc', label: 'Miền Bắc (Hub Hà Nội & lân cận)' },
   { value: 'Trung', label: 'Miền Trung (Hub Đà Nẵng & lân cận)' },
-  { value: 'Đông', label: 'Miền Đông (Hub TP.HCM & lân cận)' },
+  { value: 'Nam', label: 'Miền Nam (Hub TP.HCM & lân cận)' },
 ];
 
 export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
@@ -1771,7 +1774,11 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
                     {(control) => (
                       <Select
                         {...control}
-                        options={REGION_OPTIONS}
+                        options={
+                          prefRegion && !REGION_OPTIONS.some((o) => o.value === prefRegion)
+                            ? [{ value: prefRegion, label: `${prefRegion} (giá trị cũ — nên đổi sang Nam)` }, ...REGION_OPTIONS]
+                            : REGION_OPTIONS
+                        }
                         value={prefRegion}
                         onChange={(e) => setPrefRegion(e.target.value)}
                       />

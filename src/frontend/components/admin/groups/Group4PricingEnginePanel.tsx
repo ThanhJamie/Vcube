@@ -16,7 +16,7 @@ export interface Group4PricingEnginePanelProps {
   onUpdateMaterials?: (materials: MaterialProfile[]) => void;
   onUpdatePrinters?: (printers: PrinterProfile[]) => void;
   onUpdateAccessories?: (accessories: AccessoryItem[]) => void;
-  onUpdatePricingConfig?: (config: InkiriCostFormulaConfig) => void;
+  onUpdatePricingConfig?: (config: InkiriCostFormulaConfig) => Promise<{ success: boolean; error?: string }> | void;
   onShowToast?: (message: string) => void;
 }
 

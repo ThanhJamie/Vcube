@@ -87,7 +87,7 @@ interface AdminDashboardViewProps {
   onUpdateMaterials: (materials: MaterialProfile[]) => void;
   onUpdatePrinters: (printers: PrinterProfile[]) => void;
   onUpdateAccessories: (accessories: AccessoryItem[]) => void;
-  onUpdatePricingConfig: (config: InkiriCostFormulaConfig) => void;
+  onUpdatePricingConfig: (config: InkiriCostFormulaConfig) => Promise<{ success: boolean; error?: string }> | void;
   onNavigate: (screen: string, payload?: any) => void;
   onShowToast: (message: string) => void;
 }
@@ -337,6 +337,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             onUpdatePrinters={onUpdatePrinters}
             onShowToast={onShowToast}
             onNavigateSection={handleSelectSection}
+            section={activeSection}
           />
         )}
 

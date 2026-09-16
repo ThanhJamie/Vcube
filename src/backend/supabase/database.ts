@@ -854,14 +854,54 @@ export const dbService = {
     try {
       const { error } = await supabase.from('accessories').upsert({
         id: acc.id,
+        sku: acc.sku || null,
         name: acc.name,
+        name_en: acc.nameEn || '',
         type: acc.category,
-        price: acc.sellingPrice,
-        in_stock: acc.isActive && acc.stockCount > 0,
-        stock_quantity: acc.stockCount,
-        description: acc.description,
+        category: acc.category,
+        unit: acc.unit || 'cái',
+        cost_price: acc.costPrice ?? 0,
+        price: acc.sellingPrice ?? 0,
+        in_stock: acc.isActive && (acc.stockCount ?? 0) > 0,
+        stock_quantity: acc.stockCount ?? 0,
+        low_stock_threshold: acc.lowStockThreshold,
+        warehouse_location: acc.warehouseLocation || '',
+        supplier: acc.supplier || '',
+        description: acc.description || '',
+        image_url: acc.imageUrl || '',
+        compatible_with: acc.compatibleWith || [],
         updated_at: new Date().toISOString(),
       });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  async deleteAccessory(id: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('accessories').delete().eq('id', id);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  async deleteMaterial(id: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('materials').delete().eq('id', id);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+
+  async deletePrinter(id: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('printer_fleet').delete().eq('id', id);
       if (error) return { success: false, error: error.message };
       return { success: true };
     } catch (err: any) {

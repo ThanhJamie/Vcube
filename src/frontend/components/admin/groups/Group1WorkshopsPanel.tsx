@@ -11,6 +11,8 @@ export interface Group1WorkshopsPanelProps {
   onUpdatePrinters?: (printers: any[]) => void;
   onShowToast?: (message: string) => void;
   onNavigateSection?: (section: any) => void;
+  /** Section đang mở từ URL — quyết định tab mặc định (machines ⇒ Đội máy, partners ⇒ Đối tác). */
+  section?: string;
 }
 
 /**
@@ -56,12 +58,21 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   // `onUpdatePrinters` thì CÓ dùng: đồng bộ state của App sau mỗi lần ghi DB thành công.
   onUpdatePrinters,
   onShowToast,
-  onNavigateSection
+  onNavigateSection,
+  section
 }) => {
   const { language } = useLanguage();
   const isVi = language === 'vi';
 
-  const [activeTab, setActiveTab] = useState<'workshops' | 'fleet' | 'materials' | 'partners'>('workshops');
+  const tabFromSection = (s?: string): 'workshops' | 'fleet' | 'materials' | 'partners' =>
+    s === 'machines' ? 'fleet' : s === 'partners' ? 'partners' : 'workshops';
+
+  const [activeTab, setActiveTab] = useState<'workshops' | 'fleet' | 'materials' | 'partners'>(() => tabFromSection(section));
+
+  // URL là nguồn sự thật: đổi /admin/machines ⇒ mở tab Đội máy (trước đây luôn mở "Danh sách xưởng").
+  useEffect(() => {
+    setActiveTab(tabFromSection(section));
+  }, [section]);
 
   // Zustand Store (xưởng / vật liệu / bộ lọc). Đội máy KHÔNG còn nằm ở store —
   // nguồn thật là bảng `printer_fleet`, xem khối dưới.
