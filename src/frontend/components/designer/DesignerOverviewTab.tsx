@@ -6,6 +6,8 @@ import { customDesignService } from '../../../backend/services/customDesignServi
 export interface DesignerOverviewTabProps {
   products: Product[];
   availableBalance?: number;
+  /** uid tác giả — lọc yêu cầu CAD theo đúng người (RLS cũng đã siết). */
+  currentDesignerId?: string;
   onNavigate: (screen: string, payload?: any) => void;
   onTabChange: (tab: 'overview' | 'models' | 'wizard' | 'payouts' | 'requests') => void;
   onSelectRequest?: (requestId: string) => void;
@@ -13,7 +15,8 @@ export interface DesignerOverviewTabProps {
 
 export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
   products,
-  availableBalance = 48500000,
+  availableBalance,
+  currentDesignerId,
   onNavigate,
   onTabChange,
   onSelectRequest,
@@ -25,7 +28,7 @@ export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
     let isMounted = true;
     const loadInquiries = async () => {
       try {
-        const reqs = await customDesignService.getRequests();
+        const reqs = await customDesignService.getRequests(currentDesignerId);
         if (isMounted) {
           setInquiries(reqs);
         }
@@ -47,14 +50,15 @@ export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
       isMounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [currentDesignerId]);
 
   const totalPrints = products.reduce((acc, p) => acc + (p.printsCount || 0), 0);
   const totalDownloads = products.reduce((acc, p) => acc + (p.salesCount || 0), 0);
+  const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
   return (
     <div className="space-y-6">
-      {/* 4 Metric Cards */}
+      {/* 4 Metric Cards — chỉ hiển thị số THẬT; thiếu nguồn ⇒ `—` (không bịa). */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-surface p-5 rounded-sm flex flex-col justify-between hover:border-primary transition-colors shadow-e1">
           <div className="flex justify-between items-start mb-2">
@@ -64,10 +68,10 @@ export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
             <Icon name="payments" size={24} className="text-primary" />
           </div>
           <div className="text-2xl font-bold font-tech text-fg">
-            {availableBalance.toLocaleString('vi-VN')} đ
+            {isNum(availableBalance) ? `${availableBalance.toLocaleString('vi-VN')} đ` : '—'}
           </div>
-          <div className="text-xs text-primary font-tech mt-2 flex items-center gap-1">
-            <Icon name="trending_up" size={16} /> +22.4% hoa hồng tháng này
+          <div className="text-xs text-fg-muted mt-2 font-tech">
+            {isNum(availableBalance) ? 'Số dư khả dụng đã ghi nhận' : 'Chưa có nguồn số dư khả dụng'}
           </div>
         </div>
 
@@ -79,9 +83,9 @@ export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
             <Icon name="download" size={24} className="text-fg-muted" />
           </div>
           <div className="text-2xl font-bold font-tech text-fg">
-            {totalDownloads > 0 ? totalDownloads.toLocaleString('vi-VN') : '1.842'}
+            {totalDownloads.toLocaleString('vi-VN')}
           </div>
-          <div className="text-xs text-fg-muted mt-2 font-tech">Hưởng 90% giá bán file số</div>
+          <div className="text-xs text-fg-muted mt-2 font-tech">Tổng lượt tải ghi nhận trên ấn phẩm của bạn</div>
         </div>
 
         <div className="bg-surface p-5 rounded-sm flex flex-col justify-between hover:border-primary transition-colors shadow-e1">
@@ -92,10 +96,10 @@ export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
             <Icon name="precision_manufacturing" size={24} className="text-fg-muted" />
           </div>
           <div className="text-2xl font-bold font-tech text-fg">
-            {totalPrints > 0 ? totalPrints.toLocaleString('vi-VN') : '529'}
+            {totalPrints.toLocaleString('vi-VN')}
           </div>
-          <div className="text-xs text-primary font-tech mt-2">
-            Hưởng 10% hoa hồng trên mỗi chi tiết
+          <div className="text-xs text-fg-muted mt-2 font-tech">
+            Tổng số lần in ghi nhận trên ấn phẩm của bạn
           </div>
         </div>
 
@@ -104,11 +108,11 @@ export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
             <span className="font-tech text-xs text-fg-muted uppercase tracking-wider">
               Độ Tin Cậy QC &amp; In Thành Công
             </span>
-            <Icon name="verified" size={24} className="text-primary" />
+            <Icon name="verified" size={24} className="text-fg-muted" />
           </div>
-          <div className="text-2xl font-bold font-tech text-fg">99.2%</div>
-          <div className="w-full bg-line-subtle h-1.5 mt-2 rounded-sm overflow-hidden">
-            <div className="bg-primary h-full" style={{ width: '99.2%' }}></div>
+          <div className="text-2xl font-bold font-tech text-fg-subtle">—</div>
+          <div className="text-xs text-fg-muted mt-2 font-tech">
+            Chưa có dữ liệu QC gắn với tài khoản của bạn
           </div>
         </div>
       </div>

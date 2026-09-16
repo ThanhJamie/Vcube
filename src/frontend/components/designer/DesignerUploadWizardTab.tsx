@@ -19,24 +19,23 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
   onCancel,
 }) => {
   // Wizard state: 1: Upload, 2: Configure & 3D, 3: Pricing & Publish
+  // TẤT CẢ bắt đầu TRỐNG — không prefill file/mesh/giá bịa (data-honesty).
   const [wizardStep, setWizardStep] = useState<number>(1);
-  const [modelName, setModelName] = useState('Heavy Duty Planetary Gear Assembly');
-  const [modelDesc, setModelDesc] = useState(
-    'Hệ thống bánh răng hành tinh chịu tải cao với dung sai in-place tối ưu cho đầu đùn 0.4mm. Khuyến nghị in bằng PETG Technical hoặc Nylon-CF.'
-  );
-  const [tags, setTags] = useState<string[]>(['cơ khí', 'bánh răng', 'robotics', 'in-place']);
+  const [modelName, setModelName] = useState('');
+  const [modelDesc, setModelDesc] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [licenseType, setLicenseType] = useState<'Standard' | 'Commercial' | 'Exclusive'>(
     'Standard'
   );
-  const [standardPrice, setStandardPrice] = useState('120000');
-  const [physicalPrice, setPhysicalPrice] = useState('285000');
+  const [standardPrice, setStandardPrice] = useState('');
+  const [physicalPrice, setPhysicalPrice] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('mechanical');
   const [selectedModelType, setSelectedModelType] = useState<
     'gear' | 'case' | 'figurine' | 'bracket' | 'drone'
   >('gear');
-  const [uploadedFileName, setUploadedFileName] = useState('Planetary_Gear_Heavy_Duty_v2.stl');
-  const [uploadedFileSize, setUploadedFileSize] = useState('24.5 MB');
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [uploadedFileSize, setUploadedFileSize] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddTag = (e: React.KeyboardEvent) => {
@@ -54,83 +53,57 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
     setTags(tags.filter((t) => t !== tagToRemove));
   };
 
-  // Giá gợi ý theo định mức MẪU — không phải số đo từ tệp của tác giả (PC-09).
-  const handleAutoEstimatePrice = () => {
-    const weightGrams = 125;
-    const materialCost = weightGrams * 450;
-    const machinePrintTimeHours = 3.5;
-    const machineHourRate = 35000;
-    const laborPrep = 30000;
-    const totalEst =
-      Math.round((materialCost + machinePrintTimeHours * machineHourRate + laborPrep) / 5000) * 5000;
-    setPhysicalPrice(totalEst.toString());
-    onShowToast(
-      `Đã điền giá TẠM TÍNH theo định mức mẫu (125g nhựa, 3.5h máy — chưa đo từ tệp của bạn): ${totalEst.toLocaleString(
-        'vi-VN'
-      )} đ. Hãy sửa lại theo cân nặng & thời gian in thật.`
-    );
-  };
-
   // Publish New Model
   const handlePublishModel = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modelName.trim()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      const newProd: Product = {
-        id: `prod-${Date.now()}`,
-        sku: `VC-${Math.floor(1000 + Math.random() * 9000)}X`,
-        name: modelName.trim(),
-        category: selectedCategory,
-        designer: `${currentDesignerName} (Bạn)`,
-        designerAvatar:
-          designerAvatar ||
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        isPro: false,
-        isVerified: false,
-        pricePhysical: Number(physicalPrice) || 285000,
-        priceDigital: Number(standardPrice) || 89000,
-        images: [
-          'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80',
-          'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
-        ],
-        description: modelDesc,
-        features: [
-          'Tối ưu hóa dung sai in-place 0.15mm',
-          'Khuyến nghị in bằng PETG / Nylon kỹ thuật',
-          licenseType === 'Commercial'
-            ? 'Bản quyền thương mại sản phẩm vật lý'
-            : 'Bản quyền sử dụng cá nhân',
-        ],
-        specs: {
-          dimensions: '—',
-          weight: '—',
-          resolution: '—',
-          infillDefault: '—',
-          technology: '—',
-        },
-        supportedMaterials: ['PETG Technical Pro', 'ABS Industrial Grade', 'Resin Engineering 8K'],
-        colors: [
-          { name: 'Xám Titan', hex: '#64748b', available: true },
-          { name: 'Đen Mờ Kỹ Thuật', hex: '#1C1C1C', available: true },
-        ],
-        tags: tags.length ? tags : ['Mechanical', 'CAD', 'Precision'],
-        badge: 'MỚI',
-        rating: 0,
-        reviewsCount: 0,
-        printsCount: 0,
-        salesCount: 0,
-        printTime: '—',
-        isCustomizable: true,
-        licenseType,
-        status: 'Published',
-      };
+    const newProd: Product = {
+      id: `prod-${Date.now()}`,
+      sku: `VC-${Math.floor(1000 + Math.random() * 9000)}X`,
+      name: modelName.trim(),
+      category: selectedCategory,
+      designer: currentDesignerName,
+      // Không bịa avatar/ảnh Unsplash; dùng đúng dữ liệu tác giả có.
+      designerAvatar: designerAvatar || undefined,
+      isPro: false,
+      isVerified: false,
+      pricePhysical: Number(physicalPrice) || 0,
+      priceDigital: Number(standardPrice) || 0,
+      images: [],
+      description: modelDesc,
+      // Chỉ nêu đúng giấy phép đã chọn; KHÔNG kèm tuyên bố dung sai/vật liệu bịa.
+      features: [
+        licenseType === 'Commercial'
+          ? 'Bản quyền thương mại sản phẩm vật lý'
+          : 'Bản quyền sử dụng cá nhân',
+      ],
+      specs: {
+        dimensions: '—',
+        weight: '—',
+        resolution: '—',
+        infillDefault: '—',
+        technology: '—',
+      },
+      supportedMaterials: [],
+      colors: [],
+      tags,
+      badge: 'MỚI',
+      rating: 0,
+      reviewsCount: 0,
+      printsCount: 0,
+      salesCount: 0,
+      printTime: '—',
+      isCustomizable: true,
+      licenseType,
+      // Chờ kiểm duyệt thay vì tự xuất bản thẳng ra marketplace.
+      status: 'Under Review',
+    };
 
-      onAddNewProduct(newProd);
-      setIsSubmitting(false);
-      onShowToast(`Đã xuất bản thành công bản vẽ "${newProd.name}" vào Catalog VCUBE!`);
-    }, 600);
+    onAddNewProduct(newProd);
+    setIsSubmitting(false);
+    onShowToast(`Đã gửi bản vẽ "${newProd.name}" để kiểm duyệt (chờ duyệt).`);
   };
 
   return (
@@ -235,47 +208,6 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
               Chọn Tệp Từ Máy Tính
             </label>
           </div>
-
-          {/* Preset sample files */}
-          <div className="border-t border-line pt-4 space-y-2">
-            <span className="text-xs font-tech font-bold uppercase text-fg-muted">
-              Hoặc chọn mẫu bản vẽ kỹ thuật có sẵn:
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                {
-                  name: 'Cụm Bánh Răng Hành Tinh',
-                  file: 'Planetary_Gear_Assy.stl',
-                  type: 'gear' as const,
-                },
-                {
-                  name: 'Vỏ Hộp Cảm Biến IoT',
-                  file: 'IoT_Sensor_Enclosure_IP65.step',
-                  type: 'case' as const,
-                },
-                {
-                  name: 'Khung Gá Động Cơ Nema 17',
-                  file: 'Motor_Mount_Bracket.stl',
-                  type: 'bracket' as const,
-                },
-              ].map((sample) => (
-                <button
-                  key={sample.name}
-                  type="button"
-                  onClick={() => {
-                    setUploadedFileName(sample.file);
-                    setModelName(sample.name);
-                    setSelectedModelType(sample.type);
-                    setWizardStep(2);
-                  }}
-                  className="p-2.5 border border-line-control bg-canvas hover:border-primary rounded-full text-left transition-colors"
-                >
-                  <p className="font-bold text-xs text-fg truncate">{sample.name}</p>
-                  <p className="text-xs font-tech text-fg-muted mt-0.5">{sample.file}</p>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
@@ -295,7 +227,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                   </span>
                 </div>
                 <span className="font-tech text-xs text-fg-muted">
-                  {uploadedFileName} • {uploadedFileSize}
+                  {uploadedFileName ? `${uploadedFileName}${uploadedFileSize ? ` • ${uploadedFileSize}` : ''}` : 'Chưa chọn tệp'}
                 </span>
               </div>
 
@@ -310,18 +242,18 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
               <div className="grid grid-cols-2 gap-3 pt-2 font-tech text-xs">
                 <div className="bg-surface-muted p-2.5 border border-line rounded-sm">
                   <span className="text-fg-muted text-xs uppercase block">THỂ TÍCH MESH</span>
-                  <span className="font-bold text-fg">124.5 cm³</span>
+                  <span className="font-bold text-fg-subtle">—</span>
                 </div>
                 <div className="bg-surface-muted p-2.5 border border-line rounded-sm">
                   <span className="text-fg-muted text-xs uppercase block">KÍCH THƯỚC (X,Y,Z)</span>
-                  <span className="font-bold text-fg">45 × 45 × 120 mm</span>
+                  <span className="font-bold text-fg-subtle">—</span>
                 </div>
                 <div className="bg-surface-muted p-2.5 border border-line rounded-sm">
                   <span className="text-fg-muted text-xs uppercase block">
                     ĐỘ KÍN NƯỚC (MANIFOLD)
                   </span>
-                  <span className="font-bold text-positive flex items-center gap-0.5">
-                    <Icon name="check_circle" size={14} /> ĐẠT CHUẨN IN
+                  <span className="font-bold text-fg-subtle flex items-center gap-0.5">
+                    — Chưa phân tích
                   </span>
                 </div>
                 <div className="bg-surface-muted p-2.5 border border-line rounded-sm">
@@ -478,14 +410,6 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                 <h3 className="font-bold text-sm text-fg uppercase tracking-wider">
                   3. Chiến Lược Định Giá (File Số &amp; In Vật Lý)
                 </h3>
-                <button
-                  type="button"
-                  onClick={handleAutoEstimatePrice}
-                  className="text-xs font-tech text-primary font-bold hover:underline flex items-center gap-1"
-                >
-                  <Icon name="calculate" size={18} />
-                  Điền giá tạm tính (định mức mẫu)
-                </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

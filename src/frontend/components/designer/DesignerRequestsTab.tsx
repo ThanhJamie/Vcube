@@ -5,12 +5,15 @@ import { Icon } from '@frontend/ui';
 
 export interface DesignerRequestsTabProps {
   currentDesignerName: string;
+  /** uid tác giả — lọc yêu cầu theo đúng người (RLS cũng đã siết). */
+  currentDesignerId?: string;
   onShowToast: (message: string) => void;
   selectedRequestId?: string;
 }
 
 export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
   currentDesignerName,
+  currentDesignerId,
   onShowToast,
   selectedRequestId,
 }) => {
@@ -20,10 +23,22 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
   const [chatInput, setChatInput] = useState('');
   const [showProjectBriefMobile, setShowProjectBriefMobile] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [quoteAmountInput, setQuoteAmountInput] = useState('');
+
+  // Chữ cái đầu từ TÊN THẬT của người đang đăng nhập (trước đây hardcode 'LT').
+  const senderInitials =
+    currentDesignerName
+      .trim()
+      .split(/\s+/)
+      .map((w) => w[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || '—';
 
   const fetchRequests = useCallback(async () => {
     try {
-      const data = await customDesignService.getRequests();
+      const data = await customDesignService.getRequests(currentDesignerId);
       setRequests(data);
       if (data.length > 0) {
         setSelectedReqId((prev) => {
@@ -36,7 +51,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentDesignerId]);
 
   useEffect(() => {
     void fetchRequests();
@@ -63,7 +78,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
       id: `msg-${Date.now()}`,
       sender: 'designer',
       senderName: `${currentDesignerName} (Bạn)`,
-      senderInitials: 'LT',
+      senderInitials,
       time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       text,
     };
@@ -96,21 +111,24 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
 
   const handleSendQuoteInChat = async () => {
     if (!currentRequest || isSending) return;
-    const quoteAmount = 650000;
+    const quoteAmount = Number(quoteAmountInput);
+    if (!Number.isFinite(quoteAmount) || quoteAmount <= 0) {
+      onShowToast('Nhập số tiền báo giá hợp lệ (VND) trước khi gửi.');
+      return;
+    }
     setIsSending(true);
 
     const quoteMsg: CustomDesignMessage = {
       id: `msg-quote-${Date.now()}`,
       sender: 'designer',
       senderName: `${currentDesignerName} (Bạn)`,
-      senderInitials: 'LT',
+      senderInitials,
       time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       text: `Tôi đã phát hành Báo Giá Kỹ Thuật cho dự án "${currentRequest.title}".`,
       quote: {
         amount: quoteAmount,
         currency: 'VND',
-        description:
-          'Bao gồm chỉnh sửa kích thước CAD, bổ sung gân gia cường và 02 lần hiệu chỉnh miễn phí.',
+        description: 'Báo giá kỹ thuật CAD — chi tiết phạm vi công việc hai bên trao đổi trong hội thoại.',
         status: 'sent',
       },
     };
@@ -171,9 +189,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
           <h3 className="font-bold text-xs uppercase tracking-wider text-fg">
             Yêu Cầu CAD ({requests.length})
           </h3>
-          <span className="px-2 py-0.5 bg-accent/30 text-primary text-xs font-tech font-bold rounded-sm">
-            Active
-          </span>
+
         </div>
         <div className="flex-1 overflow-y-auto divide-y divide-line-subtle">
           {requests.map((req) => (
@@ -214,12 +230,21 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
               <div>
                 <h4 className="font-bold text-xs text-fg">{currentRequest.clientName}</h4>
                 <p className="text-xs text-primary font-tech">
-                  Trực tuyến • Dự án: {currentRequest.title}
+                  Dự án: {currentRequest.title}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={quoteAmountInput}
+                onChange={(e) => setQuoteAmountInput(e.target.value)}
+                placeholder="Số tiền (VND)"
+                aria-label="Số tiền báo giá (VND)"
+                className="hidden sm:block w-32 bg-surface border border-line-control px-2.5 py-1.5 text-xs font-tech rounded-sm focus:outline-none focus:border-primary text-fg"
+              />
               <button
                 onClick={handleSendQuoteInChat}
                 disabled={isSending}

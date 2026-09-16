@@ -732,7 +732,10 @@ begin
 
   -- ---------- 5.4l custom_design_requests (Đợt 30 — Studio Designer) ----------
   -- Yêu cầu CAD tuỳ chỉnh. Khách hàng đọc/nộp/sửa yêu cầu của mình.
-  -- Designer và Admin được đọc và cập nhật tiến độ / trao đổi kỹ thuật / gửi báo giá.
+  -- Designer CHỈ đọc/ghi yêu cầu ĐƯỢC GÁN cho mình (designer_id = auth.uid()) hoặc còn TRỐNG
+  -- (designer_id is null — chợ mở để nhận việc); admin toàn quyền. KHÔNG dùng
+  -- `current_app_role() in ('designer','admin')` vì như vậy MỌI designer đọc được yêu cầu của
+  -- designer khác (rò dữ liệu khách hàng).
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_customer_select', 'select', array['authenticated'],
     'customer_id::text = (select auth.uid())::text', null);
@@ -745,11 +748,11 @@ begin
     'customer_id::text = (select auth.uid())::text');
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_designer_select', 'select', array['authenticated'],
-    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$, null);
+    $p$public.is_admin() or designer_id::text = (select auth.uid())::text or designer_id is null$p$, null);
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_designer_update', 'update', array['authenticated'],
-    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$,
-    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$);
+    $p$public.is_admin() or designer_id::text = (select auth.uid())::text or designer_id is null$p$,
+    $p$public.is_admin() or designer_id::text = (select auth.uid())::text or designer_id is null$p$);
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_admin_all', 'all', array['authenticated'],
     'public.is_admin()', 'public.is_admin()');

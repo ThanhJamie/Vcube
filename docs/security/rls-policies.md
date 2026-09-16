@@ -324,8 +324,8 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 | `vcube_custom_design_requests_customer_select` | `SELECT` | `authenticated` | `USING (customer_id::text = (select auth.uid())::text)` |
 | `vcube_custom_design_requests_customer_insert` | `INSERT` | `authenticated` | `WITH CHECK (customer_id::text = (select auth.uid())::text)` |
 | `vcube_custom_design_requests_customer_update` | `UPDATE` | `authenticated` | `USING (customer_id::text = (select auth.uid())::text) WITH CHECK (customer_id::text = (select auth.uid())::text)` |
-| `vcube_custom_design_requests_designer_select` | `SELECT` | `authenticated` | `USING (public.current_app_role() in ('designer','admin') OR designer_id::text = (select auth.uid())::text)` |
-| `vcube_custom_design_requests_designer_update` | `UPDATE` | `authenticated` | `USING (public.current_app_role() in ('designer','admin') OR designer_id::text = (select auth.uid())::text) WITH CHECK (public.current_app_role() in ('designer','admin') OR designer_id::text = (select auth.uid())::text)` |
+| `vcube_custom_design_requests_designer_select` | `SELECT` | `authenticated` | `USING (public.is_admin() OR designer_id::text = (select auth.uid())::text OR designer_id is null)` |
+| `vcube_custom_design_requests_designer_update` | `UPDATE` | `authenticated` | `USING (public.is_admin() OR designer_id::text = (select auth.uid())::text OR designer_id is null) WITH CHECK (public.is_admin() OR designer_id::text = (select auth.uid())::text OR designer_id is null)` |
 | `vcube_custom_design_requests_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
 
 ---

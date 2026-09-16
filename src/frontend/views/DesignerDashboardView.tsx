@@ -55,9 +55,6 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
         title={
           <span className="flex flex-wrap items-center gap-2">
             <span>Quản Lý Ấn Phẩm &amp; Giá In 3D</span>
-            <span className="rounded-sm border border-warning/30 bg-warning-tint px-2 py-0.5 text-xs font-semibold text-warning">
-              CREATOR LEVEL 3
-            </span>
           </span>
         }
         description="Ấn phẩm số, giá bán và quyết toán bản quyền của tác giả."
@@ -87,6 +84,7 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
         {activeTab === 'overview' && (
           <DesignerOverviewTab
             products={products}
+            currentDesignerId={user?.id}
             onNavigate={onNavigate}
             onTabChange={setActiveTab}
             onSelectRequest={(reqId) => setSelectedReqId(reqId)}
@@ -95,6 +93,7 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
         {activeTab === 'models' && (
           <DesignerModelsManagerTab
             products={products}
+            currentDesignerName={currentDesignerName}
             onUpdateProduct={onUpdateProduct}
             onDeleteProduct={onDeleteProduct}
             onShowToast={onShowToast}
@@ -116,6 +115,7 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
         {activeTab === 'requests' && (
           <DesignerRequestsTab
             currentDesignerName={currentDesignerName}
+            currentDesignerId={user?.id}
             onShowToast={onShowToast}
             selectedRequestId={selectedReqId}
           />

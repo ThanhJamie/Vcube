@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../../../types';
 import { ThreeModelViewer } from '../ThreeModelViewer';
-import { Button, Icon } from '@frontend/ui';
+import { Button, ConfirmDialog, Icon } from '@frontend/ui';
 
 export interface DesignerModelsManagerTabProps {
   products: Product[];
+  /** Tên tác giả đang đăng nhập — dùng để chỉ hiện ấn phẩm của CHÍNH họ. */
+  currentDesignerName: string;
   onUpdateProduct?: (product: Product) => void;
   onDeleteProduct?: (productId: string) => void;
   onShowToast: (message: string) => void;
@@ -13,6 +15,7 @@ export interface DesignerModelsManagerTabProps {
 
 export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> = ({
   products,
+  currentDesignerName,
   onUpdateProduct,
   onDeleteProduct,
   onShowToast,
@@ -21,7 +24,6 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
   // Filter state
   const [modelCategoryFilter, setModelCategoryFilter] = useState('all');
   const [modelStatusFilter, setModelStatusFilter] = useState('all');
-  const [modelAuthorFilter, setModelAuthorFilter] = useState<'all' | 'mine'>('all');
   const [searchModelQuery, setSearchModelQuery] = useState('');
 
   // Editing Product Modal State
@@ -77,7 +79,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
       onUpdateProduct(updatedProd);
     }
     setEditingProduct(null);
-    onShowToast(`Đã cập nhật ấn phẩm "${updatedProd.name}" vào Catalog thành công!`);
+    // Không tự báo thành công: App là bên ghi DB và sẽ báo kết quả thật.
   };
 
   // Quick Toggle Status
@@ -90,19 +92,13 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
     if (onUpdateProduct) {
       onUpdateProduct(updatedProd);
     }
-    onShowToast(
-      `Đã chuyển trạng thái sang "${nextStatus === 'Published' ? 'Đã Xuất Bản' : 'Bản Nháp'}"`
-    );
+    // Không tự báo thành công: App là bên ghi DB và sẽ báo kết quả thật.
   };
 
-  // Delete product with confirm
+  // Delete product with confirm (ConfirmDialog thay window.confirm)
+  const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const handleDeleteConfirm = (prod: Product) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa ấn phẩm "${prod.name}" khỏi Catalog không?`)) {
-      if (onDeleteProduct) {
-        onDeleteProduct(prod.id);
-        onShowToast(`Đã xóa ấn phẩm "${prod.name}" khỏi cơ sở dữ liệu.`);
-      }
-    }
+    setPendingDelete(prod);
   };
 
   const handleAddEditTag = (e: React.KeyboardEvent) => {
@@ -120,16 +116,18 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
     setEditTags(editTags.filter((t) => t !== tagToRemove));
   };
 
+  // Chỉ ấn phẩm của CHÍNH tác giả đang đăng nhập (khớp tên chính xác, không dò chuỗi tên).
+  const myProducts = useMemo(
+    () =>
+      products.filter(
+        (p) => (p.designer || '').trim().toLowerCase() === currentDesignerName.trim().toLowerCase()
+      ),
+    [products, currentDesignerName]
+  );
+
   // Filter products
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
-      if (modelAuthorFilter === 'mine') {
-        const isMine =
-          p.designer?.toLowerCase().includes('bạn') ||
-          p.designer?.toLowerCase().includes('thắng') ||
-          p.designer?.toLowerCase().includes('alexei');
-        if (!isMine) return false;
-      }
+    return myProducts.filter((p) => {
       if (modelCategoryFilter !== 'all' && p.category !== modelCategoryFilter) return false;
       if (modelStatusFilter !== 'all' && (p.status || 'Published') !== modelStatusFilter)
         return false;
@@ -143,15 +141,29 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
       }
       return true;
     });
-  }, [products, modelAuthorFilter, modelCategoryFilter, modelStatusFilter, searchModelQuery]);
+  }, [myProducts, modelCategoryFilter, modelStatusFilter, searchModelQuery]);
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        tone="danger"
+        title="Xoá ấn phẩm"
+        description={pendingDelete ? `Bạn có chắc chắn muốn xoá ấn phẩm "${pendingDelete.name}" khỏi Catalog? Hành động này không hoàn tác được.` : ''}
+        confirmLabel="Xoá ấn phẩm"
+        cancelLabel="Huỷ"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          onDeleteProduct?.(pendingDelete.id);
+          setPendingDelete(null);
+        }}
+      />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
           <h2 className="text-lg font-bold text-fg">Kho Ấn Phẩm &amp; Điều Chỉnh Giá In</h2>
           <p className="text-xs text-fg-muted">
-            Quản lý {products.length} ấn phẩm trong Catalog DB. Bạn có thể chỉnh sửa thông tin kỹ
+            Quản lý {myProducts.length} ấn phẩm của bạn trong Catalog DB. Bạn có thể chỉnh sửa thông tin kỹ
             thuật, giá in vật lý và giá file số.
           </p>
         </div>
@@ -164,15 +176,6 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
             onChange={(e) => setSearchModelQuery(e.target.value)}
             className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm w-full sm:w-52 focus:outline-none focus:border-primary"
           />
-
-          <select
-            value={modelAuthorFilter}
-            onChange={(e) => setModelAuthorFilter(e.target.value as any)}
-            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary"
-          >
-            <option value="all">Tất Cả Ấn Phẩm</option>
-            <option value="mine">Ấn Phẩm Của Tôi</option>
-          </select>
 
           <select
             value={modelCategoryFilter}
@@ -219,14 +222,17 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
               {filteredProducts.map((prod) => (
                 <tr key={prod.id} className="hover:bg-canvas transition-colors">
                   <td className="p-3.5 flex items-center gap-3">
-                    <img
-                      src={
-                        prod.images?.[0] ||
-                        'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80'
-                      }
-                      alt={prod.name}
-                      className="w-12 h-12 object-cover border border-line rounded-sm shrink-0 bg-surface-inverse"
-                    />
+                    {prod.images?.[0] ? (
+                      <img
+                        src={prod.images[0]}
+                        alt={prod.name}
+                        className="w-12 h-12 object-cover border border-line rounded-sm shrink-0 bg-surface-inverse"
+                      />
+                    ) : (
+                      <span className="w-12 h-12 border border-line rounded-sm shrink-0 bg-surface-muted text-fg-subtle flex items-center justify-center">
+                        <Icon name="deployed_code" size={20} />
+                      </span>
+                    )}
                     <div>
                       <span className="font-bold text-fg block leading-tight">{prod.name}</span>
                       <div className="flex items-center gap-2 mt-0.5">
