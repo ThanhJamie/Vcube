@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Product, ProductStatus } from '../../types';
 import { CATEGORIES } from '../../data/mockData';
 import { useLanguage } from '../../context/LanguageContext';
 import { dbService } from '../../../backend/supabase/database';
-import { ConfirmDialog, Icon } from '@frontend/ui';
+import { ConfirmDialog, DataTable, EmptyState, Icon } from '@frontend/ui';
+import type { DataTableColumn } from '@frontend/ui';
+import { formatCurrency } from '@frontend/lib/format';
 
 interface AdminProductsPanelProps {
   products: Product[];
@@ -245,6 +247,148 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
     return matchSearch && matchCat && matchReadiness;
   });
 
+  /** Bảng sản phẩm dùng primitive `DataTable` (sort + phân trang + empty state ngoài bảng). */
+  const productColumns = useMemo<DataTableColumn<Product>[]>(() => [
+    {
+      key: 'name',
+      header: isVi ? 'Ảnh & Sản Phẩm' : 'Image & Product',
+      value: (p) => p.name,
+      render: (prod) => {
+        const imageUrl = realProductImageUrl(prod.images);
+        return (
+          <div className="flex items-center gap-3">
+            {imageUrl ? (
+              <img src={imageUrl} alt={prod.name} className="w-11 h-11 rounded-md object-cover border border-line shrink-0" />
+            ) : (
+              <div
+                className="w-11 h-11 rounded-md border border-line-subtle bg-surface-muted text-fg-muted flex items-center justify-center shrink-0"
+                title={isVi ? 'Chưa có ảnh' : 'No image'}
+              >
+                <Icon name="image" size={16} />
+              </div>
+            )}
+            <div>
+              <p className="font-bold text-fg max-w-[200px] truncate">{prod.name}</p>
+              <p className="text-xs text-fg-muted">{prod.designer || '—'}</p>
+              {prod.badge && (
+                <span className="inline-block text-xs font-tech font-bold px-1.5 py-0.5 bg-surface-inverse text-on-inverse rounded-sm mt-0.5">
+                  {prod.badge}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'sku',
+      header: isVi ? 'Mã SKU' : 'SKU',
+      render: (prod) =>
+        prod.sku || <span className="text-fg-subtle" title="Chưa có mã SKU">{isVi ? 'Chưa có mã' : 'No SKU'}</span>,
+    },
+    {
+      key: 'category',
+      header: isVi ? 'Danh Mục' : 'Category',
+      value: (p) => p.category,
+      render: (prod) => <span className="capitalize">{prod.category}</span>,
+    },
+    {
+      key: 'pricePhysical',
+      header: isVi ? 'Giá Bản In (Vật Lý)' : 'Physical price',
+      numeric: true,
+      value: (p) => p.pricePhysical,
+      render: (prod) => formatCurrency(prod.pricePhysical),
+    },
+    {
+      key: 'priceDigital',
+      header: isVi ? 'Giá File (STL)' : 'File price (STL)',
+      numeric: true,
+      value: (p) => p.priceDigital,
+      render: (prod) => formatCurrency(prod.priceDigital),
+    },
+    {
+      key: 'readiness',
+      header: isVi ? 'Chuẩn Sẵn Sàng In' : 'Readiness',
+      value: (p) => p.productionReadiness || 'ready_to_print',
+      render: (prod) => {
+        const readiness = prod.productionReadiness || 'ready_to_print';
+        if (readiness === 'ready_to_print') {
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-positive-tint text-positive border border-positive/30">
+              ✓ {isVi ? 'Sẵn Sàng In' : 'Ready'}
+            </span>
+          );
+        }
+        if (readiness === 'missing_profile') {
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-warning-tint text-warning border border-warning/30">
+              ⚠ {isVi ? 'Thiếu Profile' : 'Missing profile'}
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-info-tint text-info border border-info/30">
+            {isVi ? 'Cần CAD Review' : 'CAD review needed'}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: isVi ? 'Trạng Thái' : 'Status',
+      value: (p) => (p.status || 'published').toLowerCase(),
+      render: (prod) => {
+        const status = (prod.status || 'published').toLowerCase();
+        return (
+          <select
+            value={status}
+            onChange={(e) => {
+              const nextStatus = e.target.value as ProductStatus;
+              onUpdateProduct({ ...prod, status: nextStatus });
+            }}
+            className={`text-xs font-mono font-bold px-2 py-1 rounded-lg border cursor-pointer focus:outline-none transition-colors ${
+              status === 'published'
+                ? 'bg-positive-tint text-positive border-positive/30'
+                : status === 'draft'
+                ? 'bg-warning-tint text-warning border-warning/30'
+                : 'bg-surface-muted text-fg-muted border-line'
+            }`}
+          >
+            <option value="published">{isVi ? '● Đang bán' : '● Published'}</option>
+            <option value="draft">{isVi ? '◌ Bản nháp' : '◌ Draft'}</option>
+            <option value="archived">{isVi ? '✖ Lưu trữ' : '✖ Archived'}</option>
+          </select>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: isVi ? 'Thao Tác' : 'Actions',
+      align: 'right',
+      render: (prod) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            onClick={() => setEditingProduct({ ...prod })}
+            className="p-1.5 bg-surface border border-line hover:border-primary text-fg rounded-lg transition-colors cursor-pointer"
+            aria-label={isVi ? `Sửa ${prod.name}` : `Edit ${prod.name}`}
+            title={isVi ? 'Sửa sản phẩm' : 'Edit product'}
+          >
+            <Icon name="edit" size={16} />
+          </button>
+          <button
+            onClick={() => handleDeleteProductConfirm(prod)}
+            className="p-1.5 bg-surface border border-danger/30 hover:bg-danger-tint text-danger rounded-lg transition-colors cursor-pointer"
+            aria-label={isVi ? `Xoá ${prod.name}` : `Delete ${prod.name}`}
+            title={isVi ? 'Xóa sản phẩm' : 'Delete product'}
+          >
+            <Icon name="delete" size={16} />
+          </button>
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi]);
+
   return (
     <div className="space-y-4">
       <ConfirmDialog
@@ -318,137 +462,22 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
         </div>
       </div>
 
-      {/* Products Table */}
-      <div className="bg-surface border border-line rounded-lg overflow-x-auto shadow-e1">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-primary/10 text-fg font-bold font-tech uppercase text-xs border-b border-line">
-            <tr>
-              <th className="py-3 px-4">Ảnh & Sản Phẩm</th>
-              <th className="py-3 px-4">Mã SKU</th>
-              <th className="py-3 px-4">Danh Mục</th>
-              <th className="py-3 px-4">Giá Bản In (Vật Lý)</th>
-              <th className="py-3 px-4">Giá File (STL)</th>
-              <th className="py-3 px-4">Chuẩn Sẵn Sàng In</th>
-              <th className="py-3 px-4">Trạng Thái</th>
-              <th className="py-3 px-4 text-right">Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line-subtle">
-            {filteredProducts.map((prod) => {
-              const readiness = prod.productionReadiness || 'ready_to_print';
-              // Hàng cũ có thể mang URL ảnh giữ chỗ bịa ⇒ xử như "chưa có ảnh".
-              const imageUrl = realProductImageUrl(prod.images);
-
-              return (
-                <tr key={prod.id} className="hover:bg-canvas transition-colors">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-3">
-                      {/* Không có ảnh thật ⇒ hiện trạng thái trống, KHÔNG chèn/gọi ảnh mẫu. */}
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={prod.name}
-                          className="w-11 h-11 rounded-md object-cover border border-line shrink-0"
-                        />
-                      ) : (
-                        <div
-                          className="w-11 h-11 rounded-md border border-line-subtle bg-surface-muted text-fg-muted flex items-center justify-center shrink-0"
-                          title={isVi ? 'Chưa có ảnh' : 'No image'}
-                        >
-                          <Icon name="image" size={16} />
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-bold text-fg max-w-[200px] truncate">{prod.name}</p>
-                        <p className="text-xs text-fg-muted">{prod.designer}</p>
-                        {prod.badge && (
-                          <span className="inline-block text-xs font-tech font-bold px-1.5 py-0.2 bg-surface-inverse text-on-inverse rounded-sm mt-0.5">
-                            {prod.badge}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 font-tech font-bold text-fg-muted">
-                    {prod.sku || (
-                      <span className="text-fg-subtle" title="Chưa có mã SKU">Chưa có mã</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 font-sans text-fg-muted capitalize">
-                    {prod.category}
-                  </td>
-                  <td className="py-3 px-4 font-tech font-bold text-fg">
-                    {prod.pricePhysical.toLocaleString(isVi ? 'vi-VN' : 'en-US')} đ
-                  </td>
-                  <td className="py-3 px-4 font-tech text-fg-muted">
-                    {prod.priceDigital.toLocaleString(isVi ? 'vi-VN' : 'en-US')} đ
-                  </td>
-                  <td className="py-3 px-4">
-                    {readiness === 'ready_to_print' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-positive-tint text-positive border border-positive/30">
-                        <span className="text-positive">✓</span> Sẵn Sàng In
-                      </span>
-                    ) : readiness === 'missing_profile' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-warning-tint text-warning border border-warning/30">
-                        <span>⚠</span> Thiếu Profile
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-info-tint text-info border border-info/30">
-                        <span>🔧</span> Cần CAD Review
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4">
-                    <select
-                      value={(prod.status || 'published').toLowerCase()}
-                      onChange={(e) => {
-                        const nextStatus = e.target.value as any;
-                        onUpdateProduct({ ...prod, status: nextStatus });
-                        onShowToast(isVi ? `Đã chuyển "${prod.name}" sang ${nextStatus === 'published' ? 'Đang Bán (Published)' : nextStatus === 'draft' ? 'Bản Nháp (Draft)' : 'Lưu Trữ (Archived)'}` : `Updated status to ${nextStatus}`);
-                      }}
-                      className={`text-xs font-mono font-bold px-2 py-1 rounded-lg border cursor-pointer focus:outline-none transition-colors ${
-                        (prod.status || 'published').toLowerCase() === 'published'
-                          ? 'bg-positive-tint text-positive border-positive/30'
-                          : (prod.status || 'published').toLowerCase() === 'draft'
-                          ? 'bg-warning-tint text-warning border-warning/30'
-                          : 'bg-surface-muted text-fg-muted border-line'
-                      }`}
-                    >
-                      <option value="published">● Published</option>
-                      <option value="draft">◌ Draft</option>
-                      <option value="archived">✖ Archived</option>
-                    </select>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => setEditingProduct({ ...prod })}
-                        className="p-1.5 bg-surface border border-line hover:border-primary text-fg rounded-lg transition-colors cursor-pointer"
-                        title="Sửa sản phẩm"
-                      >
-                        <Icon name="edit" size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProductConfirm(prod)}
-                        className="p-1.5 bg-surface border border-danger/30 hover:bg-danger-tint text-danger rounded-lg transition-colors cursor-pointer"
-                        title="Xóa sản phẩm"
-                      >
-                        <Icon name="delete" size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {filteredProducts.length === 0 && (
-          <div className="p-8 text-center text-fg-muted text-xs">
-            {isVi ? 'Không tìm thấy sản phẩm nào phù hợp.' : 'No products found.'}
-          </div>
-        )}
-      </div>
+      {/* Products Table — primitive DataTable (sort + phân trang + empty state ngoài bảng) */}
+      <DataTable<Product>
+        columns={productColumns}
+        rows={filteredProducts}
+        getRowId={(row) => row.id}
+        caption={isVi ? 'Danh sách sản phẩm' : 'Product list'}
+        tableLabel={isVi ? 'Danh sách sản phẩm' : 'Product list'}
+        defaultSort={[{ key: 'name', direction: 'asc' }]}
+        emptyState={
+          <EmptyState
+            live
+            title={isVi ? 'Không tìm thấy sản phẩm nào phù hợp' : 'No products found'}
+            description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc danh mục / chuẩn in.' : 'Clear the search or change the category / readiness filter.'}
+          />
+        }
+      />
 
       {/* Edit Product Modal */}
       {editingProduct && (
