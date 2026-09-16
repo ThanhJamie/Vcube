@@ -766,12 +766,15 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
   /* ------------------------------------------------------------------ */
   const stats = useMemo(() => {
     const idx = (o: MyQueueOrder) => (typeof o.statusStageIndex === 'number' ? o.statusStageIndex : null);
-    const active = orders.filter((o) => o.status !== 'completed' && o.status !== 'cancelled');
+    // Nấc cuối pipeline MES (index 7 = "Xuất xưởng giao") là TRẠNG THÁI KẾT THÚC ⇒ không được
+    // tính đồng thời vào "đang xử lý" và "đã hoàn thành" (trước đây double-count).
+    const isTerminal = (o: MyQueueOrder) => o.status === 'completed' || idx(o) === 7;
+    const active = orders.filter((o) => o.status !== 'cancelled' && !isTerminal(o));
     const inPrint = orders.filter((o) => {
       const i = idx(o);
       return i != null && i >= 3 && i <= 4;
     });
-    const done = orders.filter((o) => o.status === 'completed' || idx(o) === 7);
+    const done = orders.filter(isTerminal);
     const stockGrams = materials.reduce((sum, m) => sum + (m.currentStockGrams ?? 0), 0);
     const lowStock = materials.filter(
       (m) =>

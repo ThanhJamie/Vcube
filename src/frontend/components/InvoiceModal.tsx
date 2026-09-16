@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Order } from '../types';
 import { vatLabel, vatNotConfiguredLabel, vatRateFromPercent } from '../lib/vat';
-import { Icon } from '@frontend/ui';
+import { Icon, Modal } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
 import { EMPTY_VALUE, formatCurrency, formatDateTime } from '../lib/format';
@@ -86,24 +86,28 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
   const isCod = p.status === 'cod';
 
   return (
-    <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-3 sm:p-4 backdrop-blur-xs">
-      <div className="bg-surface w-full max-w-3xl rounded-lg shadow-e3 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
-        {/* Modal Top Control Bar */}
-        <div className="px-5 py-4 bg-surface text-fg flex items-center justify-between font-sans shrink-0 border-b border-line">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-sm bg-primary flex items-center justify-center text-primary-fg">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      showCloseButton={false}
+      bodyClassName="p-0"
+      title={
+        <span className="flex w-full items-center justify-between gap-3">
+          <span className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary text-primary-fg">
               <Icon name="receipt_long" size={18} />
-            </div>
-            <div>
-              <h3 className="font-bold text-xs uppercase tracking-wider text-fg">
-                HÓA ĐƠN GTGT & CHỨNG NHẬN GIA CÔNG KỸ THUẬT
-              </h3>
-              <p className="text-xs text-fg-subtle font-mono">
+            </span>
+            <span>
+              <span className="block text-xs font-bold uppercase tracking-wider text-fg">
+                HÓA ĐƠN GTGT &amp; CHỨNG NHẬN GIA CÔNG KỸ THUẬT
+              </span>
+              <span className="block text-xs font-mono text-fg-subtle">
                 Số HĐ: HD-VCUBE-{order.orderNumber.replace('#', '')}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+              </span>
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
             <button
               onClick={handlePrint}
               className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-mono uppercase tracking-wider font-bold rounded-full flex items-center gap-1.5 transition-colors cursor-pointer shadow-e1"
@@ -118,11 +122,12 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
             >
               <Icon name="close" size={20} />
             </button>
-          </div>
-        </div>
-
+          </span>
+        </span>
+      }
+    >
         {/* Printable Invoice Body */}
-        <div className="p-6 sm:p-8 overflow-y-auto space-y-6 text-xs text-fg font-sans bg-canvas">
+        <div className="p-6 sm:p-8 space-y-6 text-xs text-fg font-sans bg-canvas">
           {/* Company & Order Info Header */}
           <div className="flex flex-col sm:flex-row justify-between border-b border-line pb-5 gap-4">
             <div>
@@ -291,7 +296,6 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
