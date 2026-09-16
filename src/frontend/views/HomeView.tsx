@@ -529,16 +529,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     className="h-full w-full border-0 rounded-none"
                   />
 
-                  {/* Telemetry HUD Overlay (Bottom Left) */}
+                  {/* Telemetry HUD Overlay (Bottom Left) — mô hình minh họa, KHÔNG phải sản phẩm
+                      thật nên không in số đo/vật liệu cụ thể (tránh khẳng định sai). */}
                   <div className="absolute bottom-3 left-3 pointer-events-none z-10">
-                    <div className="bg-surface-inverse/85 backdrop-blur-md px-3 py-2 rounded-lg border border-line-subtle shadow-e2 space-y-0.5">
+                    <div className="bg-surface-inverse/85 px-3 py-2 rounded-lg border border-line-subtle shadow-e2 space-y-0.5">
                       <p className="font-mono text-xs font-bold text-accent truncate max-w-[220px]">
                         {isVi ? activeHeroModelMeta.titleVi : activeHeroModelMeta.titleEn}
                       </p>
-                      <div className="flex items-center gap-2 text-xs font-mono text-on-inverse/70">
-                        <span>{activeHeroModelMeta.dims}</span>
-                        <span>•</span>
-                        <span className="text-on-inverse/90">{activeHeroModelMeta.material}</span>
+                      <div className="text-xs font-mono text-on-inverse/70">
+                        {isVi ? 'Mô hình minh họa theo danh mục' : 'Category-based illustrative model'}
                       </div>
                     </div>
                   </div>
@@ -618,7 +617,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-tech text-xs text-fg-muted min-w-0">
               <div className="bg-surface-muted p-2 rounded-sm flex items-center gap-1.5">
                 <Icon name="verified" size={16} className="text-positive" />
-                <span>{isVi ? 'Kiểm tra kín nước' : 'Mesh check'}</span>
+                <span>{isVi ? 'Kiểm tra lưới theo tệp' : 'Per-file mesh check'}</span>
               </div>
               <div className="bg-surface-muted p-2 rounded-sm flex items-center gap-1.5">
                 <Icon name="category" size={16} className="text-primary" />
@@ -630,7 +629,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
               <div className="bg-surface-muted p-2 rounded-sm flex items-center gap-1.5">
                 <Icon name="license" size={16} className="text-info" />
-                <span>Commercial Ready</span>
+                <span>{isVi ? 'Giấy phép theo từng file' : 'License per file'}</span>
               </div>
             </div>
           </div>

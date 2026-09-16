@@ -53,16 +53,16 @@ const SERVICES: ServiceItem[] = [
       'Filaments: PLA, PETG, ABS, PA-CF & more'
     ],
     specsVi: [
-      { label: 'Dung sai tham chiếu', value: '±0.10 mm' },
-      { label: 'Kích thước in tối đa', value: '450 × 450 × 450 mm' },
-      { label: 'Thời gian hoàn thành', value: 'Từ 24h - 48h' },
-      { label: 'Kiểm soát chất lượng', value: '100% kiểm tra trước xuất xưởng' }
+      { label: 'Dung sai', value: 'Theo vật liệu & chi tiết — xác nhận khi báo giá' },
+      { label: 'Kích thước in', value: 'Theo khổ bàn in của xưởng nhận đơn' },
+      { label: 'Thời gian hoàn thành', value: 'Xưởng xác nhận theo từng đơn' },
+      { label: 'Kiểm soát chất lượng', value: 'Quy trình QC theo từng xưởng' }
     ],
     specsEn: [
-      { label: 'Reference Tolerance', value: '±0.10 mm' },
-      { label: 'Max Build Volume', value: '450 × 450 × 450 mm' },
-      { label: 'Standard Lead Time', value: '24h - 48h' },
-      { label: 'Quality Assurance', value: '100% Pre-dispatch Inspection' }
+      { label: 'Tolerance', value: 'Depends on material & part — confirmed in the quote' },
+      { label: 'Build volume', value: 'Depends on the assigned workshop’s printer' },
+      { label: 'Lead time', value: 'Confirmed by the workshop per order' },
+      { label: 'Quality assurance', value: 'QC process per workshop' }
     ],
     ctaLabelVi: 'Báo Giá File 3D Của Bạn',
     ctaLabelEn: 'Quote Your 3D File',
@@ -123,13 +123,13 @@ const SERVICES: ServiceItem[] = [
     color: '#15803D',
     iconName: 'inventory_2',
     featuresVi: [
-      '100% bản vẽ được kiểm định tính khép kín (manifold)',
+      'Danh mục kiểm tra tính khép kín khi đọc tệp (manifold)',
       'Tải tức thì file STL & STEP bản quyền',
       'Minh bạch thông số kích thước, khối lượng và giờ in',
       'Bảo vệ quyền tác giả cho kỹ sư thiết kế'
     ],
     featuresEn: [
-      '100% manifold mesh integrity guaranteed',
+      'Mesh integrity checked when the file is read',
       'Instant download of licensed STL & STEP files',
       'Transparent dimensions, weight & print times',
       'Author copyright & royalty protection'
@@ -177,15 +177,15 @@ const SERVICES: ServiceItem[] = [
     ],
     specsVi: [
       { label: 'Dụng cụ đo kiểm', value: 'Thước cặp điện tử & Máy quét quang học' },
-      { label: 'Nhiệt độ chịu đựng', value: 'Đến 155°C với vật liệu chuyên dụng' },
+      { label: 'Nhiệt độ chịu đựng', value: 'Theo vật liệu đã chọn (tra bảng vật liệu)' },
       { label: 'Tư vấn kỹ thuật', value: 'Hỗ trợ 1:1 bởi kỹ sư xưởng' },
-      { label: 'Bảo hành chất lượng', value: 'In lại miễn phí nếu sai dung sai cam kết' }
+      { label: 'Bảo hành', value: 'Theo chính sách của xưởng nhận đơn' }
     ],
     specsEn: [
       { label: 'Metrology Tools', value: 'Digital Calipers & Optical Scanner' },
-      { label: 'Heat Deflection', value: 'Up to 155°C with specialty polymers' },
+      { label: 'Heat deflection', value: 'Depends on the selected material (see catalog)' },
       { label: 'Advisory', value: '1-on-1 engineer consultation' },
-      { label: 'Quality Guarantee', value: 'Free re-print if tolerance breached' }
+      { label: 'Warranty', value: 'Per the assigned workshop’s policy' }
     ],
     ctaLabelVi: 'Xem Bảng So Sánh Vật Liệu',
     ctaLabelEn: 'View Material Matrix',
