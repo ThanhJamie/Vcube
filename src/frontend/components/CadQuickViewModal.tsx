@@ -165,8 +165,8 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
       price: unitPrice,
       quantity: quantity,
       material: orderType === 'physical' ? selectedMaterial : undefined,
-      color: orderType === 'physical' ? selectedColor.name : undefined,
-      colorHex: orderType === 'physical' ? selectedColor.hex : undefined,
+      color: orderType === 'physical' && product.colors && product.colors.length > 0 ? selectedColor.name : undefined,
+      colorHex: orderType === 'physical' && product.colors && product.colors.length > 0 ? selectedColor.hex : undefined,
       dimensions: product.specs?.dimensions,
       // Data-honesty (P3b): KHONG doan ho giay phep/dinh dang tep khi san pham chua khai.
       fileFormat: orderType === 'digital' ? (product.cadFormat ?? undefined) : undefined,
@@ -281,7 +281,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
               </div>
               <div className="bg-on-inverse/5 p-2 rounded-lg border border-line">
                 <span className="text-xs text-on-inverse/40 uppercase block mb-0.5">Định Dạng</span>
-                <span className="text-primary font-bold">{product.cadFormat || 'STL / STEP'}</span>
+                <span className="text-primary font-bold">{product.cadFormat || EMPTY_VALUE}</span>
               </div>
             </div>
           </div>
@@ -293,9 +293,15 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                 <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 text-xs font-bold rounded-sm uppercase">
                   {product.category}
                 </span>
-                <span className="text-xs text-warning font-bold flex items-center gap-1">
-                  ★ {product.rating} ({product.reviewsCount} {isVi ? 'đánh giá' : 'reviews'})
-                </span>
+                {isNum(product.rating) && product.rating > 0 ? (
+                  <span className="text-xs text-warning font-bold flex items-center gap-1">
+                    ★ {product.rating} ({product.reviewsCount} {isVi ? 'đánh giá' : 'reviews'})
+                  </span>
+                ) : (
+                  <span className="text-xs text-fg-subtle font-mono">
+                    {isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
+                  </span>
+                )}
               </div>
 
               <h2 className="font-extrabold text-base sm:text-lg text-fg leading-snug">
@@ -353,7 +359,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                 <div className="mt-3.5 space-y-2 text-xs bg-surface-muted p-3.5 rounded-lg border border-line font-mono">
                   <div className="flex items-center justify-between text-xs text-fg-muted">
                     <span>Định dạng file:</span>
-                    <strong className="text-fg">{product.cadFormat || 'STL, STEP, 3MF'}</strong>
+                    <strong className="text-fg">{product.cadFormat || (isVi ? '— (người bán chưa khai báo)' : '— (not declared)')}</strong>
                   </div>
                   <div className="flex items-center justify-between text-xs text-fg-muted">
                     <span>Bản quyền:</span>
@@ -408,19 +414,27 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-fg-muted">Màu sắc:</span>
                     <div className="flex items-center gap-1.5">
-                      {(product.colors || [{ name: 'Đen Kỹ Thuật', hex: '#1C1C1C', available: true }]).map((c) => (
-                        <button
-                          key={c.name}
-                          onClick={() => setSelectedColor(c)}
-                          className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
-                            selectedColor.name === c.name
-                              ? 'border-primary scale-115 ring-2 ring-primary/40 shadow-e1'
-                              : 'border-line-control hover:scale-105'
-                          }`}
-                          style={{ backgroundColor: c.hex }}
-                          title={c.name}
-                        />
-                      ))}
+                      {product.colors && product.colors.length > 0 ? (
+                        product.colors.map((c) => (
+                          <button
+                            key={c.name}
+                            onClick={() => setSelectedColor(c)}
+                            aria-label={c.name}
+                            aria-pressed={selectedColor.name === c.name}
+                            className={`w-6 h-6 rounded-full border-2 transition-[transform,box-shadow] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                              selectedColor.name === c.name
+                                ? 'border-primary scale-115 ring-2 ring-primary/40 shadow-e1'
+                                : 'border-line-control hover:scale-105'
+                            }`}
+                            style={{ backgroundColor: c.hex }}
+                            title={c.name}
+                          />
+                        ))
+                      ) : (
+                        <span className="text-xs text-fg-subtle font-mono">
+                          {isVi ? 'Người bán chưa khai màu' : 'No colors declared'}
+                        </span>
+                      )}
                     </div>
                   </div>
 

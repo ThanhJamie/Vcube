@@ -140,11 +140,11 @@ export const Header: React.FC<HeaderProps> = ({
       )}
 
       <header className="sticky top-0 z-header bg-surface-muted border-b border-line px-4 sm:px-6 md:px-12 py-3 transition-colors motion-reduce:transition-none">
-        <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-3 sm:gap-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-6">
           {/* Zone 1: Brand Title */}
           <button
             onClick={() => handleNavClick('home')}
-            className="flex items-baseline gap-1.5 focus-visible:outline-none group shrink-0 cursor-pointer"
+            className="flex items-baseline gap-1.5 rounded-sm group shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="VCUBE Home"
           >
             <span className="font-display text-2xl sm:text-2xl font-bold tracking-tighter leading-none uppercase italic text-fg">
@@ -264,7 +264,7 @@ export const Header: React.FC<HeaderProps> = ({
                   handleNavClick('cart');
                 }
               }}
-              className="relative p-2 text-fg hover:bg-surface rounded-full transition-colors focus-visible:outline-none touch-target-btn cursor-pointer"
+              className="relative p-2 text-fg hover:bg-surface rounded-full transition-colors touch-target-btn cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={t('cartTitle', 'Giỏ hàng VCUBE', 'VCUBE Cart')}
             >
               <Icon name="shopping_cart" size={28} />
