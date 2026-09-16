@@ -864,6 +864,24 @@ CMS content for homepage hero banner, technical showcase blocks, and workshop lo
 | `hcm_workshop_address` | `text` | YES | `''` | Southern hub showcase address |
 | `announcement_text` | `text` | YES | `''` | Storefront broadcast text |
 | `announcement_enabled` | `boolean` | NO | `false` | Broadcast toggle |
+| `announcement_badge` | `text` | YES | `''` | Announcement badge |
+| `announcement_action_text` | `text` | YES | `''` | Announcement CTA label |
+| `announcement_action_tag` | `text` | YES | `''` | Announcement CTA tag filter |
+| `hero_headline_line1` | `text` | YES | `''` | Hero headline line 1 |
+| `hero_headline_highlight` | `text` | YES | `''` | Hero headline highlighted line |
+| `hero_cta_quote_text` | `text` | YES | `''` | Hero primary CTA label |
+| `hero_cta_catalog_text` | `text` | YES | `''` | Hero secondary CTA label |
+| `hero_metric{1,2,3}_label` / `_value` | `text` | YES | `''` | Hero metric chips (6 columns) |
+| `workflow_badge` / `workflow_title` | `text` | YES | `''` | 3-step workflow header |
+| `workflow_step{1,2,3}_title` / `_desc` | `text` | YES | `''` | 3-step workflow content (6 columns) |
+| `estimator_badge` / `_title` / `_subtitle` | `text` | YES | `''` | Live estimator header |
+| `estimator_benefit{1,2}` / `estimator_cta_text` | `text` | YES | `''` | Live estimator benefits + CTA |
+| `trust_partners_title` | `text` | YES | `''` | Trust partners section title |
+| `trust_partners_list` | `jsonb` | YES | `'[]'::jsonb` | Trust partner names |
+| `seo_title` / `seo_description` / `seo_keywords` | `text` | YES | `''` | SEO meta |
+| `seo_og_image` / `seo_canonical_url` | `text` | YES | `''` | SEO social/canonical |
+| `seo_robots_index` | `boolean` | YES | `NULL` | `NULL` = chưa cấu hình (không mặc định index) |
+| `seo_structured_data` | `text` | YES | `''` | JSON-LD payload |
 | `settings` | `jsonb` | NO | `'{}'::jsonb` | CMS components data |
 | `created_at` | `timestamptz` | NO | `now()` | Creation timestamp |
 | `updated_at` | `timestamptz` | NO | `now()` | Auto-updated timestamp |

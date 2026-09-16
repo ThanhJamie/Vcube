@@ -185,6 +185,51 @@ alter table public.site_content
 comment on column public.site_content.settings is
   'Truong storefront chua co cot rieng (standardShippingFee, freeShippingThreshold, toleranceSpec, nhom SEO). Key giu nguyen camelCase.';
 
+-- ---------------------------------------------------------------------------
+-- site_content: cot THAT cho nhom storefront/SEO truoc day bi NUOT khi luu.
+-- Truoc day admin sua duoc nhung `saveSiteContent` khong ghi o dau (khong cot,
+-- khong jsonb) ⇒ mat du lieu am tham. Nay moi truong co mot cot rieng de query/index
+-- (khong don cuc vao jsonb). Cot text mac dinh '' = chua cau hinh; boolean/jsonb
+-- nullable de phan biet "chua khai" voi false/[].
+-- ---------------------------------------------------------------------------
+alter table public.site_content
+  add column if not exists announcement_badge         text default '',
+  add column if not exists announcement_action_text   text default '',
+  add column if not exists announcement_action_tag    text default '',
+  add column if not exists hero_headline_line1        text default '',
+  add column if not exists hero_headline_highlight    text default '',
+  add column if not exists hero_cta_quote_text        text default '',
+  add column if not exists hero_cta_catalog_text      text default '',
+  add column if not exists hero_metric1_label         text default '',
+  add column if not exists hero_metric1_value         text default '',
+  add column if not exists hero_metric2_label         text default '',
+  add column if not exists hero_metric2_value         text default '',
+  add column if not exists hero_metric3_label         text default '',
+  add column if not exists hero_metric3_value         text default '',
+  add column if not exists workflow_badge             text default '',
+  add column if not exists workflow_title             text default '',
+  add column if not exists workflow_step1_title       text default '',
+  add column if not exists workflow_step1_desc        text default '',
+  add column if not exists workflow_step2_title       text default '',
+  add column if not exists workflow_step2_desc        text default '',
+  add column if not exists workflow_step3_title       text default '',
+  add column if not exists workflow_step3_desc        text default '',
+  add column if not exists estimator_badge            text default '',
+  add column if not exists estimator_title            text default '',
+  add column if not exists estimator_subtitle         text default '',
+  add column if not exists estimator_benefit1         text default '',
+  add column if not exists estimator_benefit2         text default '',
+  add column if not exists estimator_cta_text         text default '',
+  add column if not exists trust_partners_title       text default '',
+  add column if not exists trust_partners_list        jsonb default '[]'::jsonb,
+  add column if not exists seo_title                  text default '',
+  add column if not exists seo_description            text default '',
+  add column if not exists seo_keywords               text default '',
+  add column if not exists seo_og_image               text default '',
+  add column if not exists seo_canonical_url          text default '',
+  add column if not exists seo_robots_index           boolean,
+  add column if not exists seo_structured_data        text default '';
+
 
 create table if not exists public.pricing_configs (
     id               text primary key,

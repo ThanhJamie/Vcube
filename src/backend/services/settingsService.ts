@@ -458,6 +458,50 @@ function siteContentToRow(patch: Partial<SiteContentConfig>): {
   if (patch.announcementText !== undefined) row.announcement_text = patch.announcementText;
   if (patch.announcementActive !== undefined) row.announcement_enabled = patch.announcementActive;
 
+  // Nhóm storefront/SEO đã có CỘT riêng trong `site_content` (xem baseline). Phải map ở đây
+  // nữa để hai đường ghi (settingsService / dbService) không lệch nhau.
+  const COLUMN_MAP: Array<[keyof SiteContentConfig, string]> = [
+    ['announcementBadge', 'announcement_badge'],
+    ['announcementActionText', 'announcement_action_text'],
+    ['announcementActionTag', 'announcement_action_tag'],
+    ['heroHeadlineLine1', 'hero_headline_line1'],
+    ['heroHeadlineHighlight', 'hero_headline_highlight'],
+    ['heroCtaQuoteText', 'hero_cta_quote_text'],
+    ['heroCtaCatalogText', 'hero_cta_catalog_text'],
+    ['heroMetric1Label', 'hero_metric1_label'],
+    ['heroMetric1Value', 'hero_metric1_value'],
+    ['heroMetric2Label', 'hero_metric2_label'],
+    ['heroMetric2Value', 'hero_metric2_value'],
+    ['heroMetric3Label', 'hero_metric3_label'],
+    ['heroMetric3Value', 'hero_metric3_value'],
+    ['workflowBadge', 'workflow_badge'],
+    ['workflowTitle', 'workflow_title'],
+    ['workflowStep1Title', 'workflow_step1_title'],
+    ['workflowStep1Desc', 'workflow_step1_desc'],
+    ['workflowStep2Title', 'workflow_step2_title'],
+    ['workflowStep2Desc', 'workflow_step2_desc'],
+    ['workflowStep3Title', 'workflow_step3_title'],
+    ['workflowStep3Desc', 'workflow_step3_desc'],
+    ['estimatorBadge', 'estimator_badge'],
+    ['estimatorTitle', 'estimator_title'],
+    ['estimatorSubtitle', 'estimator_subtitle'],
+    ['estimatorBenefit1', 'estimator_benefit1'],
+    ['estimatorBenefit2', 'estimator_benefit2'],
+    ['estimatorCtaText', 'estimator_cta_text'],
+    ['trustPartnersTitle', 'trust_partners_title'],
+    ['trustPartnersList', 'trust_partners_list'],
+    ['seoTitle', 'seo_title'],
+    ['seoDescription', 'seo_description'],
+    ['seoKeywords', 'seo_keywords'],
+    ['seoOgImage', 'seo_og_image'],
+    ['seoCanonicalUrl', 'seo_canonical_url'],
+    ['seoRobotsIndex', 'seo_robots_index'],
+    ['seoStructuredData', 'seo_structured_data'],
+  ];
+  for (const [key, column] of COLUMN_MAP) {
+    if (patch[key] !== undefined) row[column] = patch[key];
+  }
+
   // Các trường CHƯA có cột riêng → cột `settings` jsonb (xem baseline).
   const extras: Record<string, unknown> = {};
   for (const key of SITE_CONTENT_EXTRA_KEYS) {
