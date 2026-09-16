@@ -28,6 +28,17 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
     if (isSaved) setLocalContent({ ...siteContent });
   }, [siteContent, isSaved]);
 
+  // Cảnh báo trình duyệt khi đóng tab/tải lại lúc còn thay đổi chưa lưu.
+  useEffect(() => {
+    if (isSaved) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isSaved]);
+
   // data-honesty §3: CHỈ hiển thị đúng những gì admin đã cấu hình.
   //
   // VÌ SAO (bản cũ :26-34): mỗi trường rỗng bị thay bằng một giá trị BỊA (tiêu đề, mô tả,
@@ -94,6 +105,12 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {!isSaved && !isSaving && (
+            <span className="text-xs font-bold text-warning flex items-center gap-1">
+              <Icon name="warning" size={14} />
+              {isVi ? 'Chưa lưu' : 'Unsaved'}
+            </span>
+          )}
           <button
             onClick={handleSave}
             disabled={isSaved || isSaving}

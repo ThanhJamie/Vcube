@@ -19,7 +19,7 @@ import { INKIRI_REFERENCE_VALUES } from '../../../data/mockData';
 import { AccessoriesManager } from './AccessoriesManager';
 import { WarehouseInventoryPanel } from './WarehouseInventoryPanel';
 import { WorkshopEstimatorBOM } from './WorkshopEstimatorBOM';
-import { ConfirmDialog, Icon, InfoTip } from '@frontend/ui';
+import { ConfirmDialog, Icon, InfoTip, Modal } from '@frontend/ui';
 
 interface PricingConfigPanelProps {
   initialSubTab?: 'formula' | 'materials' | 'printers' | 'accessories' | 'inventory' | 'estimator';
@@ -2457,20 +2457,12 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
 
       {/* NEW/EDIT MATERIAL MODAL */}
       {(isNewMaterialOpen || editingMaterial) && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-surface rounded-lg max-w-lg w-full p-6 space-y-4 border border-line shadow-e3">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="font-bold text-base text-fg">
-                {editingMaterial ? `Chỉnh Sửa Vật Liệu: ${editingMaterial.name}` : 'Thêm Vật Liệu In 3D Mới'}
-              </h3>
-              <button aria-label="Đóng"
-                onClick={() => { setIsNewMaterialOpen(false); setEditingMaterial(null); setMaterialIssues({}); }}
-                className="text-fg-muted hover:text-fg cursor-pointer"
-              >
-                <Icon name="close" size={20} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => { setIsNewMaterialOpen(false); setEditingMaterial(null); setMaterialIssues({}); }}
+          size="lg"
+          title={<span className="flex items-center gap-2"><Icon name="layers" size={22} className="text-primary" />{editingMaterial ? `Chỉnh Sửa Vật Liệu: ${editingMaterial.name}` : 'Thêm Vật Liệu In 3D Mới'}</span>}
+        >
             <form onSubmit={editingMaterial ? handleSaveEditMaterial : handleSaveNewMaterial} className="space-y-3 text-xs">
               {Object.keys(materialIssues).length > 0 && (
                 <p role="alert" className="p-2 rounded-sm bg-danger-tint border border-danger/30 text-danger font-semibold">
@@ -2708,26 +2700,17 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* NEW/EDIT PRINTER MODAL */}
       {(isNewPrinterOpen || editingPrinter) && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-surface rounded-lg max-w-lg w-full p-6 space-y-4 border border-line shadow-e3">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="font-bold text-base text-fg">
-                {editingPrinter ? `Chỉnh Sửa Máy In: ${editingPrinter.name}` : 'Thêm Máy In Mới Vào Đội Máy'}
-              </h3>
-              <button aria-label="Đóng"
-                onClick={() => { setIsNewPrinterOpen(false); setEditingPrinter(null); setPrinterIssues({}); }}
-                className="text-fg-muted hover:text-fg cursor-pointer"
-              >
-                <Icon name="close" size={20} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => { setIsNewPrinterOpen(false); setEditingPrinter(null); setPrinterIssues({}); }}
+          size="lg"
+          title={<span className="flex items-center gap-2"><Icon name="precision_manufacturing" size={22} className="text-primary" />{editingPrinter ? `Chỉnh Sửa Máy In: ${editingPrinter.name}` : 'Thêm Máy In Mới Vào Đội Máy'}</span>}
+        >
             <form onSubmit={editingPrinter ? handleSaveEditPrinter : handleSaveNewPrinter} className="space-y-3 text-xs">
               {Object.keys(printerIssues).length > 0 && (
                 <p role="alert" className="p-2 rounded-sm bg-danger-tint border border-danger/30 text-danger font-semibold">
@@ -2999,8 +2982,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

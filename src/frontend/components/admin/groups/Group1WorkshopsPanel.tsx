@@ -4,7 +4,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { WorkshopProfile, WorkshopMachine, WorkshopMaterial, WorkshopPartner, PrinterProfile } from '../../../../types';
 import { getPricingGlobalSettings } from '../../../../backend/services/settingsService';
-import { Button, DataTable, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import { Button, DataTable, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 
 export interface Group1WorkshopsPanelProps {
@@ -1422,20 +1422,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
 
       {/* MODAL: THÊM XƯỞNG IN */}
       {isAddWorkshopModalOpen && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-lg max-w-lg w-full p-6 shadow-e3 border border-line-subtle">
-            <div className="flex items-center justify-between pb-3 border-b border-line-subtle">
-              <h3 className="font-bold text-fg text-lg">
-                {isVi ? 'Thêm Xưởng In Mới Vào Mạng Lưới' : 'Register New Partner Workshop'}
-              </h3>
-              <button aria-label="Đóng"
-                onClick={() => setIsAddWorkshopModalOpen(false)}
-                className="text-fg-subtle hover:text-fg-muted cursor-pointer"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setIsAddWorkshopModalOpen(false)}
+          size="lg"
+          title={isVi ? 'Thêm Xưởng In Mới Vào Mạng Lưới' : 'Register New Partner Workshop'}
+        >
             <form onSubmit={handleCreateWorkshop} className="mt-4 space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-fg-muted mb-1">
@@ -1575,26 +1567,17 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: BIÊN CHẾ MÁY MỚI */}
       {isAddMachineModalOpen && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-lg max-w-md w-full p-6 shadow-e3 border border-line-subtle">
-            <div className="flex items-center justify-between pb-3 border-b border-line-subtle">
-              <h3 className="font-bold text-fg text-base">
-                {isVi ? 'Thêm Máy In Vào printer_fleet' : 'Add Printer to printer_fleet'}
-              </h3>
-              <button aria-label="Đóng"
-                onClick={() => setIsAddMachineModalOpen(false)}
-                className="text-fg-subtle hover:text-fg-muted cursor-pointer"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setIsAddMachineModalOpen(false)}
+          size="md"
+          title={isVi ? 'Thêm Máy In Vào printer_fleet' : 'Add Printer to printer_fleet'}
+        >
             <form onSubmit={handleCreateMachine} className="mt-4 space-y-3">
               <div>
                 <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Tên máy in:' : 'Machine Name:'}</label>
@@ -1705,26 +1688,17 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: THÊM VẬT LIỆU */}
       {isAddMaterialModalOpen && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-lg max-w-md w-full p-6 shadow-e3 border border-line-subtle">
-            <div className="flex items-center justify-between pb-3 border-b border-line-subtle">
-              <h3 className="font-bold text-fg text-base">
-                {isVi ? 'Thêm Cuộn Nhựa / Vật Liệu Mới' : 'Add Material SKU'}
-              </h3>
-              <button aria-label="Đóng"
-                onClick={() => setIsAddMaterialModalOpen(false)}
-                className="text-fg-subtle hover:text-fg-muted cursor-pointer"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setIsAddMaterialModalOpen(false)}
+          size="md"
+          title={isVi ? 'Thêm Cuộn Nhựa / Vật Liệu Mới' : 'Add Material SKU'}
+        >
             <form onSubmit={handleCreateMaterial} className="mt-4 space-y-3">
               <div>
                 <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Xưởng lưu kho:' : 'Workshop:'}</label>
@@ -1815,8 +1789,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* TAB 4: ĐỐI TÁC XƯỞNG LƯU TRONG SUPABASE (`workshop_partners`) */}
@@ -1893,26 +1866,20 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
 
           {/* MODAL: THÊM / SỬA ĐỐI TÁC (ghi thẳng vào Supabase) */}
           {partnerDraft && (
-            <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-              <div className="bg-surface rounded-lg max-w-lg w-full p-6 shadow-e3 border border-line-subtle max-h-[92vh] overflow-y-auto">
-                <div className="flex items-center justify-between pb-3 border-b border-line-subtle">
-                  <h3 className="font-bold text-fg text-lg">
-                    {partners.some((p) => p.id === partnerDraft.id)
-                      ? isVi
-                        ? `Cấu hình đối tác: ${partnerDraft.name}`
-                        : `Configure partner: ${partnerDraft.name}`
-                      : isVi
-                      ? 'Thêm đối tác xưởng mới'
-                      : 'Add new workshop partner'}
-                  </h3>
-                  <button aria-label="Đóng"
-                    onClick={() => setPartnerDraft(null)}
-                    className="text-fg-subtle hover:text-fg-muted cursor-pointer"
-                  >
-                    <Icon name="close" size={24} />
-                  </button>
-                </div>
-
+            <Modal
+              open
+              onClose={() => setPartnerDraft(null)}
+              size="lg"
+              title={
+                partners.some((p) => p.id === partnerDraft.id)
+                  ? isVi
+                    ? `Cấu hình đối tác: ${partnerDraft.name}`
+                    : `Configure partner: ${partnerDraft.name}`
+                  : isVi
+                  ? 'Thêm đối tác xưởng mới'
+                  : 'Add new workshop partner'
+              }
+            >
                 <form onSubmit={handleSubmitPartner} className="mt-4 space-y-3.5">
                   <div>
                     <label className="block text-xs font-bold text-fg-muted mb-1">
@@ -2101,8 +2068,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     </button>
                   </div>
                 </form>
-              </div>
-            </div>
+            </Modal>
           )}
         </div>
       )}

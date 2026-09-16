@@ -46,6 +46,17 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
     if (isSaved) setLocalContent({ ...siteContent });
   }, [siteContent, isSaved]);
 
+  // Cảnh báo trình duyệt khi đóng tab/tải lại lúc còn thay đổi chưa lưu.
+  useEffect(() => {
+    if (isSaved) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isSaved]);
+
   const handleChange = <K extends keyof SiteContentConfig>(key: K, value: SiteContentConfig[K]) => {
     setLocalContent(prev => ({ ...prev, [key]: value }));
     setIsSaved(false);
@@ -125,6 +136,12 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {!isSaved && !isSaving && (
+            <span className="text-xs font-bold text-warning flex items-center gap-1">
+              <Icon name="warning" size={14} />
+              {isVi ? 'Chưa lưu' : 'Unsaved'}
+            </span>
+          )}
           <button
             onClick={handleSave}
             disabled={isSaved || isSaving}
