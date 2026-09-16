@@ -4,7 +4,8 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { WorkshopProfile, WorkshopMachine, WorkshopMaterial, WorkshopPartner, PrinterProfile } from '../../../../types';
 import { getPricingGlobalSettings } from '../../../../backend/services/settingsService';
-import { Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import { Button, DataTable, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import type { DataTableColumn } from '@frontend/ui';
 
 export interface Group1WorkshopsPanelProps {
   printers?: any[];
@@ -499,6 +500,165 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         : 'Material record is IN-MEMORY only: no DB write function exists for per-workshop inventory, so it is lost on reload.'
     );
   };
+
+  /** Cột bảng tồn kho vật liệu (tab Vật liệu) dùng primitive `DataTable`. */
+  const materialColumns = useMemo<DataTableColumn<WorkshopMaterial>[]>(() => [
+    {
+      key: 'materialName',
+      header: isVi ? 'Vật liệu' : 'Material',
+      value: (m) => m.materialName,
+      render: (mat) => (
+        <div className="flex items-center gap-2.5">
+          <span className="w-4 h-4 rounded-full border border-line shadow-e0 shrink-0" style={{ backgroundColor: mat.colorHex }} title={mat.colorName || mat.colorHex} />
+          <div>
+            <div className="font-bold text-fg">{mat.materialName}</div>
+            <div className="text-xs text-fg-subtle">{mat.colorName} • {mat.density} g/cm³</div>
+          </div>
+        </div>
+      ),
+    },
+    { key: 'materialType', header: isVi ? 'Loại' : 'Type', value: (m) => m.materialType, render: (mat) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted rounded-sm font-bold text-xs">{mat.materialType}</span> },
+    {
+      key: 'workshop',
+      header: isVi ? 'Xưởng giữ kho' : 'Workshop',
+      value: (m) => m.workshopId,
+      render: (mat) => {
+        const ws = workshops.find((w) => w.id === mat.workshopId);
+        return <span className="text-fg-muted font-medium">{ws ? `${ws.workshopName} (${ws.region})` : '—'}</span>;
+      },
+    },
+    { key: 'pricePerKg', header: isVi ? 'Đơn giá/kg' : 'Price/kg', numeric: true, value: (m) => m.pricePerKg, render: (mat) => <span className="font-semibold text-fg">{formatVnd(mat.pricePerKg)}</span> },
+    {
+      key: 'currentStockGrams',
+      header: isVi ? 'Tồn kho hiện tại' : 'Current stock',
+      numeric: true,
+      value: (m) => m.currentStockGrams,
+      render: (mat) => (
+        <div>
+          <div className="font-bold text-fg">{mat.currentStockGrams}g</div>
+          <div className="text-xs text-fg-subtle">{isVi ? 'Ngưỡng min' : 'Min'}: {numOrEmpty(mat.lowStockThresholdGrams, 'g')}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'stockStatus',
+      header: isVi ? 'Trạng thái' : 'Status',
+      value: (m) => m.stockStatus,
+      render: (mat) => (
+        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+          mat.stockStatus === 'Tracking' ? 'bg-positive-tint text-positive' : mat.stockStatus === 'LowStock' ? 'bg-warning-tint text-warning font-black' : 'bg-danger-tint text-danger font-black'
+        }`}>
+          {mat.stockStatus === 'Tracking' ? (isVi ? 'Đầy đủ' : 'In Stock') : mat.stockStatus === 'LowStock' ? (isVi ? 'Sắp hết' : 'Low Stock') : (isVi ? 'Hết hàng' : 'Out of Stock')}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: isVi ? 'Điều chỉnh nhanh' : 'Quick adjust',
+      align: 'right',
+      render: (mat) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            onClick={() => updateMaterialStock(mat.id, Math.max(0, mat.currentStockGrams - 500))}
+            className="px-2 py-0.5 bg-surface-muted hover:bg-line-subtle text-fg-muted text-xs font-bold rounded-sm cursor-pointer"
+            title="-500g"
+          >
+            -500g
+          </button>
+          <button
+            onClick={() => updateMaterialStock(mat.id, mat.currentStockGrams + 1000)}
+            className="px-2 py-0.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-sm cursor-pointer"
+            title="+1kg (1000g)"
+          >
+            +1kg
+          </button>
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi, workshops, updateMaterialStock]);
+
+  /** Cột bảng đối tác xưởng (tab Đối tác) dùng primitive `DataTable`. */
+  const partnerColumns = useMemo<DataTableColumn<WorkshopPartner>[]>(() => [
+    {
+      key: 'name',
+      header: isVi ? 'Đối tác / Địa chỉ' : 'Partner / Address',
+      value: (p) => p.name || '',
+      render: (p) => (
+        <div>
+          <div className="font-bold text-fg">{p.name || (isVi ? '(chưa đặt tên)' : '(unnamed)')}</div>
+          <div className="text-xs text-fg-subtle line-clamp-1">{p.address || '—'}</div>
+        </div>
+      ),
+    },
+    { key: 'region', header: isVi ? 'Vùng' : 'Region', value: (p) => p.region, render: (p) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted rounded-sm font-bold text-xs uppercase">{p.region}</span> },
+    {
+      key: 'contact',
+      header: isVi ? 'Liên hệ' : 'Contact',
+      value: (p) => p.contactPerson || '',
+      render: (p) => (
+        <div>
+          <div className="text-fg-muted">{p.contactPerson || '—'}</div>
+          <div className="text-xs text-fg-subtle font-mono">{p.phone || '—'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'tech',
+      header: isVi ? 'Công nghệ' : 'Tech',
+      render: (p) => (
+        <div className="flex flex-wrap gap-1">
+          {(p.supportedTechnologies || []).map((tech) => (
+            <span key={tech} className="px-1.5 py-0.5 bg-primary-tint text-primary border border-primary/30 rounded-sm font-tech font-bold text-xs">{tech}</span>
+          ))}
+        </div>
+      ),
+    },
+    {
+      key: 'printers',
+      header: isVi ? 'Máy / Hàng đợi' : 'Printers / Queue',
+      value: (p) => p.activePrintersCount,
+      render: (p) => (
+        <div className="text-fg-muted">
+          <div>{p.activePrintersCount + p.availablePrintersCount > 0 ? `${p.activePrintersCount} / ${p.activePrintersCount + p.availablePrintersCount}` : '—'}</div>
+          <div className="text-xs text-warning">{numOrEmpty(p.currentQueueLength, 'h')}</div>
+        </div>
+      ),
+    },
+    { key: 'sla', header: 'SLA', numeric: true, value: (p) => p.slaRating, render: (p) => <span className="font-semibold text-fg">{p.slaRating > 0 ? `${p.slaRating} / 5.0` : '—'}</span> },
+    {
+      key: 'status',
+      header: isVi ? 'Trạng thái' : 'Status',
+      value: (p) => p.status,
+      render: (p) => (
+        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${p.status === 'active' ? 'bg-positive-tint text-positive border border-positive/30' : p.status === 'busy' ? 'bg-warning-tint text-warning border border-warning/30' : 'bg-surface-muted text-fg-subtle'}`}>
+          {p.status}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: isVi ? 'Thao tác' : 'Actions',
+      align: 'right',
+      render: (p) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            onClick={() => handleTogglePartnerStatus(p)}
+            className={`px-2.5 py-1 text-xs font-bold rounded-sm cursor-pointer ${p.status === 'active' ? 'bg-warning-tint text-warning' : 'bg-positive-tint text-positive'}`}
+          >
+            {p.status === 'active' ? (isVi ? 'Giảm tải' : 'Throttle') : isVi ? 'Nhận đơn' : 'Activate'}
+          </button>
+          <button
+            onClick={() => setPartnerDraft({ ...p })}
+            className="px-2.5 py-1 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-sm cursor-pointer"
+          >
+            {isVi ? 'Sửa' : 'Edit'}
+          </button>
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [isVi]);
 
   return (
     <div className="space-y-6">
@@ -1247,103 +1407,14 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               }
             />
             ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-canvas border-b border-line-subtle text-fg-subtle font-bold uppercase text-xs">
-                  <tr>
-                    <th className="py-3 px-4">{isVi ? 'Vật liệu' : 'Material'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Loại' : 'Type'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Xưởng giữ kho' : 'Workshop'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Đơn giá/kg' : 'Price/kg'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Tồn kho hiện tại' : 'Current Stock'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Trạng thái' : 'Status'}</th>
-                    <th className="py-3 px-4 text-right">{isVi ? 'Điều chỉnh nhanh' : 'Quick Adjust'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line-subtle">
-                  {materials.map((mat) => {
-                    const ws = workshops.find((w) => w.id === mat.workshopId);
-                    const isLow = mat.stockStatus === 'LowStock' || mat.stockStatus === 'OutOfStock';
-
-                    return (
-                      <tr key={mat.id} className={`hover:bg-canvas/70 transition-colors ${isLow ? 'bg-danger-tint/30' : ''}`}>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <span
-                              className="w-4 h-4 rounded-full border border-line shadow-e0 shrink-0"
-                              style={{ backgroundColor: mat.colorHex }}
-                              title={mat.colorName || mat.colorHex}
-                            />
-                            <div>
-                              <div className="font-bold text-fg">{mat.materialName}</div>
-                              <div className="text-xs text-fg-subtle">{mat.colorName} • {mat.density} g/cm³</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 bg-surface-muted text-fg-muted rounded-sm font-bold text-xs">
-                            {mat.materialType}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-fg-muted font-medium">
-                          {ws?.workshopName || '—'} ({ws?.region})
-                        </td>
-                        <td className="py-3 px-3 font-mono font-semibold text-fg">
-                          {formatVnd(mat.pricePerKg)}
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="font-bold font-mono text-fg">{mat.currentStockGrams}g</div>
-                          <div className="text-xs text-fg-subtle">
-                            Ngưỡng min: {numOrEmpty(mat.lowStockThresholdGrams, 'g')}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                              mat.stockStatus === 'Tracking'
-                                ? 'bg-positive-tint text-positive'
-                                : mat.stockStatus === 'LowStock'
-                                ? 'bg-warning-tint text-warning font-black animate-pulse'
-                                : 'bg-danger-tint text-danger font-black'
-                            }`}
-                          >
-                            {mat.stockStatus === 'Tracking'
-                              ? isVi ? 'Đầy đủ' : 'In Stock'
-                              : mat.stockStatus === 'LowStock'
-                              ? isVi ? 'Sắp hết' : 'Low Stock'
-                              : isVi ? 'Hết hàng' : 'Out of Stock'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => {
-                                const nextStock = Math.max(0, mat.currentStockGrams - 500);
-                                updateMaterialStock(mat.id, nextStock);
-                              }}
-                              className="px-2 py-0.5 bg-surface-muted hover:bg-line-subtle text-fg-muted text-xs font-bold rounded-sm cursor-pointer"
-                              title="-500g"
-                            >
-                              -500g
-                            </button>
-                            <button
-                              onClick={() => {
-                                const nextStock = mat.currentStockGrams + 1000;
-                                updateMaterialStock(mat.id, nextStock);
-                              }}
-                              className="px-2 py-0.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-sm cursor-pointer"
-                              title="+1kg (1000g)"
-                            >
-                              +1kg
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<WorkshopMaterial>
+              columns={materialColumns}
+              rows={materials}
+              getRowId={(row) => row.id}
+              caption={isVi ? 'Tồn kho vật liệu theo xưởng' : 'Material stock by workshop'}
+              tableLabel={isVi ? 'Tồn kho vật liệu theo xưởng' : 'Material stock by workshop'}
+              defaultSort={[{ key: 'materialName', direction: 'asc' }]}
+            />
             )}
           </div>
         </div>
@@ -1801,106 +1872,22 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               }
             />
             ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-canvas border-b border-line-subtle text-fg-subtle font-bold uppercase text-xs">
-                  <tr>
-                    <th className="py-3 px-4">{isVi ? 'Đối tác / Địa chỉ' : 'Partner / Address'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Vùng' : 'Region'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Liên hệ' : 'Contact'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Công nghệ' : 'Tech'}</th>
-                    <th className="py-3 px-3">{isVi ? 'Máy / Hàng đợi' : 'Printers / Queue'}</th>
-                    <th className="py-3 px-3">SLA</th>
-                    <th className="py-3 px-3">{isVi ? 'Trạng thái' : 'Status'}</th>
-                    <th className="py-3 px-4 text-right">{isVi ? 'Thao tác' : 'Actions'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line-subtle">
-                  {isPartnersLoading && partners.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="py-8 text-center text-fg-subtle">
-                        {isVi ? 'Đang tải đối tác từ Supabase...' : 'Loading partners from Supabase...'}
-                      </td>
-                    </tr>
-                  ) : (
-                    partners.map((p) => (
-                      <tr key={p.id} className="hover:bg-canvas/70 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-fg">{p.name || '(chưa đặt tên)'}</div>
-                          <div className="text-xs text-fg-subtle line-clamp-1">{p.address || '-'}</div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 bg-surface-muted text-fg-muted rounded-sm font-bold text-xs uppercase">
-                            {p.region}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-fg-muted">
-                          <div>{p.contactPerson || '—'}</div>
-                          <div className="text-xs text-fg-subtle font-mono">{p.phone || '—'}</div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="flex flex-wrap gap-1">
-                            {(p.supportedTechnologies || []).map((tech) => (
-                              <span
-                                key={tech}
-                                className="px-1.5 py-0.5 bg-primary-tint text-primary border border-primary/30 rounded-sm font-tech font-bold text-xs"
-                              >
-                                {tech}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3 font-mono text-fg-muted">
-                          <div>
-                            {p.activePrintersCount + p.availablePrintersCount > 0
-                              ? `${p.activePrintersCount} / ${p.activePrintersCount + p.availablePrintersCount}`
-                              : '—'}
-                          </div>
-                          <div className="text-xs text-warning">{numOrEmpty(p.currentQueueLength, 'h')}</div>
-                        </td>
-                        <td className="py-3 px-3 font-mono font-semibold text-fg">
-                          {p.slaRating > 0 ? `${p.slaRating} / 5.0` : '—'}
-                        </td>
-                        <td className="py-3 px-3">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                              p.status === 'active'
-                                ? 'bg-positive-tint text-positive border border-positive/30'
-                                : p.status === 'busy'
-                                ? 'bg-warning-tint text-warning border border-warning/30'
-                                : 'bg-surface-muted text-fg-subtle'
-                            }`}
-                          >
-                            {p.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => handleTogglePartnerStatus(p)}
-                              className={`px-2.5 py-1 text-xs font-bold rounded-sm cursor-pointer ${
-                                p.status === 'active'
-                                  ? 'bg-warning-tint hover:bg-warning-tint text-warning'
-                                  : 'bg-positive-tint hover:bg-positive-tint text-positive'
-                              }`}
-                              title={isVi ? 'Bật / giảm tải nhận đơn' : 'Toggle workload reception'}
-                            >
-                              {p.status === 'active' ? (isVi ? 'Giảm tải' : 'Throttle') : isVi ? 'Nhận đơn' : 'Activate'}
-                            </button>
-                            <button
-                              onClick={() => setPartnerDraft({ ...p })}
-                              className="px-2.5 py-1 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-sm cursor-pointer"
-                            >
-                              {isVi ? 'Sửa' : 'Edit'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<WorkshopPartner>
+              columns={partnerColumns}
+              rows={partners}
+              getRowId={(row) => row.id}
+              loading={isPartnersLoading && partners.length === 0}
+              caption={isVi ? 'Đối tác xưởng in' : 'Workshop partners'}
+              tableLabel={isVi ? 'Đối tác xưởng in' : 'Workshop partners'}
+              defaultSort={[{ key: 'name', direction: 'asc' }]}
+              emptyState={
+                <EmptyState
+                  live
+                  title={isVi ? 'Chưa có đối tác xưởng nào' : 'No workshop partners yet'}
+                  description={isVi ? 'Thêm đối tác xưởng để bắt đầu điều phối đơn.' : 'Add a workshop partner to start dispatching orders.'}
+                />
+              }
+            />
             )}
           </div>
 
