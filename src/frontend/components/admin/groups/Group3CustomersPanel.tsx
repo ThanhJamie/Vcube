@@ -3,7 +3,7 @@ import { useCustomerAdminStore, CustomerRow, isB2b } from '../../../../stores/us
 import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { AppUserProfile } from '../../../../types';
-import { Button, DataTable, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import { Button, DataTable, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 
 export type KycStatus = 'verified' | 'pending_review' | 'rejected' | 'unverified';
@@ -890,21 +890,13 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
 
       {/* MODAL: XEM HỒ SƠ NDA KHÁCH HÀNG */}
       {selectedCustomerForNda && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-lg max-w-md w-full p-6 shadow-e3 border border-line-subtle">
-            <div className="flex items-center justify-between pb-3 border-b border-line-subtle">
-              <h3 className="font-bold text-fg text-base">
-                {isVi ? 'Hồ Sơ Thỏa Thuận Bảo Mật (NDA)' : 'NDA Profile'}
-              </h3>
-              <button aria-label="Đóng"
-                onClick={() => setSelectedCustomerForNda(null)}
-                className="text-fg-subtle hover:text-fg-muted cursor-pointer"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3 text-xs">
+        <Modal
+          open
+          onClose={() => setSelectedCustomerForNda(null)}
+          size="md"
+          title={isVi ? 'Hồ Sơ Thỏa Thuận Bảo Mật (NDA)' : 'NDA Profile'}
+        >
+            <div className="space-y-3 text-xs">
               <div className="p-3 bg-canvas rounded-lg space-y-1.5 border border-line-subtle">
                 <div className="flex justify-between">
                   <span className="text-fg-subtle">{isVi ? 'Tên khách hàng:' : 'Client Name:'}</span>
@@ -963,8 +955,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* TAB 4: THẨM ĐỊNH HỒ SƠ ĐỊNH DANH (KYC) — bảng `user_profiles` */}
@@ -1071,21 +1062,13 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
 
           {/* MODAL: THẨM ĐỊNH KYC */}
           {reviewingKyc && (
-            <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-              <div className="bg-surface rounded-lg max-w-lg w-full p-6 shadow-e3 border border-line-subtle max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between pb-3 border-b border-line-subtle">
-                  <h3 className="font-bold text-fg text-lg">
-                    {isVi ? 'Thẩm định hồ sơ định danh (KYC)' : 'KYC review'}
-                  </h3>
-                  <button aria-label="Đóng"
-                    onClick={() => setReviewingKyc(null)}
-                    className="text-fg-subtle hover:text-fg-muted cursor-pointer"
-                  >
-                    <Icon name="close" size={24} />
-                  </button>
-                </div>
-
-                <div className="mt-4 space-y-2 text-xs">
+            <Modal
+              open
+              onClose={() => setReviewingKyc(null)}
+              size="lg"
+              title={isVi ? 'Thẩm định hồ sơ định danh (KYC)' : 'KYC review'}
+            >
+                <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
                     <span className="text-fg-subtle">{isVi ? 'Người dùng:' : 'User:'}</span>
                     <span className="font-bold text-fg">{reviewingKyc.displayName}</span>
@@ -1150,8 +1133,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                     {isVi ? 'Duyệt Xác Minh' : 'Approve KYC'}
                   </button>
                 </div>
-              </div>
-            </div>
+            </Modal>
           )}
         </div>
       )}

@@ -3,7 +3,7 @@ import { useDesignerAdminStore, DesignerRow } from '../../../../stores/useDesign
 import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { AppUserProfile } from '../../../../types';
-import { Button, DataTable, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import { Button, DataTable, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 
 export interface Group2DesignersPanelProps {
@@ -693,24 +693,14 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
 
       {/* MODAL: CHỈNH SỬA HOA HỒNG (và huy hiệu nếu bảng có cột) */}
       {editingDesigner && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-lg max-w-md w-full p-6 shadow-e3 border border-line-subtle">
-            <div className="flex items-center justify-between pb-3 border-b border-line-subtle">
-              <div>
-                <h3 className="font-bold text-fg text-base">
-                  {isVi ? 'Cấu Hình Designer & Bản Quyền' : 'Configure Designer & IP'}
-                </h3>
-                <p className="text-xs text-fg-subtle mt-0.5">{editingDesigner.displayName}</p>
-              </div>
-              <button aria-label="Đóng"
-                onClick={() => setEditingDesigner(null)}
-                className="text-fg-subtle hover:text-fg-muted cursor-pointer"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveDesigner} className="mt-4 space-y-4">
+        <Modal
+          open
+          onClose={() => setEditingDesigner(null)}
+          size="md"
+          title={isVi ? 'Cấu Hình Designer & Bản Quyền' : 'Configure Designer & IP'}
+          description={editingDesigner.displayName}
+        >
+            <form onSubmit={handleSaveDesigner} className="space-y-4">
               {hasBadgeColumn ? (
                 <div>
                   <label className="block text-xs font-bold text-fg-muted mb-1.5">
@@ -792,8 +782,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
