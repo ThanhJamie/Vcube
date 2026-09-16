@@ -71,6 +71,7 @@ node scripts/check-unitprice-multiplier.mjs # chặn dùng `unit_price_multiplie
 node scripts/inspect-db.mjs          # trạng thái bảng: publishable vs secret
 node scripts/verify-rls.mjs          # kiểm chứng RLS bằng anon key (--writes để thử ghi no-op)
 node scripts/a8-sql-syntax-check.mjs # cú pháp tĩnh 7 file SQL + chặn nối chuỗi với cột "char" (lỗi 42725)
+node scripts/check-icon-names.mjs    # chặn glyph `<Icon name>` không có trong iconMap (fallback im lặng ở production)
 ```
 
 Chi tiết vận hành & khắc phục sự cố: `docs/security/rls-runbook.md`.

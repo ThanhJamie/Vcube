@@ -138,6 +138,7 @@ import {
   Percent,
   Phone,
   Pipette,
+  Plane,
   Plus,
   Pointer,
   Printer,
@@ -285,7 +286,7 @@ const SquareFoot: LucideIcon = createLucideIcon('square-foot', [
    --------------------------------------------------------------------------- */
 
 export const iconMap: Record<string, LucideIcon> = {
-  '360': LoaderCircle,
+  '360': RotateCw,
   '3d_rotation': Rotate3d,
   'account_balance': Landmark,
   'account_balance_wallet': Wallet,
@@ -365,6 +366,7 @@ export const iconMap: Record<string, LucideIcon> = {
   'filter_center_focus': Scan,
   'fit_screen': Scaling,
   'flare': Sparkle,
+  'flight': Plane,
   'folder_off': FolderX,
   'folder_open': FolderOpen,
   'folder_zip': FolderArchive,
@@ -374,6 +376,7 @@ export const iconMap: Record<string, LucideIcon> = {
   'fullscreen': Maximize,
   'fullscreen_exit': Minimize,
   'functions': Sigma,
+  'grid_3x3': Grid3x3,
   'grid_4x4': Grid3x3,
   'grid_view': LayoutGrid,
   'group': Users,
@@ -399,6 +402,7 @@ export const iconMap: Record<string, LucideIcon> = {
   'layers': Layers,
   'lens_blur': Aperture,
   'license': FileBadge,
+  'lightbulb': Lightbulb,
   'linear_scale': SlidersHorizontal,
   'link': Link,
   'link_off': Unlink,

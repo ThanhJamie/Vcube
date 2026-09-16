@@ -514,3 +514,18 @@
     display: none !important;
   }
 }
+
+/* Tôn trọng prefers-reduced-motion TOÀN CỤC: tắt animation/transition chạy vô hạn
+   (animate-pulse, transition-all…) cho người dùng nhạy cảm chuyển động, đồng thời
+   giảm tải compositor. `!important` là cần thiết vì utility Tailwind có specificity
+   tương đương và thứ tự CSS build không đảm bảo. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

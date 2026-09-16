@@ -134,7 +134,7 @@ Also set `strokeWidth={1.5}` (closest to the old `'wght' 300`, avoids lucide's d
 | `share` | 4 | `Share2` | text-base x3 | - |
 | `shopping_cart` | 4 | `ShoppingCart` | text-xl x1, text-2xl x1 | - |
 | `trending_up` | 4 | `TrendingUp` | text-base x2, text-sm x1 | - |
-| `360` | 3 | `LoaderCircle` | text-base x2, text-sm x1 | `LoaderCircle`; every usage already carries `animate-spin`, so this is a spinner, not a rotation glyph. |
+| `360` | 3 | `RotateCw` | text-base x2, text-sm x1 | `RotateCw`; the actual usages are the auto-rotate 360° toggles in the 3D viewer/toolbar (no `animate-spin`), so a rotation glyph is correct - `LoaderCircle` was wrong. |
 | `account_balance_wallet` | 3 | `Wallet` | text-xl x1, text-2xl x1 | `Wallet`. |
 | `add_shopping_cart` | 3 | **NO-EQUIVALENT** | text-base x3 | NO-EQUIVALENT - see "Icons needing a decision". |
 | `apartment` | 3 | `Building` | text-sm x1, text-2xl x1 | `Building`. |
@@ -292,6 +292,18 @@ Also set `strokeWidth={1.5}` (closest to the old `'wght' 300`, avoids lucide's d
 | `view_list` | 1 | `List` | text-base x1 | - |
 | `view_timeline` | 1 | `ChartGantt` | text-sm x1 | `ChartGantt`. |
 | `warehouse` | 1 | `Warehouse` | text-[13px] x1 | `Warehouse`; same as `shelves` - consider one shared glyph. |
+
+## Additional mappings (post-migration, 2026-09)
+
+Glyphs that appear in code but were never in the original Material Symbols inventory.
+Added to `src/frontend/ui/iconMap.ts` so they resolve instead of rendering `FALLBACK_ICON`:
+
+| glyph | lucide | where |
+| --- | --- | --- |
+| `flight` | `Plane` | `HomeView.tsx` chassis selector |
+| `grid_3x3` | `Grid3x3` | `ServiceShowcaseSection.tsx` wireframe toggle |
+| `lightbulb` | `Lightbulb` | `HomeView.tsx` |
+| `360` (retargeted) | `RotateCw` | auto-rotate toggles in `ModelViewer3D.tsx`, `UnifiedCadToolbar.tsx` |
 
 ## Files by usage
 

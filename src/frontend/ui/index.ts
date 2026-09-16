@@ -38,6 +38,7 @@ export * from './KeyValue';
 export * from './Modal';
 export * from './Money';
 export * from './PageHeader';
+export * from './PanelErrorBoundary';
 export * from './ProgressBar';
 export * from './Section';
 export * from './Select';

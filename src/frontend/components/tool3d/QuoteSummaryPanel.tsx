@@ -333,7 +333,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           </div>
           <div className="text-xs text-positive flex justify-between pt-0.5 font-mono">
             <span>Tiết kiệm đơn này:</span>
-            <strong className="text-positive font-bold">-{volumeDiscount.totalSavings.toLocaleString('vi-VN')} đ</strong>
+            <strong className="text-positive font-bold">{isNum(volumeDiscount.totalSavings) ? `-${volumeDiscount.totalSavings.toLocaleString('vi-VN')} đ` : EMPTY_VALUE}</strong>
           </div>
         </div>
       ) : (
@@ -351,7 +351,9 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
             1. Ước Tính Hình Học Sơ Bộ:
           </span>
           <span className="font-mono text-xs font-bold text-primary">
-            {quickEstimateRange.min.toLocaleString('vi-VN')} – {quickEstimateRange.max.toLocaleString('vi-VN')} đ/cái
+            {isNum(quickEstimateRange.min) && isNum(quickEstimateRange.max)
+              ? `${quickEstimateRange.min.toLocaleString('vi-VN')} – ${quickEstimateRange.max.toLocaleString('vi-VN')} đ/cái`
+              : EMPTY_VALUE}
           </span>
         </div>
       </div>
@@ -562,12 +564,12 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
 
                   <div className="text-right shrink-0">
                     <div className="font-mono text-sm sm:text-base font-bold text-fg">
-                      {pkg.pricePerUnit.toLocaleString('vi-VN')} đ
+                      {vnd(pkg.pricePerUnit)}
                       <span className="text-xs font-normal text-fg-subtle"> /cái</span>
                     </div>
                     {quantity > 1 && (
                       <div className="text-xs font-mono text-primary font-semibold">
-                        Tổng ({quantity} cái): {pkg.totalPrice.toLocaleString('vi-VN')} đ
+                        Tổng ({quantity} cái): {vnd(pkg.totalPrice)}
                       </div>
                     )}
                   </div>
@@ -688,7 +690,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           currentPrinter={currentPrinter}
           onApplyOverride={(newPrice, reason) => {
             setCustomOverriddenPrice(newPrice);
-            onShowToast(`Đã áp dụng giá điều chỉnh: ${newPrice.toLocaleString('vi-VN')} đ (Lý do: ${reason})`);
+            onShowToast(`Đã áp dụng giá điều chỉnh: ${isNum(newPrice) ? newPrice.toLocaleString('vi-VN') : EMPTY_VALUE} đ (Lý do: ${reason})`);
           }}
         />
       )}

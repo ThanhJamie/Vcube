@@ -410,7 +410,7 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
 
       {/* Optional Minimal Model Badge */}
       {showTitleBadge && (
-        <div className="absolute top-3 left-3 flex items-center gap-2 bg-surface-inverse/85 backdrop-blur-md px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2 z-10">
+        <div className="absolute top-3 left-3 flex items-center gap-2 bg-surface-inverse/85 px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2 z-10">
           <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
           <span className="font-mono text-xs font-bold text-on-inverse/90 uppercase tracking-wider">
             {modelType}
@@ -436,7 +436,7 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
 
       {/* Layer Slicer Slider Bar (Only when explicitly enabled) */}
       {isInViewport && showLayerSlicer && (
-        <div className="absolute bottom-3 left-3 right-3 bg-surface-inverse/90 backdrop-blur-md px-3.5 py-2 rounded-lg border border-surface-inverse-raised/60 flex items-center justify-between gap-4 text-on-inverse shadow-e3 z-10">
+        <div className="absolute bottom-3 left-3 right-3 bg-surface-inverse/90 px-3.5 py-2 rounded-lg border border-surface-inverse-raised/60 flex items-center justify-between gap-4 text-on-inverse shadow-e3 z-10">
           <div className="flex items-center gap-2 shrink-0">
             <Icon name="layers" size={18} className="text-accent" />
             <span className="font-mono text-xs font-bold text-on-inverse/90">LỚP IN: {currentSlice}%</span>

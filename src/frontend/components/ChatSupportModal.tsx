@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { Icon } from '@frontend/ui';
+import { Icon, useBodyScrollLock } from '@frontend/ui';
 
 interface ChatSupportModalProps {
   isOpen: boolean;
@@ -19,6 +19,17 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
+
+  // Khoá cuộn nền + đóng bằng Esc (drawer này trước đây không có cả hai).
+  useBodyScrollLock(isOpen);
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

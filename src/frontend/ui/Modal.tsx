@@ -96,6 +96,11 @@ export interface ModalProps {
   className?: string;
   /** Gắn thêm vào panel — CHỈ nên dùng class không trùng nhóm với class nền. */
   panelClassName?: string;
+  /**
+   * Gắn vào wrapper nội dung. Khi truyền, thay thế padding mặc định `p-4` (dùng cho modal
+   * cần nội dung tràn viền như trình xem 3D). Bỏ trống ⇒ giữ `p-4`.
+   */
+  bodyClassName?: string;
   showCloseButton?: boolean;
   closeOnBackdropClick?: boolean;
   closeOnEscape?: boolean;
@@ -160,6 +165,7 @@ export function Modal({
   children,
   className,
   panelClassName,
+  bodyClassName,
   showCloseButton = true,
   closeOnBackdropClick = true,
   closeOnEscape = true,
@@ -325,7 +331,11 @@ export function Modal({
           </div>
         ) : null}
 
-        {children ? <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div> : null}
+        {children ? (
+          <div className={cn('min-h-0 flex-1 overflow-y-auto', bodyClassName ? undefined : 'p-4', bodyClassName)}>
+            {children}
+          </div>
+        ) : null}
 
         {footer ? (
           <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line p-4">

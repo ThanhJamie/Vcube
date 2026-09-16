@@ -139,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
 
-      <header className="sticky top-0 z-header bg-surface-muted/95 backdrop-blur-md border-b border-line px-4 sm:px-6 md:px-12 py-3 transition-all">
+      <header className="sticky top-0 z-header bg-surface-muted border-b border-line px-4 sm:px-6 md:px-12 py-3 transition-colors motion-reduce:transition-none">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-3 sm:gap-6">
           {/* Zone 1: Brand Title */}
           <button

@@ -203,15 +203,15 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
             <div className="space-y-1">
               <div className="flex justify-between">
                 <span className="text-fg-muted">Tọa Độ Y (mm):</span>
-                <span className="font-tech font-bold text-primary">{transform.positionZ || 0}</span>
+                <span className="font-tech font-bold text-primary">{transform.positionY || 0}</span>
               </div>
               <input
                 type="range"
                 min="-100"
                 max="100"
                 step="5"
-                value={transform.positionZ || 0}
-                onChange={(e) => onUpdateTransform({ positionZ: Number(e.target.value) })}
+                value={transform.positionY || 0}
+                onChange={(e) => onUpdateTransform({ positionY: Number(e.target.value) })}
                 className="w-full accent-primary"
               />
             </div>

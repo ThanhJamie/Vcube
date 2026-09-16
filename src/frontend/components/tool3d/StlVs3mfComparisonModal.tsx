@@ -144,8 +144,11 @@ export const StlVs3mfComparisonModal: React.FC<StlVs3mfComparisonModalProps> = (
               Quy trình chuẩn hóa tại VCUBE Workshop:
             </div>
             <p className="text-fg-muted leading-relaxed">
-              Mọi file STL khi tải lên sẽ được quét kiểm tra đơn vị đo, sau đó hệ thống tự động chuẩn hóa sang định dạng 
-              <strong> normalized.3mf</strong> và phân tích độ dày thành (thin-wall), góc nghiêng (overhang) bằng engine PrusaSlicer trước khi tạo mã G-code.
+              VCUBE <strong>không</strong> chạy PrusaSlicer trên máy chủ và không tự đổi tệp của bạn sang
+              <strong> normalized.3mf</strong>. Tệp STL / 3MF / OBJ / STEP được đọc và đo trực tiếp ngay
+              trên trình duyệt (Web Worker + nhân CAD WebAssembly): thể tích, diện tích bề mặt, số tam
+              giác và kiểm tra lưới. Các chỉ số thin-wall/overhang chỉ hiện khi đo được từ chính tệp bạn
+              tải lên — không suy diễn.
             </p>
           </div>
         </div>

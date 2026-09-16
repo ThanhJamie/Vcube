@@ -4,7 +4,7 @@ import { MATERIALS_CATALOG } from '../../data/mockData';
 import { ThreeModelViewer } from './ThreeModelViewer';
 import { useLanguage } from '../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber } from '@frontend/lib/format';
-import { Icon } from '@frontend/ui';
+import { Icon, Modal } from '@frontend/ui';
 
 /** Số hữu hạn hay không — NULL/NaN ⇒ KHÔNG có giá trị (không đoán hộ). */
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -78,22 +78,6 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
     }
   }, [isOpen, initialOrderType]);
 
-  // Lock scroll & handle Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, onClose]);
-
   if (!isOpen || !product) return null;
 
   const currentMaterials = materials && materials.length > 0 ? materials : MATERIALS_CATALOG;
@@ -143,7 +127,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
     if (name.includes('gear') || name.includes('bánh răng') || name.includes('trục') || name.includes('khớp')) return 'gear';
     if (name.includes('drone') || name.includes('cánh') || name.includes('robot')) return 'drone';
     if (name.includes('box') || name.includes('hộp') || name.includes('case') || name.includes('vỏ') || cat.includes('iot')) return 'box';
-    if (name.includes('vase') || name.includes('bình') || name.includes('decor')) return 'vase';
+    if (name.includes('vase') || name.includes('bình') || name.includes('decor')) return 'box';
     return 'gear';
   };
 
@@ -201,34 +185,32 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-modal flex items-center justify-center p-2 sm:p-4 bg-surface-inverse/70 backdrop-blur-xs animate-in fade-in duration-200">
-      <div
-        className={`bg-surface text-fg border border-line rounded-lg shadow-e3 overflow-hidden flex flex-col transition-all duration-300 ${
-          isFullscreen
-            ? 'w-full max-w-7xl h-[95vh]'
-            : 'w-full max-w-4xl max-h-[92vh]'
-        }`}
-      >
-        {/* Modal Header */}
-        <div className="px-5 py-3.5 border-b border-line flex items-center justify-between bg-surface-muted">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
-            <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      size={isFullscreen ? 'full' : 'xl'}
+      showCloseButton={false}
+      bodyClassName="p-0"
+      title={
+        <span className="flex w-full flex-wrap items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-2.5">
+            <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-primary" />
+            <span className="truncate font-mono text-xs font-bold uppercase tracking-widest text-primary">
               CAD MESH INSPECTOR // 360° PREVIEW
             </span>
-            <span className="hidden sm:inline text-fg-muted/40">•</span>
-            <span className="hidden sm:inline font-mono text-xs text-fg-muted">
+            <span className="hidden text-fg-muted/40 sm:inline">•</span>
+            <span className="hidden font-mono text-xs text-fg-muted sm:inline">
               SKU: {product.sku || '—'}
             </span>
-          </div>
+          </span>
 
-          <div className="flex items-center gap-1.5">
+          <span className="flex shrink-0 items-center gap-1.5">
             <button
               onClick={() => {
                 onClose();
                 onNavigate('product_detail', { product });
               }}
-              className="text-xs font-mono text-primary hover:text-primary-hover flex items-center gap-1 px-3 py-1 bg-surface hover:bg-surface-muted rounded-md transition-all cursor-pointer border border-line"
+              className="flex cursor-pointer items-center gap-1 rounded-md border border-line bg-surface px-3 py-1 font-mono text-xs text-primary transition-colors hover:bg-surface-muted hover:text-primary-hover"
               title="Xem trang sản phẩm chi tiết"
             >
               <span>{isVi ? 'Chi tiết đầy đủ' : 'Full Page'}</span>
@@ -237,24 +219,26 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
 
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="text-fg-muted hover:text-fg w-8 h-8 rounded-sm flex items-center justify-center hover:bg-surface-muted transition-colors cursor-pointer"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
               title={isFullscreen ? 'Thu nhỏ' : 'Mở rộng toàn màn hình'}
+              aria-label={isFullscreen ? 'Thu nhỏ' : 'Mở rộng toàn màn hình'}
             >
               <Icon name={isFullscreen ? 'fullscreen_exit' : 'fullscreen'} size={18} />
             </button>
 
             <button
               onClick={onClose}
-              className="text-fg-muted hover:text-fg w-8 h-8 rounded-sm flex items-center justify-center hover:bg-surface-muted transition-colors cursor-pointer"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-sm text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
               aria-label="Close CAD inspector"
             >
               <Icon name="close" size={20} />
             </button>
-          </div>
-        </div>
-
+          </span>
+        </span>
+      }
+    >
         {/* Modal Content Body */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12">
           {/* Left 3D Interactive WebGL Canvas */}
           <div className="lg:col-span-7 bg-surface-inverse relative flex flex-col p-4 border-b lg:border-b-0 lg:border-r border-line min-h-[360px] lg:min-h-[480px]">
             {/* Top Info Bar */}
@@ -274,6 +258,12 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                 showGrid={true}
               />
             </div>
+
+            <p className="mt-2 text-center font-mono text-xs text-on-inverse/50">
+              {isVi
+                ? 'Mô hình minh họa theo danh mục — không phải tệp CAD gốc của sản phẩm.'
+                : 'Category-based illustrative model — not the product’s original CAD file.'}
+            </p>
 
             {/* Bottom Metrology Stats Strip */}
             <div className="mt-2.5 pt-2.5 border-t border-line grid grid-cols-4 gap-2 text-center font-mono text-xs text-on-inverse/70">
@@ -513,7 +503,6 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

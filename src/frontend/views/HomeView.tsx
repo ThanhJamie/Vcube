@@ -392,7 +392,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     onNavigate('quote');
                   }
                 }}
-                className={`mt-2 p-3.5 border-2 border-dashed rounded-lg transition-all cursor-pointer group ${
+                className={`mt-2 p-3.5 border-2 border-dashed rounded-lg transition-colors cursor-pointer group ${
                   isDraggingFile
                     ? 'border-primary bg-primary/15 shadow-e2 ring-2 ring-primary/30'
                     : 'bg-surface border-primary/40 hover:border-primary'
@@ -506,7 +506,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <button
                         key={item.id}
                         onClick={() => setHeroModel(item.id)}
-                        className={`px-2.5 py-1.5 text-xs rounded-md font-mono font-bold transition-all duration-150 shrink-0 cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        className={`px-2.5 py-1.5 text-xs rounded-md font-mono font-bold transition-colors duration-150 shrink-0 cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           isSelected
                             ? 'bg-primary text-primary-fg shadow-sm'
                             : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised/60'
@@ -797,7 +797,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   key={product.id}
                   as="article"
                   padding="none"
-                  className="group flex flex-col overflow-hidden transition-all duration-300 hover:shadow-e2 hover:-translate-y-1 rounded-lg border border-line bg-surface"
+                  className="group flex flex-col overflow-hidden transition-[transform,box-shadow] duration-300 hover:shadow-e2 hover:-translate-y-1 rounded-lg border border-line bg-surface"
                 >
                   {/* Card Image Area with Quick 3D Inspect Overlay */}
                   <div
@@ -821,10 +821,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       </span>
                     )}
 
-                    {/* Floating 3D Inspect Trigger on Hover */}
+                    {/* Floating 3D Inspect Trigger: hover trên desktop, luôn hiện trên thiết bị cảm ứng */}
                     <button
                       onClick={(e) => handleOpen3DPreview(product, e)}
-                      className="absolute inset-0 bg-surface-inverse/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-on-inverse font-tech text-xs uppercase tracking-wider font-bold cursor-pointer focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={isVi ? `Xem trước 3D: ${product.name}` : `3D preview: ${product.name}`}
+                      className="absolute inset-0 bg-surface-inverse/70 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto [@media(hover:none)]:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:bg-surface-inverse/40 transition-opacity flex flex-col items-center justify-center gap-2 text-on-inverse font-tech text-xs uppercase tracking-wider font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       title={isVi ? 'Xoay xem 3D ngay tại đây' : 'Instant 3D Mesh Inspection'}
                     >
                       <span className="w-10 h-10 rounded-full bg-primary text-primary-fg flex items-center justify-center shadow-e2 border border-accent/50">

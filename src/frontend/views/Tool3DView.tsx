@@ -13,7 +13,7 @@ import { TransformControlsPanel } from '../components/tool3d/TransformControlsPa
 import { ValidationReportPanel } from '../components/tool3d/ValidationReportPanel';
 import { QuoteSummaryPanel } from '../components/tool3d/QuoteSummaryPanel';
 import { parse3DFile, autoRepairGeometry, analyzeMeshDefects } from '../../utils/meshParser';
-import { Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import { Button, EmptyState, Icon, InfoTip, PanelErrorBoundary } from '@frontend/ui';
 import { EMPTY_VALUE } from '../lib/format';
 
 /* ── Q (#2): hậu quả của việc cột DB nay NULL thật (`mappers.ts` không còn điền số mặc định) ──
@@ -379,6 +379,11 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   // Upload & parse actual File object directly in browser
   const handleActualFileUpload = async (file: File) => {
     setIsAnalyzing(true);
+    // Bọc toàn bộ trong try/finally: mọi nhánh — kể cả lỗi xảy ra TRƯỚC `try` bên trong
+    // (ví dụ `findFileStructureProblem` reject) — đều phải trả `isAnalyzing` về false.
+    // Trước đây `setIsAnalyzing(false)` chỉ nằm trong các nhánh sau `try`, nên một reject
+    // sớm làm nút chọn tệp kẹt ở spinner vĩnh viễn.
+    try {
     const fileName = file.name;
     const lowerName = fileName.toLowerCase();
     const is3mf = lowerName.endsWith('.3mf');
@@ -511,6 +516,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
       }
       setIsAnalyzing(false);
 
+      // STL không lưu đơn vị đo trong header ⇒ hỏi khách xác nhận mm/inch trước khi báo giá.
+      if (format === 'STL') setIsStlUnitModalOpen(true);
+
       onShowToast(`Đã nạp file 3D & Khởi tạo VCUBE Mesh Engine: ${file.name} (${parsed.triangleCount.toLocaleString()} tam giác)`);
     } catch (err) {
       // Q2 (MP-01): KHÔNG dựng "mô hình phôi an toàn" và KHÔNG bịa số đo cho tệp của khách.
@@ -530,6 +538,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         file
       });
       onShowToast(`Không phân tích được tệp "${file.name}" — hệ thống không tạo số liệu thay thế.`);
+    }
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -558,6 +569,8 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
    * tràn ra ngoài hộp (đo được `width: 48px` trong khi nội dung 247px). Nút thật thì không bị.
    */
   const emptyStateFileRef = useRef<HTMLInputElement | null>(null);
+  /** Input file ẩn của trạng thái ĐÃ nạp model (trước đây là `<label>` tự chế, dễ vỡ layout). */
+  const workspaceFileRef = useRef<HTMLInputElement | null>(null);
 
   // ── A11: TRẠNG THÁI RỖNG THẬT CỦA /quote ────────────────────────────────────────────────
   // `SAMPLE_ANALYSIS_FILES` đã bị rỗng hoá và người dùng chưa tải tệp nào ⇒ không có mẫu nào
@@ -632,9 +645,10 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                       accept=".stl,.3mf,.step,.obj,.iges"
                       className="hidden"
                       onChange={(e) => {
-                        if (e.target.files && e.target.files.length > 0) {
-                          handleActualFileUpload(e.target.files[0]);
-                        }
+                        const picked = e.target.files && e.target.files[0];
+                        // Reset value để chọn LẠI cùng một tệp vẫn kích hoạt onChange.
+                        e.target.value = '';
+                        if (picked) handleActualFileUpload(picked);
                       }}
                     />
                   </>
@@ -976,11 +990,11 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 </p>
               </div>
 
-              {/* R4 (MP-02 hau kiem): KHONG con quang cao STEP/IGES la dinh dang "ho tro" —
-                  `meshParser.parse3DFile` tu choi thang bang `MeshParseError('unsupported_format')`. */}
+              {/* R4: STEP/STP/IGES được giải mã qua WebAssembly CAD Kernel (occt-import-js) trong
+                  Web Worker — `meshParser.parse3DFile` xử lý thật, miễn WASM tải được. */}
               <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-xs pt-0.5">
                 <span className="text-xs text-fg-subtle uppercase font-semibold">Phân tích được:</span>
-                {['STL', '3MF', 'OBJ'].map(fmt => (
+                {['STL', '3MF', 'OBJ', 'STEP', 'IGES'].map(fmt => (
                   <span
                     key={fmt}
                     className="px-2.5 py-1 rounded-md bg-primary-tint text-primary font-bold border border-primary/20 shadow-e0 text-xs"
@@ -992,24 +1006,31 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               </div>
 
               <p className="text-xs text-fg-subtle">
-                STEP / IGES: chưa có bộ đọc hình học nên KHÔNG có số đo tự động và KHÔNG báo giá từ tệp
-                này — cần bản tessellation (.stl / .3mf / .obj), hoặc gửi yêu cầu báo giá thủ công.
+                STEP / IGES được giải mã bằng nhân CAD WebAssembly (OpenCASCADE) ngay trên trình duyệt
+                — tệp lớn có thể mất vài giây. Nếu kernel không tải được, hệ thống báo lỗi thật thay vì
+                dựng số đo giả.
               </p>
 
               <div className="pt-1 font-mono">
-                <label className="inline-block px-6 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs uppercase tracking-wider font-bold cursor-pointer transition-colors rounded-full shadow-e1">
-                  <span>Chọn File Từ Máy Tính</span>
-                  <input
-                    type="file"
-                    accept=".stl,.3mf,.step,.obj,.iges"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        handleActualFileUpload(e.target.files[0]);
-                      }
-                    }}
-                  />
-                </label>
+                <Button
+                  variant="primary"
+                  leadingIcon={<Icon name="cloud_upload" size={16} />}
+                  onClick={() => workspaceFileRef.current?.click()}
+                >
+                  Chọn File Từ Máy Tính
+                </Button>
+                <input
+                  ref={workspaceFileRef}
+                  type="file"
+                  accept=".stl,.3mf,.step,.obj,.iges"
+                  className="hidden"
+                  onChange={(e) => {
+                    const picked = e.target.files && e.target.files[0];
+                    // Reset value để chọn LẠI cùng một tệp vẫn kích hoạt onChange.
+                    e.target.value = '';
+                    if (picked) handleActualFileUpload(picked);
+                  }}
+                />
               </div>
             </div>
           )}
@@ -1662,33 +1683,37 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
           {/* Right Column: Slicer Parameters & Instant Quoting Panel */}
           <div className="lg:col-span-5 space-y-6">
-            <QuoteSummaryPanel
-              file={selectedFile}
-              transformedVolume={transformedVolume}
-              selectedPrinterId={selectedPrinterId}
-              selectedMaterialId={selectedMaterialId}
-              infillDensity={infillDensity}
-              infillPattern={infillPattern}
-              layerHeight={layerHeight}
-              supportsMode={supportsMode}
-              quantity={quantity}
-              materials={materials}
-              printers={printers}
-              pricingConfig={pricingConfig}
-              onPrinterChange={setSelectedPrinterId}
-              onMaterialChange={setSelectedMaterialId}
-              onInfillChange={setInfillDensity}
-              onInfillPatternChange={setInfillPattern}
-              onLayerHeightChange={setLayerHeight}
-              onSupportsModeChange={setSupportsMode}
-              onQuantityChange={setQuantity}
-              onAddToCart={(item) => {
-                onAddToCart(item);
-                onShowToast(`Đã thêm ${selectedFile.fileName} (x${quantity}) vào giỏ hàng!`);
-              }}
-              onDirectOrder={handleDirectOrder}
-              onShowToast={onShowToast}
-            />
+            {/* Lưới an toàn cấp panel: một throw khi tính/format giá KHÔNG được thay cả trang
+                (sẽ làm mất luôn nút chọn tệp). `resetKey` = tệp đang chọn ⇒ nạp tệp khác tự reset. */}
+            <PanelErrorBoundary label="Bảng báo giá" resetKey={selectedFile.id}>
+              <QuoteSummaryPanel
+                file={selectedFile}
+                transformedVolume={transformedVolume}
+                selectedPrinterId={selectedPrinterId}
+                selectedMaterialId={selectedMaterialId}
+                infillDensity={infillDensity}
+                infillPattern={infillPattern}
+                layerHeight={layerHeight}
+                supportsMode={supportsMode}
+                quantity={quantity}
+                materials={materials}
+                printers={printers}
+                pricingConfig={pricingConfig}
+                onPrinterChange={setSelectedPrinterId}
+                onMaterialChange={setSelectedMaterialId}
+                onInfillChange={setInfillDensity}
+                onInfillPatternChange={setInfillPattern}
+                onLayerHeightChange={setLayerHeight}
+                onSupportsModeChange={setSupportsMode}
+                onQuantityChange={setQuantity}
+                onAddToCart={(item) => {
+                  onAddToCart(item);
+                  onShowToast(`Đã thêm ${selectedFile.fileName} (x${quantity}) vào giỏ hàng!`);
+                }}
+                onDirectOrder={handleDirectOrder}
+                onShowToast={onShowToast}
+              />
+            </PanelErrorBoundary>
           </div>
         </div>
 

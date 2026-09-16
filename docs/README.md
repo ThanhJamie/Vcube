@@ -191,6 +191,7 @@ Every code change committed to VCUBE must pass the mandatory automated gates. `A
 | **RLS Sources** | `node scripts/lint-rls-sources.mjs` | Audits all migrations for RLS anti-patterns R1–R7 |
 | **RLS Migration** | `node scripts/lint-rls-migration.mjs` | Checks harden-migration allowlist consistency + R8/R9 |
 | **SQL Syntax** | `node scripts/a8-sql-syntax-check.mjs` | Static syntax check of the 7 SQL files + `char`-column concat guard (error 42725) |
+| **Icon Names** | `node scripts/check-icon-names.mjs` | Blocks `<Icon name>` glyphs missing from `iconMap` (silent fallback in production) |
 | **Pricing Multiplier** | `node scripts/check-unitprice-multiplier.mjs` | Verifies unit price multiplier is used strictly for deriving cost/g |
 | **DB Inspection** | `node scripts/inspect-db.mjs` | Compares row visibility via publishable vs. secret key |
 | **RLS Live Check** | `node scripts/verify-rls.mjs [--writes]` | Verifies live RLS behavior with the anon key |

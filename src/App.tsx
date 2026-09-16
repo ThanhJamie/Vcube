@@ -802,76 +802,99 @@ function MainApp() {
   }, []);
 
   /**
-   * FAB "Trợ lý tự động" (lớp phủ `fixed`) tự ẩn khi cuộn XUỐNG, hiện lại khi cuộn LÊN
-   * hoặc khi DỪNG cuộn ~700ms.
+   * FAB "Trợ lý tự động" (lớp phủ `fixed`) tự ẩn khi cuộn XUỐNG, hiện lại khi cuộn LÊN.
    *
-   * Vì sao: R3 đo trên /explore (1440×900, bước 50px, 22 vị trí) — FAB đè nút
-   * "Tải File CAD"/"Lưu bản vẽ" của thẻ sản phẩm ở 5 vị trí giữa trang; dải đệm
-   * `data-fab-spacer` chỉ cứu được ĐÁY trang.
+   * Vì sao: R3 đo trên /explore (1440×900, bước 50px, 22 vị trí) — FAB đè nút "Tải File
+   * CAD"/"Lưu bản vẽ" của thẻ sản phẩm ở 5 vị trí giữa trang; dải đệm `data-fab-spacer`
+   * chỉ cứu được ĐÁY trang.
    *
-   * Ngoài việc ẩn theo hướng cuộn, trước khi HIỆN lại ta còn hỏi `document.elementsFromPoint`:
-   * nếu hộp FAB đang nằm trên một phần tử tương tác khác thì GIỮ ẨN — nếu không, "hiện lại khi
-   * dừng cuộn" sẽ tái tạo đúng lỗi mà R3 vừa đo.
+   * Chống giật (thay logic cũ chạy `querySelectorAll` toàn trang + `getComputedStyle` trên
+   * MỖI scroll event):
+   *  - Scroll handler được throttle bằng `requestAnimationFrame`; chỉ đọc `scrollY` để quyết
+   *    định hướng ẩn/hiện — KHÔNG đo DOM.
+   *  - Va chạm với phần tử tương tác CHỈ được đo khi người dùng đã ngừng cuộn 600ms (hoặc vừa
+   *    đổi route/modal), bằng 5 hit-test `elementsFromPoint` (4 góc + tâm) thay vì quét mọi
+   *    control ⇒ không còn forced reflow.
+   *  - FAB tự hiện lại khi đổi route hoặc đóng/mở modal (trước đây bị kẹt ẩn do state không
+   *    được reset).
    */
   useEffect(() => {
     const HIDE_STEP_PX = 8;
-    const IDLE_SHOW_MS = 700;
-
-    const intersects = (a: DOMRect, b: DOMRect) =>
-      a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const IDLE_CHECK_MS = 600;
 
     /**
      * Có phần tử tương tác nào đang nằm dưới hộp FAB không?
      *
-     * Dùng ĐÚNG định nghĩa của phép đo nghiệm thu (giao hình chữ nhật với
-     * `a,button,input,select,textarea,[role=button]` đang hiển thị). Cách lấy mẫu vài điểm
-     * bằng `elementsFromPoint` sẽ bỏ sót nút nhỏ chỉ giao ở góc hộp FAB.
+     * Đo bằng `elementsFromPoint` tại 4 góc + tâm hộp FAB (5 hit-test, rẻ) thay vì
+     * `querySelectorAll` toàn trang + `getComputedStyle` từng phần tử (forced reflow trên
+     * mọi scroll event — nguyên nhân chính của giật). FAB khi ẩn có `pointer-events-none`
+     * nên hit-test không trả về chính nó.
      */
     const controlUnderFab = (fab: HTMLElement) => {
       const fr = fab.getBoundingClientRect();
       if (fr.width < 1 || fr.height < 1) return false;
-      const candidates = document.querySelectorAll('a,button,input,select,textarea,[role="button"]');
-      for (const el of Array.from(candidates)) {
-        if (el === fab || fab.contains(el)) continue;
-        const r = el.getBoundingClientRect();
-        if (r.width < 1 || r.height < 1) continue;
-        const cs = getComputedStyle(el);
-        if (cs.visibility === 'hidden' || cs.display === 'none' || cs.opacity === '0') continue;
-        if (intersects(r, fr)) return true;
+      const selector = 'a,button,input,select,textarea,[role="button"]';
+      const points: Array<[number, number]> = [
+        [fr.left + 2, fr.top + 2],
+        [fr.right - 2, fr.top + 2],
+        [fr.left + 2, fr.bottom - 2],
+        [fr.right - 2, fr.bottom - 2],
+        [fr.left + fr.width / 2, fr.top + fr.height / 2],
+      ];
+      for (const [x, y] of points) {
+        for (const el of document.elementsFromPoint(x, y)) {
+          if (el === fab || fab.contains(el)) continue;
+          if (el instanceof Element && el.matches(selector)) return true;
+        }
       }
       return false;
     };
 
-    // FAB đang ẩn (`pointer-events-none`) nên nó không tự tính là "che chính mình".
     const canShow = () => {
       const fab = fabRef.current;
       return fab ? !controlUnderFab(fab) : true;
     };
 
     let lastY = window.scrollY;
+    let rafId: number | null = null;
     let idleTimer: number | undefined;
+    let settleTimer: number | undefined;
+    let ticking = false;
+    let pendingY = lastY;
+
+    // Va chạm CHỈ được đo khi người dùng đã ngừng cuộn (600ms) hoặc vừa đổi route/modal.
+    const evaluateOverlap = () => setIsFabHidden(!canShow());
 
     const onScroll = () => {
-      const y = window.scrollY;
-      const delta = y - lastY;
-      if (Math.abs(delta) >= HIDE_STEP_PX) {
-        lastY = y;
-        setIsFabHidden(delta > 0 ? true : !canShow());
-      }
-      window.clearTimeout(idleTimer);
-      idleTimer = window.setTimeout(() => setIsFabHidden(!canShow()), IDLE_SHOW_MS);
+      pendingY = window.scrollY;
+      if (ticking) return;
+      ticking = true;
+      rafId = window.requestAnimationFrame(() => {
+        ticking = false;
+        const delta = pendingY - lastY;
+        if (Math.abs(delta) >= HIDE_STEP_PX) {
+          lastY = pendingY;
+          // Cuộn xuống ⇒ ẩn; cuộn lên ⇒ hiện ngay (không chờ đo va chạm).
+          setIsFabHidden(delta > 0);
+        }
+        if (idleTimer !== undefined) window.clearTimeout(idleTimer);
+        idleTimer = window.setTimeout(evaluateOverlap, IDLE_CHECK_MS);
+      });
     };
-
-    // Trạng thái ban đầu: nội dung (catalog) về sau khi mount nên phải đo lại một lần nữa.
-    const initialCheck = window.setTimeout(() => setIsFabHidden(!canShow()), 1500);
 
     window.addEventListener('scroll', onScroll, { passive: true });
+
+    // Vừa đổi route/modal: hiện lại rồi đo va chạm sau khi layout ổn định (tránh kẹt ẩn).
+    setIsFabHidden(false);
+    settleTimer = window.setTimeout(evaluateOverlap, 400);
+
     return () => {
       window.removeEventListener('scroll', onScroll);
-      window.clearTimeout(idleTimer);
-      window.clearTimeout(initialCheck);
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      if (idleTimer !== undefined) window.clearTimeout(idleTimer);
+      if (settleTimer !== undefined) window.clearTimeout(settleTimer);
     };
-  }, []);
+  }, [location.pathname, isChatOpen, isCartDrawerOpen]);
 
   const handleUpdatePricingConfig = async (newConfig: InkiriCostFormulaConfig) => {
     setPricingConfig(newConfig);

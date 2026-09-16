@@ -388,7 +388,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           <button
             type="button"
             onClick={() => setSelectedCategory('all')}
-            className={`w-full text-left px-3 py-2 text-xs rounded-md transition-all flex items-center justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`w-full text-left px-3 py-2 text-xs rounded-md transition-colors flex items-center justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               selectedCategory === 'all'
                 ? 'bg-primary text-primary-fg font-bold'
                 : 'text-fg-muted hover:bg-canvas hover:text-fg'
@@ -410,7 +410,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`w-full text-left px-3 py-2 text-xs rounded-md transition-all flex items-center justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`w-full text-left px-3 py-2 text-xs rounded-md transition-colors flex items-center justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   selectedCategory === cat.id
                     ? 'bg-primary text-primary-fg font-bold'
                     : 'text-fg-muted hover:bg-canvas hover:text-fg'
@@ -447,7 +447,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 key={preset.id}
                 type="button"
                 onClick={() => handleSelectPricePreset(preset.id)}
-                className={`py-1.5 px-2 text-xs font-mono font-bold rounded-md border transition-all cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`py-1.5 px-2 text-xs font-mono font-bold rounded-md border transition-colors cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   pricePreset === preset.id
                     ? 'bg-primary text-primary-fg border-primary'
                     : 'bg-canvas text-fg-muted border-line-control hover:border-primary'
@@ -666,7 +666,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                     type="button"
                     aria-pressed={isActive}
                     onClick={() => setSelectedTag(isActive ? 'all' : tag.id)}
-                    className={`px-3 py-1.5 rounded-sm text-xs font-mono whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border ${
+                    className={`px-3 py-1.5 rounded-sm text-xs font-mono whitespace-nowrap shrink-0 transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border ${
                       isActive
                         ? 'bg-primary text-primary-fg border-primary font-bold'
                         : 'bg-canvas text-fg-muted border-line-control hover:border-primary hover:text-fg'
@@ -931,7 +931,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                         key={product.id}
                         as="article"
                         padding="none"
-                        className="group relative flex flex-col overflow-hidden transition-all duration-300 hover:border-primary/40 hover:shadow-e2 hover:-translate-y-1 active:scale-[0.99]"
+                        className="group relative flex flex-col overflow-hidden transition-[transform,box-shadow,border-color] duration-300 hover:border-primary/40 hover:shadow-e2 hover:-translate-y-1 active:scale-[0.99]"
                       >
                         {/* Product Image Frame — tỉ lệ cố định 4:3 */}
                         <div className="responsive-aspect-frame">
@@ -964,7 +964,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                           <button
                             type="button"
                             onClick={(e) => handleOpen3DPreview(product, e)}
-                            className="absolute inset-0 bg-surface-inverse/70 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-opacity flex flex-col items-center justify-center gap-2 text-on-inverse font-mono text-xs uppercase tracking-wider font-bold cursor-pointer"
+                            className="absolute inset-0 bg-surface-inverse/70 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto [@media(hover:none)]:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:bg-surface-inverse/40 transition-opacity flex flex-col items-center justify-center gap-2 text-on-inverse font-mono text-xs uppercase tracking-wider font-bold cursor-pointer"
                             aria-label={isVi ? `Xem trước 3D: ${product.name}` : `3D preview: ${product.name}`}
                           >
                             <span className="w-11 h-11 rounded-md bg-primary text-primary-fg flex items-center justify-center shadow-e2 transform group-hover:scale-110 transition-transform">

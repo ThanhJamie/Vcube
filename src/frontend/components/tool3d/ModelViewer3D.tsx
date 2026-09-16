@@ -99,7 +99,9 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   const [isBedOverflow, setIsBedOverflow] = useState(false);
   const [currentSlice, setCurrentSlice] = useState<number>(100);
   const [activeAngle, setActiveAngle] = useState<'iso' | 'top' | 'front' | 'side'>('iso');
-  const [fps, setFps] = useState<number>(60);
+  // FPS ghi thẳng vào DOM qua ref — KHÔNG dùng state: trước đây `setFps` mỗi 500ms làm cả
+  // component ~2000 dòng re-render liên tục kể cả khi khung 3D đã ra khỏi viewport.
+  const fpsDisplayRef = useRef<HTMLSpanElement | null>(null);
   const [localBoundingBox, setLocalBoundingBox] = useState<boolean>(showBoundingBox);
   const [localMeasurementActive, setLocalMeasurementActive] = useState<boolean>(measurementActive);
 
@@ -748,10 +750,18 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     });
     resizeObserver.observe(container);
 
-    // 10. Continuous 60 FPS High-Precision Render Loop with Realtime Telemetry
-    let isLoopRunning = true;
+    // 10. On-demand render loop — dừng HẲN khi khung 3D ra khỏi viewport hoặc tab bị ẩn.
+    //     Trước đây vòng rAF chạy 60fps vô điều kiện + `setFps` mỗi 500ms ⇒ component gần
+    //     2000 dòng re-render 2 lần/giây kể cả khi người dùng đã cuộn xuống bảng báo giá.
+    let isLoopRunning = false;
     let frameCount = 0;
     let lastFpsTime = performance.now();
+    let isElementVisible = true;
+
+    const updateFpsDisplay = (value: number) => {
+      const el = fpsDisplayRef.current;
+      if (el) el.textContent = `${value} FPS`;
+    };
 
     const renderLoop = (now: number) => {
       if (!isLoopRunning) return;
@@ -760,11 +770,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       // Skip render calculations when tab is backgrounded to save GPU & battery
       if (document.hidden) return;
 
-      // Realtime measured FPS calculation every 500ms
+      // Realtime measured FPS calculation every 1000ms (ghi thẳng vào DOM, không setState).
       frameCount++;
-      if (now - lastFpsTime >= 500) {
+      if (now - lastFpsTime >= 1000) {
         const measuredFps = Math.round((frameCount * 1000) / (now - lastFpsTime));
-        setFps(Math.max(1, Math.min(120, measuredFps)));
+        updateFpsDisplay(Math.max(1, Math.min(120, measuredFps)));
         frameCount = 0;
         lastFpsTime = now;
       }
@@ -783,11 +793,46 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       }
     };
 
-    animationFrameIdRef.current = requestAnimationFrame(renderLoop);
+    const startLoop = () => {
+      if (isLoopRunning) return;
+      isLoopRunning = true;
+      frameCount = 0;
+      lastFpsTime = performance.now();
+      animationFrameIdRef.current = requestAnimationFrame(renderLoop);
+    };
+
+    const stopLoop = () => {
+      isLoopRunning = false;
+      if (animationFrameIdRef.current !== null) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+        animationFrameIdRef.current = null;
+      }
+    };
+
+    // Chỉ chạy khi khung 3D thực sự trong viewport (rootMargin 200px để khởi động sớm).
+    const visibilityObserver = new IntersectionObserver(
+      (entries) => {
+        isElementVisible = entries.some((entry) => entry.isIntersecting);
+        if (isElementVisible && !document.hidden) startLoop();
+        else stopLoop();
+      },
+      { rootMargin: '200px' },
+    );
+    visibilityObserver.observe(container);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden || !isElementVisible) stopLoop();
+      else startLoop();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    startLoop();
     setWebglState('ACTIVE');
 
     return () => {
       isLoopRunning = false;
+      visibilityObserver.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (animationFrameIdRef.current !== null) {
         cancelAnimationFrame(animationFrameIdRef.current);
       }
@@ -1630,7 +1675,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     >
       {/* Drag and Drop Over Canvas Overlay */}
       {isDragOver && (
-        <div className="absolute inset-0 z-modal bg-primary/90 backdrop-blur-md flex flex-col items-center justify-center text-primary-fg border-2 border-dashed border-accent">
+        <div className="absolute inset-0 z-modal bg-primary/90 flex flex-col items-center justify-center text-primary-fg border-2 border-dashed border-accent">
           <Icon name="upload_file" size={48} className="animate-bounce text-accent" />
           <p className="font-mono text-sm font-bold mt-2 uppercase tracking-wider">Thả tập tin 3D (3MF / STL / OBJ / STEP) vào đây</p>
           <span className="text-xs text-primary-fg font-mono">Hệ thống sẽ bóc tách cấu trúc 3D tự động</span>
@@ -1639,7 +1684,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* WebGL Context Loss Recovery Overlay (R5) */}
       {webglState !== 'ACTIVE' && (
-        <div className="absolute inset-0 z-modal bg-surface-inverse/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center select-none">
+        <div className="absolute inset-0 z-modal bg-surface-inverse/85 flex flex-col items-center justify-center p-6 text-center select-none">
           <div className="w-16 h-16 rounded-2xl bg-surface-inverse-raised/80 border border-surface-inverse-raised flex items-center justify-center mb-4 shadow-e2">
             <Icon name="sync" size={32} className="animate-spin text-accent" />
           </div>
@@ -1677,11 +1722,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       {/* Top Header Bar: Status Badge + Live FPS on Left, Dimensions + Fullscreen on Right */}
       <div className="absolute top-3 left-3 right-3 z-panel flex items-center justify-between gap-2 pointer-events-none">
         {/* Top-Left: VCUBE ENGINE v2.6 // 60 FPS // Model Name */}
-        <div className="pointer-events-auto flex items-center gap-2 bg-surface-inverse/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-surface-inverse-raised/70 text-xs text-on-inverse font-mono shadow-e2">
+        <div className="pointer-events-auto flex items-center gap-2 bg-surface-inverse/90 px-3 py-1.5 rounded-lg border border-surface-inverse-raised/70 text-xs text-on-inverse font-mono shadow-e2">
           <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0"></span>
           <span className="font-bold text-accent tracking-wider shrink-0">VCUBE ENGINE v2.6</span>
           <span className="text-on-inverse/70">//</span>
-          <span className="text-positive font-bold shrink-0">{fps} FPS</span>
+          <span ref={fpsDisplayRef} className="text-positive font-bold shrink-0">60 FPS</span>
           {isFullscreen && (
             <>
               <span className="text-on-inverse/70">//</span>
@@ -1698,7 +1743,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
         {/* Top-Right: Dimension Chip + Fullscreen */}
         <div className="pointer-events-auto flex items-center gap-1.5">
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-surface-inverse/90 backdrop-blur-md rounded-lg border border-surface-inverse-raised/70 text-accent font-mono text-xs shadow-e2">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-surface-inverse/90 rounded-lg border border-surface-inverse-raised/70 text-accent font-mono text-xs shadow-e2">
             <Icon name="straighten" size={18} className="text-accent" />
             <span className="font-bold">
               {modelDims.x > 0 && modelDims.y > 0 && modelDims.z > 0
@@ -1711,7 +1756,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             type="button"
             onClick={handleToggleFullscreen}
             title={isFullscreen ? 'Thoát toàn màn hình (Phím ESC)' : 'Toàn màn hình CAD Studio'}
-            className={`p-1.5 backdrop-blur-md rounded-lg border transition-all shadow-e2 cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold ${
+            className={`p-1.5 rounded-lg border transition-all shadow-e2 cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold ${
               isFullscreen
                 ? 'bg-primary text-primary-fg border-accent shadow-e1 hover:bg-primary-hover'
                 : 'bg-surface-inverse/90 border-surface-inverse-raised/70 text-on-inverse/70 hover:text-on-inverse hover:border-accent/60'
@@ -1729,7 +1774,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* Floating Centered CAD Control Toolbar */}
       <div className="absolute top-12 sm:top-14 left-1/2 -translate-x-1/2 z-panel pointer-events-auto max-w-[95%] overflow-x-auto">
-        <div className="flex items-center gap-1.5 bg-surface-inverse/90 backdrop-blur-md p-1.5 rounded-md border border-surface-inverse-raised/70 shadow-e3 text-on-inverse">
+        <div className="flex items-center gap-1.5 bg-surface-inverse/90 p-1.5 rounded-md border border-surface-inverse-raised/70 shadow-e3 text-on-inverse">
           {/* Angle Presets: [ISO], [TOP], [FRONT], [SIDE] */}
           <div className="flex items-center gap-0.5 bg-surface-inverse p-0.5 rounded-lg border border-surface-inverse-raised/50 font-mono text-xs">
             {(['iso', 'top', 'front', 'side'] as const).map((ang) => (
@@ -1836,7 +1881,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* Dedicated Multi-Plate Dock (Positioned at Bottom-Left above Slicer) */}
       {plates && plates.length > 1 && (
-        <div className="absolute bottom-16 left-3 z-panel pointer-events-auto flex items-center gap-1.5 bg-surface-inverse/90 backdrop-blur-md p-1.5 rounded-md border border-surface-inverse-raised/70 font-mono text-xs shadow-e3">
+        <div className="absolute bottom-16 left-3 z-panel pointer-events-auto flex items-center gap-1.5 bg-surface-inverse/90 p-1.5 rounded-md border border-surface-inverse-raised/70 font-mono text-xs shadow-e3">
           <span className="px-2 py-1 text-xs text-on-inverse/70 font-bold uppercase tracking-wider flex items-center gap-1">
             <Icon name="layers" size={18} className="text-accent" />
             Bàn In:
@@ -1882,7 +1927,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* Bed overflow warning banner when dimensions exceed build plate */}
       {isBedOverflow && (
-        <div className="absolute top-14 left-3 right-3 z-panel bg-danger-tint backdrop-blur-md border border-danger/40 text-danger px-4 py-2.5 rounded-lg shadow-e3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono animate-pulse">
+        <div className="absolute top-14 left-3 right-3 z-panel bg-danger-tint border border-danger/40 text-danger px-4 py-2.5 rounded-lg shadow-e3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono animate-pulse">
           <div className="flex items-center gap-2.5">
             <Icon name="warning" size={24} className="text-danger shrink-0" />
             <div>
@@ -1909,7 +1954,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* Metrology Overlay: Caliper 2-point measurement indicator */}
       {isMeasurementActive && (
-        <div className="absolute top-14 right-3 bg-surface-inverse/95 backdrop-blur-md p-3 rounded-lg border border-warning/60 text-xs text-on-inverse max-w-xs shadow-e3 space-y-2 z-panel font-mono">
+        <div className="absolute top-14 right-3 bg-surface-inverse/95 p-3 rounded-lg border border-warning/60 text-xs text-on-inverse max-w-xs shadow-e3 space-y-2 z-panel font-mono">
           <div className="flex items-center justify-between gap-2 font-bold text-warning">
             <span className="flex items-center gap-1.5">
               <Icon name="straighten" size={18} />
@@ -1940,13 +1985,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* Hover Tooltip */}
       {hoveredPartName && (
-        <div className="absolute bottom-16 left-3 bg-surface-inverse/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-primary/50 text-xs font-mono text-accent pointer-events-none shadow-e2 z-panel">
+        <div className="absolute bottom-16 left-3 bg-surface-inverse/95 px-3 py-1.5 rounded-lg border border-primary/50 text-xs font-mono text-accent pointer-events-none shadow-e2 z-panel">
           <span className="text-on-inverse/70">Chi tiết:</span> {hoveredPartName}
         </div>
       )}
 
       {/* Bottom: Unified Layer Slicer progress slider with percentage and clipping plane */}
-      <div className="absolute bottom-3 left-3 right-3 bg-surface-inverse/90 backdrop-blur-md px-4 py-2.5 rounded-lg border border-surface-inverse-raised/60 flex items-center justify-between gap-4 text-on-inverse font-mono z-panel shadow-e3">
+      <div className="absolute bottom-3 left-3 right-3 bg-surface-inverse/90 px-4 py-2.5 rounded-lg border border-surface-inverse-raised/60 flex items-center justify-between gap-4 text-on-inverse font-mono z-panel shadow-e3">
         <div className="flex items-center gap-2 shrink-0">
           <Icon name="layers" size={18} className="text-accent" />
           <span className="text-xs text-on-inverse/70 font-bold">LỚP IN: {currentSlice}%</span>
