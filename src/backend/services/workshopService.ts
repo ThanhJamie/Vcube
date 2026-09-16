@@ -1417,12 +1417,12 @@ export class WorkshopService {
       name: input.name,
       type: input.type ?? 'PLA',
       color: input.color ?? '',
-      current_stock_grams: input.currentStockGrams ?? 0,
-      low_stock_threshold_grams: input.lowStockThresholdGrams ?? 500,
+      current_stock_grams: input.currentStockGrams ?? null,
+      low_stock_threshold_grams: input.lowStockThresholdGrams ?? null,
       price_per_kg: input.pricePerKg ?? null,
       stock_status: input.stockStatus ?? WorkshopService.computeStockStatus(
-        input.currentStockGrams ?? 0,
-        input.lowStockThresholdGrams ?? 500
+        input.currentStockGrams ?? null,
+        input.lowStockThresholdGrams ?? null
       ),
       updated_at: new Date().toISOString(),
     };
@@ -1741,9 +1741,11 @@ export class WorkshopService {
   // --------------------------------------------------------------------------
   // W1b.6 — HÀM ÁNH XẠ / TIỆN ÍCH NỘI BỘ
   // --------------------------------------------------------------------------
-  private static computeStockStatus(grams: number, threshold: number): string {
+  private static computeStockStatus(grams: number | null, threshold: number | null): string {
+    // Chưa khai tồn ⇒ KHÔNG kết luận hết hàng/sắp hết (tránh biến "chưa khai" thành 0 g).
+    if (grams === null || grams === undefined) return 'Tracking';
     if (grams <= 0) return 'OutOfStock';
-    if (grams <= threshold) return 'LowStock';
+    if (threshold !== null && threshold !== undefined && grams <= threshold) return 'LowStock';
     return 'Tracking';
   }
 
@@ -1979,8 +1981,8 @@ export interface MyMaterialInput {
   name: string;
   type?: string;
   color?: string;
-  currentStockGrams?: number;
-  lowStockThresholdGrams?: number;
+  currentStockGrams?: number | null;
+  lowStockThresholdGrams?: number | null;
   pricePerKg?: number | null;
   stockStatus?: string;
 }

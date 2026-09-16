@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AccessoryItem } from '../../types';
-import { Icon, InfoTip } from '@frontend/ui';
+import { Icon, InfoTip, ConfirmDialog } from '@frontend/ui';
 import { EMPTY_VALUE } from '../../lib/format';
 
 /**
@@ -60,12 +60,12 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     // Để trống ⇒ lưu `null` = "chưa cấu hình" và UI hiện `—`.
     // Không sinh mã: SKU do admin tự nhập (bắt buộc) — không bịa mã định danh.
     sku: '',
-    warehouseLocation: 'Kệ A1 - Hộc 01',
-    supplier: 'Xưởng Kim Khí Tân Bình',
+    warehouseLocation: '',
+    supplier: '',
     description: '',
-    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
+    imageUrl: '',
     isActive: true,
-    compatibleWith: ['Móc khóa', 'Quà tặng']
+    compatibleWith: []
   });
 
   const categories = [
@@ -117,12 +117,10 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     onShowToast('Đã thay đổi trạng thái phụ kiện');
   };
 
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+
   const handleDeleteItem = (id: string, name: string) => {
-    if (window.confirm(`Bạn có chắc muốn xóa phụ kiện "${name}" khỏi danh mục?`)) {
-      const updated = accessories.filter(a => a.id !== id);
-      onUpdateAccessories(updated);
-      onShowToast(`Đã xóa phụ kiện: ${name}`);
-    }
+    setPendingDelete({ id, name });
   };
 
   const handleSaveNewItem = (e: React.FormEvent) => {
@@ -147,10 +145,10 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       sku: newItemForm.sku.trim(),
       stockCount: parseNumOrNull(newItemForm.stockCount),
       lowStockThreshold: parseNumOrNull(newItemForm.lowStockThreshold),
-      warehouseLocation: newItemForm.warehouseLocation || 'Kho Tổng',
+      warehouseLocation: newItemForm.warehouseLocation || '',
       supplier: newItemForm.supplier || '',
       description: newItemForm.description || '',
-      imageUrl: newItemForm.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
+      imageUrl: newItemForm.imageUrl || '',
       isActive: newItemForm.isActive ?? true,
       compatibleWith: newItemForm.compatibleWith || []
     };
@@ -174,6 +172,26 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        tone="danger"
+        title="Xoá phụ kiện"
+        description={
+          pendingDelete
+            ? `Bạn có chắc muốn xoá phụ kiện "${pendingDelete.name}" khỏi danh mục? Hành động này không hoàn tác được.`
+            : ''
+        }
+        confirmLabel="Xoá phụ kiện"
+        cancelLabel="Huỷ"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          const updated = accessories.filter((a) => a.id !== pendingDelete.id);
+          onUpdateAccessories(updated);
+          onShowToast(`Đã xóa phụ kiện: ${pendingDelete.name}`);
+          setPendingDelete(null);
+        }}
+      />
       {/* Header Banner & Stats */}
       <div className="bg-surface p-5 border border-line rounded-sm shadow-e1">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -281,11 +299,17 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                       {/* Name & SKU */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={item.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80'}
-                            alt={item.name}
-                            className="w-10 h-10 rounded-sm object-cover border border-line shrink-0"
-                          />
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className="w-10 h-10 rounded-sm object-cover border border-line shrink-0"
+                            />
+                          ) : (
+                            <span className="w-10 h-10 rounded-sm border border-line bg-surface-muted text-fg-subtle flex items-center justify-center shrink-0">
+                              <Icon name="inventory" size={18} />
+                            </span>
+                          )}
                           <div>
                             <p className="font-bold text-fg leading-snug">{item.name}</p>
                             <div className="flex items-center gap-2 mt-0.5 text-xs text-fg-muted">

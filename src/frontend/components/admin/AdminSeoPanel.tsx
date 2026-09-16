@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SiteContentConfig } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
 import { Icon, InfoTip } from '@frontend/ui';
 
 interface AdminSeoPanelProps {
   siteContent: SiteContentConfig;
-  onUpdateSiteContent: (content: SiteContentConfig) => void;
+  onUpdateSiteContent: (content: SiteContentConfig) => Promise<{ success: boolean; error?: string }> | void;
   onShowToast: (message: string) => void;
 }
 
@@ -21,6 +21,12 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'meta' | 'serp' | 'social' | 'schema'>('meta');
   const [devicePreview, setDevicePreview] = useState<'desktop' | 'mobile'>('desktop');
   const [isSaved, setIsSaved] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Đồng bộ khi prop đổi từ bên ngoài — chỉ khi form không có thay đổi dở.
+  useEffect(() => {
+    if (isSaved) setLocalContent({ ...siteContent });
+  }, [siteContent, isSaved]);
 
   // data-honesty §3: CHỈ hiển thị đúng những gì admin đã cấu hình.
   //
@@ -45,10 +51,20 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
     setIsSaved(false);
   };
 
-  const handleSave = () => {
-    onUpdateSiteContent(localContent);
-    setIsSaved(true);
-    onShowToast(isVi ? 'Đã lưu cấu hình SEO & Metadata thành công!' : 'Saved SEO & Metadata settings successfully!');
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const res = await onUpdateSiteContent(localContent);
+      if (!res || res.success) {
+        setIsSaved(true);
+        onShowToast(isVi ? 'Đã lưu cấu hình SEO & Metadata thành công!' : 'Saved SEO & Metadata settings successfully!');
+      } else {
+        setIsSaved(false);
+        onShowToast(isVi ? `KHÔNG lưu được: ${res.error || 'lỗi không xác định'}` : `Could not save: ${res.error || 'unknown error'}`);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Title & description character counts
@@ -80,15 +96,19 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={handleSave}
-            disabled={isSaved}
-            className={`px-5 py-2.5 text-xs font-bold rounded-lg uppercase tracking-wider transition-all flex items-center gap-2 shadow-e1 cursor-pointer ${
+            disabled={isSaved || isSaving}
+            className={`px-5 py-2.5 text-xs font-bold rounded-lg uppercase tracking-wider transition-colors flex items-center gap-2 shadow-e1 cursor-pointer disabled:cursor-not-allowed ${
               isSaved
-                ? 'bg-line-subtle text-fg-muted cursor-not-allowed shadow-none'
-                : 'bg-gradient-to-r from-primary to-primary-hover hover:from-primary-hover hover:to-primary-hover text-primary-fg'
+                ? 'bg-line-subtle text-fg-muted shadow-none'
+                : 'bg-primary hover:bg-primary-hover text-primary-fg'
             }`}
           >
             <Icon name="save" size={18} />
-            {isSaved ? (isVi ? 'Đã Lưu SEO' : 'All Changes Saved') : (isVi ? 'Lưu Cấu Hình SEO' : 'Save SEO Config')}
+            {isSaving
+              ? (isVi ? 'Đang lưu…' : 'Saving…')
+              : isSaved
+              ? (isVi ? 'Đã Lưu SEO' : 'All Changes Saved')
+              : (isVi ? 'Lưu Cấu Hình SEO' : 'Save SEO Config')}
           </button>
         </div>
       </div>

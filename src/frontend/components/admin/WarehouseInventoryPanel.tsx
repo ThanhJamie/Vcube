@@ -504,11 +504,17 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
                       <tr key={acc.id} className="hover:bg-canvas transition-colors">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2.5">
-                            <img
-                              src={acc.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80'}
-                              alt={acc.name}
-                              className="w-8 h-8 rounded-sm object-cover border border-line"
-                            />
+                            {acc.imageUrl ? (
+                              <img
+                                src={acc.imageUrl}
+                                alt={acc.name}
+                                className="w-8 h-8 rounded-sm object-cover border border-line"
+                              />
+                            ) : (
+                              <span className="w-8 h-8 rounded-sm border border-line bg-surface-muted text-fg-subtle flex items-center justify-center shrink-0">
+                                <Icon name="inventory" size={16} />
+                              </span>
+                            )}
                             <div>
                               <p className="font-bold text-fg">{acc.name}</p>
                               <span className="font-tech text-xs text-primary font-semibold">{acc.sku}</span>

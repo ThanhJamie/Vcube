@@ -3,7 +3,7 @@ import { Product, ProductStatus } from '../../types';
 import { CATEGORIES } from '../../data/mockData';
 import { useLanguage } from '../../context/LanguageContext';
 import { dbService } from '../../../backend/supabase/database';
-import { Icon } from '@frontend/ui';
+import { ConfirmDialog, Icon } from '@frontend/ui';
 
 interface AdminProductsPanelProps {
   products: Product[];
@@ -230,11 +230,10 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
     onShowToast(isVi ? `Đã cập nhật sản phẩm "${editingProduct.name}"` : `Updated product "${editingProduct.name}"`);
   };
 
+  const [pendingDeleteProduct, setPendingDeleteProduct] = useState<Product | null>(null);
+
   const handleDeleteProductConfirm = (prod: Product) => {
-    if (window.confirm(isVi ? `Bạn có chắc chắn muốn xóa sản phẩm "${prod.name}"?` : `Are you sure you want to delete "${prod.name}"?`)) {
-      onDeleteProduct(prod.id);
-      onShowToast(isVi ? `Đã xóa sản phẩm "${prod.name}"` : `Deleted "${prod.name}"`);
-    }
+    setPendingDeleteProduct(prod);
   };
 
   // Filtered products
@@ -248,6 +247,27 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={pendingDeleteProduct !== null}
+        tone="danger"
+        title={isVi ? 'Xoá sản phẩm' : 'Delete product'}
+        description={
+          pendingDeleteProduct
+            ? (isVi
+                ? `Bạn có chắc chắn muốn xoá sản phẩm "${pendingDeleteProduct.name}"? Hành động này không hoàn tác được.`
+                : `Are you sure you want to delete "${pendingDeleteProduct.name}"? This cannot be undone.`)
+            : ''
+        }
+        confirmLabel={isVi ? 'Xoá sản phẩm' : 'Delete'}
+        cancelLabel={isVi ? 'Huỷ' : 'Cancel'}
+        onCancel={() => setPendingDeleteProduct(null)}
+        onConfirm={() => {
+          if (!pendingDeleteProduct) return;
+          onDeleteProduct(pendingDeleteProduct.id);
+          onShowToast(isVi ? `Đã xóa sản phẩm "${pendingDeleteProduct.name}"` : `Deleted "${pendingDeleteProduct.name}"`);
+          setPendingDeleteProduct(null);
+        }}
+      />
       {/* Header & Add Button Bar */}
       <div className="bg-surface p-4 border border-line rounded-lg flex flex-col md:flex-row items-center justify-between gap-3 shadow-e1">
         <div className="flex items-center gap-3 w-full md:w-auto flex-1 max-w-md">

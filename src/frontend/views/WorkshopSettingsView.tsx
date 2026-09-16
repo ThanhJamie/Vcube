@@ -512,8 +512,8 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
         name,
         type: matType,
         color: matColor.trim(),
-        currentStockGrams: stock ?? 0,
-        lowStockThresholdGrams: threshold ?? 500,
+        currentStockGrams: stock ?? null,
+        lowStockThresholdGrams: threshold ?? null,
         pricePerKg: price,
       })
       .then(async (res) => {

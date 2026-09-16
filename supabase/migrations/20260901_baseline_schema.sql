@@ -1466,19 +1466,19 @@ as $fn$
 begin
   if new.action = 'Import' then
     update public.workshop_materials
-       set current_stock_grams = current_stock_grams + new.grams,
+       set current_stock_grams = coalesce(current_stock_grams, 0) + new.grams,
            price_per_kg = coalesce(nullif(new.price_per_kg_at_time, 0), price_per_kg),
            stock_status = case
-             when current_stock_grams + new.grams <= 0 then 'OutOfStock'
-             when current_stock_grams + new.grams <= low_stock_threshold_grams then 'LowStock'
+             when coalesce(current_stock_grams, 0) + new.grams <= 0 then 'OutOfStock'
+             when coalesce(current_stock_grams, 0) + new.grams <= low_stock_threshold_grams then 'LowStock'
              else 'Tracking' end,
            updated_at = now()
      where id = new.material_id;
   elsif new.action = 'Export' then
     update public.workshop_materials
-       set current_stock_grams = greatest(0, current_stock_grams - new.grams),
+       set current_stock_grams = greatest(0, coalesce(current_stock_grams, 0) - new.grams),
            stock_status = case
-             when greatest(0, current_stock_grams - new.grams) <= low_stock_threshold_grams then 'LowStock'
+             when greatest(0, coalesce(current_stock_grams, 0) - new.grams) <= low_stock_threshold_grams then 'LowStock'
              else 'Tracking' end,
            updated_at = now()
      where id = new.material_id;
@@ -1694,6 +1694,7 @@ alter table public.designer_profiles        alter column rating                 
 alter table public.workshop_machines        alter column hourly_rate                      drop default;
 alter table public.workshop_machines        alter column bed_dimensions                   drop default;
 alter table public.workshop_materials       alter column price_per_kg                     drop default;
+alter table public.workshop_materials       alter column current_stock_grams              drop default;
 alter table public.workshop_materials       alter column low_stock_threshold_grams        drop default;
 alter table public.quotes                   alter column volume_cm3                       drop default;
 alter table public.quotes                   alter column infill_percent                   drop default;
@@ -1713,6 +1714,7 @@ alter table public.accessories              alter column low_stock_threshold    
 alter table public.workshop_partners        alter column max_build_volume                 drop not null;
 alter table public.workshop_machines        alter column bed_dimensions                   drop not null;
 alter table public.workshop_materials       alter column price_per_kg                     drop not null;
+alter table public.workshop_materials       alter column current_stock_grams              drop not null;
 alter table public.workshop_materials       alter column low_stock_threshold_grams        drop not null;
 alter table public.digital_assets            alter column file_size_bytes                drop not null;
 alter table public.digital_assets            alter column checksum                        drop not null;

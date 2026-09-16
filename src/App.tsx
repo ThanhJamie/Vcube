@@ -1378,13 +1378,13 @@ function MainApp() {
     } catch (e) {
       console.warn('Could not save site content to localStorage', e);
     }
+    // Trả kết quả THẬT cho panel để nó chỉ báo "đã lưu" khi DB nhận (trước đây panel tự báo
+    // thành công trước khi hàm này chạy xong).
     const res = await dbService.saveSiteContent(newContent);
     if (!res.success) {
       console.warn('Could not save site content to Supabase:', res.error);
-      showToast('Đã lưu cục bộ nhưng lỗi đồng bộ Supabase.', 'warning');
-    } else {
-      showToast('Đã lưu và đồng bộ cấu hình giao diện lên Supabase thành công!', 'success');
     }
+    return res;
   };
 
   // P1 §4: giữ nhãn nhưng BỎ phần rỗng; không còn gì để in thì ẩn cả dòng

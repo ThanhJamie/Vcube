@@ -407,7 +407,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const handleCreateWorkshop = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkshopForm.workshopName || !newWorkshopForm.address) {
-      alert(isVi ? 'Vui lòng điền tên xưởng và địa chỉ' : 'Please provide workshop name and address');
+      onShowToast?.(isVi ? 'Vui lòng điền tên xưởng và địa chỉ' : 'Please provide workshop name and address');
       return;
     }
     const res = await addWorkshop({
@@ -445,7 +445,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const handleCreateMachine = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMachineForm.machineName.trim()) {
-      alert(isVi ? 'Vui lòng nhập tên máy in' : 'Please enter printer name');
+      onShowToast?.(isVi ? 'Vui lòng nhập tên máy in' : 'Please enter printer name');
       return;
     }
     // `printer_fleet.id` là text PK KHÔNG có default ⇒ phải tự sinh id.
@@ -486,7 +486,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const handleCreateMaterial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMaterialForm.materialName) {
-      alert(isVi ? 'Vui lòng nhập tên vật liệu' : 'Please enter material name');
+      onShowToast?.(isVi ? 'Vui lòng nhập tên vật liệu' : 'Please enter material name');
       return;
     }
     addMaterial(newMaterialForm);

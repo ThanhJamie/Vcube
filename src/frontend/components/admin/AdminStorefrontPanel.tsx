@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SiteContentConfig } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
 import { Icon, InfoTip } from '@frontend/ui';
 
 interface AdminStorefrontPanelProps {
   siteContent: SiteContentConfig;
-  onUpdateSiteContent: (content: SiteContentConfig) => void;
+  onUpdateSiteContent: (content: SiteContentConfig) => Promise<{ success: boolean; error?: string }> | void;
   onShowToast: (message: string) => void;
 }
 
@@ -39,6 +39,12 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
   const [localContent, setLocalContent] = useState<SiteContentConfig>({ ...siteContent });
   const [activeTab, setActiveTab] = useState<'hero' | 'announcement' | 'workflow' | 'estimator' | 'facilities' | 'customIdea'>('hero');
   const [isSaved, setIsSaved] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Đồng bộ khi prop đổi từ bên ngoài (realtime/reload) — chỉ khi form không có thay đổi dở.
+  useEffect(() => {
+    if (isSaved) setLocalContent({ ...siteContent });
+  }, [siteContent, isSaved]);
 
   const handleChange = <K extends keyof SiteContentConfig>(key: K, value: SiteContentConfig[K]) => {
     setLocalContent(prev => ({ ...prev, [key]: value }));
@@ -64,7 +70,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
     setIsSaved(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Bỏ trống là hợp lệ ("chưa cấu hình"), nhưng số âm là vô nghĩa ⇒ CHẶN lưu và nói rõ
     // trường nào, thay vì âm thầm thay bằng một con số mặc định.
     const invalidShippingKey = (['freeShippingThreshold', 'standardShippingFee'] as const).find((key) => {
@@ -80,9 +86,19 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
       return;
     }
 
-    onUpdateSiteContent(localContent);
-    setIsSaved(true);
-    onShowToast(isVi ? 'Đã lưu cấu hình giao diện Landing Page & Storefront!' : 'Saved Landing Page & Storefront CMS settings!');
+    setIsSaving(true);
+    try {
+      const res = await onUpdateSiteContent(localContent);
+      if (!res || res.success) {
+        setIsSaved(true);
+        onShowToast(isVi ? 'Đã lưu cấu hình giao diện Landing Page & Storefront!' : 'Saved Landing Page & Storefront CMS settings!');
+      } else {
+        setIsSaved(false);
+        onShowToast(isVi ? `KHÔNG lưu được: ${res.error || 'lỗi không xác định'}` : `Could not save: ${res.error || 'unknown error'}`);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -111,15 +127,19 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={handleSave}
-            disabled={isSaved}
-            className={`px-5 py-2.5 text-xs font-bold rounded-lg uppercase tracking-wider transition-all flex items-center gap-2 shadow-e2 cursor-pointer ${
+            disabled={isSaved || isSaving}
+            className={`px-5 py-2.5 text-xs font-bold rounded-lg uppercase tracking-wider transition-colors flex items-center gap-2 shadow-e2 cursor-pointer disabled:cursor-not-allowed ${
               isSaved
-                ? 'bg-line-subtle text-fg-muted cursor-not-allowed shadow-none'
-                : 'bg-gradient-to-r from-primary to-primary-hover hover:from-primary-hover hover:to-primary-hover text-primary-fg shadow-primary/25'
+                ? 'bg-line-subtle text-fg-muted shadow-none'
+                : 'bg-primary hover:bg-primary-hover text-primary-fg shadow-primary/25'
             }`}
           >
             <Icon name="save" size={18} />
-            {isSaved ? (isVi ? 'Đã Lưu Nội Dung' : 'All Changes Saved') : (isVi ? 'Lưu Thay Đổi Ngay' : 'Save Changes Now')}
+            {isSaving
+              ? (isVi ? 'Đang lưu…' : 'Saving…')
+              : isSaved
+              ? (isVi ? 'Đã Lưu Nội Dung' : 'All Changes Saved')
+              : (isVi ? 'Lưu Thay Đổi Ngay' : 'Save Changes Now')}
           </button>
         </div>
       </div>
@@ -845,7 +865,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.customIdeaImageUrl || ''}
                 onChange={(e) => handleChange('customIdeaImageUrl', e.target.value)}
-                placeholder="https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=1200&auto=format&fit=crop&q=80"
+                placeholder="Dán URL ảnh (https://…)"
                 className="w-full p-2.5 border border-line rounded-lg text-xs font-mono focus:outline-none focus:border-primary"
               />
             </div>

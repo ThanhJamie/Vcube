@@ -19,7 +19,7 @@ import { INKIRI_REFERENCE_VALUES } from '../../../data/mockData';
 import { AccessoriesManager } from './AccessoriesManager';
 import { WarehouseInventoryPanel } from './WarehouseInventoryPanel';
 import { WorkshopEstimatorBOM } from './WorkshopEstimatorBOM';
-import { Icon, InfoTip } from '@frontend/ui';
+import { ConfirmDialog, Icon, InfoTip } from '@frontend/ui';
 
 interface PricingConfigPanelProps {
   initialSubTab?: 'formula' | 'materials' | 'printers' | 'accessories' | 'inventory' | 'estimator';
@@ -121,6 +121,8 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
   onShowToast
 }) => {
   const [subTab, setSubTab] = useState<'formula' | 'materials' | 'printers' | 'accessories' | 'inventory' | 'estimator'>(initialSubTab);
+  const [pendingDeleteMaterial, setPendingDeleteMaterial] = useState<{ id: string; name: string } | null>(null);
+  const [pendingDeletePrinter, setPendingDeletePrinter] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (initialSubTab) {
@@ -721,11 +723,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
       onShowToast('Cần duy trì tối thiểu 1 loại vật liệu trong hệ thống!');
       return;
     }
-    if (window.confirm(`Xóa vật liệu "${name}" khỏi danh mục xưởng?`)) {
-      const updatedList = materials.filter((m) => m.id !== id);
-      onUpdateMaterials(updatedList);
-      onShowToast(`Đã xóa vật liệu "${name}"`);
-    }
+    setPendingDeleteMaterial({ id, name });
   };
 
   const setPrinterField = (key: keyof PrinterProfile, value: unknown) => {
@@ -842,15 +840,41 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
       onShowToast('Cần duy trì tối thiểu 1 máy in trong hệ thống!');
       return;
     }
-    if (window.confirm(`Xóa máy in "${name}" khỏi đội máy?`)) {
-      const updatedList = printers.filter((p) => p.id !== id);
-      onUpdatePrinters(updatedList);
-      onShowToast(`Đã xóa máy in "${name}"`);
-    }
+    setPendingDeletePrinter({ id, name });
   };
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={pendingDeleteMaterial !== null}
+        tone="danger"
+        title="Xoá vật liệu"
+        description={pendingDeleteMaterial ? `Xoá vật liệu "${pendingDeleteMaterial.name}" khỏi danh mục xưởng? Hành động này không hoàn tác được.` : ''}
+        confirmLabel="Xoá vật liệu"
+        cancelLabel="Huỷ"
+        onCancel={() => setPendingDeleteMaterial(null)}
+        onConfirm={() => {
+          if (!pendingDeleteMaterial) return;
+          onUpdateMaterials(materials.filter((m) => m.id !== pendingDeleteMaterial.id));
+          onShowToast(`Đã xóa vật liệu "${pendingDeleteMaterial.name}"`);
+          setPendingDeleteMaterial(null);
+        }}
+      />
+      <ConfirmDialog
+        open={pendingDeletePrinter !== null}
+        tone="danger"
+        title="Xoá máy in"
+        description={pendingDeletePrinter ? `Xoá máy in "${pendingDeletePrinter.name}" khỏi đội máy? Hành động này không hoàn tác được.` : ''}
+        confirmLabel="Xoá máy in"
+        cancelLabel="Huỷ"
+        onCancel={() => setPendingDeletePrinter(null)}
+        onConfirm={() => {
+          if (!pendingDeletePrinter) return;
+          onUpdatePrinters(printers.filter((p) => p.id !== pendingDeletePrinter.id));
+          onShowToast(`Đã xóa máy in "${pendingDeletePrinter.name}"`);
+          setPendingDeletePrinter(null);
+        }}
+      />
       {/* Panel Header & Summary banner */}
       <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
