@@ -13,8 +13,8 @@
 - **Bổ sung**: `/quote` hết lộ giá vốn (`MachineComparisonModal showCost`), 3 modal tool3d + InvoiceModal + StlVs3mf + MachineComparison → `<dialog>`; Header drawer focus trap; Lab table loading/retry; Lab có hành động **"Đánh dấu đã giao"** (đơn tới `completed`); HomeView skeleton khi nạp catalog; Lab stats hết double-count.
 
 ## Còn lại (refactor lớn — không phải bug)
-- **DataTable adoption** cho các bảng admin/lab/designer còn dùng `<table>` tự chế (sort/pagination/bulk). Đây là refactor cơ học nhưng chạm nhiều file admin; nên làm theo từng panel.
-- Migrate ~28 overlay tự chế còn lại (admin/lab/designer) sang `Modal`/`Sheet`.
+- **DataTable**: ĐÃ migrate các bảng dữ liệu admin/designer (`AdminProductsPanel`, `AccessoriesManager`, `WarehouseInventoryPanel` ×2, `Group1WorkshopsPanel` ×2, `Group2DesignersPanel`, `Group3CustomersPanel` ×2, `DesignerModelsManagerTab`, `DesignerPayoutsTab`). CÒN: bảng chỉnh sửa trong `PricingConfigPanel` (form grid — cố ý không dùng DataTable) và bảng catalog storefront (`ExploreView`/`HomeView`).
+- **Modal → `<dialog>`**: ĐÃ migrate `CadQuickViewModal`, `StlUnitConfirmModal`, `InvoiceModal`, `StlVs3mfComparisonModal`, `MachineComparisonModal`, `InternalCostBreakdownModal`, `MyOrdersView` (bảo hành), `AssetLibraryView` (preview). CÒN: các modal create/edit trong admin (`AdminProductsPanel`, `AccessoriesManager`, `Group1`, `Group2`, `Group3`, `Group5`, `PricingConfigPanel`, `UserAvatarMenu`) và `AuthModal`/`PersonalizeModelViewer3D`/`ModelViewer3D` (fullscreen viewer có chủ ý).
 - Storefront: hero fit viewport (restructure thiết kế), `content-visibility` cho list dài, i18n nốt vài chuỗi.
 - `AdminStorefrontPanel`/`AdminSeoPanel`: guard unsaved-changes khi điều hướng.
 - **C5**: verify browser 390/768/1440 (cần Playwright MCP hoặc kiểm thủ công).
