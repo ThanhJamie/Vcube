@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { AccessoryItem } from '../../types';
-import { Icon, InfoTip, ConfirmDialog, DataTable, EmptyState } from '@frontend/ui';
+import { Icon, InfoTip, ConfirmDialog, DataTable, EmptyState, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE } from '../../lib/format';
 import { useLanguage } from '../../context/LanguageContext';
@@ -471,22 +471,12 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
 
       {/* MODAL: Thêm Phụ Kiện Mới */}
       {isNewModalOpen && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-e3">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="font-bold text-sm text-fg flex items-center gap-2">
-                <Icon name="add_circle" size={24} className="text-primary" />
-                Thêm Phụ Kiện / Bao Bì Mới Vào Hệ Thống
-              </h3>
-              <button aria-label="Đóng"
-                type="button"
-                onClick={() => setIsNewModalOpen(false)}
-                className="text-fg-muted hover:text-fg"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setIsNewModalOpen(false)}
+          size="lg"
+          title={<span className="flex items-center gap-2"><Icon name="add_circle" size={22} className="text-primary" />Thêm Phụ Kiện / Bao Bì Mới Vào Hệ Thống</span>}
+        >
             <form onSubmit={handleSaveNewItem} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
@@ -636,28 +626,17 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL: Sửa Phụ Kiện */}
       {editingItem && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-e3">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="font-bold text-sm text-fg flex items-center gap-2">
-                <Icon name="edit" size={24} className="text-primary" />
-                Chỉnh Sửa Phụ Kiện: {editingItem.name}
-              </h3>
-              <button aria-label="Đóng"
-                type="button"
-                onClick={() => setEditingItem(null)}
-                className="text-fg-muted hover:text-fg"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setEditingItem(null)}
+          size="lg"
+          title={<span className="flex items-center gap-2"><Icon name="edit" size={22} className="text-primary" />Chỉnh Sửa Phụ Kiện: {editingItem.name}</span>}
+        >
             <form onSubmit={handleSaveEditItem} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
@@ -800,8 +779,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

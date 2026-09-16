@@ -3,7 +3,7 @@ import { Product, ProductStatus } from '../../types';
 import { CATEGORIES } from '../../data/mockData';
 import { useLanguage } from '../../context/LanguageContext';
 import { dbService } from '../../../backend/supabase/database';
-import { ConfirmDialog, DataTable, EmptyState, Icon } from '@frontend/ui';
+import { ConfirmDialog, DataTable, EmptyState, Icon, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';
 
@@ -481,17 +481,12 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
 
       {/* Edit Product Modal */}
       {editingProduct && (
-        <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-surface rounded-lg max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-e3 border border-line">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-base font-bold text-fg">
-                {isVi ? 'Chỉnh Sửa Thông Tin Sản Phẩm' : 'Edit Product'}
-              </h3>
-              <button aria-label="Đóng" onClick={() => setEditingProduct(null)} className="p-1 text-fg-muted hover:text-fg">
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setEditingProduct(null)}
+          size="lg"
+          title={isVi ? 'Chỉnh Sửa Thông Tin Sản Phẩm' : 'Edit Product'}
+        >
             <form onSubmit={handleSaveEditProduct} className="space-y-4 text-xs">
               <div className="space-y-1">
                 <label className="font-bold text-fg">Tên sản phẩm *</label>
@@ -600,23 +595,17 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Add New Product Modal */}
       {isNewProductModalOpen && (
-        <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-surface rounded-lg max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-e3 border border-line">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-base font-bold text-fg">
-                {isVi ? 'Thêm Sản Phẩm & Bản In Mới' : 'Add New Product'}
-              </h3>
-              <button aria-label="Đóng" onClick={() => setIsNewProductModalOpen(false)} className="p-1 text-fg-muted hover:text-fg">
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setIsNewProductModalOpen(false)}
+          size="lg"
+          title={isVi ? 'Thêm Sản Phẩm & Bản In Mới' : 'Add New Product'}
+        >
             <form onSubmit={handleSaveNewProduct} className="space-y-4 text-xs">
               <div className="space-y-1">
                 <label className="font-bold text-fg">Tên sản phẩm *</label>
@@ -750,8 +739,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
