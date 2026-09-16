@@ -27,7 +27,7 @@ VCUBE is architected as a high-performance Single Page Application (Vite SPA) em
 +-----------------------------------------------------------------------------+
 |         PRESENTATION LAYER         |            CORE ENGINES LAYER          |
 | - Modern SaaS Light Theme          | - Three.js 0.185 (WebGL 3D Viewer)     |
-| - Dark-first Lab/Admin/Quote Hubs  | - WebAssembly CAD Kernel (OpenCASCADE) |
+| - Dark Opt-In (user override)      | - WebAssembly CAD Kernel (OpenCASCADE) |
 | - Accessible Design Tokens         | - Multi-Dimensional Pricing Engine     |
 | - Dual Persona Buying Box          | - Finite State Machine (GPU Loss FSM)  |
 +------------------------------------+----------------------------------------+
@@ -43,7 +43,7 @@ VCUBE is architected as a high-performance Single Page Application (Vite SPA) em
                                       v
 +-----------------------------------------------------------------------------+
 |                               BACKEND (SUPABASE)                            |
-|  PostgreSQL 15  *  30 Tables  *  84+ Hardened RLS Policies  *  Storage RLS   |
+|  PostgreSQL 15  *  31 Tables + 1 View  *  90 RLS + 6 Storage Policies       |
 +-----------------------------------------------------------------------------+
 ```
 
@@ -54,7 +54,7 @@ VCUBE is architected as a high-performance Single Page Application (Vite SPA) em
 - **Routing**: `react-router-dom` v7 with lazy loading (`React.lazy`) and route-level error boundaries (`RouteErrorBoundary`).
 - **3D Graphics**: Three.js 0.185, WebGLRenderer, OrbitControls, BufferGeometry memory management.
 - **WebAssembly CAD Kernel**: `occt-import-js` (OpenCASCADE) running inside `src/workers/cadParser.worker.ts` for native STEP/IGES B-Rep parsing.
-- **Backend & Database**: Supabase PostgreSQL with 30 tables, strict Row Level Security (RLS), and database-level role verification (`user_profiles.role`).
+- **Backend & Database**: Supabase PostgreSQL with 31 tables + 1 compatibility view (`pricing_config`), strict Row Level Security (RLS), and database-level role verification (`user_profiles.role`).
 
 ---
 
@@ -66,7 +66,7 @@ The complete documentation system for VCUBE is organized into five modular domai
 Comprehensive specifications covering component props, state machines, user flows, and error handling:
 - [**Storefront & Quoting Engine Spec** (`docs/pages/storefront.md`)](./pages/storefront.md):
   * `HomeView.tsx` (`/`): Hero CAD dropzone, 3D Chassis WebGL viewer, 4 core services, catalog grid/table, material comparison matrix, Custom Idea RFQ form.
-  * `ExploreView.tsx` (`/explore`): Multi-dimensional filtering, Dual CTA ("Đặt In 3D" vs. "Tải Tệp CAD"), bookmarks, VRAM optimization via `IntersectionObserver`.
+  * `ExploreView.tsx` (`/explore`): Multi-dimensional filtering, Dual CTA ("Đặt In 3D" vs. "Tải Tệp CAD"), bookmarks, lazy 3D thumbnails via the `useInViewport` hook.
   * `ProductDetailView.tsx` (`/products/:id`): Dual Persona Buying Box, 360° 3D inspector, material & color configurator, `MaterialTechnicalAdvisory` for high-performance polymers.
   * `Tool3DView.tsx` (`/quote`): Instant CAD quoting station, STEP/STL/OBJ/3MF parser, GPU Context Loss FSM, automated mesh repair, STL vs. 3MF comparison, instant B.O.M. breakdown.
   * `PersonalizeView.tsx` (`/personalize`): Part personalization, laser engraving text positioning, scaling factor.
@@ -87,7 +87,7 @@ Comprehensive specifications covering component props, state machines, user flow
   * `Group3CustomersPanel.tsx`: Customer directory, lifetime value (LTV), corporate accounts, B2B NDA contracts.
   * `Group4PricingEnginePanel.tsx` & `PricingConfigPanel.tsx`: Formula parameters, base material rates, machine hourly operational rates, multiplier calibration.
   * `Group5ProductionPanel.tsx`: Real-time MES Kanban board, regional dispatcher (Bắc/Trung/Đông), workshop assignment.
-  * CMS & SEO: `AdminProductsPanel.tsx`, `AdminStorefrontPanel.tsx`, `AdminSeoPanel.tsx`, `WarehouseInventoryPanel.tsx`, `AccessoriesManager.tsx`.
+  * CMS & SEO: `AdminProductsPanel.tsx`, `AdminStorefrontPanel.tsx`, `AdminSeoPanel.tsx`, `WarehouseInventoryPanel.tsx` (`/admin/inventory`), and `AccessoriesManager.tsx` (rendered inside `Group4PricingEnginePanel` under the `hardware`/`accessories` tab).
 - [**Designer & Workshop Portals Spec** (`docs/pages/designer-workshop-portals.md`)](./pages/designer-workshop-portals.md):
   * `DesignerDashboardView.tsx` (`/designer/:tab`): Modular 5-tab creator studio (`DesignerOverviewTab`, `DesignerModelsManagerTab`, `DesignerUploadWizardTab`, `DesignerRequestsTab`, `DesignerPayoutsTab`).
   * `WorkshopSettingsView.tsx` (`/lab/:tab` & `/workshop/settings`): Subject-scoped MES operations (`queue`, `machines`, `materials`, `accessories`, `audit_trail`, `preferences`).
@@ -99,11 +99,15 @@ Comprehensive specifications covering component props, state machines, user flow
 - [**Multidimensional Pricing Engine** (`docs/architecture/pricing-engine.md`)](./architecture/pricing-engine.md): Complete mathematical formulation of material density, machine depreciation, operator time, failure risk margins, VAT, and dynamic shipping.
 
 ### 3.3 Database, Security & Operations
-- [**Database Schema Documentation** (`docs/database/schema.md`)](./database/schema.md): Complete documentation of the 30 Supabase tables, foreign key constraints, indexes, and custom enums.
+- [**Database Schema Documentation** (`docs/database/schema.md`)](./database/schema.md): Complete documentation of the 31 Supabase tables + 1 compatibility view (`pricing_config`), foreign key constraints, indexes, and custom enums.
 - [**Seeds & Migrations Guide** (`docs/database/seeds-and-migrations.md`)](./database/seeds-and-migrations.md): Migration sequence (`20260900`, `20260901`, `20261010`), admin bootstrapping, and seed data execution.
-- [**Security & RLS Policies** (`docs/security/rls-policies.md`)](./security/rls-policies.md): Role-based access control, 84+ hardened table policies, 6 storage policies, and privilege escalation guards.
+- [**Security & RLS Policies** (`docs/security/rls-policies.md`)](./security/rls-policies.md): Role-based access control, 90 hardened table policies (88 applied on a fresh baseline), 6 storage policies, and privilege escalation guards.
 - [**RLS Operations Runbook** (`docs/security/rls-runbook.md`)](./security/rls-runbook.md): Production verification steps, database testing with anon keys, and security troubleshooting.
 - [**Developer Setup & Deployment Runbook** (`docs/SETUP_RUNBOOK.md`)](./SETUP_RUNBOOK.md): Step-by-step developer onboarding, WSL2 configuration, automated quality gates, build commands, and production deployment instructions.
+
+### 3.4 Design Specs & Historical Archive
+- [**Design Tokens** (`docs/design/tokens.md`)](../design/tokens.md), [**Icon Map**](../design/icon-map.md), [**QA Checklist**](../design/qa-checklist.md), [**Data Honesty Rules**](../design/data-honesty.md), [**Research Brief**](../design/research-brief.md): design-system and honest-data specifications referenced by the architecture and page docs.
+- [**Historical Archive** (`docs/archive/README.md`)](./archive/README.md): the superseded `docs/plans/**` refactor plan (39 files, SUPERSEDED banners). Historical reference only — its figures are stale.
 
 ---
 
@@ -112,19 +116,19 @@ Comprehensive specifications covering component props, state machines, user flow
 | Path | Primary Component | Lazy Loaded | Role Guard | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `/` | `HomeView.tsx` | No | Public | High-conversion engineering showcase & CAD dropzone |
-| `/explore` | `ExploreView.tsx` | No | Public | Searchable CAD catalog with multi-dimensional filtering |
-| `/products/:productId` | `ProductDetailView.tsx` | No | Public | Technical PDP with Dual Persona buying box |
+| `/explore` | `ExploreRoute` → `ExploreView.tsx` | No | Public | Searchable CAD catalog with multi-dimensional filtering |
+| `/products/:productId` | `ProductDetailRoute` → `ProductDetailView.tsx` | No | Public | Technical PDP with Dual Persona buying box |
+| `/personalize`, `/personalize/:productId` | `PersonalizeRoute` → `PersonalizeView.tsx` | No | Public | Laser engraving & part personalization studio |
 | `/quote` (alias `/tool-3d`) | `Tool3DView.tsx` | Yes | Public | Instant 3D CAD analysis, repair, and quoting station |
-| `/personalize` | `PersonalizeView.tsx` | No | Public | Laser engraving & part personalization studio |
 | `/cart` | `CartView.tsx` | No | Public | Shopping cart separating physical parts from digital licenses |
 | `/checkout` | `CheckoutView.tsx` | No | Public | Multi-step checkout with VietQR, VNPAY, COD, and VAT |
-| `/order-success/:orderId` | `OrderSuccessView.tsx` | No | Public | Post-purchase confirmation and guest access tokens |
-| `/tracking` | `OrderTrackingView.tsx` | No | Public | RPC-secured real-time order and 8-stage MES tracking |
-| `/orders` (alias `/my-orders`) | `MyOrdersView.tsx` | No | Authenticated | Order history, CAD downloads, and tolerance warranty claims |
-| `/assets` (alias `/library`) | `AssetLibraryView.tsx` | No | Authenticated | Customer CAD vault with 60s signed download URLs |
-| `/designer` / `/designer/:tab`| `DesignerDashboardView.tsx` | Yes | `designer`, `admin` | Modular creator studio (Overview, Models, Wizard, Requests, Payouts) |
-| `/lab` / `/lab/:tab` | `WorkshopSettingsView.tsx` | Yes | `lab`, `workshop`, `admin` | Workshop MES queue, machine fleet, and local rates |
-| `/admin` / `/admin/:section` | `AdminDashboardView.tsx` | Yes | `admin` | ForgeControl platform administration and governance |
+| `/order-success`, `/order-success/:orderId` | `OrderSuccessRoute` → `OrderSuccessView.tsx` | No | Public | Post-purchase confirmation and guest access tokens |
+| `/tracking`, `/tracking/:orderId` | `OrderTrackingRoute` → `OrderTrackingView.tsx` | No | Public | RPC-secured real-time order and 8-stage MES tracking |
+| `/orders` (alias `/my-orders`) | `MyOrdersView.tsx` | No | Authenticated (any role) | Order history, CAD downloads, and tolerance warranty claims |
+| `/assets` (alias `/library`) | `AssetLibraryView.tsx` | No | Authenticated (any role) | Customer CAD vault with 60s signed download URLs |
+| `/designer`, `/designer/:tab` (aliases `/creator`, `/creator/*`) | `DesignerDashboardShell` → `DesignerDashboardView.tsx` | Yes | `designer`, `admin` | Modular creator studio (Overview, Models, Wizard, Requests, Payouts) |
+| `/lab`, `/lab/:tab` | `LabRoute` → `WorkshopOnboardingWizard.tsx` (pending) / `WorkshopSettingsView.tsx` (verified) | Yes | `lab`, `workshop`, `admin` | Workshop MES queue, machine fleet, and local rates |
+| `/admin`, `/admin/:section` | `AdminDashboardView.tsx` | Yes | `admin` | ForgeControl platform administration and governance |
 | `/auth/login` (alias `/login`) | `LoginView.tsx` | No | Public | User authentication and role-based redirect |
 | `/auth/register` (alias `/register`)| `RegisterView.tsx` | No | Public | Account registration with password strength meter |
 | `*` | `NotFoundView.tsx` | No | Public | Standard 404 handler with fallback navigation |
@@ -144,7 +148,7 @@ The following diagram illustrates how customer CAD requests flow from initial up
        |
        | 2. Computes Volume (cm³), Surface Area (cm²), Mesh Health
        v
-[src/backend/services/pricingEngine.ts]
+[src/utils/pricingEngine.ts]
        |
        | 3. Applies Material Rate + Machine Rate + Failure Margin + VAT
        v
@@ -175,16 +179,21 @@ The following diagram illustrates how customer CAD requests flow from initial up
 
 ## 6. Automated Quality Gates
 
-Every code change committed to VCUBE must pass the six mandatory automated gates:
+Every code change committed to VCUBE must pass the mandatory automated gates. `AGENTS.md` §"Gate bổ sung" is the authoritative list; the table below mirrors the full local set.
 
 | Gate Script | Execution Command | Purpose & Pass Criteria |
 | :--- | :--- | :--- |
 | **Typecheck** | `npm run lint` (`tsc --noEmit`) | Verifies strict TypeScript compliance with zero type errors |
 | **Build Bundle** | `npm run build` | Verifies Vite production bundling with zero packaging errors |
-| **Data Honesty** | `node scripts/check-fabricated.mjs` | Scans strings & JSX for fabricated claims (must report 0 violations) |
-| **WCAG Contrast** | `node scripts/check-contrast.mjs` | Validates color token contrast compliance for accessibility |
-| **RLS Code Audit**| `node scripts/lint-rls-sources.mjs` | Audits SQL migrations for anti-patterns and ensures RLS hardening |
+| **Data Honesty** | `node scripts/check-fabricated.mjs` | Scans string literals & JSX text for fabricated claims (must report 0 violations) |
+| **WCAG Contrast** | `node scripts/check-contrast.mjs` | Validates declared color-token contrast pairs (exit 0; some pairs are intentionally exempt) |
+| **Contrast Combos** | `node scripts/check-contrast-combos.mjs` | Scans `.tsx` class strings for failing (text, background) combinations |
+| **RLS Sources** | `node scripts/lint-rls-sources.mjs` | Audits all migrations for RLS anti-patterns R1–R7 |
+| **RLS Migration** | `node scripts/lint-rls-migration.mjs` | Checks harden-migration allowlist consistency + R8/R9 |
+| **SQL Syntax** | `node scripts/a8-sql-syntax-check.mjs` | Static syntax check of the 7 SQL files + `char`-column concat guard (error 42725) |
 | **Pricing Multiplier** | `node scripts/check-unitprice-multiplier.mjs` | Verifies unit price multiplier is used strictly for deriving cost/g |
+| **DB Inspection** | `node scripts/inspect-db.mjs` | Compares row visibility via publishable vs. secret key |
+| **RLS Live Check** | `node scripts/verify-rls.mjs [--writes]` | Verifies live RLS behavior with the anon key |
 
 ---
 

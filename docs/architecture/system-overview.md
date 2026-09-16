@@ -18,9 +18,9 @@
 |                                                                                       |
 |   +-------------------------------------------------------------------------------+   |
 |   |                         REACT 19 SPA (Vite 6 Bundler)                         |   |
-|   |  - Storefront Portal (Light-first)       - Quoting & Tool3D Cockpit (Dark)    |   |
-|   |  - Customer Order Tracking (Light)       - Admin ForgeControl Console (Dark)  |   |
-|   |  - Designer CAD Studio (Dark)            - Workshop Print Lab / MES Hub (Dark)|   |
+|   |  - Storefront Portal (Light-first)       - Quoting & Tool3D Cockpit (Light)   |   |
+|   |  - Customer Order Tracking (Light)       - Admin ForgeControl Console (Light) |   |
+|   |  - Designer CAD Studio (Light)          - Workshop Print Lab / MES Hub (Light)|   |
 |   +---------------------------------------+---------------------------------------+   |
 |                                           |                                           |
 |       +-----------------------------------+-----------------------------------+       |
@@ -41,8 +41,8 @@
 |                                                                                       |
 |   +--------------------------+  +--------------------------+  +-------------------+   |
 |   |     POSTGRESQL 15 DB     |  |      SUPABASE AUTH       |  | STORAGE BUCKETS   |   |
-|   |  - 30 Baseline Tables    |  |  - JWT & Session Engine  |  |  - product-images |   |
-|   |  - 84 Hardened RLS Rules |  |  - Role Resolution via   |  |  - cad-files      |   |
+|   |  - 31 Tables + 1 View    |  |  - JWT & Session Engine  |  |  - product-images |   |
+|   |  - 90 Hardened RLS Rules |  |  - Role Resolution via   |  |  - cad-files      |   |
 |   |  - Realtime CDC PubSub   |  |    `public.user_profiles`|  |    (Authenticated)|   |
 |   +--------------------------+  +--------------------------+  +-------------------+   |
 +---------------------------------------------------------------------------------------+
@@ -100,7 +100,7 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │   │   ├── stores/                      # Frontend Zustand stores (useCartStore, useUIStore)
 │   │   ├── theme/                       # Design tokens & ThemeProvider implementation
 │   │   │   ├── tokens.ts                # JavaScript color token reader & observer
-│   │   │   └── ThemeProvider.tsx        # Route-aware dark/light theme coordinator
+│   │   │   └── ThemeProvider.tsx        # Theme coordinator (light-first default, dark opt-in)
 │   │   ├── ui/                          # Design system atomic primitives (AppShell, Button, Icon)
 │   │   └── views/                       # Top-level page views (Home, Explore, PDP, Cart, Admin)
 │   │
@@ -137,8 +137,8 @@ The project follows a modular directory layout segregating frontend UI, backend 
 ├── supabase/
 │   ├── migrations/                      # Active Sequential PostgreSQL Migrations
 │   │   ├── 20260900_rls_helpers.sql     # Database helper functions (`current_app_role`, `is_admin`)
-│   │   ├── 20260901_baseline_schema.sql # 30 Tables, enums, indexes, triggers, storage buckets
-│   │   └── 20261010_harden_rls.sql      # 84 Table policies + 6 storage policies
+│   │   ├── 20260901_baseline_schema.sql # 31 Tables + 1 view, enums, 49 indexes, 5 triggers, 2 buckets
+│   │   └── 20261010_harden_rls.sql      # 90 table policies + 6 storage policies
 │   └── scripts/                         # Database admin bootstrap scripts
 │
 ├── scripts/                             # Quality Gate & Static Analysis Scripts
@@ -151,8 +151,9 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │
 └── docs/                                # Technical & Architectural Documentation
     ├── architecture/                    # System overview, 3D pipeline, pricing engine
-    ├── design/                          # Design tokens, icon maps, QA checklists
-    ├── plans/                           # Execution milestones, roadmap, database specs
+    ├── design/                          # Design tokens, icon maps, QA checklists (canonical specs)
+    ├── plans/                           # ARCHIVED refactor plan (SUPERSEDED banners) — see archive/README.md
+    ├── archive/                         # Historical-documentation index
     └── security/                        # RLS runbook and operational security guidelines
 ```
 
@@ -178,8 +179,8 @@ The bootstrap pipeline starts from a lightweight HTML shell, initializes global 
 +--------+---------+
          |
          v
-+------------------+  Read location.pathname; compute light vs dark route mode;
-| <RouteThemeSync> |  Inject 'dark' class on <html> documentElement
++------------------+  Resolve stored override (default 'light'); route does not change it;
+| <RouteThemeSync> |  apply/remove 'dark' class on <html> documentElement
 +--------+---------+
          |
          v
@@ -232,21 +233,21 @@ VCUBE 3.0 uses `react-router-dom` v7 for client-side navigation. Routes are cate
 | `/products/:productId`| `ProductDetailRoute` -> `ProductDetailView` | Public | Light | None |
 | `/personalize` | `PersonalizeRoute` -> `PersonalizeView` | Public | Light | None |
 | `/personalize/:productId`| `PersonalizeRoute` -> `PersonalizeView` | Public | Light | None |
-| `/quote` | `Tool3DView` (Code-split lazy) | Public | Dark | None |
+| `/quote` | `Tool3DView` (Code-split lazy) | Public | Light | None |
 | `/cart` | `CartView` | Public | Light | None |
 | `/checkout` | `CheckoutView` | Public | Light | None |
 | `/order-success` | `OrderSuccessRoute` -> `OrderSuccessView` | Public | Light | None |
 | `/order-success/:orderId`| `OrderSuccessRoute` -> `OrderSuccessView` | Public | Light | None |
 | `/tracking` | `OrderTrackingRoute` -> `OrderTrackingView` | Public | Light | None |
 | `/tracking/:orderId` | `OrderTrackingRoute` -> `OrderTrackingView` | Public | Light | None |
-| `/orders` | `MyOrdersView` | Protected | Light | Authenticated Customer |
-| `/assets` | `AssetLibraryView` | Protected | Light | Authenticated Customer |
-| `/designer` | `DesignerDashboardView` (Code-split) | Role-Guarded | Dark | `designer`, `admin` |
-| `/designer/:tab` | `DesignerDashboardView` (Code-split) | Role-Guarded | Dark | `designer`, `admin` |
-| `/admin` | `AdminDashboardView` (Code-split) | Role-Guarded | Dark | `admin` |
-| `/admin/:section` | `AdminDashboardView` (Code-split) | Role-Guarded | Dark | `admin` |
-| `/lab` | `WorkshopSettingsView` (Code-split) | Role-Guarded | Dark | `lab`, `workshop`, `admin`|
-| `/lab/:tab` | `WorkshopSettingsView` (Code-split) | Role-Guarded | Dark | `lab`, `workshop`, `admin`|
+| `/orders` | `MyOrdersView` | Protected | Light | Authenticated (any role) |
+| `/assets` | `AssetLibraryView` | Protected | Light | Authenticated (any role) |
+| `/designer` | `DesignerDashboardShell` -> `DesignerDashboardView` (Code-split) | Role-Guarded | Light | `designer`, `admin` |
+| `/designer/:tab` | `DesignerDashboardShell` -> `DesignerDashboardView` (Code-split) | Role-Guarded | Light | `designer`, `admin` |
+| `/admin` | `AdminDashboardView` (Code-split) | Role-Guarded | Light | `admin` |
+| `/admin/:section` | `AdminDashboardView` (Code-split) | Role-Guarded | Light | `admin` |
+| `/lab` | `LabRoute` -> `WorkshopOnboardingWizard` / `WorkshopSettingsView` (Code-split) | Role-Guarded | Light | `lab`, `workshop`, `admin`|
+| `/lab/:tab` | `LabRoute` -> `WorkshopOnboardingWizard` / `WorkshopSettingsView` (Code-split) | Role-Guarded | Light | `lab`, `workshop`, `admin`|
 | `/auth/login` | `LoginView` | Public | Light | None |
 | `/auth/register` | `RegisterView` | Public | Light | None |
 | `*` | `NotFoundView` | Public | Light | Catch-all 404 |
@@ -263,7 +264,7 @@ For backwards compatibility with external links and prior releases, the router t
 ### Route Protection Mechanics
 
 #### 1. `<ProtectedRoute>`
-Guards customer-specific accounts (`/orders`, `/assets`).
+Guards authenticated-only accounts (`/orders`, `/assets`). It checks `isLoggedIn` only — there is **no** role restriction, so any signed-in user (customer, designer, lab, admin) may open them.
 ```tsx
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isLoggedIn, loading } = useAuth();
@@ -278,7 +279,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 #### 2. `<RoleGuard>`
 Guards high-privilege technical consoles (`/admin`, `/designer`, `/lab`).
 - Compares the resolved `userProfile.role` against the route's `allowedRoles` array.
-- If unauthenticated, displays an authentication prompt.
+- If unauthenticated, redirects to `/auth/login?redirectTo=<encoded current path+search>` (it does not render an inline auth prompt).
 - If authenticated but holding an insufficient role (e.g., a `customer` trying to view `/admin`), renders an authorization refusal view explaining the missing permission and offering navigation back to the storefront.
 
 #### 3. `<RouteErrorBoundary>`
@@ -288,25 +289,27 @@ Wraps `<Routes>` inside `<BrowserRouter>`. Using `resetKey={location.pathname}`,
 
 ## 5. Theme System & Styling Engine
 
-VCUBE implements a dual-theme strategy using **Tailwind CSS 4** and semantic design tokens defined in `src/index.css` and `src/frontend/theme/tokens.ts`.
+VCUBE implements a light-first theme system using **Tailwind CSS 4** and semantic design tokens defined in `src/index.css` and `src/frontend/theme/tokens.ts`. A dark palette exists as an explicit user opt-in, not as a route family.
 
-### Dual-Personality Theme Model
-1. **Light-First Storefront**:
-   Consumer-facing shopping experiences (`/`, `/explore`, `/products/:productId`, `/cart`, `/checkout`) use light canvas backgrounds (`#F8FAFC`) and high-contrast dark typography (`#091426`) for readability.
-2. **Dark-First Engineering Portals**:
-   Technical and high-precision consoles (`/quote`, `/admin`, `/lab`, `/designer`) default to deep dark canvas tones (`#080D16`) to provide maximum visual contrast for 3D WebGL render viewports, laser cutting simulations, and slicing wireframes.
+### Light-First Theme Model
+1. **Light canvas everywhere (default)**:
+   All routes — storefront (`/`, `/explore`, `/products/:productId`, `/cart`, `/checkout`) **and** the technical consoles (`/quote`, `/admin`, `/lab`, `/designer`) — default to light canvas backgrounds (`#F8FAFC`) with high-contrast dark typography (`#091426`).
+2. **Dark opt-in (user override)**:
+   The deep dark canvas (`#080D16`) is selected only when the user explicitly sets `localStorage['vcube_theme'] = 'dark'` via the theme control. It is never selected by route.
 
 ### Theme Resolution Logic
 
-The active theme is evaluated in `ThemeProvider.tsx`:
+`DARK_ROUTE_PREFIXES` is intentionally empty (`src/frontend/theme/ThemeProvider.tsx:27`), so `isDarkRoute()` always returns `false` and route no longer influences the theme:
 
 $$\text{ActiveTheme} = \begin{cases} 
-\text{UserOverride}, & \text{if } \text{localStorage['vcube\_theme']} \in \{\text{'light'}, \text{'dark'}\} \\
-\text{'dark'}, & \text{if path matches } \{\text{'/quote'}, \text{'/admin'}, \text{'/lab'}, \text{'/designer'}\} \\
-\text{'light'}, & \text{otherwise (Storefront default)}
+\text{'dark'}, & \text{if } \text{localStorage['vcube\_theme']} = \text{'dark'} \\
+\text{'light'}, & \text{otherwise (default, route-independent)}
 \end{cases}$$
 
 ```tsx
+// src/frontend/theme/ThemeProvider.tsx
+export const DARK_ROUTE_PREFIXES: readonly string[] = [] as const;
+
 export function resolveThemeMode(
   mode: ThemeMode | string | null | undefined, 
   pathname?: string | null
@@ -348,7 +351,7 @@ State in VCUBE 3.0 is partitioned into three distinct tiers: Global Client Store
 |  REACT CONTEXTS (Core Session & Localization)                                   |
 |  - AuthContext       : Supabase Auth session, resolveDbRole (fail-closed)       |
 |  - LanguageContext   : Bilingual dictionary, dynamic admin claims resolution    |
-|  - ThemeContext      : Route-driven light/dark coordination                     |
+|  - ThemeContext      : Light-first theme + dark opt-in coordination             |
 +---------------------------------------------------------------------------------+
 ```
 

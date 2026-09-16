@@ -66,7 +66,7 @@ Kết quả quét: **0 policy dùng `user_metadata`, 0 email hardcode, 0 `FOR AL
    và `current_workshop_partner_id()` (partner_id của xưởng đang đăng nhập; `limit 1` vì `workshop_profiles.user_id` không unique).
 2. `DROP` toàn bộ 73 tên policy cũ từng tồn tại trong repo.
 3. **Quét sạch policy lạ** trên 31 bảng mục tiêu không nằm trong allowlist (kể cả policy tạo tay trong Dashboard).
-4. Tạo 84 policy đúng + 6 policy storage.
+4. Tạo 90 policy đúng + 6 policy storage.
 5. Trigger `trg_protect_profile_privileged_columns` — chặn người dùng tự đổi `role`/`kyc_status`/`account_status`/`total_*` của chính mình.
 6. Trigger `trg_create_profile_for_new_user` — tự tạo `user_profiles` (role `customer`) khi có user mới, vì client hiện **không** tạo dòng này.
 7. Trigger `trg_protect_order_privileged_columns` — xưởng in được giao đơn **chỉ** được đổi `status`/`status_stage_index`/`layer_progress`/`updated_at` (RLS không giới hạn được cột; đổi cột khác ⇒ `42501`).
@@ -113,8 +113,8 @@ Chuỗi migration hiện tại **chỉ còn 3 file** (6 file cũ đã chuyển s
 | Thứ tự | File | Vai trò |
 |---|---|---|
 | 1 | `supabase/migrations/20260900_rls_helpers.sql` | `current_app_role()` + `is_admin()` (fail-closed khi chưa có bảng profile) |
-| 2 | `supabase/migrations/20260901_baseline_schema.sql` | **Toàn bộ schema**: **30 bảng**, **45 index** (+1 unique index một phần cho KYC), **7 hàm**, **5 trigger** (tự sinh profile, chống nâng quyền profile, đồng bộ kho, touch `updated_at`, giữ `products.reviews_count`/`rating` theo đánh giá), 2 storage bucket, realtime, seed tối thiểu. Có bật RLS trên mọi bảng (deny-all cho tới khi có policy). |
-| 3 | `supabase/migrations/20261010_harden_rls.sql` | **Toàn bộ policy**: dọn policy cũ + policy lạ (kể cả tạo tay trong Dashboard), tạo **84 policy** đúng + **6 policy storage** trên **31 bảng mục tiêu**, 2 trigger chống sửa cột đặc quyền (`orders` + `workshop_profiles`), `security_invoker` cho view `pricing_config`, kiểm tra cuối |
+| 2 | `supabase/migrations/20260901_baseline_schema.sql` | **Toàn bộ schema**: **31 bảng** + 1 view (`pricing_config`), **49 index** (48 + 1 unique index một phần cho KYC; 2 GIN), **7 hàm**, **5 trigger** / 25 instance (tự sinh profile, chống nâng quyền profile, đồng bộ kho, touch `updated_at` trên 21 bảng, giữ `products.reviews_count`/`rating` theo đánh giá), 2 storage bucket, realtime, seed tối thiểu. Có bật RLS trên mọi bảng (deny-all cho tới khi có policy). |
+| 3 | `supabase/migrations/20261010_harden_rls.sql` | **Toàn bộ policy**: dọn policy cũ + policy lạ (kể cả tạo tay trong Dashboard), tạo **90 policy** đúng + **6 policy storage** trên **32 bảng mục tiêu** (2 policy `pricing_config` bị bỏ qua vì `pricing_config` là view ⇒ **88 policy áp dụng** trên DB dựng mới), 2 trigger mới chống sửa cột đặc quyền (`orders` + `workshop_profiles`) + tái tạo 2 trigger profile, `security_invoker` cho view `pricing_config`, kiểm tra cuối |
 
 * **Project trống (đúng hiện tại)**: chạy **cả 3 file theo thứ tự trên**. Mỗi file là một transaction độc lập — lỗi thì rollback sạch, không để trạng thái nửa vời.
 * **Project đã có schema cũ**: chạy **chỉ file 3** để siết lại (nó tự dọn policy cũ và policy lạ).
@@ -267,7 +267,7 @@ Mỗi file là một transaction riêng, nên khi file 3 lỗi thì **file 1 và
 | Bước | Trạng thái |
 |---|---|
 | `20260900_rls_helpers.sql` | ✅ đã áp |
-| `20260901_baseline_schema.sql` | ✅ đã áp — 21 bảng, index, hàm, trigger, 2 bucket đã tồn tại. **Cập nhật:** baseline hiện tại tạo **30 bảng** (Đợt 10 thêm `reviews`, `digital_assets`, `cart_items`) |
+| `20260901_baseline_schema.sql` | ✅ đã áp — 21 bảng, index, hàm, trigger, 2 bucket đã tồn tại. **Cập nhật:** baseline hiện tại tạo **31 bảng** (Đợt 10 thêm `reviews`, `digital_assets`, `cart_items`; đợt cuối thêm `custom_design_requests`) + 1 view |
 | `20261010_harden_rls.sql` | ❌ rollback — **chưa có policy nào** |
 
 Vì baseline bật RLS trên mọi bảng mà chưa có policy, database đang ở trạng thái **deny-all** (an toàn: không ai đọc/ghi được gì qua API). App sẽ hiển thị dữ liệu mock cho tới khi file 3 chạy xong.
@@ -295,7 +295,7 @@ Sau khi chạy xong file 3 → chạy `bootstrap_admin.sql` → `node scripts/ve
 
 | Kiểm tra | Kết quả |
 |---|---|
-| Bảng tồn tại | **15/15** (kiểm tra mẫu lúc đó; baseline **hiện tại** tạo **30 bảng**) |
+| Bảng tồn tại | **15/15** (kiểm tra mẫu lúc đó; baseline **hiện tại** tạo **31 bảng** + 1 view) |
 | Bảng còn hở RLS | **0** |
 | `anon` đọc `orders` / `user_profiles` / `payment_transactions` / `cost_rules` / `material_inventory_logs` | **0 dòng** ✅ |
 | `anon` đọc `products` chưa publish | **0 dòng** ✅ |

@@ -3,7 +3,7 @@
 > **Platform**: VCUBE 3.0 Digital Manufacturing & CAD Marketplace  
 > **Database**: Supabase PostgreSQL 15+  
 > **Schema Revision**: 20260901 Baseline + 20261010 Hardening + Phase 3 Studio Extensions  
-> **Total Entities**: 31 Relational Tables + 1 Compatibility View (`pricing_config`) + 48 Indexes + 7 Core Functions + 6 Triggers + 2 Storage Buckets
+> **Total Entities**: 31 Relational Tables + 1 Compatibility View (`pricing_config`) + 49 Indexes (48 + 1 partial unique; 2 GIN) + 7 Core Functions + 5 Triggers (25 instances) + 2 Storage Buckets
 
 ---
 
@@ -132,6 +132,8 @@ Central commercial catalog storing both physical 3D printable products and downl
 | `is_customizable`| `boolean` | NO | `false` | Indicates whether dimensional parametric tuning is enabled |
 | `status` | `text` | NO | `'published'` | Visibility status (`'draft'`, `'published'`, `'archived'`) |
 | `production_readiness` | `text` | NO | `'ready_to_print'` | Readiness level (`'ready_to_print'`, `'cad_review_needed'`) |
+| `seller_type` | `text` | NO | `'designer'` | Seller of record (`'platform'`, `'designer'`); `products_seller_type_chk` |
+| `license_type` | `text` | YES | `NULL` | License type. `NULL` = designer has not declared (never guessed/defaulted) |
 | `created_at` | `timestamptz` | NO | `now()` | Record creation timestamp |
 | `updated_at` | `timestamptz` | NO | `now()` | Last modified timestamp (auto-updated by trigger) |
 
@@ -164,6 +166,7 @@ Platform-wide master material reference catalog and base cost parameters.
 | `recommended_for` | `text` | YES | `''` | Use-case recommendations |
 | `in_stock` | `boolean` | NO | `true` | Platform availability toggle |
 | `stock_rolls_count` | `int` | YES | `NULL` | Central warehouse inventory rolls |
+| `failure_extra_percent` | `numeric` | YES | `NULL` | Extra failure-reserve % for hard-to-print materials. `NULL` = no extra (never guessed) |
 | `created_at` | `timestamptz` | NO | `now()` | Creation timestamp |
 | `updated_at` | `timestamptz` | NO | `now()` | Auto-updated timestamp |
 
@@ -317,6 +320,20 @@ Master order record supporting guest checkout, 8-stage manufacturing tracking, m
 | `assigned_workshop_id` | `text` | YES | `NULL` | Workshop partner code assigned to manufacture this order |
 | `assigned_printer_id` | `text` | YES | `NULL` | Designated hardware machine ID |
 | `notes` | `text` | YES | `''` | Customer delivery notes |
+| `subtotal_amount` | `numeric` | YES | `NULL` | Items subtotal before tax/shipping — base for platform fee |
+| `vat_percent_snapshot` | `numeric` | YES | `NULL` | VAT rate captured at order time (%) |
+| `vat_amount` | `numeric` | YES | `NULL` | VAT amount in VND |
+| `platform_fee_percent_snapshot` | `numeric` | YES | `NULL` | Platform % fee captured at order time |
+| `platform_fixed_fee_snapshot` | `numeric` | YES | `NULL` | Platform fixed fee (VND) captured at order time |
+| `platform_fee_amount` | `numeric` | YES | `NULL` | Total platform fee in VND |
+| `workshop_payout_amount` | `numeric` | YES | `NULL` | Payout due to the assigned workshop (VND) |
+| `designer_payout_amount` | `numeric` | YES | `NULL` | Royalty payout due to the designer (VND) |
+| `workshop_payout_status` | `text` | NO | `'unpaid'` | Workshop payout state (`'unpaid'`, `'paid'`, …) |
+| `designer_payout_status` | `text` | NO | `'unpaid'` | Designer payout state (`'unpaid'`, `'paid'`, …) |
+| `workshop_payout_paid_at` | `timestamptz` | YES | `NULL` | Timestamp the workshop payout was settled |
+| `workshop_payout_paid_by` | `uuid` | YES | `NULL` | Admin user who settled the workshop payout |
+| `designer_payout_paid_at` | `timestamptz` | YES | `NULL` | Timestamp the designer payout was settled |
+| `designer_payout_paid_by` | `uuid` | YES | `NULL` | Admin user who settled the designer payout |
 | `created_at` | `timestamptz` | NO | `now()` | Creation timestamp |
 | `updated_at` | `timestamptz` | NO | `now()` | Auto-updated timestamp (privileged columns guarded by trigger) |
 
@@ -762,6 +779,9 @@ Macroeconomic parameters: national electricity tariffs, benchmark labor rates, c
 | `labor_hourly_rate_vnd` | `numeric` | YES | `NULL` | Benchmark technician wage (VND/hr, e.g. `50000`) |
 | `currency` | `text` | NO | `'VND'` | ISO currency code |
 | `vat_percent` | `numeric` | YES | `NULL` | Applicable VAT rate percentage (e.g. `8` or `10`) |
+| `marketplace_fee_percent` | `numeric` | YES | `NULL` | Platform % commission per order. `NULL` = unconfigured (no default 8) |
+| `default_workshop_commission_percent` | `numeric` | YES | `NULL` | Default workshop commission %. `NULL` = unconfigured |
+| `marketplace_fixed_fee_vnd` | `numeric` | YES | `NULL` | Fixed platform fee per order (VND). `NULL` = unconfigured |
 | `settings` | `jsonb` | NO | `'{}'::jsonb` | Additional regional overrides |
 | `updated_at` | `timestamptz` | NO | `now()` | Auto-updated timestamp |
 

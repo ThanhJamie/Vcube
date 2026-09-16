@@ -31,15 +31,21 @@ cp .env.example .env
 ```
 Mở tệp `.env` và điền thông tin Supabase của bạn:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+VITE_SITE_URL=http://localhost:3000
+# SERVER ONLY — bỏ qua RLS, không bao giờ đưa vào client/`define` của Vite:
+SUPABASE_SECRET_KEY=sb_secret_...
 ```
 
-### 4. Thiết lập Cơ sở Dữ liệu Supabase (Migration):
-Truy cập **Supabase SQL Editor** của dự án bạn và chạy toàn bộ mã DDL từ tệp:
-👉 `supabase/migrations/20260904_create_products_and_storage.sql`
-*(Tệp này sẽ tự động tạo bảng `products`, phân quyền RLS chặt chẽ, tạo index full-text search và 2 Storage Buckets `product-images`, `cad-files`).*
+### 4. Thiết lập Cơ sở dữ liệu Supabase (Migration):
+Chạy **3 file migration theo thứ tự tên** trong `supabase/migrations/` (SQL Editor hoặc `supabase/scripts/apply_all_manual.sql`):
+
+1. `20260900_rls_helpers.sql` — helper `current_app_role()` + `is_admin()`
+2. `20260901_baseline_schema.sql` — 31 bảng + 1 view, 49 index, 7 hàm, 5 trigger, 2 storage bucket, realtime, seed
+3. `20261010_harden_rls.sql` — 90 policy bảng + 6 policy storage
+
+> `supabase/legacy/` chứa 6 migration cũ — **không chạy**. Cấp quyền admin bằng `supabase/scripts/bootstrap_admin.sql`.
 
 ### 5. Khởi động môi trường phát triển (Local Development):
 ```bash
@@ -60,16 +66,21 @@ Truy cập ứng dụng tại: **`http://localhost:3000`**
 ```
 Vcube/
 ├── src/
-│   ├── backend/supabase/        # Supabase client, database services, storage upload
+│   ├── backend/supabase/        # Supabase client, database service, mappers, seed service
+│   ├── backend/services/        # catalogService, orderService, pricingService, settingsService…
 │   ├── frontend/
 │   │   ├── components/          # ThreeModelViewer, CadQuickViewModal, Header, Admin...
 │   │   ├── context/             # AuthContext, LanguageContext
 │   │   └── views/               # HomeView, ExploreView, ProductDetailView, CartView, CheckoutView...
-│   ├── types/                   # TypeScript interfaces (Product, Order, CartItem...)
+│   ├── utils/                   # pricingEngine.ts, meshParser.ts
+│   ├── workers/                 # cadParser.worker.ts (OpenCASCADE WASM)
 │   └── App.tsx                  # App routing & Realtime sync subscriptions
 ├── supabase/
-│   └── migrations/              # DDL schema, RLS policies, Storage buckets
-├── scripts/                     # Automated testing scripts
+│   ├── migrations/              # 3 migration đang chạy (helpers → baseline → harden)
+│   └── legacy/                  # 6 migration cũ — không chạy
+├── scripts/                     # Quality gates & test scripts
 └── package.json
 ```
+
+> Tài liệu đầy đủ: `docs/README.md` (cổng vào) · `docs/architecture/` · `docs/database/` · `docs/security/` · `docs/SETUP_RUNBOOK.md`. `docs/plans/` và `docs/archive/` là tài liệu lịch sử.
 

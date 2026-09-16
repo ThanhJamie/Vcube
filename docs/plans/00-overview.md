@@ -1,3 +1,6 @@
+> [!WARNING]
+> **TÀI LIỆU LỊCH SỬ (SUPERSEDED — archived 2026-09).** Thư mục `docs/plans/**` là bộ kế hoạch refactor cũ và **không còn là nguồn chuẩn**. Nguồn chuẩn hiện tại: `docs/README.md` → `docs/architecture/`, `docs/pages/`, `docs/database/`, `docs/security/`, `docs/SETUP_RUNBOOK.md`. Nội dung được giữ nguyên để tra cứu lịch sử; **mọi số liệu (số bảng/index/policy, bundle, phase) trong đây đã lạc hậu** so với code. Xem `docs/archive/README.md`.
+
 # VCUBE — Kế hoạch Refactor UI/UX & Tính năng (tổng quan)
 
 Bộ tài liệu này là kết quả phân tích toàn bộ source VCUBE (React 19 + Vite 6 + TS + Tailwind v4 + Supabase, deploy Vercel) và chốt kế hoạch tối ưu lại UI/UX + tính năng.

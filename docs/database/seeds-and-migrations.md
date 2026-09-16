@@ -23,8 +23,8 @@ To ensure transactional atomicity and prevent circular dependency locks between 
 ┌─────────────────────────────────────────────────────────────┐
 │ 2. supabase/migrations/20260901_baseline_schema.sql         │
 │    31 Relational Tables + 1 View (pricing_config)           │
-│    48 Indexes (including 1 partial unique, 1 GIN index)     │
-│    7 Functions, 6 Triggers, 2 Storage Buckets, Realtime     │
+│    49 Indexes (48 + 1 partial unique; 2 GIN indexes)        │
+│    7 Functions, 5 Triggers (25 instances), 2 Buckets        │
 │    Minimal production baseline seeds                        │
 └──────────────────────────────┬──────────────────────────────┘
                                │
@@ -34,7 +34,8 @@ To ensure transactional atomicity and prevent circular dependency locks between 
 │    Purges 73+ legacy / rogue policies                       │
 │    Enables RLS on all 31 tables                             │
 │    Establishes 90 Table Policies + 6 Storage Policies       │
-│    Attaches 3 Column Privilege Lockdown Triggers            │
+│    Refreshes 4 privilege/automation triggers (re-creates    │
+│    profile triggers; adds order + workshop lockdowns)       │
 └──────────────────────────────┬──────────────────────────────┘
                                │
                                ▼
@@ -64,9 +65,9 @@ To ensure transactional atomicity and prevent circular dependency locks between 
 - **Key Deliverables**:
   1. **31 Core Tables**: Creates tables across Catalog, Orders, Profiles, Workshops, Custom Requests, and Audit systems.
   2. **Compatibility View**: Creates `public.pricing_config` with `(security_invoker = true)` to maintain backward compatibility with older UI client builds.
-  3. **48 High-Performance Indexes**:
+  3. **49 High-Performance Indexes**:
      - Status and timestamp ordering composites: `idx_products_status_created`, `idx_orders_created`, `idx_reviews_target`.
-     - JSONB search: `idx_products_tags` using GIN.
+     - JSONB search (2 GIN): `idx_products_tags` on `(tags)` and `idx_products_fts` on the full-text vector.
      - Single-pending KYC guarantee: `uq_kyc_records_one_pending` (partial unique index).
   4. **Database Automation Triggers**:
      - `trg_create_profile_for_new_user`: Auto-creates a `customer` profile whenever a user signs up via `auth.users`.

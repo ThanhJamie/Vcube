@@ -19,8 +19,8 @@ React 19, Vite 6, TypeScript 5.8, Tailwind CSS 4, Zustand 5, react-router-dom 7,
 
 ## Layout
 
-- `src/backend/supabase` — client, database services, storage upload
-- `src/backend/services` — pricingEngine, quoteVerifier, cadParser worker
+- `src/backend/supabase` — client, database service, mappers, seed service
+- `src/backend/services` — pricingService, orderService, catalogService, customDesignService, settingsService, workshopService
 - `src/frontend/components` / `context` / `views` — UI
 - `src/types`, `src/App.tsx` (routing + realtime subscriptions)
 - `supabase/migrations`, `scripts`
@@ -53,8 +53,8 @@ Chuỗi migration (chạy theo thứ tự tên file trong `supabase/migrations/`
 | File | Vai trò |
 |---|---|
 | `20260900_rls_helpers.sql` | `current_app_role()` + `is_admin()` |
-| `20260901_baseline_schema.sql` | toàn bộ schema: 30 bảng, 45 index (+1 unique index một phần cho KYC), 7 hàm, 5 trigger, 2 storage bucket, realtime, seed |
-| `20261010_harden_rls.sql` | toàn bộ policy (**84 policy bảng + 6 policy storage** trên 31 bảng mục tiêu) + 3 trigger: chống xưởng sửa cột đặc quyền của `orders` · chống chủ xưởng tự đổi `partner_id`/`verified_status` · `touch updated_at` |
+| `20260901_baseline_schema.sql` | toàn bộ schema: 31 bảng + 1 view (`pricing_config`), 49 index (48 + 1 unique index một phần cho KYC; 2 GIN), 7 hàm, 5 trigger (25 instance), 2 storage bucket, realtime, seed |
+| `20261010_harden_rls.sql` | toàn bộ policy (**90 policy bảng** + 6 policy storage trên 32 bảng mục tiêu — 88 policy bảng áp dụng thực tế vì 2 policy `pricing_config` bị bỏ qua khi `pricing_config` là view) + 4 trigger: tái tạo 2 trigger profile, chống xưởng sửa cột đặc quyền của `orders`, chống chủ xưởng tự đổi `partner_id`/`verified_status` |
 
 `supabase/legacy/` chứa 6 migration cũ — **không chạy** (xem README ở đó). Không tạo file migration mới chồng lấn; sửa trực tiếp 3 file trên.
 
@@ -75,22 +75,20 @@ node scripts/a8-sql-syntax-check.mjs # cú pháp tĩnh 7 file SQL + chặn nối
 
 Chi tiết vận hành & khắc phục sự cố: `docs/security/rls-runbook.md`.
 
-## Refactor plan — ĐÃ DUYỆT, ĐANG THI CÔNG
+## Tài liệu — nguồn chuẩn
 
-Điểm vào: `docs/plans/00-overview.md`.
-- Phân tích: `docs/plans/01-theme-migration.md` (convert theme), `02/03/04-pages-*.md` (tính năng từng trang), `05-feature-roadmap.md` (tính năng mới), `06-supabase-vercel.md` (data layer + deploy + tuân thủ pháp lý).
-- Thi công: `docs/plans/07-execution-phases.md` — đọc §2 (ownership theo subagent) và §4 (phase) trước khi sửa file.
-- Spec: `docs/design/tokens.md`, `docs/design/icon-map.md`, `docs/design/qa-checklist.md`, `docs/design/data-honesty.md`, `docs/design/research-brief.md`.
-- Baseline đo được: `docs/plans/baseline.md`.
+Điểm vào (canonical): `docs/README.md` → `docs/architecture/`, `docs/pages/`, `docs/database/`, `docs/security/`, `docs/SETUP_RUNBOOK.md`.
+- Runtime & routes: `docs/architecture/system-overview.md`; 3D pipeline: `docs/architecture/3d-cad-pipeline.md`; giá: `docs/architecture/pricing-engine.md`.
+- Spec thiết kế & luật trung thực: `docs/design/tokens.md`, `icon-map.md`, `qa-checklist.md`, `data-honesty.md`, `research-brief.md`.
 
-Bất biến đã chốt: không thêm Next.js; thanh toán giữ dạng sample (không tích hợp PSP); storefront light-first + `/quote`/`/admin`/`/lab`/`/designer` dark-first; không hiển thị số liệu bịa (`docs/design/data-honesty.md`).
+Bộ kế hoạch refactor cũ `docs/plans/**` **đã archive** (39 file mang banner SUPERSEDED) — chỉ tra cứu lịch sử, số liệu lạc hậu. Xem `docs/archive/README.md`.
 
 ## Trạng thái thi công (cập nhật gần nhất)
 
-- **RLS: ĐÃ XONG và đã kiểm chứng trên production** — baseline hiện tạo **30 bảng**; lần kiểm chứng đầu (21 bảng) vẫn ghi trong `docs/security/rls-runbook.md` §10.6 kèm ghi chú số hiện tại. 0 bảng hở RLS, anon đọc `orders`/`user_profiles` = 0 dòng.
+- **RLS: ĐÃ XONG và đã kiểm chứng trên production** — baseline hiện tạo **31 bảng** + 1 view; lần kiểm chứng đầu (21 bảng) vẫn ghi trong `docs/security/rls-runbook.md` §10.6 kèm ghi chú số hiện tại. 0 bảng hở RLS, anon đọc `orders`/`user_profiles` = 0 dòng.
 - **Khoá Supabase: đã sửa** — `client.ts`/`vite.config.ts` không còn hardcode; app dùng `sb_publishable_…`.
 - **Vai trò UI: đã lấy từ DB** (`AuthContext.resolveDbRole`), không còn suy từ email; ghi `user_metadata` chỉ còn ở DEV.
-- **Còn tồn:** (1) rotate `sb_secret_…` (đã lộ trong chat); (2) bật Google OAuth (project đang tắt) hoặc bỏ nút Google + nhánh tạo user giả; (3) seed dữ liệu qua `/admin` -> "Đồng Bộ DB"; (4) khai báo env trên Vercel; (5) 4 lỗi client ở `docs/plans/07-execution-phases.md` Phase 3; (6) Phase 1/2/4/5/6/8 chưa bắt đầu.
+- **Còn tồn:** (1) rotate `sb_secret_…` (đã lộ trong chat); (2) bật Google OAuth (project đang tắt) hoặc bỏ nút Google + nhánh tạo user giả; (3) seed dữ liệu qua `/admin` -> "Đồng Bộ DB"; (4) khai báo env trên Vercel; (5) 4 lỗi client ở `docs/plans/07-execution-phases.md` Phase 3 (tài liệu đã archive); (6) Phase 1/2/4/5/6/8 theo kế hoạch cũ chưa bắt đầu.
 
 ## Lưu ý công cụ (quan trọng)
 

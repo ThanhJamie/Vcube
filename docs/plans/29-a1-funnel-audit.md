@@ -1,3 +1,6 @@
+> [!WARNING]
+> **TÀI LIỆU LỊCH SỬ (SUPERSEDED — archived 2026-09).** Thư mục `docs/plans/**` là bộ kế hoạch refactor cũ và **không còn là nguồn chuẩn**. Nguồn chuẩn hiện tại: `docs/README.md` → `docs/architecture/`, `docs/pages/`, `docs/database/`, `docs/security/`, `docs/SETUP_RUNBOOK.md`. Nội dung được giữ nguyên để tra cứu lịch sử; **mọi số liệu (số bảng/index/policy, bundle, phase) trong đây đã lạc hậu** so với code. Xem `docs/archive/README.md`.
+
 # A1 — Rà soát READ-ONLY: 5 màn storefront/quote/personalize
 
 **Repo:** VCUBE (`/home/thanh/projects/Vcube`, WSL2 Ubuntu-24.04). **Không sửa file nào trong repo.**

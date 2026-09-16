@@ -1,3 +1,6 @@
+> [!WARNING]
+> **TÀI LIỆU LỊCH SỬ (SUPERSEDED — archived 2026-09).** Thư mục `docs/plans/**` là bộ kế hoạch refactor cũ và **không còn là nguồn chuẩn**. Nguồn chuẩn hiện tại: `docs/README.md` → `docs/architecture/`, `docs/pages/`, `docs/database/`, `docs/security/`, `docs/SETUP_RUNBOOK.md`. Nội dung được giữ nguyên để tra cứu lịch sử; **mọi số liệu (số bảng/index/policy, bundle, phase) trong đây đã lạc hậu** so với code. Xem `docs/archive/README.md`.
+
 # 19 — Audit sản phẩm theo vai: khách hàng · nhà thiết kế · xưởng in
 
 Mục đích: trả lời *"tối ưu về thẩm mĩ, tính năng, và logic giữ chân khách"* bằng **bằng chứng đo được**, không phải cảm nhận. Mọi số dưới đây lấy từ code + DB thật ngày 2026-09-12.

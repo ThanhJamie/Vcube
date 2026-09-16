@@ -466,7 +466,7 @@ npx tsx scripts/test-catalog-sync.ts
 
 ### 6.1 Database Schema & Migration Architecture
 
-VCUBE utilizes a hardened schema comprising 30 relational tables, 45 performance indexes, 7 custom stored procedures, 5 audit triggers, and 2 private/public storage buckets (`cad-files`, `product-images`).
+VCUBE utilizes a hardened schema comprising 31 relational tables + 1 compatibility view (`pricing_config`), 49 performance indexes, 7 custom stored procedures, 5 trigger definitions (25 instances), and 2 storage buckets (`cad-files`, `product-images`).
 
 > **Rule:** Never execute files inside `supabase/legacy/`. Those represent obsolete iterations. All database management is restricted to `supabase/migrations/` and `supabase/scripts/`.
 
@@ -477,8 +477,8 @@ When setting up a fresh Supabase project, execute the migration files sequential
 ```
 supabase/migrations/
 ├── 20260900_rls_helpers.sql       # 1. Helper functions: current_app_role() & is_admin()
-├── 20260901_baseline_schema.sql     # 2. 30 tables, indexes, triggers, storage & seeds
-└── 20261010_harden_rls.sql         # 3. 84 table policies, 6 storage policies & guards
+├── 20260901_baseline_schema.sql     # 2. 31 tables + 1 view, 49 indexes, 5 triggers, buckets & seeds
+└── 20261010_harden_rls.sql         # 3. 90 table policies (88 applied), 6 storage policies & guards
 ```
 
 #### Step-by-Step Migration Guide:

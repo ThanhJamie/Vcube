@@ -138,8 +138,8 @@ RLS governs row-level access (which rows a user can see or alter). However, stan
 - **Trigger**: `trg_protect_profile_privileged_columns`
 - **Function**: `fn_protect_profile_privileged_columns()`
 - **Security Invariant**: Non-administrators editing their profile (`user_profiles`) are blocked from escalating privileges:
-  - Any user attempt to modify `role`, `kyc_status`, or `account_status` raises `SQLSTATE '42501'`.
-  - Any attempt to modify `total_spent` or `total_orders` is silently overwritten with `OLD.total_spent` and `OLD.total_orders`.
+  - Any user attempt to modify `role`, `kyc_status`, `account_status`, `total_orders`, or `total_spent` raises `SQLSTATE '42501'` (`insufficient_privilege`).
+  - Nothing is silently overwritten: the trigger is fail-closed and rejects the whole UPDATE.
 
 ### 4.3 Workshop Partner Impersonation Prevention (`workshop_profiles`)
 - **Trigger**: `trg_protect_workshop_profile_privileged_columns`
@@ -228,7 +228,7 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 | `vcube_workshop_profiles_public_read` | `SELECT` | `anon`, `authenticated` | `USING (verified_status = 'Verified')` |
 | `vcube_workshop_profiles_owner_read` | `SELECT` | `authenticated` | `USING (user_id::text = (select auth.uid())::text OR public.is_admin())` |
 | `vcube_workshop_profiles_owner_update` | `UPDATE` | `authenticated` | `USING (user_id::text = (select auth.uid())::text OR public.is_admin()) WITH CHECK (user_id::text = (select auth.uid())::text OR public.is_admin())` |
-| `vcube_workshop_profiles_owner_insert` | `INSERT` | `authenticated` | `WITH CHECK ((user_id::text = (select auth.uid())::text OR public.is_admin()) AND partner_id is null AND (verified_status is null OR verified_status = 'Pending'))` |
+| `vcube_workshop_profiles_owner_insert` | `INSERT` | `authenticated` | `WITH CHECK (user_id::text = (select auth.uid())::text AND partner_id is null AND verified_status = 'Pending')` |
 | `vcube_workshop_profiles_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
 
 ### 6.6 Workshop Fleets, Materials & Accessories Ownership (3 Policies)
@@ -273,12 +273,12 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 ### 6.11 Warranty Claims & Order Files (8 Policies)
 | Policy Name | Cmd | Target Roles | Security Rule |
 |---|:---:|---|---|
-| `vcube_warranty_claims_customer_read` | `SELECT` | `authenticated` | `USING (user_id::text = (select auth.uid())::text OR public.is_admin_or_lab())` |
+| `vcube_warranty_claims_customer_read` | `SELECT` | `authenticated` | `USING (user_id::text = (select auth.uid())::text)` |
 | `vcube_warranty_claims_customer_insert` | `INSERT` | `authenticated` | `WITH CHECK (user_id::text = (select auth.uid())::text)` |
 | `vcube_warranty_claims_staff_read` | `SELECT` | `authenticated` | `USING (public.is_admin_or_lab())` |
 | `vcube_warranty_claims_staff_update` | `UPDATE` | `authenticated` | `USING (public.is_admin_or_lab()) WITH CHECK (public.is_admin_or_lab())` |
 | `vcube_order_files_buyer_read` | `SELECT` | `authenticated` | `USING (public.is_admin_or_lab() OR EXISTS (select 1 from public.orders o where o.id = order_files.order_id and o.user_id::text = (select auth.uid())::text))` |
-| `vcube_order_files_staff_insert` | `INSERT` | `authenticated` | `WITH CHECK (public.is_admin_or_lab() OR EXISTS (select 1 from public.orders o where o.id = order_files.order_id and o.user_id::text = (select auth.uid())::text))` |
+| `vcube_order_files_staff_insert` | `INSERT` | `authenticated` | `WITH CHECK (public.is_admin_or_lab())` |
 | `vcube_order_files_staff_update` | `UPDATE` | `authenticated` | `USING (public.is_admin_or_lab()) WITH CHECK (public.is_admin_or_lab())` |
 | `vcube_order_files_admin_delete` | `DELETE` | `authenticated` | `USING (public.is_admin())` |
 
@@ -295,7 +295,7 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 ### 6.13 Digital Assets & Shopping Cart (4 Policies)
 | Policy Name | Cmd | Target Roles | Security Rule |
 |---|:---:|---|---|
-| `vcube_digital_assets_designer_all` | `ALL` | `authenticated` | `USING (designer_id::text = (select auth.uid())::text OR public.is_admin()) WITH CHECK (designer_id::text = (select auth.uid())::text OR public.is_admin())` |
+| `vcube_digital_assets_designer_all` | `ALL` | `authenticated` | `USING (designer_id::text = (select auth.uid())::text) WITH CHECK (designer_id::text = (select auth.uid())::text)` |
 | `vcube_digital_assets_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
 | `vcube_cart_items_owner_all` | `ALL` | `authenticated` | `USING (user_id::text = (select auth.uid())::text) WITH CHECK (user_id::text = (select auth.uid())::text)` |
 | `vcube_cart_items_admin_read` | `SELECT` | `authenticated` | `USING (public.is_admin())` |
@@ -303,9 +303,9 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 ### 6.14 Instant Quotes & Order Items Accounting (6 Policies)
 | Policy Name | Cmd | Target Roles | Security Rule |
 |---|:---:|---|---|
-| `vcube_quotes_owner_read` | `SELECT` | `authenticated` | `USING (user_id::text = (select auth.uid())::text OR public.is_admin())` |
-| `vcube_quotes_owner_insert` | `INSERT` | `authenticated` | `WITH CHECK (user_id::text = (select auth.uid())::text OR public.is_admin())` |
-| `vcube_quotes_owner_update` | `UPDATE` | `authenticated` | `USING (user_id::text = (select auth.uid())::text OR public.is_admin()) WITH CHECK (user_id::text = (select auth.uid())::text OR public.is_admin())` |
+| `vcube_quotes_owner_read` | `SELECT` | `authenticated` | `USING (user_id::text = (select auth.uid())::text)` |
+| `vcube_quotes_owner_insert` | `INSERT` | `authenticated` | `WITH CHECK (user_id::text = (select auth.uid())::text)` |
+| `vcube_quotes_owner_update` | `UPDATE` | `authenticated` | `USING (user_id::text = (select auth.uid())::text) WITH CHECK (user_id::text = (select auth.uid())::text)` |
 | `vcube_quotes_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
 | `vcube_order_items_owner_read` | `SELECT` | `authenticated` | `USING (public.is_admin() OR EXISTS (select 1 from public.orders o where o.id = order_items.order_id and o.user_id::text = (select auth.uid())::text))` |
 | `vcube_order_items_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
@@ -314,8 +314,8 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 | Policy Name | Cmd | Target Roles | Security Rule |
 |---|:---:|---|---|
 | `vcube_workshop_commission_terms_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
-| `vcube_kyc_owner_read` | `SELECT` | `authenticated` | `USING (user_id::text = (select auth.uid())::text OR public.is_admin())` |
-| `vcube_kyc_owner_insert` | `INSERT` | `authenticated` | `WITH CHECK (user_id::text = (select auth.uid())::text AND (status is null OR status = 'pending'))` |
+| `vcube_kyc_owner_read` | `SELECT` | `authenticated` | `USING (user_id::text = (select auth.uid())::text)` |
+| `vcube_kyc_owner_insert` | `INSERT` | `authenticated` | `WITH CHECK (user_id::text = (select auth.uid())::text AND coalesce(status, 'pending') = 'pending' AND reviewed_by is null AND reviewed_at is null)` |
 | `vcube_kyc_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
 
 ### 6.16 Custom Design Requests Studio (6 Policies)
@@ -324,8 +324,8 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 | `vcube_custom_design_requests_customer_select` | `SELECT` | `authenticated` | `USING (customer_id::text = (select auth.uid())::text)` |
 | `vcube_custom_design_requests_customer_insert` | `INSERT` | `authenticated` | `WITH CHECK (customer_id::text = (select auth.uid())::text)` |
 | `vcube_custom_design_requests_customer_update` | `UPDATE` | `authenticated` | `USING (customer_id::text = (select auth.uid())::text) WITH CHECK (customer_id::text = (select auth.uid())::text)` |
-| `vcube_custom_design_requests_designer_select` | `SELECT` | `authenticated` | `USING (designer_id::text = (select auth.uid())::text)` |
-| `vcube_custom_design_requests_designer_update` | `UPDATE` | `authenticated` | `USING (designer_id::text = (select auth.uid())::text) WITH CHECK (designer_id::text = (select auth.uid())::text)` |
+| `vcube_custom_design_requests_designer_select` | `SELECT` | `authenticated` | `USING (public.current_app_role() in ('designer','admin') OR designer_id::text = (select auth.uid())::text)` |
+| `vcube_custom_design_requests_designer_update` | `UPDATE` | `authenticated` | `USING (public.current_app_role() in ('designer','admin') OR designer_id::text = (select auth.uid())::text) WITH CHECK (public.current_app_role() in ('designer','admin') OR designer_id::text = (select auth.uid())::text)` |
 | `vcube_custom_design_requests_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
 
 ---

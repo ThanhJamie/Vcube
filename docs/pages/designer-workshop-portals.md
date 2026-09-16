@@ -87,7 +87,7 @@ Connected directly to Supabase `custom_design_requests` and `custom_design_messa
 ## 3. Workshop MES Portal (`/lab/:tab` & `/workshop/settings`)
 
 ### 3.1 Architectural Principles & Data Isolation
-The Workshop portal enforces strict data privacy invariants (per `docs/plans/20-dot10-briefs.md` W1b):
+The Workshop portal enforces strict data privacy invariants (originally specified in the now-archived `docs/plans/20-dot10-briefs.md` W1b — see `docs/archive/README.md`):
 1. **Subject-Scoped Data Access**: All queries are strictly scoped to the authenticated workshop's partner ID:
    $$\text{orders.assigned_workshop_id} = \text{workshop_profiles.partner_id}$$
    A workshop operator cannot view or modify jobs assigned to competing partner facilities.

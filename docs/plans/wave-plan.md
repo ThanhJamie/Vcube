@@ -1,3 +1,6 @@
+> [!WARNING]
+> **TÀI LIỆU LỊCH SỬ (SUPERSEDED — archived 2026-09).** Thư mục `docs/plans/**` là bộ kế hoạch refactor cũ và **không còn là nguồn chuẩn**. Nguồn chuẩn hiện tại: `docs/README.md` → `docs/architecture/`, `docs/pages/`, `docs/database/`, `docs/security/`, `docs/SETUP_RUNBOOK.md`. Nội dung được giữ nguyên để tra cứu lịch sử; **mọi số liệu (số bảng/index/policy, bundle, phase) trong đây đã lạc hậu** so với code. Xem `docs/archive/README.md`.
+
 # wave-plan.md — bộ nhớ coordinator (nhật ký điều phối thi công)
 
 > ⚠️ **Sự cố và khôi phục — 2026-09-12 17:45.** File này đã bị **xoá nhầm gần hết** bởi chính coordinator: một script `python3` patch gọi `open(P, 'wb')` (truncate ngay) rồi `.write(text.encode('utf-8'))` — lệnh `encode` ném `UnicodeEncodeError` (do escape `\ud83d\udd34` sinh lone surrogate) **sau khi** file đã bị truncate. Lần chạy sau đọc file rỗng và chỉ ghi thêm phần mới ⇒ 644 dòng còn 74.
