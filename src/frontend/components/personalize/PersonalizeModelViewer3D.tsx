@@ -700,7 +700,7 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
       ref={rootWrapperRef}
       className={`relative bg-surface-inverse select-none overflow-hidden border border-surface-inverse-raised flex flex-col font-sans transition-all duration-300 ${
         isFullscreen
-          ? 'fixed inset-0 z-[100] rounded-none w-screen h-screen p-0 m-0 shadow-e3'
+          ? 'fixed inset-0 z-[100] rounded-none w-screen h-dvh p-0 m-0 shadow-e3'
           : `rounded-lg ${className}`
       }`}
     >

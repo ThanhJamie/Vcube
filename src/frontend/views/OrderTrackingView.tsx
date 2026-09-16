@@ -122,7 +122,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   // ---------------------------------------------------------------- NOT FOUND / PORTAL
   if (!currentOrder) {
     return (
-      <div className="min-h-screen bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
+      <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="flex items-start sm:items-center gap-3">
             <Button
@@ -242,7 +242,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   const hasCarrierData = Boolean(currentOrder.carrier?.trackingCode);
 
   return (
-    <div className="min-h-screen bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
+    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         {/* Top Breadcrumb & Return Bar */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 pb-6 border-b border-line">

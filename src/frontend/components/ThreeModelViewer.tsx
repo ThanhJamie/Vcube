@@ -325,11 +325,15 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
     window.addEventListener('mouseup', onMouseUp);
     domEl.addEventListener('wheel', onWheel, { passive: false });
 
-    // 10. Animation Loop
+    // 10. Animation Loop — tôn trọng prefers-reduced-motion + tab ẩn.
+    const prefersReducedMotion =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let animId: number;
     const animate = () => {
       animId = requestAnimationFrame(animate);
-      if (isRotatingRef.current && meshGroupRef.current) {
+      if (document.hidden) return;
+      if (isRotatingRef.current && meshGroupRef.current && !prefersReducedMotion) {
         meshGroupRef.current.rotation.y += 0.008;
       }
       renderer.render(scene, camera);
@@ -399,7 +403,7 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
           <span className="font-bold tracking-wider uppercase text-on-inverse/80">
             WebGL Standby (±100px)
           </span>
-          <span className="text-[11px] text-on-inverse/50 mt-1">
+          <span className="text-xs text-on-inverse/50 mt-1">
             Cuộn vào khung nhìn để hiển thị mô hình 3D
           </span>
         </div>

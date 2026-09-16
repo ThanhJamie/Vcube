@@ -145,7 +145,7 @@ const ProductDetailRoute: React.FC<{
 
   if (!product && products.length === 0) {
     return (
-      <div className="min-h-screen bg-canvas flex items-center justify-center p-6">
+      <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
         <div className="text-center space-y-3">
           <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="font-mono text-xs text-fg-subtle">Đang tải thông số kỹ thuật mô hình 3D...</p>
@@ -156,7 +156,7 @@ const ProductDetailRoute: React.FC<{
 
   if (!product && products.length > 0) {
     return (
-      <div className="min-h-screen bg-canvas flex items-center justify-center p-6">
+      <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
         <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
           <Icon name="precision_manufacturing" size={36} className="text-fg-subtle" />
           <h2 className="font-bold text-lg text-fg">Không tìm thấy bản vẽ CAD này</h2>
@@ -277,7 +277,7 @@ const OrderNotFoundView: React.FC<{
   onNavigate: (screen: string, payload?: any) => void;
   context: 'order-success' | 'tracking';
 }> = ({ onNavigate, context }) => (
-  <div className="min-h-screen bg-canvas flex items-center justify-center p-6">
+  <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
     <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
       <Icon name="receipt_long" size={36} className="text-fg-subtle" />
       <h2 className="font-bold text-lg text-fg">Không tìm thấy đơn hàng</h2>
@@ -1361,7 +1361,7 @@ function MainApp() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-canvas text-fg">
+    <div className="min-h-dvh flex flex-col bg-canvas text-fg">
       {/*
         P1 §3: /admin* có chrome riêng (breadcrumb + avatar + nút "Xem Cửa Hàng"
         trong AdminDashboardView) nên KHÔNG render thanh storefront — trước đây 2 tầng chrome

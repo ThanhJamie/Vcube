@@ -293,7 +293,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                 <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 text-xs font-bold rounded-sm uppercase">
                   {product.category}
                 </span>
-                <span className="text-xs text-warning-strong font-bold flex items-center gap-1">
+                <span className="text-xs text-warning font-bold flex items-center gap-1">
                   ★ {product.rating} ({product.reviewsCount} {isVi ? 'đánh giá' : 'reviews'})
                 </span>
               </div>

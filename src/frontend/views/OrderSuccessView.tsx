@@ -48,7 +48,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
   const canStartProduction = isPaid || isCod;
 
   return (
-    <div className="min-h-screen bg-canvas text-fg py-8 sm:py-12 px-4 sm:px-6 md:px-12">
+    <div className="min-h-dvh bg-canvas text-fg py-8 sm:py-12 px-4 sm:px-6 md:px-12">
       <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
         {/* Main Success Card */}
         <div className="bg-surface p-6 sm:p-10 rounded-lg text-center space-y-6 shadow-e2">

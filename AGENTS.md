@@ -31,6 +31,7 @@ React 19, Vite 6, TypeScript 5.8, Tailwind CSS 4, Zustand 5, react-router-dom 7,
 - RLS on every table; the secret/service-role key is server-only; never expose or commit secrets.
 - Realtime subscriptions live in `App.tsx`.
 - Match existing patterns; make the smallest change; no unrelated refactors.
+- **UI/UX skills**: khi refactor giao diện, đọc `docs/design/taste-contract.md` TRƯỚC. Nó chốt skill nào dùng cho bề mặt nào và override nào bắt buộc (giữ Be Vietnam Pro + lucide/iconMap, data-honesty, light-first, không thêm dep). Skill cài ở `~/.agents/skills/` (`redesign-existing-projects`, `design-taste-frontend`, `full-output-enforcement`, `imagegen-frontend-web`).
 
 ## Definition of done
 

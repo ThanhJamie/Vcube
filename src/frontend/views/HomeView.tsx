@@ -263,7 +263,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const toleranceSpec = (activeContent.toleranceSpec || '').trim();
 
   return (
-    <div className="min-h-screen flex flex-col bg-canvas text-fg font-sans relative selection:bg-primary selection:text-primary-fg">
+    <div className="min-h-dvh flex flex-col bg-canvas text-fg font-sans relative selection:bg-primary selection:text-primary-fg">
       {/* SEO & Dynamic Head */}
       <SEOHead
         title={activeContent.seoTitle || 'VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì'}
@@ -476,7 +476,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             {/* Right: Interactive 3D Showcase with Modern Chassis */}
             <div className="lg:col-span-5 relative flex flex-col items-center justify-center pt-2 lg:pt-0">
-              <div className="w-full rounded-2xl bg-surface-inverse text-on-inverse border border-line-subtle shadow-2xl relative flex flex-col overflow-hidden">
+              <div className="w-full rounded-xl bg-surface-inverse text-on-inverse border border-line-subtle shadow-e3 relative flex flex-col overflow-hidden">
                 {/* Tech Accent Top Edge */}
                 <div className="h-0.5 w-full bg-gradient-to-r from-primary via-accent to-primary" />
 
@@ -489,10 +489,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-surface-inverse-raised text-[10px] font-mono text-on-inverse/70 border border-line-subtle">
+                    <span className="px-2 py-0.5 rounded bg-surface-inverse-raised text-xs font-mono text-on-inverse/70 border border-line-subtle">
                       WebGL 2.0
                     </span>
-                    <span className="hidden sm:inline-flex px-2 py-0.5 rounded bg-surface-inverse-raised text-[10px] font-mono text-accent/80 border border-line-subtle">
+                    <span className="hidden sm:inline-flex px-2 py-0.5 rounded bg-surface-inverse-raised text-xs font-mono text-accent/80 border border-line-subtle">
                       INTERACTIVE
                     </span>
                   </div>
@@ -520,7 +520,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 {/* 3D Canvas Viewer Stage */}
-                <div className="w-full h-[320px] sm:h-[360px] relative bg-[#070d16]">
+                <div className="w-full h-[320px] sm:h-[360px] relative bg-surface-inverse">
                   <ThreeModelViewer
                     modelType={heroModel}
                     color={activeHeroModelMeta.color}
@@ -535,7 +535,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <p className="font-mono text-xs font-bold text-accent truncate max-w-[220px]">
                         {isVi ? activeHeroModelMeta.titleVi : activeHeroModelMeta.titleEn}
                       </p>
-                      <div className="flex items-center gap-2 text-[11px] font-mono text-on-inverse/70">
+                      <div className="flex items-center gap-2 text-xs font-mono text-on-inverse/70">
                         <span>{activeHeroModelMeta.dims}</span>
                         <span>•</span>
                         <span className="text-on-inverse/90">{activeHeroModelMeta.material}</span>
@@ -1076,7 +1076,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* 5. Modern High-Conversion Callout Card (Light-first container with glowing dark conversion card) */}
       <section className="py-16 sm:py-20 px-4 sm:px-6 md:px-12 bg-canvas">
-        <div className="max-w-7xl mx-auto rounded-3xl bg-gradient-to-b from-surface-inverse to-[#08111d] text-on-inverse p-8 sm:p-12 lg:p-16 border border-line-subtle shadow-2xl relative overflow-hidden">
+        <div className="max-w-7xl mx-auto rounded-xl bg-surface-inverse text-on-inverse p-8 sm:p-12 lg:p-16 border border-line-subtle shadow-e3 relative overflow-hidden">
           {/* Subtle Ambient Tech Glow */}
           <div
             aria-hidden="true"

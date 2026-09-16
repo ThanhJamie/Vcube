@@ -208,7 +208,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-canvas text-fg py-6 sm:py-8 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
+    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-8 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
       <SEOHead
         title={product.name}
         description={product.description || (isVi ? `Chi tiết mô hình CAD và thông số in 3D ${product.name} tại VCUBE.` : `Specifications and 3D printing details for ${product.name} at VCUBE.`)}

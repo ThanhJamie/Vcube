@@ -103,7 +103,7 @@ export const CartView: React.FC<CartViewProps> = ({
   // EMPTY CART STATE
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-canvas py-16 sm:py-24 px-4 sm:px-6 flex items-center justify-center">
+      <div className="min-h-dvh bg-canvas py-16 sm:py-24 px-4 sm:px-6 flex items-center justify-center">
         <div className="max-w-md w-full text-center bg-surface p-8 sm:p-10 rounded-lg shadow-e2 space-y-6">
           <div className="w-16 h-16 bg-primary/10 text-primary rounded-lg flex items-center justify-center mx-auto shadow-e0">
             <Icon name="shopping_cart" size={30} />
@@ -144,7 +144,7 @@ export const CartView: React.FC<CartViewProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
+    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         {/* Header & Step Navigation */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-line">

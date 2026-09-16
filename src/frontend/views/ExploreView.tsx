@@ -549,7 +549,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   );
 
   return (
-    <div className="min-h-screen bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans relative selection:bg-primary selection:text-primary-fg">
+    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans relative selection:bg-primary selection:text-primary-fg">
       <SEOHead
         title={isVi ? 'Kho Bản Vẽ CAD & Linh Kiện 3D' : '3D CAD & Precision Parts Marketplace'}
         description={isVi

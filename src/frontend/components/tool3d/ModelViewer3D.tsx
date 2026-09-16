@@ -758,6 +758,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     let lastFpsTime = performance.now();
     let isElementVisible = true;
 
+    const prefersReducedMotion =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     const updateFpsDisplay = (value: number) => {
       const el = fpsDisplayRef.current;
       if (el) el.textContent = `${value} FPS`;
@@ -779,8 +783,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         lastFpsTime = now;
       }
 
-      // Smooth 360 Auto-Rotation
-      if (isRotatingRef.current && meshGroupRef.current) {
+      // Smooth 360 Auto-Rotation (không chạy khi người dùng bật giảm chuyển động)
+      if (isRotatingRef.current && meshGroupRef.current && !prefersReducedMotion) {
         meshGroupRef.current.rotation.y += 0.008;
         if (stencilGroupRef.current) {
           stencilGroupRef.current.rotation.y = meshGroupRef.current.rotation.y;
@@ -1669,7 +1673,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         isBedOverflow ? 'border-danger shadow-e3 ring-2 ring-danger/40' : 'border-line'
       } flex flex-col transition-all duration-300 ${
         isFullscreen
-          ? 'fixed inset-0 z-[100] rounded-none w-screen h-screen p-0 m-0 shadow-e3'
+          ? 'fixed inset-0 z-[100] rounded-none w-screen h-dvh p-0 m-0 shadow-e3'
           : `rounded-lg ${className}`
       }`}
     >
@@ -1694,7 +1698,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           <p className="text-xs text-on-inverse/70 max-w-md mb-4 font-mono leading-relaxed">
             Ngữ cảnh WebGL đang được thiết lập lại từ bộ nhớ đệm hình học. Quá trình này diễn ra tự động mà không làm mất trạng thái của mô hình.
           </p>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-inverse-raised/60 border border-surface-inverse-raised/80 text-[11px] font-mono text-accent mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-inverse-raised/60 border border-surface-inverse-raised/80 text-xs font-mono text-accent mb-4">
             <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
             <span>
               {webglState === 'CONTEXT_LOST'

@@ -316,7 +316,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
 
                         {/* Title & Badge */}
                         <div className="space-y-1">
-                          <span className="font-mono text-[10px] uppercase tracking-wider text-primary font-bold block">
+                          <span className="font-mono text-xs uppercase tracking-wider text-primary font-bold block">
                             {isVi ? service.badgeVi : service.badgeEn}
                           </span>
                           <h3 className="font-bold text-base text-fg leading-snug">
@@ -423,7 +423,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
 
                 {/* Floating Top Controls Pill */}
                 <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
-                  <span className="font-mono text-[10px] text-on-inverse/80 px-2 py-1 rounded bg-surface-inverse/80 backdrop-blur-sm border border-line/30 shadow-sm">
+                  <span className="font-mono text-xs text-on-inverse/80 px-2 py-1 rounded bg-surface-inverse/80 backdrop-blur-sm border border-line/30 shadow-sm">
                     {isVi ? 'Kéo chuột để xoay 360°' : 'Drag to orbit 360°'}
                   </span>
 
@@ -458,7 +458,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
 
                 {/* Floating Color Palette */}
                 <div className="absolute bottom-3 left-3 pointer-events-auto flex items-center gap-1.5 bg-surface-inverse/80 backdrop-blur-sm px-2 py-1 rounded-md border border-line/30">
-                  <span className="text-[10px] font-mono text-on-inverse/60 mr-1">
+                  <span className="text-xs font-mono text-on-inverse/60 mr-1">
                     {isVi ? 'Màu:' : 'Color:'}
                   </span>
                   {['#00687A', '#57DFFE', '#15803D', '#B45309', '#B91C1C'].map((hex) => (
@@ -567,7 +567,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 showGrid={true}
                 className="w-full h-full"
               />
-              <div className="absolute top-2.5 left-3 font-mono text-[10px] text-on-inverse/70 bg-surface-inverse/70 px-2 py-0.5 rounded border border-line/20">
+              <div className="absolute top-2.5 left-3 font-mono text-xs text-on-inverse/70 bg-surface-inverse/70 px-2 py-0.5 rounded border border-line/20">
                 {isVi ? 'Mô hình minh họa dịch vụ (Xoay 360°)' : 'Service Interactive 3D Preview'}
               </div>
             </div>

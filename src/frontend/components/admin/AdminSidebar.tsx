@@ -286,7 +286,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 h-screen bg-surface-inverse text-on-inverse flex flex-col z-drawer transition-all duration-300 ease-in-out border-r border-surface-inverse-raised shrink-0 ${
+        className={`fixed lg:sticky top-0 left-0 h-dvh bg-surface-inverse text-on-inverse flex flex-col z-drawer transition-all duration-300 ease-in-out border-r border-surface-inverse-raised shrink-0 ${
           isOpenMobile ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'lg:w-20' : 'lg:w-72'}`}
       >

@@ -14,8 +14,9 @@ interface PersonalizeViewProps {
   onShowToast: (message: string) => void;
 }
 
-/** Màu CHỈ dùng cho khung xem trước 3D khi sản phẩm chưa khai báo bảng màu — không phải lời khai về kho. */
-const VIEWER_NEUTRAL_HEX = '#94A3B8';
+/** Màu CHỈ dùng cho khung xem trước 3D khi sản phẩm chưa khai báo bảng màu — không phải lời khai về kho.
+ *  Dùng giá trị token `line-control` (#8590A6, 3.21:1) thay cho #94A3B8 đã bị loại khỏi token. */
+const VIEWER_NEUTRAL_HEX = '#8590A6';
 
 /** Số hữu hạn > 0 (tiền/phí). `null` = CHƯA CẤU HÌNH, khác hẳn 0. */
 const positiveNumberOrNull = (value: unknown): number | null => {
@@ -46,7 +47,7 @@ const licenseLabel = (license?: string | null): string => {
 
 /** Không có sản phẩm để cá nhân hoá ⇒ nói thật, KHÔNG dựng sản phẩm mẫu để bán. */
 const PersonalizeUnavailable: React.FC<{ onNavigate: (screen: string, payload?: any) => void }> = ({ onNavigate }) => (
-  <div className="min-h-screen bg-canvas text-fg py-10 px-4 sm:px-6 md:px-12 font-sans">
+  <div className="min-h-dvh bg-canvas text-fg py-10 px-4 sm:px-6 md:px-12 font-sans">
     <div className="max-w-3xl mx-auto">
       <EmptyState
         bordered
@@ -275,7 +276,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
   }));
 
   return (
-    <div className="min-h-screen bg-canvas text-fg py-6 sm:py-8 px-4 sm:px-6 md:px-12 pb-28 lg:pb-12 font-sans">
+    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-8 px-4 sm:px-6 md:px-12 pb-28 lg:pb-12 font-sans">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         {/* Breadcrumbs & Quick Action Bar */}
         <Card className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
