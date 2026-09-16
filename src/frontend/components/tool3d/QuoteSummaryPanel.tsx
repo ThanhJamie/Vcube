@@ -700,6 +700,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         onClose={() => setIsMachineModalOpen(false)}
         items={machineComparisons ?? []}
         selectedPrinterId={selectedPrinterId}
+        showCost={canSeeInternalCost}
         onSelectPrinter={(id) => {
           onPrinterChange(id);
           // A11: `PRINTER_PROFILES` (fixture) đã rỗng ⇒ đọc từ danh sách thật để không hiện 'undefined'.
