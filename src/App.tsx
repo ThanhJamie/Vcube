@@ -562,8 +562,9 @@ const LabRoute: React.FC<{
           onShowToast={onShowToast}
           // Hồ sơ đã gửi nhưng còn 'Pending': wizard vẫn là cổng vào (theo brief Đợt 10
           // §W1a), nhưng KHÔNG được biến thành ngõ cụt — xưởng phải mở được bảng điều khiển.
+          // KHÔNG chuyển gate ở `onComplete`: giữ wizard để hiện BƯỚC 4 (chờ duyệt);
+          // chỉ khi bấm "Mở bảng điều khiển" (onSkipToDashboard) mới vào MES.
           onSkipToDashboard={() => setGate('ready')}
-          onComplete={() => setGate('ready')}
         />
       </LabDashboardShell>
     );
