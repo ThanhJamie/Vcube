@@ -595,6 +595,8 @@ function MainApp() {
     }
     return PRODUCTS;
   });
+  /** Đang nạp catalog từ DB — HomeView dùng để hiện skeleton thay vì "0 bản vẽ". */
+  const [productsLoading, setProductsLoading] = useState(true);
   // Zustand State Management for Cart & UI
   const cart = useCartStore((s) => s.cart);
   const appliedDiscount = useCartStore((s) => s.appliedDiscount);
@@ -715,7 +717,10 @@ function MainApp() {
           }
         }
       }
-    }).catch((err) => console.warn('Could not sync remote products:', err));
+    }).catch((err) => console.warn('Could not sync remote products:', err))
+      .finally(() => {
+        if (isMounted) setProductsLoading(false);
+      });
 
     // 2. Supabase Realtime Channel for Multi-user Sync
     const channel = supabase
@@ -1455,6 +1460,7 @@ function MainApp() {
             element={
               <HomeView
                 products={products}
+                productsLoading={productsLoading}
                 materials={materials}
                 pricingConfig={effectivePricingConfig as InkiriCostFormulaConfig | undefined}
                 siteContent={siteContent}

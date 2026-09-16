@@ -15,6 +15,8 @@ import { Icon, Button, Card, EmptyState, InfoTip } from '@frontend/ui';
 
 interface HomeViewProps {
   products: Product[];
+  /** true khi catalog đang nạp từ DB (hiện skeleton thay vì rỗng). */
+  productsLoading?: boolean;
   materials?: MaterialProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
   siteContent?: SiteContentConfig;
@@ -100,6 +102,7 @@ const HERO_CHASSIS_MODELS: HeroChassisModel[] = [
 
 export const HomeView: React.FC<HomeViewProps> = ({
   products,
+  productsLoading = false,
   materials = MATERIALS_CATALOG,
   pricingConfig,
   siteContent,
@@ -766,8 +769,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           </Card>
 
-          {/* Empty State — 1 dòng chính + 1 câu nguyên nhân + 1 CTA (U2) */}
-          {displayedProducts.length === 0 ? (
+          {/* Loading skeleton — catalog đang nạp từ DB (không hiện "0 bản vẽ" rồi mới bung ra) */}
+          {productsLoading && products.length === 0 && displayedProducts.length === 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-lg border border-line bg-surface overflow-hidden">
+                  <div className="aspect-4/3 bg-surface-muted animate-pulse" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 w-3/4 rounded-sm bg-surface-muted animate-pulse" />
+                    <div className="h-3 w-1/2 rounded-sm bg-surface-muted animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : displayedProducts.length === 0 ? (
             <Card padding="none">
               <EmptyState
                 bordered={false}

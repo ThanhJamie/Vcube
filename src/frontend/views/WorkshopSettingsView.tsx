@@ -321,6 +321,42 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
     void applyStage(order, 7, 'Hoàn thành').finally(() => setBusyLabel(null));
   };
 
+  /**
+   * 8 nấc MES dừng ở "Xuất xưởng giao" (status `shipping`). Đơn chỉ thực sự kết thúc khi xưởng
+   * xác nhận ĐÃ GIAO: đặt `status='completed'` (giữ nấc cuối) — trước đây không có đường nào
+   * đưa đơn tới `completed`.
+   */
+  const handleMarkDelivered = (order: MyQueueOrder) => {
+    if (!partnerId) {
+      notify('Tài khoản chưa được gắn mã đối tác xưởng.', 'warning');
+      return;
+    }
+    setBusyOrderId(order.id);
+    void workshopService
+      .updateMyOrderProgress({
+        orderId: order.id,
+        partnerId,
+        stageIndex: 7,
+        status: 'completed',
+        layerProgress: 100,
+      })
+      .then((res) => {
+        if (!res.success) {
+          notify(`Chưa đánh dấu được đã giao cho ${order.orderNumber}: ${res.error}`, 'error');
+          return;
+        }
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === order.id
+              ? { ...o, statusStageIndex: 7, status: 'completed', layerProgress: 100 }
+              : o,
+          ),
+        );
+        notify(`Đơn ${order.orderNumber} đã hoàn tất (đã giao).`, 'success');
+      })
+      .finally(() => setBusyOrderId(null));
+  };
+
   const handleSaveLayerProgress = (order: MyQueueOrder) => {
     const raw = (layerDraft[order.id] ?? '').trim();
     if (!raw) {
@@ -900,6 +936,16 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
                 >
                   Xác nhận hoàn thành
                 </Button>
+                {(row.statusStageIndex ?? -1) >= 7 && row.status !== 'completed' && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={disabled}
+                    onClick={() => handleMarkDelivered(row)}
+                  >
+                    Đánh dấu đã giao
+                  </Button>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-1">
                 {MES_PIPELINE_STAGES.map((stage, idx) => (

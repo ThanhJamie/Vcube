@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState } from 'react';
 import { DetailedCostBreakdown, PrinterProfile } from '../../types';
-import { Icon } from '@frontend/ui';
+import { Icon, Modal } from '@frontend/ui';
 
 interface InternalCostBreakdownModalProps {
   isOpen: boolean;
@@ -25,22 +24,15 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
   const [overridePriceInput, setOverridePriceInput] = useState<string>(String(breakdown.finalSellingPriceRounded));
   const [overrideReason, setOverrideReason] = useState<string>('');
   const [overrideSuccessMsg, setOverrideSuccessMsg] = useState<string>('');
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isOpen, onClose]);
+  const [overrideError, setOverrideError] = useState<string>('');
 
   if (!isOpen) return null;
+
+  /** Tỷ trọng an toàn: `baseCost` = 0/không hợp lệ ⇒ `—`, KHÔNG `Infinity%`/`NaN%`. */
+  const sharePercent = (value: number): string =>
+    Number.isFinite(breakdown.baseCost) && breakdown.baseCost > 0
+      ? ((value / breakdown.baseCost) * 100).toFixed(1)
+      : '—';
 
   // R4 (data-honesty PC-08): moi con so trong khoi cong thuc phai doc tu `breakdown`
   // (nguon: `pricing_global_settings` + `InkiriCostFormulaConfig`), khong duoc la hang so.
@@ -60,48 +52,47 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
 
   const handleSaveOverride = (e: React.FormEvent) => {
     e.preventDefault();
+    setOverrideError('');
     const newPrice = Number(overridePriceInput);
+    if (!Number.isFinite(newPrice) || newPrice <= 0) {
+      setOverrideError('Đơn giá điều chỉnh phải là số dương hợp lệ.');
+      return;
+    }
     if (newPrice < breakdown.costPrice) {
-      alert('Cảnh báo: Giá bán điều chỉnh không được thấp hơn Giá vốn xuất xưởng (' + breakdown.costPrice.toLocaleString() + ' đ)');
+      setOverrideError(`Giá bán điều chỉnh không được thấp hơn giá vốn xuất xưởng (${breakdown.costPrice.toLocaleString('vi-VN')} đ).`);
       return;
     }
     if (!overrideReason.trim()) {
-      alert('Vui lòng nhập lý do điều chỉnh giá (Bắt buộc theo quy định Audit Log nội bộ).');
+      setOverrideError('Vui lòng nhập lý do điều chỉnh giá (bắt buộc để lưu audit log nội bộ).');
       return;
     }
-    if (onApplyOverride) {
-      onApplyOverride(newPrice, overrideReason);
-    }
-    setOverrideSuccessMsg(`Đã ghi đè đơn giá thành công: ${newPrice.toLocaleString('vi-VN')} đ/cái`);
-    setTimeout(() => {
-      setOverrideSuccessMsg('');
-      onClose();
-    }, 1200);
+    onApplyOverride?.(newPrice, overrideReason);
+    setOverrideSuccessMsg(`Đã ghi đè đơn giá: ${newPrice.toLocaleString('vi-VN')} đ/cái`);
   };
 
   const costItems = [
     {
       title: '1. Chi phí Vật liệu (Filament / Resin)',
       amount: breakdown.materialCost,
-      percent: ((breakdown.materialCost / breakdown.baseCost) * 100).toFixed(1),
+      percent: sharePercent(breakdown.materialCost),
       details: `${breakdown.totalFilamentGrams}g nhựa (Model: ${breakdown.modelGrams}g + Support: ${breakdown.supportGrams}g + Purge: ${breakdown.purgeGrams}g + Brim: ${breakdown.brimRaftGrams}g) × ${breakdown.materialCostPerGram} đ/g`
     },
     {
       title: '2. Chi phí Điện năng tiêu thụ',
       amount: breakdown.electricityCost,
-      percent: ((breakdown.electricityCost / breakdown.baseCost) * 100).toFixed(1),
+      percent: sharePercent(breakdown.electricityCost),
       details: `${breakdown.averagePowerKW} kW (Công suất TB) × ${breakdown.printHours}h × ${breakdown.electricityRatePerKWh.toLocaleString()} đ/kWh`
     },
     {
       title: '3. Khấu hao máy & Vật tư hao mòn (Nozzle/Plate)',
       amount: breakdown.machineOperatingCost,
-      percent: ((breakdown.machineOperatingCost / breakdown.baseCost) * 100).toFixed(1),
+      percent: sharePercent(breakdown.machineOperatingCost),
       details: `Khấu hao: ${breakdown.machineDepreciationCost.toLocaleString()}đ + Bảo trì/Vật tư: ${breakdown.maintenanceAndConsumablesCost.toLocaleString()}đ (${currentPrinter.name})`
     },
     {
       title: '4. Chi phí Nhân công kỹ thuật (Labor)',
       amount: breakdown.laborCost,
-      percent: ((breakdown.laborCost / breakdown.baseCost) * 100).toFixed(1),
+      percent: sharePercent(breakdown.laborCost),
       // R1/R4: in DUNG so phut va DON GIA dang dung trong ban tinh (`DetailedCostBreakdown`).
       // Truoc day dong nay hardcode "Review 4p + Setup 5p + ... + Pack 3p @ 65.000đ/h" nen van in
       // 65.000đ/h ke ca khi `pricing_global_settings.labor_hourly_rate_vnd` dat don gia khac.
@@ -117,51 +108,42 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
     {
       title: '5. Phụ kiện & Đóng gói tiêu chuẩn',
       amount: breakdown.accessoriesCost,
-      percent: ((breakdown.accessoriesCost / breakdown.baseCost) * 100).toFixed(1),
+      percent: sharePercent(breakdown.accessoriesCost),
       details: 'Hộp carton sóng, túi zip chống ẩm, hạt hút ẩm, màng xốp nổ PE Foam'
     },
     {
       title: '6. Chi phí Cố định phân bổ (Overhead)',
       amount: breakdown.overheadPerUnit,
-      percent: ((breakdown.overheadPerUnit / breakdown.baseCost) * 100).toFixed(1),
+      percent: sharePercent(breakdown.overheadPerUnit),
       details: 'Mặt bằng xưởng, bản quyền phần mềm Slicer/CAD, internet, quản lý'
     }
   ];
 
-  return createPortal(
-    <div 
-      className="fixed inset-0 z-[9999] bg-surface-inverse/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="xl"
+      showCloseButton={false}
+      bodyClassName="p-0"
+      title={
+        <span>
+          <span className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold">
+              PRC-006 // Báo Cáo Giá Vốn &amp; Lợi Nhuận Nội Bộ (Internal Costing)
+            </span>
+            <span className="px-2 py-0.5 text-xs bg-danger-tint text-danger font-bold rounded-sm border border-danger/40">
+              Chỉ Dành Cho Kỹ Sư &amp; Quản Đốc
+            </span>
+          </span>
+          <span className="block font-sans font-bold text-base sm:text-lg text-fg">
+            Cấu Trúc Chi Phí &amp; Định Giá: {fileName}
+          </span>
+        </span>
+      }
     >
-      <div className="bg-surface rounded-lg max-w-4xl w-full max-h-[92vh] flex flex-col shadow-e3 animate-in zoom-in-95 duration-200 overflow-hidden my-auto">
-        
-        {/* Modal Header */}
-        <div className="p-5 sm:p-6 border-b border-line-subtle flex items-center justify-between bg-surface-inverse text-on-inverse shrink-0">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs uppercase tracking-widest text-accent font-bold">
-                PRC-006 // Báo Cáo Giá Vốn & Lợi Nhuận Nội Bộ (Internal Costing)
-              </span>
-              <span className="px-2 py-0.5 text-xs bg-danger-tint text-danger font-bold rounded-sm border border-danger/40">
-                Chỉ Dành Cho Kỹ Sư & Quản Đốc
-              </span>
-            </div>
-            <h2 className="font-sans font-bold text-lg sm:text-xl text-on-inverse">
-              Cấu Trúc Chi Phí & Định Giá: {fileName}
-            </h2>
-          </div>
-          <button aria-label="Đóng"
-            onClick={onClose}
-            className="p-2 hover:bg-surface-inverse-raised text-on-inverse/70 hover:text-on-inverse transition-colors rounded-sm"
-          >
-            <Icon name="close" size={24} />
-          </button>
-        </div>
-
         {/* Content Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6">
+        <div className="p-5 sm:p-6 space-y-6">
           
           {/* Top KPI Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -342,6 +324,11 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
               </div>
             </form>
 
+            {overrideError && (
+              <div role="alert" className="text-xs text-danger font-bold bg-danger-tint p-2 rounded-sm">
+                {overrideError}
+              </div>
+            )}
             {overrideSuccessMsg && (
               <div className="text-xs text-positive font-bold bg-positive-tint p-2 rounded-sm">
                 {overrideSuccessMsg}
@@ -363,9 +350,6 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
             Đóng Báo Cáo Nội Bộ
           </button>
         </div>
-
-      </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };
