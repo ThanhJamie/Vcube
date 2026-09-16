@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PayoutTransaction } from '../../../types';
 import { PAYOUT_TRANSACTIONS } from '../../../data/mockData';
-import { Icon, EmptyState } from '@frontend/ui';
+import { Icon, EmptyState, DataTable } from '@frontend/ui';
+import type { DataTableColumn } from '@frontend/ui';
 
 export interface DesignerPayoutsTabProps {
   currentDesignerName: string;
@@ -26,6 +27,23 @@ export const DesignerPayoutsTab: React.FC<DesignerPayoutsTabProps> = ({
   const payouts: PayoutTransaction[] = PAYOUT_TRANSACTIONS;
   const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
   const hasBalance = isNum(availableBalance);
+
+  const payoutColumns = useMemo<DataTableColumn<PayoutTransaction>[]>(
+    () => [
+      { key: 'date', header: 'Ngày', value: (p) => p.date, render: (p) => <span className="text-fg">{p.date}</span> },
+      { key: 'reference', header: 'Mã Giao Dịch', value: (p) => p.reference, render: (p) => <span className="text-fg-muted">{p.reference}</span> },
+      { key: 'method', header: 'Phương Thức', value: (p) => p.method, render: (p) => <span className="text-fg">{p.method}</span> },
+      { key: 'amount', header: 'Số Tiền', numeric: true, value: (p) => p.amount, render: (p) => <span className="font-bold text-fg">{p.amount.toLocaleString('vi-VN')} đ</span> },
+      {
+        key: 'status',
+        header: 'Trạng Thái',
+        align: 'center',
+        value: (p) => p.status,
+        render: (p) => <span className="px-2 py-0.5 bg-positive/10 text-positive font-tech text-xs rounded-sm font-bold">{p.status}</span>,
+      },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-6">
@@ -93,36 +111,14 @@ export const DesignerPayoutsTab: React.FC<DesignerPayoutsTabProps> = ({
             />
           </div>
         ) : (
-          <div className="responsive-table-wrapper">
-            <table className="text-left text-xs w-full">
-              <thead className="bg-primary/10 border-b border-line text-fg-muted font-tech text-xs uppercase">
-                <tr>
-                  <th className="p-3">Ngày</th>
-                  <th className="p-3">Mã Giao Dịch</th>
-                  <th className="p-3">Phương Thức</th>
-                  <th className="p-3 text-right">Số Tiền</th>
-                  <th className="p-3 text-center">Trạng Thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-subtle">
-                {payouts.map((p) => (
-                  <tr key={p.id} className="hover:bg-canvas">
-                    <td className="p-3 font-tech text-fg">{p.date}</td>
-                    <td className="p-3 font-tech text-fg-muted">{p.reference}</td>
-                    <td className="p-3 text-fg">{p.method}</td>
-                    <td className="p-3 font-tech font-bold text-right text-fg">
-                      {p.amount.toLocaleString('vi-VN')} đ
-                    </td>
-                    <td className="p-3 text-center">
-                      <span className="px-2 py-0.5 bg-positive/10 text-positive font-tech text-xs rounded-sm font-bold">
-                        {p.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<PayoutTransaction>
+            columns={payoutColumns}
+            rows={payouts}
+            getRowId={(row) => row.id}
+            caption="Lịch sử quyết toán"
+            tableLabel="Lịch sử quyết toán"
+            defaultSort={[{ key: 'date', direction: 'desc' }]}
+          />
         )}
       </div>
     </div>
