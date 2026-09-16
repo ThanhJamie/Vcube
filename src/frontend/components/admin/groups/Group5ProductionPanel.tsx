@@ -11,7 +11,7 @@ import { Order } from '../../../types';
 import { dbService } from '../../../../backend/supabase/database';
 import { useLanguage } from '../../../context/LanguageContext';
 import { EMPTY_VALUE } from '../../../lib/format';
-import { Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
+import { Button, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
 
 /** Mục menu đang mở panel này (`/admin/queue` hoặc `/admin/orders`) — quyết định tab mặc định. */
 export type ProductionPanelSection = 'queue' | 'orders';
@@ -1043,37 +1043,29 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
 
       {/* 5. JOB DETAILS MODAL — thẻ đang chọn = đơn THẬT trong `orders` */}
       {selectedJob && (
-        <div className="fixed inset-0 z-modal bg-surface-inverse/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-e3 border border-line-subtle">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-line-subtle flex items-center justify-between sticky top-0 bg-surface z-sticky">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-md bg-primary text-primary-fg flex items-center justify-center shadow-e1">
-                  <Icon name="precision_manufacturing" size={24} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-tech font-bold text-base text-primary">
-                      {selectedJob.orderNumber}
-                    </span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted text-fg-muted font-tech">
-                      Nấc {selectedJob.stageIndex + 1}: {KANBAN_STAGES[selectedJob.stageIndex].shortVi}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-bold text-fg">{selectedJob.customerName || EMPTY_VALUE}</h3>
-                </div>
-              </div>
-
-              <button aria-label="Đóng"
-                onClick={() => setSelectedJobId(null)}
-                className="p-1.5 text-fg-subtle hover:text-fg-muted rounded-lg cursor-pointer"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
+        <Modal
+          open
+          onClose={() => setSelectedJobId(null)}
+          size="lg"
+          title={
+            <span className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-md bg-primary text-primary-fg flex items-center justify-center shadow-e1">
+                <Icon name="precision_manufacturing" size={24} />
+              </span>
+              <span>
+                <span className="flex items-center gap-2">
+                  <span className="font-tech font-bold text-base text-primary">{selectedJob.orderNumber}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted text-fg-muted font-tech">
+                    Nấc {selectedJob.stageIndex + 1}: {KANBAN_STAGES[selectedJob.stageIndex].shortVi}
+                  </span>
+                </span>
+                <span className="block text-sm font-bold text-fg">{selectedJob.customerName || EMPTY_VALUE}</span>
+              </span>
+            </span>
+          }
+        >
             {/* Modal Body */}
-            <div className="p-5 space-y-5 text-xs">
+            <div className="space-y-5 text-xs">
               {/* Stage Progression Buttons — ghi xuống Supabase */}
               <div>
                 <label className="text-xs font-bold text-fg-muted uppercase tracking-wider block mb-2">
@@ -1246,8 +1238,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
