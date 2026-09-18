@@ -166,8 +166,37 @@ Chia 3 subagent song song theo bề mặt (mỗi file một owner), sau đó orc
 - `npm run lint` PASS · `npm run build` PASS.
 - `node scripts/loop-audit.mjs` → `gates 9/9`, `lint PASS`, `build PASS`, `debt 0`, `newViolations 0`, `improved=true`.
 
-**Chưa làm được (blocked bởi môi trường)**
-- Browser spot-check qua Playwright: Chromium trong WSL thiếu `libnspr4.so` (không có quyền cài) và MCP
-  Playwright trỏ tới Chrome không tồn tại → **không chạy được**. Dev server đã bật ở
-  `http://localhost:3000` để kiểm thủ công: Tab thấy ring; màn designer/admin hiện `—` thay `NaN đ`.
-- Chưa commit (chờ chủ dự án yêu cầu).
+**Đã commit**: `10788b5` (`refactor(ui): clear design-system debt (focus rings + guarded formatting)`).
+
+---
+
+## 9. Kiểm thử toàn bộ luồng web (2026-09-18)
+
+Chạy Playwright (Chromium bundled) headless với `LD_LIBRARY_PATH=~/.local/share/opencode-pwlibs/x86_64-linux-gnu`,
+script `/tmp/opencode/pwtest/all-flows.mjs` (ngoài repo). **183/183 PASS.**
+
+Phạm vi:
+- **Route sweep** 9 route công khai + PDP tại 390/768/1440: HTTP 200, không tràn ngang, có nội dung,
+  không có `NaN`/`Invalid Date`/`undefined`, console sạch.
+- **Guard** `/admin /designer /orders /assets /lab` → chuyển `/auth/login` khi chưa đăng nhập.
+- **Tương tác**: search + sort `/explore`; focus ring trên search (box-shadow thật).
+- **Giỏ/checkout**: giỏ rỗng có empty-state thật; `/checkout` không tạo đơn khi giỏ rỗng.
+- **Tracking**: tra mã sai → không crash/NaN.
+- **PDP**: thêm vào giỏ → `/cart` render.
+- **Auth**: login sai bị từ chối + hiện lỗi; login admin thật OK.
+- **Console đã đăng nhập**: `/admin`, `/designer`, `/lab`, `/orders`, `/assets` render, console sạch.
+- **FAB** hiện trên mobile 390.
+
+**Phát hiện (không chặn, dev-only)**: React cảnh báo `unique "key" prop` từ **lucide-react v0.546.0** —
+`node_modules/lucide-react/dist/esm/Icon.js` render `iconNode.map(...)` không gắn `key` (forwardRef ẩn danh
+→ owner `ForwardRef`). Xác định bằng DevTools-hook fiber walk. Chỉ xuất hiện ở dev, bị strip ở production;
+không ảnh hưởng runtime. Cách sửa triệt để (nếu muốn): nâng `lucide-react` lên bản mới hơn — **cần duyệt
+vì là thay đổi dependency**.
+
+**MCP Playwright**: Chrome hệ thống không có (`/opt/google/chrome/chrome`) và `/opt` không ghi được.
+Đã cập nhật `~/.config/opencode/opencode.jsonc` trỏ MCP sang Chromium bundled:
+`--executable-path ~/.cache/ms-playwright/chromium-1244/chrome-linux64/chrome` + giữ `LD_LIBRARY_PATH`.
+**Cần khởi động lại opencode** để MCP nạp config mới.
+
+Dev server đang chạy tại `http://localhost:3000`.
+
