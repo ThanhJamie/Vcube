@@ -301,7 +301,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                     required
                     value={modelName}
                     onChange={(e) => setModelName(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2 text-xs rounded-sm focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
 
@@ -312,7 +312,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2 text-xs rounded-sm focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="mechanical">Cơ khí chính xác</option>
                     <option value="iot">Vỏ hộp IoT &amp; Thiết bị điện tử</option>
@@ -331,7 +331,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                   rows={3}
                   value={modelDesc}
                   onChange={(e) => setModelDesc(e.target.value)}
-                  className="w-full bg-canvas border border-line-control p-2 text-xs rounded-sm focus:outline-none focus:border-primary"
+                  className="w-full bg-canvas border border-line-control p-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 
@@ -441,7 +441,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                       type="number"
                       value={standardPrice}
                       onChange={(e) => setStandardPrice(e.target.value)}
-                      className="w-full bg-canvas border border-line-control p-2 text-xs font-tech text-fg rounded-sm focus:outline-none focus:border-primary"
+                      className="w-full bg-canvas border border-line-control p-2 text-xs font-tech text-fg rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     <span className="absolute right-2.5 top-2 text-xs font-tech text-fg-muted">
                       VNĐ
@@ -462,7 +462,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                       type="number"
                       value={physicalPrice}
                       onChange={(e) => setPhysicalPrice(e.target.value)}
-                      className="w-full bg-canvas border border-line-control p-2 text-xs font-tech text-fg rounded-sm focus:outline-none focus:border-primary"
+                      className="w-full bg-canvas border border-line-control p-2 text-xs font-tech text-fg rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     <span className="absolute right-2.5 top-2 text-xs font-tech text-fg-muted">
                       VNĐ

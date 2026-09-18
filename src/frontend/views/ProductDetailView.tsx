@@ -822,7 +822,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   <select
                     value={resolution}
                     onChange={(e) => setResolution(e.target.value)}
-                    className="w-full bg-canvas border border-line-control rounded-md p-2.5 text-sm text-fg font-mono focus:outline-none focus:border-primary cursor-pointer"
+                    className="w-full bg-canvas border border-line-control rounded-md p-2.5 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                   >
                     <option value="0.12 mm (Chính xác vi mô)">0.12 mm — Bề mặt siêu mịn / Dung sai ngặt</option>
                     <option value="0.16 mm (Tiêu chuẩn kỹ thuật)">0.16 mm — Tiêu chuẩn kỹ thuật (Khuyên dùng)</option>
@@ -845,7 +845,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       placeholder="VD: VCUBE-LAB-01..."
                       value={customEngraving}
                       onChange={(e) => setCustomEngraving(e.target.value)}
-                      className="w-full bg-canvas border border-line-control rounded-md px-3 py-2 text-sm text-fg font-mono focus:outline-none focus:border-primary"
+                      className="w-full bg-canvas border border-line-control rounded-md px-3 py-2 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     {engravingBlocked && (
                       <p className="flex items-start gap-1.5 text-xs text-danger mt-1.5">

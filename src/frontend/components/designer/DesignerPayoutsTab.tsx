@@ -3,6 +3,7 @@ import { PayoutTransaction } from '../../../types';
 import { PAYOUT_TRANSACTIONS } from '../../../data/mockData';
 import { Icon, EmptyState, DataTable } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
+import { formatCurrency } from '@frontend/lib/format';
 
 export interface DesignerPayoutsTabProps {
   currentDesignerName: string;
@@ -33,7 +34,7 @@ export const DesignerPayoutsTab: React.FC<DesignerPayoutsTabProps> = ({
       { key: 'date', header: 'Ngày', value: (p) => p.date, render: (p) => <span className="text-fg">{p.date}</span> },
       { key: 'reference', header: 'Mã Giao Dịch', value: (p) => p.reference, render: (p) => <span className="text-fg-muted">{p.reference}</span> },
       { key: 'method', header: 'Phương Thức', value: (p) => p.method, render: (p) => <span className="text-fg">{p.method}</span> },
-      { key: 'amount', header: 'Số Tiền', numeric: true, value: (p) => p.amount, render: (p) => <span className="font-bold text-fg">{p.amount.toLocaleString('vi-VN')} đ</span> },
+      { key: 'amount', header: 'Số Tiền', numeric: true, value: (p) => p.amount, render: (p) => <span className="font-bold text-fg">{formatCurrency(p.amount)}</span> },
       {
         key: 'status',
         header: 'Trạng Thái',
@@ -55,7 +56,7 @@ export const DesignerPayoutsTab: React.FC<DesignerPayoutsTabProps> = ({
               SỐ DƯ KHẢ DỤNG
             </span>
             <div className="text-3xl font-bold font-tech mt-1 text-on-inverse">
-              {hasBalance ? `${availableBalance.toLocaleString('vi-VN')} đ` : '—'}
+              {hasBalance ? formatCurrency(availableBalance) : '—'}
             </div>
             <p className="text-xs text-fg-subtle mt-1">
               {hasBalance

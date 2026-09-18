@@ -9,7 +9,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useCartStore } from '../stores/useCartStore';
 import { Icon, Badge, Button, Card, EmptyState, InfoTip, Sheet, Skeleton } from '@frontend/ui';
-import { EMPTY_VALUE } from '@frontend/lib/format';
+import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
 
 interface ExploreViewProps {
   products: Product[];
@@ -457,7 +457,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               <span className="font-bold text-primary tabular-nums">
                 {priceMax === null
                   ? (isVi ? 'Không giới hạn' : 'No limit')
-                  : `${priceMax.toLocaleString(numberLocale)} đ`}
+                  : formatCurrency(priceMax)}
               </span>
             </div>
             <input
@@ -475,8 +475,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               className="w-full accent-primary cursor-pointer"
             />
             <div className="flex justify-between text-xs font-mono text-fg-subtle mt-0.5 tabular-nums">
-              <span>{priceRange.min.toLocaleString(numberLocale)} đ</span>
-              <span>{priceRange.ceiling.toLocaleString(numberLocale)} đ</span>
+              <span>{formatCurrency(priceRange.min)}</span>
+              <span>{formatCurrency(priceRange.ceiling)}</span>
             </div>
           </div>
         </div>
@@ -606,7 +606,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 aria-label={isVi ? 'Tìm kiếm bản vẽ CAD' : 'Search CAD models'}
-                className="w-full pl-9 pr-8 py-2.5 bg-surface border border-line-control text-xs text-fg placeholder-fg-subtle focus:outline-none focus:border-primary rounded-md"
+                className="w-full pl-9 pr-8 py-2.5 bg-surface border border-line-control text-xs text-fg placeholder-fg-subtle focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring rounded-md"
               />
               <Icon name="search" size={18} className="absolute left-3 top-2.5 text-fg-subtle" />
               {searchQuery && (
@@ -726,7 +726,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
               {priceMax !== null && (
                 <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
-                  <span>{isVi ? 'Tối đa' : 'Max'}: {priceMax.toLocaleString(numberLocale)} đ</span>
+                  <span>{isVi ? 'Tối đa' : 'Max'}: {formatCurrency(priceMax)}</span>
                   <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ giới hạn giá' : 'Clear max price'} onClick={() => setPriceMax(null)} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
@@ -837,7 +837,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
                     aria-label={isVi ? 'Sắp xếp danh sách bản vẽ' : 'Sort models'}
-                    className="bg-surface border border-line-control py-1.5 px-2.5 text-xs text-fg font-bold focus:outline-none focus:border-primary cursor-pointer rounded-md"
+                    className="bg-surface border border-line-control py-1.5 px-2.5 text-xs text-fg font-bold focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring cursor-pointer rounded-md"
                   >
                     <option value="featured">{isVi ? 'Nổi bật nhất' : 'Featured'}</option>
                     <option value="popular">{isVi ? 'Lượt in nhiều nhất' : 'Most Printed'}</option>

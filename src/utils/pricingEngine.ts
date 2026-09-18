@@ -691,7 +691,7 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   }
   if (quantity >= bulkOrderQuantityThreshold || finalSellingPriceRounded * quantity >= bulkOrderAmountThresholdVnd) {
     manualReviewReasons.push(
-      `Đơn hàng số lượng lớn (≥${bulkOrderQuantityThreshold} cái hoặc ≥${bulkOrderAmountThresholdVnd.toLocaleString('vi-VN')} đ) cần kỹ sư xưởng xếp khay tối ưu.`
+      `Đơn hàng số lượng lớn (≥${bulkOrderQuantityThreshold} cái hoặc ≥${Number.isFinite(bulkOrderAmountThresholdVnd) ? bulkOrderAmountThresholdVnd.toLocaleString('vi-VN') : '—'} đ) cần kỹ sư xưởng xếp khay tối ưu.`
     );
   }
   if (activeExtruders > 4) {

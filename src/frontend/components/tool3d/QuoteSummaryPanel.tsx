@@ -13,7 +13,7 @@ import { InternalCostBreakdownModal } from './InternalCostBreakdownModal';
 import { MachineComparisonModal } from './MachineComparisonModal';
 import { EmptyState, Icon, InfoTip } from '@frontend/ui';
 import { useAuth } from '../../context/AuthContext';
-import { EMPTY_VALUE, formatNumber, formatWeight } from '../../lib/format';
+import { EMPTY_VALUE, formatCurrency, formatNumber, formatWeight } from '../../lib/format';
 
 /**
  * Q (#2): `materials.price_per_gram` nay là **nullable thật** (mappers không còn điền 850).
@@ -423,7 +423,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           </span>
           <span className="font-mono text-xs font-bold text-primary">
             {isNum(quickEstimateRange.min) && isNum(quickEstimateRange.max)
-              ? `${quickEstimateRange.min.toLocaleString('vi-VN')} – ${quickEstimateRange.max.toLocaleString('vi-VN')} đ/cái`
+              ? `${formatCurrency(quickEstimateRange.min)} – ${formatCurrency(quickEstimateRange.max)}/cái`
               : EMPTY_VALUE}
           </span>
         </div>
@@ -442,7 +442,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-printer"
               value={selectedPrinterId}
               onChange={(e) => onPrinterChange(e.target.value)}
-              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary"
+              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
               {printers.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -460,7 +460,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-material"
               value={selectedMaterialId}
               onChange={(e) => onMaterialChange(e.target.value)}
-              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary"
+              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -516,7 +516,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-layer-height"
               value={layerHeight}
               onChange={(e) => onLayerHeightChange(e.target.value)}
-              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary"
+              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="0.08">0.08 mm (Ultra Fine)</option>
               <option value="0.12">0.12 mm (Fine Detail)</option>
@@ -533,7 +533,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-supports-mode"
               value={supportsMode}
               onChange={(e) => onSupportsModeChange(e.target.value as any)}
-              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary"
+              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="tree">Tree Support (Dễ bóc)</option>
               <option value="auto">Auto Grid Standard</option>

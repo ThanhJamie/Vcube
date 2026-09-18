@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Product, CustomDesignRequest } from '../../../types';
 import { Icon } from '@frontend/ui';
+import { formatCurrency, formatNumber } from '@frontend/lib/format';
 import { customDesignService } from '../../../backend/services/customDesignService';
 
 export interface DesignerOverviewTabProps {
@@ -68,7 +69,7 @@ export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
             <Icon name="payments" size={24} className="text-primary" />
           </div>
           <div className="text-2xl font-bold font-tech text-fg">
-            {isNum(availableBalance) ? `${availableBalance.toLocaleString('vi-VN')} đ` : '—'}
+            {formatCurrency(availableBalance)}
           </div>
           <div className="text-xs text-fg-muted mt-2 font-tech">
             {isNum(availableBalance) ? 'Số dư khả dụng đã ghi nhận' : 'Chưa có nguồn số dư khả dụng'}
@@ -83,7 +84,7 @@ export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
             <Icon name="download" size={24} className="text-fg-muted" />
           </div>
           <div className="text-2xl font-bold font-tech text-fg">
-            {totalDownloads.toLocaleString('vi-VN')}
+            {formatNumber(totalDownloads)}
           </div>
           <div className="text-xs text-fg-muted mt-2 font-tech">Tổng lượt tải ghi nhận trên ấn phẩm của bạn</div>
         </div>
@@ -96,7 +97,7 @@ export const DesignerOverviewTab: React.FC<DesignerOverviewTabProps> = ({
             <Icon name="precision_manufacturing" size={24} className="text-fg-muted" />
           </div>
           <div className="text-2xl font-bold font-tech text-fg">
-            {totalPrints.toLocaleString('vi-VN')}
+            {formatNumber(totalPrints)}
           </div>
           <div className="text-xs text-fg-muted mt-2 font-tech">
             Tổng số lần in ghi nhận trên ấn phẩm của bạn

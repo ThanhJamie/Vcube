@@ -565,13 +565,13 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
               <div className="p-2 bg-canvas border border-line rounded-sm">
                 <span className="text-xs text-fg-muted block">GIÁ TẢI SỐ</span>
                 <span className="font-bold text-fg">
-                  {(previewProduct.priceDigital || 0).toLocaleString('vi-VN')} đ
+                  {formatCurrency(previewProduct.priceDigital)}
                 </span>
               </div>
               <div className="p-2 bg-canvas border border-line rounded-sm">
                 <span className="text-xs text-fg-muted block">GIÁ IN VẬT LÝ</span>
                 <span className="font-bold text-fg">
-                  {(previewProduct.pricePhysical || 0).toLocaleString('vi-VN')} đ
+                  {formatCurrency(previewProduct.pricePhysical)}
                 </span>
               </div>
               <div className="p-2 bg-canvas border border-line rounded-sm">

@@ -14,7 +14,7 @@ import { ValidationReportPanel } from '../components/tool3d/ValidationReportPane
 import { QuoteSummaryPanel } from '../components/tool3d/QuoteSummaryPanel';
 import { parse3DFile, autoRepairGeometry, analyzeMeshDefects } from '../../utils/meshParser';
 import { Button, EmptyState, Icon, InfoTip, PanelErrorBoundary } from '@frontend/ui';
-import { EMPTY_VALUE } from '../lib/format';
+import { EMPTY_VALUE, formatNumber } from '../lib/format';
 
 /* ── Q (#2): hậu quả của việc cột DB nay NULL thật (`mappers.ts` không còn điền số mặc định) ──
  * `materials.price_per_gram` / `printer_fleet.bed_dimensions` … có thể là `null` = CHƯA ĐO ĐƯỢC.
@@ -541,7 +541,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
       // STL không lưu đơn vị đo trong header ⇒ hỏi khách xác nhận mm/inch trước khi báo giá.
       if (format === 'STL') setIsStlUnitModalOpen(true);
 
-      onShowToast(`Đã nạp file 3D & Khởi tạo VCUBE Mesh Engine: ${file.name} (${parsed.triangleCount.toLocaleString()} tam giác)`);
+      onShowToast(`Đã nạp file 3D & Khởi tạo VCUBE Mesh Engine: ${file.name} (${formatNumber(parsed.triangleCount)} tam giác)`);
     } catch (err) {
       // Q2 (MP-01): KHÔNG dựng "mô hình phôi an toàn" và KHÔNG bịa số đo cho tệp của khách.
       console.error('Không phân tích được tệp 3D (không tạo dữ liệu thay thế):', err);
@@ -1137,7 +1137,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 <div className="flex items-center gap-3 font-mono text-fg-subtle text-xs">
                   <span>{selectedFile.fileSize}</span>
                   <span>•</span>
-                  <span>{selectedFile.triangleCount.toLocaleString()} Triangles</span>
+                  <span>{formatNumber(selectedFile.triangleCount)} Triangles</span>
                 </div>
               </div>
 
@@ -1225,7 +1225,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <select
                     value={selectedPrinterId}
                     onChange={(e) => setSelectedPrinterId(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {printers.length === 0 && (
                       <option value="">— Chưa có máy in trong hệ thống —</option>
@@ -1249,7 +1249,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <select
                     value={selectedMaterialId}
                     onChange={(e) => setSelectedMaterialId(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {materials.length === 0 && (
                       <option value="">— Chưa có vật liệu trong hệ thống —</option>
@@ -1306,7 +1306,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <select
                     value={layerHeight}
                     onChange={(e) => setLayerHeight(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {/* F2 (P9): nếu tệp khai layer height ngoài 4 mức sẵn có, hiện đúng giá trị đó
                         thay vì để select trống/kẹt ở lựa chọn không khớp. */}
@@ -1327,7 +1327,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <select
                     value={supportsMode}
                     onChange={(e) => setSupportsMode(e.target.value as any)}
-                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="tree">Tree Support (Dễ bóc - Ít vết sẹo bề mặt)</option>
                     <option value="auto">Auto Grid Standard (Chắc chắn cho hình học lớn)</option>
@@ -1792,7 +1792,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                       {file.dimensions.x} × {file.dimensions.y} × {file.dimensions.z} mm
                     </td>
                     <td className="p-3 font-mono text-fg-muted">
-                      {file.triangleCount.toLocaleString()} ▲ ({file.partsCount} part{file.partsCount > 1 ? 's' : ''})
+                      {formatNumber(file.triangleCount)} ▲ ({file.partsCount} part{file.partsCount > 1 ? 's' : ''})
                     </td>
                     <td className="p-3 font-mono">
                       <span className={`px-2.5 py-0.5 text-xs font-bold rounded-lg border ${

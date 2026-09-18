@@ -383,7 +383,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
                     <select
                       value={selectedMaterial}
                       onChange={(e) => setSelectedMaterial(e.target.value)}
-                      className="bg-surface border border-line-control text-fg text-xs px-2.5 py-1 rounded-md focus:outline-none focus:border-primary cursor-pointer"
+                      className="bg-surface border border-line-control text-fg text-xs px-2.5 py-1 rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                     >
                       {product.supportedMaterials.map((m) => (
                         <option key={m} value={m}>

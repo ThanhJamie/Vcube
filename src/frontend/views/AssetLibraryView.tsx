@@ -102,7 +102,7 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
                 placeholder="Tìm file theo tên..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary"
+                className="w-full pl-9 pr-3 py-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Tìm file theo tên"
               />
               <Icon name="search" size={18} className="absolute left-2.5 top-2.5 text-fg-muted" />

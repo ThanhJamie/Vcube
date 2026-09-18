@@ -4,7 +4,7 @@ import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../
 import { PersonalizeModelViewer3D } from '../components/personalize/PersonalizeModelViewer3D';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { Badge, Button, Card, EmptyState, Icon, InfoTip } from '@frontend/ui';
-import { EMPTY_VALUE } from '@frontend/lib/format';
+import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
 
 interface PersonalizeViewProps {
   product?: Product;
@@ -585,7 +585,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                     onChange={(e) => setEngravingText(e.target.value)}
                     placeholder="VD: VCUBE-LAB-01 hoặc Tên dự án..."
                     aria-label="Nội dung khắc trên mặt vỏ"
-                    className="w-full bg-canvas border border-line-control p-3 text-xs font-mono font-bold rounded-md focus:outline-none focus:border-primary text-fg"
+                    className="w-full bg-canvas border border-line-control p-3 text-xs font-mono font-bold rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring text-fg"
                   />
                   <div className="mt-2 flex items-start justify-between gap-2 text-xs">
                     <span className="text-fg-muted">
@@ -650,7 +650,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                       value={engravingPosition}
                       onChange={(e) => setEngravingPosition(e.target.value as any)}
                       aria-label="Vị trí căn lề nội dung khắc"
-                      className="w-full bg-canvas border border-line-control p-2.5 text-xs font-mono rounded-md focus:outline-none focus:border-primary cursor-pointer"
+                      className="w-full bg-canvas border border-line-control p-2.5 text-xs font-mono rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                     >
                       <option value="center">Chính giữa nắp (Center)</option>
                       <option value="top-left">Góc trên bên trái</option>
@@ -666,7 +666,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                       value={selectedFont}
                       onChange={(e) => setSelectedFont(e.target.value)}
                       aria-label="Phông chữ khắc"
-                      className="w-full bg-canvas border border-line-control p-2.5 text-xs font-mono rounded-md focus:outline-none focus:border-primary cursor-pointer"
+                      className="w-full bg-canvas border border-line-control p-2.5 text-xs font-mono rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                     >
                       <option value="JetBrains Mono">JetBrains Mono (Chuẩn Kỹ Thuật)</option>
                       <option value="Inter">Inter (Hiện Đại)</option>
@@ -945,9 +945,9 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                     <span>Vật liệu ({selectedMaterial || EMPTY_VALUE}):</span>
                     <span className="font-semibold text-fg tabular-nums">
                       {materialPricePerGram !== null
-                        ? `${materialPricePerGram.toLocaleString('vi-VN')} đ/g`
+                        ? `${formatCurrency(materialPricePerGram)}/g`
                         : materialCostPerKg !== null
-                          ? `${materialCostPerKg.toLocaleString('vi-VN')} đ/kg`
+                          ? `${formatCurrency(materialCostPerKg)}/kg`
                           : EMPTY_VALUE}
                       {materialDensity !== null ? ` • ${materialDensity} g/cm³` : ''}
                     </span>

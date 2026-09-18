@@ -248,7 +248,7 @@ export const Header: React.FC<HeaderProps> = ({
                     placeholder={searchPlaceholder}
                     value={quickSearchQuery}
                     onChange={(e) => setQuickSearchQuery(e.target.value)}
-                    className="bg-transparent text-xs text-fg placeholder-fg-subtle focus:outline-none w-64 2xl:w-72 font-sans text-ellipsis"
+                    className="bg-transparent text-xs text-fg placeholder-fg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-ring w-64 2xl:w-72 font-sans text-ellipsis"
                   />
                 </div>
               </form>
@@ -355,7 +355,7 @@ export const Header: React.FC<HeaderProps> = ({
                   placeholder={searchPlaceholder}
                   value={quickSearchQuery}
                   onChange={(e) => setQuickSearchQuery(e.target.value)}
-                  className="bg-transparent text-xs text-fg placeholder-fg-subtle focus:outline-none w-full font-sans text-ellipsis"
+                  className="bg-transparent text-xs text-fg placeholder-fg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-ring w-full font-sans text-ellipsis"
                 />
               </div>
             </form>

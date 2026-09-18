@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AnalysisFile } from '../../types';
+import { formatNumber } from '@frontend/lib/format';
 import { Icon } from '@frontend/ui';
 
 /**
@@ -299,7 +300,7 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
             <div className="bg-surface-muted p-3.5 rounded-sm">
               <span className="text-xs uppercase tracking-widest text-fg-muted block">Số Tam Giác</span>
               <span className="font-tech font-bold text-fg mt-1 block text-xs">
-                {file.triangleCount.toLocaleString()} triangles
+                {formatNumber(file.triangleCount)} triangles
               </span>
             </div>
 

@@ -3,6 +3,7 @@ import { MaterialProfile, PrinterProfile, InkiriCostFormulaConfig, AccessoryItem
 import { calculateManualInkiriEstimate } from '../../utils/pricingEngine';
 import { getStore, settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
 import { Icon } from '@frontend/ui';
+import { formatCurrency } from '@frontend/lib/format';
 
 /** Snapshot `app_settings` suy ra từ accessor — `null` = CHƯA cấu hình. */
 type AppSettingsSnapshot = ReturnType<typeof settingsAccessors.appSettings>;
@@ -17,7 +18,7 @@ const isConfiguredNumber = (v: unknown): v is number => typeof v === 'number' &&
 const numberOrUndefined = (text: string): number | undefined => (String(text).trim() === '' ? undefined : Number(text));
 
 /** Chưa có nguồn ⇒ `—`: không bao giờ in `undefined`, `NaN` hay một con số đoán. */
-const money = (v: number | null | undefined): string => (isConfiguredNumber(v) ? v.toLocaleString('vi-VN') : '—');
+const money = (v: number | null | undefined): string => formatCurrency(v);
 const plainNumber = (v: number | null | undefined): string => (isConfiguredNumber(v) ? String(v) : '—');
 
 /**
@@ -286,8 +287,8 @@ PHỤ KIỆN & BAO BÌ ĐÓNG GÓI KÈM THEO:
 ${accessoriesListText}
 
 ĐƠN GIÁ & TỔNG CHI PHÍ GIA CÔNG:
-• Đơn giá xuất xưởng: ${money(finalUnitPriceAfterDiscount)} đ /chiếc
-${customDiscountPercent > 0 ? `• Chiết khấu ưu đãi: -${customDiscountPercent}% (Tiết kiệm ${money(unitDiscountAmount !== null ? unitDiscountAmount * (quantity as number) : null)} đ)\n` : ''}• TỔNG GIÁ TRỊ ĐƠN HÀNG: ${money(totalBatchPrice)} VNĐ
+• Đơn giá xuất xưởng: ${money(finalUnitPriceAfterDiscount)}/chiếc
+${customDiscountPercent > 0 ? `• Chiết khấu ưu đãi: -${customDiscountPercent}% (Tiết kiệm ${money(unitDiscountAmount !== null ? unitDiscountAmount * (quantity as number) : null)})\n` : ''}• TỔNG GIÁ TRỊ ĐƠN HÀNG: ${money(totalBatchPrice)}
 (Đã bao gồm: Chi phí vật liệu, gia công máy, nhân công kỹ thuật & QC, phụ kiện & bao bì)
 
 ${warrantyTerms ? 'TIẾN ĐỘ & BẢO HÀNH:' : 'TIẾN ĐỘ:'}
@@ -399,7 +400,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                 >
                   {materials.map(m => (
                     <option key={m.id} value={m.id}>
-                      {m.name} ({money(m.pricePerGram)} đ/g - Còn {plainNumber(m.stockRollsCount)} cuộn)
+                      {m.name} ({money(m.pricePerGram)}/g - Còn {plainNumber(m.stockRollsCount)} cuộn)
                     </option>
                   ))}
                 </select>
@@ -531,9 +532,9 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                         <div className="truncate">
                           <p className="font-bold text-fg truncate">{acc.name}</p>
                           <div className="flex items-center gap-2 text-xs text-fg-muted">
-                            <span>Vốn: {money(acc.costPrice)} đ</span>
+                            <span>Vốn: {money(acc.costPrice)}</span>
                             <span>•</span>
-                            <span className="text-primary font-bold">Báo khách: {money(acc.sellingPrice)} đ</span>
+                            <span className="text-primary font-bold">Báo khách: {money(acc.sellingPrice)}</span>
                             <span>•</span>
                             <span className={totalNeeded === null || !isConfiguredNumber(acc.stockCount) ? 'text-fg-muted font-bold' : acc.stockCount < totalNeeded ? 'text-danger font-bold' : 'text-positive font-bold'}>
                               Kho còn: {isConfiguredNumber(acc.stockCount) ? `${acc.stockCount} ${acc.unit}` : '—'} ({acc.warehouseLocation || 'Kho'})
@@ -598,13 +599,13 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   BÁO GIÁ XUẤT XƯỞNG DỰ TÍNH (BATCH BẢNG GIÁ)
                 </span>
                 <h3 className="text-xl font-bold font-tech text-on-inverse mt-0.5">
-                  {money(totalBatchPrice)} VNĐ
+                  {money(totalBatchPrice)}
                 </h3>
               </div>
               <div className="text-right">
                 <span className="text-xs text-fg-subtle block uppercase">Đơn Giá 1 Chiếc</span>
                 <span className="text-base font-tech font-bold text-accent">
-                  {money(finalUnitPriceAfterDiscount)} đ
+                  {money(finalUnitPriceAfterDiscount)}
                 </span>
               </div>
             </div>
@@ -614,13 +615,13 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
               <div className="bg-on-inverse/5 p-2.5 rounded-sm border border-on-inverse/10">
                 <span className="text-xs text-fg-subtle block">Tổng Giá Vốn (COGS)</span>
                 <span className="font-tech font-bold text-on-inverse">
-                  {money(totalBatchCost)} đ
+                  {money(totalBatchCost)}
                 </span>
               </div>
               <div className="bg-on-inverse/5 p-2.5 rounded-sm border border-on-inverse/10">
                 <span className="text-xs text-fg-subtle block">Lợi Nhuận Xưởng</span>
                 <span className="font-tech font-bold text-positive">
-                  {totalBatchProfit === null ? '—' : `+${money(totalBatchProfit)} đ`}
+                  {totalBatchProfit === null ? '—' : `+${money(totalBatchProfit)}`}
                 </span>
               </div>
               <div className="bg-on-inverse/5 p-2.5 rounded-sm border border-on-inverse/10">
@@ -668,9 +669,9 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="font-bold text-fg">1. Chi Phí Nhựa In ({selectedMaterial?.name || '—'})</span>
                 </div>
                 <div className="text-right font-tech">
-                  <span className="font-bold text-fg">{money(estimate?.materialCost)} đ</span>
+                  <span className="font-bold text-fg">{money(estimate?.materialCost)}</span>
                   <span className="text-xs text-fg-muted block">
-                    ({plainNumber(weightGrams)}g x {plainNumber(quantity)} cái = {money(estimate && quantityKnown ? estimate.materialCost * (quantity as number) : null)} đ)
+                    ({plainNumber(weightGrams)}g x {plainNumber(quantity)} cái = {money(estimate && quantityKnown ? estimate.materialCost * (quantity as number) : null)})
                   </span>
                 </div>
               </div>
@@ -682,8 +683,8 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="font-bold text-fg">2. Điện Năng Máy In ({selectedPrinter ? `${plainNumber(selectedPrinter.powerKW)} kW` : '—'})</span>
                 </div>
                 <div className="text-right font-tech">
-                  <span className="font-bold text-fg">{money(estimate?.electricityCost)} đ</span>
-                  <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? estimate.electricityCost * (quantity as number) : null)} đ/lô)</span>
+                  <span className="font-bold text-fg">{money(estimate?.electricityCost)}</span>
+                  <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? estimate.electricityCost * (quantity as number) : null)}/lô)</span>
                 </div>
               </div>
 
@@ -694,8 +695,8 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="font-bold text-fg">3. Khấu Hao Máy & Hao Mòn Nozzle</span>
                 </div>
                 <div className="text-right font-tech">
-                  <span className="font-bold text-fg">{money(estimate?.machineTotal)} đ</span>
-                  <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? estimate.machineTotal * (quantity as number) : null)} đ/lô)</span>
+                  <span className="font-bold text-fg">{money(estimate?.machineTotal)}</span>
+                  <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? estimate.machineTotal * (quantity as number) : null)}/lô)</span>
                 </div>
               </div>
 
@@ -706,8 +707,8 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="font-bold text-fg">4. Nhân Công Kỹ Thuật ({plainNumber(totalLaborMins)} phút)</span>
                 </div>
                 <div className="text-right font-tech">
-                  <span className="font-bold text-fg">{money(estimate?.laborCost)} đ</span>
-                  <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? estimate.laborCost * (quantity as number) : null)} đ/lô)</span>
+                  <span className="font-bold text-fg">{money(estimate?.laborCost)}</span>
+                  <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? estimate.laborCost * (quantity as number) : null)}/lô)</span>
                 </div>
               </div>
 
@@ -719,14 +720,14 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                     <span className="font-bold text-fg">5. Phụ Kiện & Đóng Gói Kèm Theo</span>
                     {detailedSelectedAccessories.map(a => (
                       <span key={a.accessory.id} className="block text-xs text-fg-muted">
-                        • {a.accessory.name} (x{a.quantityPerPart}): +{money(a.unitCost)} đ
+                        • {a.accessory.name} (x{a.quantityPerPart}): +{money(a.unitCost)}
                       </span>
                     ))}
                   </div>
                 </div>
                 <div className="text-right font-tech">
-                  <span className="font-bold text-fg">{money(estimate ? estimate.packaging + estimate.accessories : null)} đ</span>
-                  <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? (estimate.packaging + estimate.accessories) * (quantity as number) : null)} đ/lô)</span>
+                  <span className="font-bold text-fg">{money(estimate ? estimate.packaging + estimate.accessories : null)}</span>
+                  <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? (estimate.packaging + estimate.accessories) * (quantity as number) : null)}/lô)</span>
                 </div>
               </div>
 
@@ -737,7 +738,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="font-bold text-fg">6. Quản Lý Xưởng & Mặt Bằng</span>
                 </div>
                 <div className="text-right font-tech">
-                  <span className="font-bold text-fg">{money(estimate?.overhead)} đ</span>
+                  <span className="font-bold text-fg">{money(estimate?.overhead)}</span>
                 </div>
               </div>
 
@@ -748,7 +749,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="font-bold text-fg">7. Dự Phòng Rủi Ro Hỏng Mẫu ({plainNumber(pricingConfig.baseFailureReservePercent)}%)</span>
                 </div>
                 <div className="text-right font-tech text-danger font-bold">
-                  {estimate ? `+${money(estimate.failureCost)} đ` : '—'}
+                  {estimate ? `+${money(estimate.failureCost)}` : '—'}
                 </div>
               </div>
 
@@ -756,7 +757,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
               <div className="flex items-center justify-between pt-3 bg-canvas p-2 rounded-sm font-bold text-xs text-fg">
                 <span>TỔNG GIÁ THÀNH XUẤT XƯỞNG (COGS / Cái):</span>
                 <span className="font-tech text-sm text-primary">
-                  {money(estimate?.costPriceUnit)} đ
+                  {money(estimate?.costPriceUnit)}
                 </span>
               </div>
             </div>

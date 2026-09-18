@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from '@frontend/ui';
+import { formatCurrency, formatNumber } from '@frontend/lib/format';
 import {
   Printer,
   Sparkles,
@@ -936,7 +937,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   <div className="text-xs uppercase font-bold text-positive">Đơn giá / giờ</div>
                   <div className="text-sm font-extrabold text-positive">
                     {currentHourlyRate != null
-                      ? `${currentHourlyRate.toLocaleString('vi-VN')} đ/h`
+                      ? `${formatCurrency(currentHourlyRate)}/h`
                       : '— chưa khai'}
                   </div>
                 </div>
@@ -995,7 +996,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                           <div className="text-xs text-fg-subtle">Đơn giá giờ máy</div>
                           <div className="font-semibold text-fg tabular-nums">
                             {machine.hourlyRate != null
-                              ? `${machine.hourlyRate.toLocaleString('vi-VN')} đ/h`
+                              ? `${formatCurrency(machine.hourlyRate)}/h`
                               : 'Chưa khai'}
                           </div>
                         </div>
@@ -1216,7 +1217,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             <div className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between">
               <span>Danh mục phôi sẵn sàng ({materials.length} loại nhựa)</span>
               <span className="text-fg-subtle font-normal">
-                Tổng khối lượng: {materials.reduce((acc, m) => acc + m.currentStockGrams, 0).toLocaleString('vi-VN')} g
+                Tổng khối lượng: {formatNumber(materials.reduce((acc, m) => acc + m.currentStockGrams, 0))} g
               </span>
             </div>
 
@@ -1240,7 +1241,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     <div>
                       <h4 className="font-bold text-sm text-fg">{mat.materialName}</h4>
                       <div className="text-xs text-fg-subtle">
-                        {mat.colorName || 'Chuẩn'} • Giá nhập: {mat.pricePerKg.toLocaleString('vi-VN')} đ/kg
+                        {mat.colorName || 'Chuẩn'} • Giá nhập: {formatCurrency(mat.pricePerKg)}/kg
                       </div>
                     </div>
                   </div>
@@ -1251,7 +1252,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                         {(mat.currentStockGrams / 1000).toFixed(1)} kg
                       </div>
                       <div className="text-xs text-fg-subtle">
-                        {mat.currentStockGrams.toLocaleString('vi-VN')} g
+                        {formatNumber(mat.currentStockGrams)} g
                       </div>
                     </div>
 

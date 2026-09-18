@@ -1,7 +1,7 @@
 import React from 'react';
 import { ModelPart, SlicerPresetInfo, PlateInfo, MaterialProfile } from '../../types';
 import { EmptyState, Icon } from '@frontend/ui';
-import { EMPTY_VALUE, formatWeight } from '@frontend/lib/format';
+import { EMPTY_VALUE, formatNumber, formatWeight } from '@frontend/lib/format';
 
 /**
  * F7 — đổi số giây của slicer thành nhãn giờ/phút. Giá trị thiếu/0/âm/NaN ⇒ `—`
@@ -302,7 +302,7 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
               {/* Row 3: Part stats & color swatches */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line-subtle text-xs" onClick={(e) => e.stopPropagation()}>
                 <div className="font-tech text-fg-muted flex items-center gap-2">
-                  <span>{part.triangleCount.toLocaleString()} tam giác</span>
+                  <span>{formatNumber(part.triangleCount)} tam giác</span>
                   <span>•</span>
                   <span>{part.volumeCm3.toFixed(1)} cm³</span>
                 </div>

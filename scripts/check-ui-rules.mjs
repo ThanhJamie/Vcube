@@ -35,38 +35,13 @@ const SRC = join(ROOT, 'src');
 const AS_JSON = process.argv.includes('--json');
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '__snapshots__']);
 
-/** `budget` = trần số vi phạm được phép còn lại (nợ kỹ thuật). Vượt trần ⇒ FAIL. */
-const ALLOWLIST = [
-  { file: "src/frontend/components/CadQuickViewModal.tsx", rule: "focus-no-ring", budget: 1, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/components/ChatSupportModal.tsx", rule: "focus-no-ring", budget: 1, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/components/designer/DesignerModelsManagerTab.tsx", rule: "focus-no-ring", budget: 0, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/components/designer/DesignerRequestsTab.tsx", rule: "focus-no-ring", budget: 2, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/components/designer/DesignerUploadWizardTab.tsx", rule: "focus-no-ring", budget: 5, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/components/Header.tsx", rule: "focus-no-ring", budget: 2, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/components/tool3d/QuoteSummaryPanel.tsx", rule: "focus-no-ring", budget: 4, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/views/AssetLibraryView.tsx", rule: "focus-no-ring", budget: 1, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/views/ExploreView.tsx", rule: "focus-no-ring", budget: 2, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/views/HomeView.tsx", rule: "focus-no-ring", budget: 1, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/views/MyOrdersView.tsx", rule: "focus-no-ring", budget: 3, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/views/OrderTrackingView.tsx", rule: "focus-no-ring", budget: 4, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/views/PersonalizeView.tsx", rule: "focus-no-ring", budget: 3, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/views/ProductDetailView.tsx", rule: "focus-no-ring", budget: 2, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/views/Tool3DView.tsx", rule: "focus-no-ring", budget: 4, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/components/admin/PricingConfigPanel.tsx", rule: "unguarded-tolocale", budget: 0, why: "Đã dọn sạch — chuyển sang formatNumber (@frontend/lib/format)" },
-  { file: "src/frontend/components/admin/WorkshopEstimatorBOM.tsx", rule: "unguarded-tolocale", budget: 1, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/components/designer/DesignerModelsManagerTab.tsx", rule: "unguarded-tolocale", budget: 2, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/components/designer/DesignerOverviewTab.tsx", rule: "unguarded-tolocale", budget: 3, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/components/designer/DesignerPayoutsTab.tsx", rule: "unguarded-tolocale", budget: 2, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/components/designer/DesignerRequestsTab.tsx", rule: "unguarded-tolocale", budget: 2, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/components/onboarding/WorkshopOnboardingWizard.tsx", rule: "unguarded-tolocale", budget: 5, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/components/tool3d/ObjectTreePanel.tsx", rule: "unguarded-tolocale", budget: 1, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/components/tool3d/QuoteSummaryPanel.tsx", rule: "unguarded-tolocale", budget: 1, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/components/tool3d/ValidationReportPanel.tsx", rule: "unguarded-tolocale", budget: 1, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/views/ExploreView.tsx", rule: "unguarded-tolocale", budget: 4, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/views/PersonalizeView.tsx", rule: "unguarded-tolocale", budget: 2, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/frontend/views/Tool3DView.tsx", rule: "unguarded-tolocale", budget: 3, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-  { file: "src/utils/pricingEngine.ts", rule: "unguarded-tolocale", budget: 1, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
-];
+/**
+ * `budget` = trần số vi phạm được phép còn lại (nợ kỹ thuật). Vượt trần ⇒ FAIL.
+ * 2026-09-18: đã dọn sạch 63 điểm nợ (`focus-no-ring` 35 + `unguarded-tolocale` 28)
+ * nên allowlist rỗng — mọi vi phạm MỚI sẽ fail ngay. Nếu buộc phải tha nợ cũ, thêm entry
+ * kèm `budget` + `why`, và hạ lại về 0 khi dọn xong.
+ */
+const ALLOWLIST = [];
 
 const RULES = {
   'control-border-line': 'viền control dùng `border-line` (1.42:1) — đổi sang `border-line-control`',

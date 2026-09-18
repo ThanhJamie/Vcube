@@ -405,7 +405,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                   <select
                     value={warrantyModal.issueType}
                     onChange={(e) => setWarrantyModal(prev => ({ ...prev, issueType: e.target.value as any }))}
-                    className="w-full p-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary"
+                    className="w-full p-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="tolerance">Sai lệch kích thước so với bản vẽ (Tolerance Deviation)</option>
                     <option value="surface">Lỗi bề mặt, tách lớp (Delamination / Layer Separation)</option>
@@ -423,7 +423,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                     value={warrantyModal.measuredDeviation}
                     onChange={(e) => setWarrantyModal(prev => ({ ...prev, measuredDeviation: e.target.value }))}
                     placeholder="Ví dụ: Lỗ ren thiết kế Ø10.0mm nhưng in ra Ø9.75mm (-0.25mm)"
-                    className="w-full p-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary"
+                    className="w-full p-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                     required
                   />
                 </div>
@@ -437,7 +437,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                     value={warrantyModal.notes}
                     onChange={(e) => setWarrantyModal(prev => ({ ...prev, notes: e.target.value }))}
                     placeholder="Mô tả cụ thể vị trí sai lệch và đề xuất (In lại ngay / Hoàn tín dụng vào ví VCUBE)..."
-                    className="w-full p-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary"
+                    className="w-full p-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
 

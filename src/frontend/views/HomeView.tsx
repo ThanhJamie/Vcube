@@ -662,7 +662,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   placeholder={isVi ? 'Tìm linh kiện CAD (vd: Bánh răng, ESP32, Drone, NEMA)...' : 'Search CAD parts (e.g. Gear, ESP32, Drone, NEMA)...'}
                   value={cadSearch}
                   onChange={(e) => setCadSearch(e.target.value)}
-                  className="w-full pl-9 pr-9 h-10 bg-canvas border border-line-control text-sm text-fg placeholder-fg-subtle focus:outline-none focus:border-primary rounded-md font-sans"
+                  className="w-full pl-9 pr-9 h-10 bg-canvas border border-line-control text-sm text-fg placeholder-fg-subtle focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring rounded-md font-sans"
                 />
                 {cadSearch && (
                   <Button iconOnly variant="ghost" size="sm" aria-label={isVi ? 'Xóa tìm kiếm' : 'Clear search'}

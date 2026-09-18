@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CustomDesignRequest, CustomDesignMessage } from '../../../types';
 import { customDesignService } from '../../../backend/services/customDesignService';
 import { Icon } from '@frontend/ui';
+import { formatCurrency } from '@frontend/lib/format';
 
 export interface DesignerRequestsTabProps {
   currentDesignerName: string;
@@ -149,7 +150,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
 
     try {
       await customDesignService.sendQuote(currentRequest.id, quoteMsg);
-      onShowToast(`Đã gửi báo giá ${quoteAmount.toLocaleString('vi-VN')} đ tới khách hàng ${currentRequest.clientName}!`);
+      onShowToast(`Đã gửi báo giá ${formatCurrency(quoteAmount)} tới khách hàng ${currentRequest.clientName}!`);
     } catch (err: any) {
       console.error('Lỗi khi gửi báo giá:', err);
       onShowToast(`Lỗi khi phát hành báo giá: ${err.message || 'Không xác định'}`);
@@ -243,7 +244,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
                 onChange={(e) => setQuoteAmountInput(e.target.value)}
                 placeholder="Số tiền (VND)"
                 aria-label="Số tiền báo giá (VND)"
-                className="hidden sm:block w-32 bg-surface border border-line-control px-2.5 py-1.5 text-xs font-tech rounded-sm focus:outline-none focus:border-primary text-fg"
+                className="hidden sm:block w-32 bg-surface border border-line-control px-2.5 py-1.5 text-xs font-tech rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring text-fg"
               />
               <button
                 onClick={handleSendQuoteInChat}
@@ -292,7 +293,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
                       <div className="flex items-center justify-between font-bold text-xs text-primary mb-1">
                         <span>BÁO GIÁ KỸ THUẬT CAD</span>
                         <span className="font-tech text-sm">
-                          {msg.quote.amount.toLocaleString('vi-VN')} đ
+                          {formatCurrency(msg.quote.amount)}
                         </span>
                       </div>
                       <p className="text-xs text-fg-muted">{msg.quote.description}</p>
@@ -317,7 +318,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
               placeholder="Trao đổi kỹ thuật, dung sai, vật liệu..."
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              className="flex-1 bg-canvas border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary"
+              className="flex-1 bg-canvas border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
             />
             <button
               type="submit"

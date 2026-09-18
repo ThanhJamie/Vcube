@@ -179,7 +179,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   value={lookupCode}
                   onChange={(e) => setLookupCode(e.target.value)}
                   placeholder="Ví dụ: #VCUBE-8924"
-                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   required
                 />
               </div>
@@ -194,7 +194,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   value={lookupAuth}
                   onChange={(e) => setLookupAuth(e.target.value)}
                   placeholder="Token trong màn hình xác nhận đơn"
-                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   required
                   aria-describedby="lookup-token-hint"
                 />
@@ -337,7 +337,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   value={lookupCode}
                   onChange={(e) => setLookupCode(e.target.value)}
                   placeholder="Ví dụ: #VCUBE-8924"
-                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   required
                 />
               </div>
@@ -351,7 +351,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   value={lookupAuth}
                   onChange={(e) => setLookupAuth(e.target.value)}
                   placeholder="Token trong màn hình xác nhận đơn"
-                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   required
                 />
               </div>

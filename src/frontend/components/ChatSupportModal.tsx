@@ -110,7 +110,7 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
             placeholder="Nhập câu hỏi kỹ thuật..."
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            className="flex-1 bg-surface-muted border border-line-control px-3 py-2.5 text-xs text-fg focus:outline-none focus:border-primary font-sans"
+            className="flex-1 bg-surface-muted border border-line-control px-3 py-2.5 text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring font-sans"
           />
           <button
             type="submit"
