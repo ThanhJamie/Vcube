@@ -15,6 +15,7 @@ import {
 } from '../../../backend/services/settingsService';
 import { computeElectricityCostVnd, computeLaborCostVnd } from '../../../utils/pricingEngine';
 import { computeVat, vatRateFromPercent } from '../../lib/vat';
+import { formatNumber } from '../../lib/format';
 import { INKIRI_REFERENCE_VALUES } from '../../../data/mockData';
 import { AccessoriesManager } from './AccessoriesManager';
 import { WarehouseInventoryPanel } from './WarehouseInventoryPanel';
@@ -87,14 +88,14 @@ const referenceGlobalForm = (): {
 });
 
 const formatPreviewVnd = (v: number | null): string =>
-  v === null ? PREVIEW_NOT_CONFIGURED : `${v.toLocaleString('vi-VN')} đ`;
+  v === null ? PREVIEW_NOT_CONFIGURED : `${formatNumber(v)} đ`;
 
 /** Chênh lệch giữa giá trị ĐANG GÕ và giá trị ĐANG LƯU; thiếu một bên ⇒ nói rõ chưa đủ dữ liệu. */
 const formatPreviewDelta = (saved: number | null, typed: number | null): string => {
   if (saved === null || typed === null) return 'Chưa đủ dữ liệu';
   const delta = typed - saved;
   if (delta === 0) return 'Không đổi';
-  return `${delta > 0 ? '+' : '−'}${Math.abs(delta).toLocaleString('vi-VN')} đ`;
+  return `${delta > 0 ? '+' : '−'}${formatNumber(Math.abs(delta))} đ`;
 };
 
 /**
@@ -571,13 +572,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
   const previewRows: { key: string; label: string; saved: number | null; typed: number | null }[] = [
     {
       key: 'vat',
-      label: `VAT của tiền hàng mẫu ${PREVIEW_EXAMPLE.goodsVnd.toLocaleString('vi-VN')} đ`,
+      label: `VAT của tiền hàng mẫu ${formatNumber(PREVIEW_EXAMPLE.goodsVnd)} đ`,
       saved: previewVatAmount(savedVatPercent),
       typed: previewVatAmount(typedVatPercent),
     },
     {
       key: 'electricity',
-      label: `Tiền điện ${PREVIEW_KWH.toLocaleString('vi-VN')} kWh`,
+      label: `Tiền điện ${formatNumber(PREVIEW_KWH)} kWh`,
       saved: previewElectricityAmount(savedElectricityRate),
       typed: previewElectricityAmount(typedElectricityRate),
     },
@@ -1275,8 +1276,8 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
               </div>
               <p className="text-xs text-fg-muted leading-relaxed">
                 Ví dụ minh hoạ, tham số CỐ ĐỊNH: máy in {PREVIEW_EXAMPLE.powerKW} kW chạy {PREVIEW_EXAMPLE.printHours} giờ
-                ({PREVIEW_KWH.toLocaleString('vi-VN')} kWh) · {PREVIEW_EXAMPLE.laborMinutes} phút nhân công ·
-                tiền hàng mẫu {PREVIEW_EXAMPLE.goodsVnd.toLocaleString('vi-VN')} đ. Đây KHÔNG phải số liệu của một đơn hàng thật.
+                ({formatNumber(PREVIEW_KWH)} kWh) · {PREVIEW_EXAMPLE.laborMinutes} phút nhân công ·
+                tiền hàng mẫu {formatNumber(PREVIEW_EXAMPLE.goodsVnd)} đ. Đây KHÔNG phải số liệu của một đơn hàng thật.
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
@@ -2306,16 +2307,16 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     <span className="text-xs text-fg-muted block uppercase">Giá Nhập / Kg</span>
                     <span className="font-bold text-sm text-fg font-tech">
                       {isConfiguredNumber(mat.costPerKg)
-                        ? `${mat.costPerKg.toLocaleString()} đ`
+                        ? `${formatNumber(mat.costPerKg)} đ`
                         : isConfiguredNumber(mat.pricePerGram)
-                          ? `${(mat.pricePerGram * 1000).toLocaleString()} đ (quy đổi từ đơn giá/g)`
+                          ? `${formatNumber(mat.pricePerGram * 1000)} đ (quy đổi từ đơn giá/g)`
                           : '—'}
                     </span>
                   </div>
                   <div className="bg-primary/10 p-2.5 rounded-sm border border-primary/20">
                     <span className="text-xs text-primary block uppercase font-bold">Giá Tính Khách / g</span>
                     <span className="font-bold text-sm text-primary font-tech">
-                      {isConfiguredNumber(mat.pricePerGram) ? `${mat.pricePerGram.toLocaleString()} đ/g` : '—'}
+                      {isConfiguredNumber(mat.pricePerGram) ? `${formatNumber(mat.pricePerGram)} đ/g` : '—'}
                     </span>
                   </div>
                 </div>
@@ -2426,7 +2427,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     </span>
                     <span className="text-xs text-warning font-tech block">
                       {isConfiguredNumber(prn.powerKW) && isConfiguredNumber(formulaForm.electricityRatePerKWh)
-                        ? `~${Math.round(prn.powerKW * formulaForm.electricityRatePerKWh).toLocaleString()} đ/h`
+                        ? `~${formatNumber(Math.round(prn.powerKW * formulaForm.electricityRatePerKWh))} đ/h`
                         : '—'}
                     </span>
                   </div>
@@ -2435,15 +2436,15 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 <div className="space-y-1.5 text-xs text-fg-muted">
                   <div className="flex justify-between">
                     <span>Giá trị đầu tư:</span>
-                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.acquisitionCost) ? `${prn.acquisitionCost.toLocaleString()} đ` : '—'}</strong>
+                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.acquisitionCost) ? `${formatNumber(prn.acquisitionCost)} đ` : '—'}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Tuổi thọ khấu hao:</span>
-                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.expectedLifetimeHours) ? `${prn.expectedLifetimeHours.toLocaleString()} giờ` : '—'}</strong>
+                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.expectedLifetimeHours) ? `${formatNumber(prn.expectedLifetimeHours)} giờ` : '—'}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Hao mòn linh kiện / giờ:</span>
-                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.consumablesHourlyRate) ? `${prn.consumablesHourlyRate.toLocaleString()} đ/h` : '—'}</strong>
+                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.consumablesHourlyRate) ? `${formatNumber(prn.consumablesHourlyRate)} đ/h` : '—'}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Tốc độ in tối đa:</span>

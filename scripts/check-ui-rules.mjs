@@ -52,7 +52,7 @@ const ALLOWLIST = [
   { file: "src/frontend/views/PersonalizeView.tsx", rule: "focus-no-ring", budget: 3, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
   { file: "src/frontend/views/ProductDetailView.tsx", rule: "focus-no-ring", budget: 2, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
   { file: "src/frontend/views/Tool3DView.tsx", rule: "focus-no-ring", budget: 4, why: "Nợ cũ (P2) — focus ring do SA-A11Y Phase C/D xử lý" },
-  { file: "src/frontend/components/admin/PricingConfigPanel.tsx", rule: "unguarded-tolocale", budget: 13, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
+  { file: "src/frontend/components/admin/PricingConfigPanel.tsx", rule: "unguarded-tolocale", budget: 0, why: "Đã dọn sạch — chuyển sang formatNumber (@frontend/lib/format)" },
   { file: "src/frontend/components/admin/WorkshopEstimatorBOM.tsx", rule: "unguarded-tolocale", budget: 1, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
   { file: "src/frontend/components/designer/DesignerModelsManagerTab.tsx", rule: "unguarded-tolocale", budget: 2, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
   { file: "src/frontend/components/designer/DesignerOverviewTab.tsx", rule: "unguarded-tolocale", budget: 3, why: "Nợ cũ ngoài 4 call site B2 — chuyển dần sang Money/formatNumber" },
