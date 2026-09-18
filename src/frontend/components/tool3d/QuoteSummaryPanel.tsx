@@ -13,7 +13,7 @@ import { InternalCostBreakdownModal } from './InternalCostBreakdownModal';
 import { MachineComparisonModal } from './MachineComparisonModal';
 import { EmptyState, Icon, InfoTip } from '@frontend/ui';
 import { useAuth } from '../../context/AuthContext';
-import { EMPTY_VALUE } from '../../lib/format';
+import { EMPTY_VALUE, formatNumber, formatWeight } from '../../lib/format';
 
 /**
  * Q (#2): `materials.price_per_gram` nay là **nullable thật** (mappers không còn điền 850).
@@ -25,6 +25,10 @@ const perGramText = (v: number | null | undefined): string =>
 
 /** Số hữu hạn hay không — NULL/NaN ⇒ KHÔNG có giá trị (không đoán hộ). */
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** Ảnh trong suốt 1×1 — ô trống trung tính cho tệp tự tải chưa có thumbnail thật. */
+const TRANSPARENT_THUMBNAIL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /**
  * Tiền VND của báo giá: thiếu giá trị ⇒ `—`, KHÔNG `NaN đ` và KHÔNG ném.
@@ -39,6 +43,55 @@ const vnd = (v: unknown): string =>
  */
 const vndAllowZero = (v: unknown): string =>
   isNum(v) ? `${v.toLocaleString('vi-VN')} đ` : EMPTY_VALUE;
+
+type ProvenanceSource = 'slicer' | 'throughput' | 'volume_estimate';
+
+/**
+ * F7 — nhãn NGUỒN số gram/giờ in (data-honesty PC-05/MP-13). Số đo từ file slicer
+ * KHÁC HẲN số ước tính; khách phải thấy rõ nguồn ngay cạnh con số.
+ */
+const SOURCE_STYLE: Record<ProvenanceSource | 'unknown', { icon: string; classes: string }> = {
+  slicer: { icon: 'verified', classes: 'bg-positive-tint text-positive border-positive/40' },
+  throughput: { icon: 'speed', classes: 'bg-primary-tint text-primary border-primary/30' },
+  volume_estimate: { icon: 'calculate', classes: 'bg-warning-tint text-warning border-warning/40' },
+  unknown: { icon: 'help', classes: 'bg-surface-muted text-fg-muted border-line' }
+};
+
+const SOURCE_TEXT: Record<'grams' | 'time', Record<ProvenanceSource | 'unknown', string>> = {
+  grams: {
+    slicer: 'từ file',
+    throughput: '—',
+    volume_estimate: 'ước tính theo thể tích',
+    unknown: 'chưa xác định nguồn'
+  },
+  time: {
+    slicer: 'từ file',
+    throughput: 'ước tính theo năng suất máy',
+    volume_estimate: 'ước tính theo thể tích',
+    unknown: 'chưa xác định nguồn'
+  }
+};
+
+/** Chip nguồn dữ liệu — `unknown` khi bản ghi cũ chưa có provenance (nói thẳng, không đoán). */
+const SourceChip: React.FC<{
+  kind: 'grams' | 'time';
+  source?: ProvenanceSource;
+  throughputGramsPerHour?: number | null;
+}> = ({ kind, source, throughputGramsPerHour }) => {
+  const key: ProvenanceSource | 'unknown' = source ?? 'unknown';
+  const style = SOURCE_STYLE[key];
+  const throughput =
+    kind === 'time' && source === 'throughput' && isNum(throughputGramsPerHour) && throughputGramsPerHour > 0
+      ? ` (${formatNumber(throughputGramsPerHour, { maximumFractionDigits: 1 })} g/h)`
+      : '';
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-medium ${style.classes}`}>
+      <Icon name={style.icon} size={14} />
+      {kind === 'grams' ? 'Khối lượng' : 'Thời gian'}: {SOURCE_TEXT[kind][key]}
+      {throughput}
+    </span>
+  );
+};
 
 interface QuoteSummaryPanelProps {
   file: AnalysisFile;
@@ -93,8 +146,9 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   const [isInternalModalOpen, setIsInternalModalOpen] = useState(false);
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
   const [customOverriddenPrice, setCustomOverriddenPrice] = useState<number | null>(null);
-  const [isRequestingManualReview, setIsRequestingManualReview] = useState(false);
-  const [manualReviewSent, setManualReviewSent] = useState(false);
+  // A4 (data-honesty): KHÔNG mô phỏng gửi thẩm định rồi báo "đã gửi". Nút chỉ mở ghi chú
+  // trung thực rằng hệ thống chưa có kênh gửi hồ sơ tự động (cùng pattern `Tool3DView.tsx`).
+  const [manualReviewNoteShown, setManualReviewNoteShown] = useState(false);
 
   // N3b/PC-01: "Giá Vốn Xưởng" là báo cáo NỘI BỘ (giá vốn, biên lợi nhuận, ghi đè giá) —
   // chỉ render cho vai trò quản trị, không lộ cho khách. Hook đứng trước mọi `return` dưới.
@@ -236,11 +290,6 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       err instanceof Error ? err.message : 'Không so sánh được các máy in từ dữ liệu hiện có.';
   }
 
-  // Expiration Date (7 days from now)
-  const expirationDate = new Date();
-  expirationDate.setDate(expirationDate.getDate() + 7);
-  const expirationFormatted = expirationDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
   // Handle building cart item — nhận ĐÚNG gói đã chọn (không đọc biến có thể `null`).
   const handleBuildCartItem = (pkg: DeliveryPackageOption): CartItem => {
     return {
@@ -249,7 +298,9 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       type: 'physical',
       name: `Gia công 3D [${pkg.name}]: ${file.fileName}`,
       designer: 'VCUBE Engineering Studio',
-      image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+      // Không có ảnh thumbnail thật cho tệp khách tự tải lên ⇒ dùng ảnh trong suốt 1×1
+      // (ô trống trung tính), KHÔNG mượn ảnh stock (data-honesty).
+      image: TRANSPARENT_THUMBNAIL,
       price: pkg.pricePerUnit,
       quantity: quantity,
       material: `${currentMaterial.name} (${currentPrinter.name})`,
@@ -258,15 +309,6 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       dimensions: `${file.dimensions.x.toFixed(1)} x ${file.dimensions.y.toFixed(1)} x ${file.dimensions.z.toFixed(1)} mm`,
       resolution: `${layerHeight}mm Layer • Infill ${infillDensity}% ${infillPattern} • Giao: ${pkg.completionDate}`
     };
-  };
-
-  const handleSendManualReview = () => {
-    setIsRequestingManualReview(true);
-    setTimeout(() => {
-      setIsRequestingManualReview(false);
-      setManualReviewSent(true);
-      onShowToast('Đã gửi yêu cầu thẩm định phôi in đến đội ngũ Kỹ sư xưởng.');
-    }, 1000);
   };
 
   return (
@@ -316,6 +358,35 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               Giá Vốn Xưởng
             </button>
           )}
+        </div>
+      </div>
+
+      {/* F7 — khối lượng nhựa & thời gian in kèm NGUỒN (data-honesty PC-05/MP-13).
+          Số nào đọc từ file slicer thì ghi "từ file"; số ước tính ghi rõ cách ước. */}
+      <div className="rounded-lg border border-line bg-canvas p-3.5 space-y-2">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-xs">
+          <span className="flex items-center gap-1.5">
+            <Icon name="inventory_2" size={16} className="text-primary" />
+            <span className="font-sans text-fg-muted">Khối lượng nhựa/1 cái:</span>
+            <strong className="tabular-nums text-fg">{formatWeight(breakdown.totalFilamentGrams)}</strong>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Icon name="schedule" size={16} className="text-primary" />
+            <span className="font-sans text-fg-muted">Thời gian in/1 cái:</span>
+            <strong className="tabular-nums text-fg">
+              {isNum(breakdown.printHours)
+                ? `${formatNumber(breakdown.printHours, { maximumFractionDigits: 1 })} giờ`
+                : EMPTY_VALUE}
+            </strong>
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <SourceChip kind="grams" source={breakdown.gramsSource} />
+          <SourceChip
+            kind="time"
+            source={breakdown.printHoursSource}
+            throughputGramsPerHour={breakdown.throughputGramsPerHourUsed}
+          />
         </div>
       </div>
 
@@ -371,7 +442,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-printer"
               value={selectedPrinterId}
               onChange={(e) => onPrinterChange(e.target.value)}
-              className="w-full bg-canvas border border-line p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary"
+              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary"
             >
               {printers.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -389,7 +460,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-material"
               value={selectedMaterialId}
               onChange={(e) => onMaterialChange(e.target.value)}
-              className="w-full bg-canvas border border-line p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary"
+              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary"
             >
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -445,7 +516,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-layer-height"
               value={layerHeight}
               onChange={(e) => onLayerHeightChange(e.target.value)}
-              className="w-full bg-canvas border border-line p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary"
+              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary"
             >
               <option value="0.08">0.08 mm (Ultra Fine)</option>
               <option value="0.12">0.12 mm (Fine Detail)</option>
@@ -462,7 +533,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-supports-mode"
               value={supportsMode}
               onChange={(e) => onSupportsModeChange(e.target.value as any)}
-              className="w-full bg-canvas border border-line p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary"
+              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary"
             >
               <option value="tree">Tree Support (Dễ bóc)</option>
               <option value="auto">Auto Grid Standard</option>
@@ -502,7 +573,6 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
             <Icon name="local_shipping" size={18} className="text-primary" />
             2. Báo Giá Chính Xác Theo Tiến Độ Giao Hàng
           </label>
-          <span className="text-xs text-fg-subtle font-mono">Hiệu lực: {expirationFormatted}</span>
         </div>
 
         {selectedPackage === null ? (
@@ -600,20 +670,20 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
             ))}
           </ul>
 
-          {manualReviewSent ? (
-            <div className="text-xs text-positive font-bold bg-positive-tint p-2 rounded-sm flex items-center gap-1.5">
-              <Icon name="check_circle" size={18} />
-              Đã gửi yêu cầu thẩm định! Kỹ sư xưởng sẽ phản hồi trong 30 phút.
-            </div>
+          {manualReviewNoteShown ? (
+            <p className="text-xs text-warning border-t border-warning/30 pt-3 leading-relaxed">
+              Hệ thống chưa có kênh gửi hồ sơ thẩm định tự động, nên KHÔNG có yêu cầu nào được gửi
+              đi và cũng không có thông báo "đã gửi". Vui lòng liên hệ xưởng qua kênh hỗ trợ chính
+              thức để chuyển hồ sơ thẩm định cho tệp này.
+            </p>
           ) : (
             <button
               type="button"
-              disabled={isRequestingManualReview}
-              onClick={handleSendManualReview}
+              onClick={() => setManualReviewNoteShown(true)}
               className="w-full py-2 bg-warning hover:opacity-90 text-primary-fg text-xs font-sans uppercase tracking-wider font-bold rounded-sm transition-colors flex items-center justify-center gap-1.5"
             >
               <Icon name="send" size={18} />
-              {isRequestingManualReview ? 'Đang Gửi Yêu Cầu...' : 'Gửi Yêu Cầu Thẩm Định Kỹ Thuật'}
+              Gửi Yêu Cầu Thẩm Định Kỹ Thuật
             </button>
           )}
         </div>

@@ -161,7 +161,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded-sm border-line text-primary focus:ring-primary cursor-pointer"
+                  className="w-4 h-4 rounded-sm border-line-control text-primary focus:ring-primary cursor-pointer"
                 />
                 <span className="text-xs text-fg-muted font-medium">
                   {isVi ? 'Ghi nhớ đăng nhập trên thiết bị này' : 'Remember me on this device'}
@@ -177,7 +177,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
             >
               {isLoading ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-primary-fg/30 border-t-primary-fg rounded-full animate-spin"></span>
+                  <span className="w-4 h-4 border-2 border-primary-fg/30 border-t-primary-fg rounded-full animate-spin motion-reduce:animate-none"></span>
                   <span>{isVi ? 'Đang xác thực...' : 'Authenticating...'}</span>
                 </>
               ) : (

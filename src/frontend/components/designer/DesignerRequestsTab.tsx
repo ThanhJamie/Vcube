@@ -149,7 +149,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
 
     try {
       await customDesignService.sendQuote(currentRequest.id, quoteMsg);
-      onShowToast(`Đã gửi báo giá 650.000 đ tới khách hàng ${currentRequest.clientName}!`);
+      onShowToast(`Đã gửi báo giá ${quoteAmount.toLocaleString('vi-VN')} đ tới khách hàng ${currentRequest.clientName}!`);
     } catch (err: any) {
       console.error('Lỗi khi gửi báo giá:', err);
       onShowToast(`Lỗi khi phát hành báo giá: ${err.message || 'Không xác định'}`);
@@ -162,7 +162,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
   if (isLoading) {
     return (
       <div className="bg-surface border border-line rounded-sm p-12 text-center shadow-e1">
-        <Icon name="hourglass_empty" size={36} className="mx-auto text-primary animate-spin mb-3" />
+        <Icon name="hourglass_empty" size={36} className="mx-auto text-primary animate-spin motion-reduce:animate-none mb-3" />
         <p className="text-xs text-fg-muted font-tech">Đang kết nối cơ sở dữ liệu yêu cầu CAD...</p>
       </div>
     );

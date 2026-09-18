@@ -65,9 +65,6 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line-subtle pb-3">
         <div>
-          <span className="font-sans text-xs uppercase tracking-widest text-fg-muted font-bold block">
-            Kiểm Tra Tính Toàn Vẹn & Khả Năng In // Mesh QA & Auto-Fix
-          </span>
           <h3 className="font-bold text-sm sm:text-base text-fg flex items-center gap-2 mt-0.5">
             <Icon name="fact_check" size={18} className="text-primary" />
             Báo Cáo Kiểm Định Hình Học & Sửa Lỗi
@@ -75,9 +72,17 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-sm border border-line-subtle text-xs">
+        <div
+          role="tablist"
+          aria-label="Cấp độ kiểm định"
+          className="flex items-center gap-1 bg-surface-muted p-1 rounded-sm border border-line-subtle text-xs"
+        >
           <button
             type="button"
+            role="tab"
+            id="validation-tab-level3"
+            aria-selected={activeTab === 'level3'}
+            aria-controls="validation-panel-level3"
             onClick={() => setActiveTab('level3')}
             className={`px-2.5 py-1 rounded-sm font-bold transition-colors ${
               activeTab === 'level3' ? 'bg-primary text-primary-fg shadow-e1' : 'text-fg-muted hover:text-fg'
@@ -87,6 +92,10 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
           </button>
           <button
             type="button"
+            role="tab"
+            id="validation-tab-level2"
+            aria-selected={activeTab === 'level2'}
+            aria-controls="validation-panel-level2"
             onClick={() => setActiveTab('level2')}
             className={`px-2.5 py-1 rounded-sm font-bold transition-colors ${
               activeTab === 'level2' ? 'bg-primary text-primary-fg shadow-e1' : 'text-fg-muted hover:text-fg'
@@ -96,6 +105,10 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
           </button>
           <button
             type="button"
+            role="tab"
+            id="validation-tab-level1"
+            aria-selected={activeTab === 'level1'}
+            aria-controls="validation-panel-level1"
             onClick={() => setActiveTab('level1')}
             className={`px-2.5 py-1 rounded-sm font-bold transition-colors ${
               activeTab === 'level1' ? 'bg-primary text-primary-fg shadow-e1' : 'text-fg-muted hover:text-fg'
@@ -113,10 +126,10 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
             type="button"
             onClick={handleFixClick}
             disabled={isFixing}
-            className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-sans font-bold uppercase tracking-wider rounded-sm transition-all flex items-center gap-1.5 shadow-e1 disabled:opacity-50"
+            className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-sans font-bold uppercase tracking-wider rounded-sm transition-colors flex items-center gap-1.5 shadow-e1 disabled:opacity-50"
           >
             {isFixing ? (
-              <span className="w-3.5 h-3.5 border-2 border-primary-fg border-t-transparent animate-spin rounded-full inline-block"></span>
+              <span className="w-3.5 h-3.5 border-2 border-primary-fg border-t-transparent animate-spin motion-reduce:animate-none rounded-full inline-block"></span>
             ) : (
               <Icon name="build" size={18} />
             )}
@@ -176,7 +189,7 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
 
       {/* Level 3: Printability Risk Score */}
       {activeTab === 'level3' && (
-        <div className="space-y-4">
+        <div role="tabpanel" id="validation-panel-level3" aria-labelledby="validation-tab-level3" className="space-y-4">
           <div className="flex items-center justify-between p-4 bg-surface-muted rounded-sm">
             <div>
               <div className="text-xs uppercase tracking-widest text-fg-muted font-bold">
@@ -226,9 +239,9 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
           {/* Issues List */}
           <div className="space-y-2">
             <div className="text-xs font-semibold text-fg">Danh sách phân tích chi tiết:</div>
-            {printability.issues.map((issue, idx) => (
+            {printability.issues.map((issue) => (
               <div
-                key={idx}
+                key={`${issue.code}-${issue.message}`}
                 className={`p-3 rounded-sm border text-xs flex items-start gap-2.5 ${
                   issue.severity === 'high'
                     ? 'bg-danger-tint/70 border-danger/30 text-danger'
@@ -262,7 +275,7 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
 
       {/* Level 2: Geometry Analysis */}
       {activeTab === 'level2' && (
-        <div className="space-y-4">
+        <div role="tabpanel" id="validation-panel-level2" aria-labelledby="validation-tab-level2" className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-sans">
             <div className="bg-surface-muted p-3.5 rounded-sm">
               <span className="text-xs uppercase tracking-widest text-fg-muted block">Độ Kín Nước</span>
@@ -333,7 +346,7 @@ export const ValidationReportPanel: React.FC<ValidationReportPanelProps> = ({
 
       {/* Level 1: File Metadata QA */}
       {activeTab === 'level1' && (
-        <div className="space-y-3 text-xs font-sans">
+        <div role="tabpanel" id="validation-panel-level1" aria-labelledby="validation-tab-level1" className="space-y-3 text-xs font-sans">
           <div className="p-3.5 bg-surface-muted rounded-sm space-y-2">
             <div className="flex justify-between">
               <span className="text-fg-muted">Tên tập tin:</span>

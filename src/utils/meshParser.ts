@@ -638,7 +638,8 @@ async function extract3MFMetadata(
   let estimatedPrintTimeSeconds: number | undefined = undefined;
   let totalFilamentGrams = 0;
   let totalFilamentMeters = 0;
-  let activePlateIndex = 1;
+  // F2 (P6): chỉ nhận index bàn in THẬT từ tệp; tệp không khai ⇒ `undefined` (KHÔNG mặc định 1).
+  let activePlateIndex: number | undefined = undefined;
 
   // 1. Check Metadata from .model XML
   for (const doc of xmlDocs) {
@@ -763,12 +764,13 @@ async function extract3MFMetadata(
           });
         });
 
-        const p1 = plateNodes[0];
-        const predSec = parseInt(p1.getAttribute('prediction') || '0', 10);
-        if (predSec > 0) {
-          estimatedPrintTimeSeconds = predSec;
-          const hrs = Math.floor(predSec / 3600);
-          const mins = Math.floor((predSec % 3600) / 60);
+        // F2 (P1): tổng thời gian in = TỔNG dự phóng của MỌI bàn, không chỉ bàn đầu.
+        // Không bàn nào khai ⇒ giữ `undefined` (KHÔNG bịa '45m').
+        const totalPredSec = plates.reduce((sum, p) => sum + (p.predictionSeconds || 0), 0);
+        if (totalPredSec > 0) {
+          estimatedPrintTimeSeconds = totalPredSec;
+          const hrs = Math.floor(totalPredSec / 3600);
+          const mins = Math.floor((totalPredSec % 3600) / 60);
           estimatedPrintTimeFormatted = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
         }
       }
@@ -797,6 +799,9 @@ async function extract3MFMetadata(
         };
 
         if (json.printer_model) printerModel = json.printer_model;
+        // F2 (P6): bàn in đang chọn — chỉ khi tệp THẬT SỰ khai (`curr_plate_index`).
+        const currPlate = num(json.curr_plate_index ?? json.curr_plate);
+        if (currPlate !== undefined && currPlate > 0) activePlateIndex = currPlate;
         // R2 (MP-13): chỉ nhận giá trị CÓ trong tệp; thiếu ⇒ giữ `undefined` (0.20 / 15% / gyroid / 2 / 200
         // trước đây là hằng số của bộ đọc, không phải của tệp).
         nozzleDiameter = num(json.nozzle_diameter) ?? nozzleDiameter;
@@ -858,6 +863,83 @@ async function extract3MFMetadata(
   };
 }
 
+interface ThreeMFBuildMaps {
+  /** objectId → danh sách bàn in (1-indexed) theo THỨ TỰ khai trong `model_settings.config`. */
+  objectPlate: Map<string, number[]>;
+  /** objectId → số đầu đùn (1..4) — chỉ khi tệp khai báo. */
+  objectExtruder: Map<string, number>;
+}
+
+/**
+ * F2 (P2/P3): đọc `Metadata/model_settings.config` để lấy bản đồ THẬT
+ * object → bàn in và object → đầu đùn (Bambu Studio / OrcaSlicer ghi ở đây).
+ *
+ * Không tìm thấy file, hoặc mục không khai ⇒ map RỖNG. Bộ đọc khi đó để
+ * `plateIndex`/`extruderIndex` là `undefined` chứ KHÔNG suy đoán (không vòng tròn
+ * `((i-1)%4)+1`, không gán tất cả vào bàn 1).
+ */
+async function extract3MFBuildMaps(zip: JSZip): Promise<ThreeMFBuildMaps> {
+  const objectPlate = new Map<string, number[]>();
+  const objectExtruder = new Map<string, number>();
+
+  const settingsFile =
+    zip.file('Metadata/model_settings.config') || zip.file(/model_settings\.config$/i)[0];
+  if (!settingsFile) return { objectPlate, objectExtruder };
+
+  try {
+    const text = await settingsFile.async('text');
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    if (findFirstByLocalName(doc, 'parsererror')) return { objectPlate, objectExtruder };
+
+    // Bàn in: <plate><metadata key="plater_id" value="1"/> ... <model_instance>
+    //            <metadata key="object_id" value="2"/> ... </model_instance></plate>
+    getElementsByLocalName(doc, 'plate').forEach((plateEl, idx) => {
+      const plateMeta = new Map<string, string>();
+      getDirectChildrenByLocalName(plateEl, 'metadata').forEach((m) => {
+        const key = (m.getAttribute('key') || '').toLowerCase();
+        if (key) plateMeta.set(key, m.getAttribute('value') || '');
+      });
+      const plateIdRaw = plateMeta.get('plater_id') ?? plateMeta.get('plate_id') ?? plateMeta.get('id');
+      const plateIdParsed = parseInt(plateIdRaw || '', 10);
+      const plateIndex = Number.isFinite(plateIdParsed) && plateIdParsed > 0 ? plateIdParsed : idx + 1;
+
+      getElementsByLocalName(plateEl, 'model_instance').forEach((instanceEl) => {
+        getDirectChildrenByLocalName(instanceEl, 'metadata').forEach((m) => {
+          const key = (m.getAttribute('key') || '').toLowerCase();
+          if (key !== 'object_id') return;
+          const objectId = m.getAttribute('value') || '';
+          if (objectId) {
+            // Cùng object có thể nằm trên NHIỀU bàn: giữ danh sách theo thứ tự khai trong tệp
+            // thay vì ghi đè (bản đồ 1-1 cũ làm object nhảy về bàn cuối).
+            const list = objectPlate.get(objectId);
+            if (list) list.push(plateIndex);
+            else objectPlate.set(objectId, [plateIndex]);
+          }
+        });
+      });
+    });
+
+    // Đầu đùn: <object id="2"><metadata key="extruder" value="1"/> ... </object>
+    getElementsByLocalName(doc, 'object').forEach((objectEl) => {
+      const objectId = objectEl.getAttribute('id') || '';
+      if (!objectId) return;
+      let extruder: number | undefined;
+      getDirectChildrenByLocalName(objectEl, 'metadata').forEach((m) => {
+        if (extruder !== undefined) return;
+        const key = (m.getAttribute('key') || '').toLowerCase();
+        if (key !== 'extruder' && key !== 'extruder_id') return;
+        const parsed = parseInt(m.getAttribute('value') || '', 10);
+        if (Number.isFinite(parsed) && parsed > 0) extruder = parsed;
+      });
+      if (extruder !== undefined) objectExtruder.set(objectId, extruder);
+    });
+  } catch (e) {
+    console.warn('Error reading model_settings.config:', e);
+  }
+
+  return { objectPlate, objectExtruder };
+}
+
 /**
  * Dedicated Native 3MF Parser using JSZip + XML DOM with full Palette & Slicer Preset Extraction
  */
@@ -900,6 +982,8 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
 
   // 2. Extract Slicer Presets & Filament Palettes
   const slicerPreset = await extract3MFMetadata(zip, xmlDocs);
+  // F2 (P2/P3): bản đồ object → bàn in / đầu đùn THẬT từ `model_settings.config` (nếu tệp khai).
+  const buildMaps = await extract3MFBuildMaps(zip);
 
   // 3. Determine Unit scaling from main XML
   const mainDoc = xmlDocs[0];
@@ -1017,16 +1101,37 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
   let totalVolume = 0;
   let totalSurfaceArea = 0;
 
+  // F2/P2 (MINOR): tiêu thụ danh sách bàn của object theo TỪNG build item. Một object nằm trên
+  // hai bàn (Bambu nhân bản sang bàn khác) sẽ lần lượt nhận bàn 1 rồi bàn 2 thay vì gộp về bàn
+  // cuối. Danh sách cạn (build nhiều hơn số `model_instance` khai) ⇒ `undefined`, không bịa bàn.
+  const objectPlateCursor = new Map<string, number>();
+  const resolveBuildPlate = (objectId?: string): number | undefined => {
+    if (!objectId) return undefined;
+    const list = buildMaps.objectPlate.get(objectId);
+    if (!list || list.length === 0) return undefined;
+    const cursor = objectPlateCursor.get(objectId) ?? 0;
+    if (cursor >= list.length) return undefined;
+    objectPlateCursor.set(objectId, cursor + 1);
+    return list[cursor];
+  };
+
   const instantiateMesh = (
     geom: THREE.BufferGeometry,
     name: string,
     colorHexOverride?: string,
-    matrixTransform?: THREE.Matrix4
+    matrixTransform?: THREE.Matrix4,
+    objectId?: string,
+    plateIndex?: number
   ) => {
     let finalGeom = geom.clone();
     if (matrixTransform) {
       finalGeom.applyMatrix4(matrixTransform);
     }
+
+    // F2 (P2/P3): chỉ nhận bàn in / đầu đùn khi `model_settings.config` khai THẬT.
+    // `plateIndex` do build item tiêu thụ từ danh sách bàn của object (xem `resolveBuildPlate`).
+    const partPlateIndex = plateIndex;
+    const partExtruderIndex = objectId ? buildMaps.objectExtruder.get(objectId) : undefined;
 
     // Match with extracted Slicer Preset Palette
     const paletteItem = slicerPreset.palettes[(partIndex - 1) % slicerPreset.palettes.length];
@@ -1065,11 +1170,12 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
       name: name || `3MF Component ${partIndex}`,
       color: chosenColorName,
       colorHex: chosenColorHex,
-      materialId: paletteItem?.materialType?.toLowerCase().includes('petg') ? 'petg-pro' : 'pla-tough',
+      // F2 (P7): KHÔNG bịa `materialId` từ tên vật liệu trong file; để `undefined` buộc map ở bảng `materials`.
       visible: true,
       triangleCount: Math.round(triCount),
       volumeCm3: Number(vol.toFixed(2)),
-      extruderIndex: ((partIndex - 1) % 4) + 1
+      extruderIndex: partExtruderIndex,
+      plateIndex: partPlateIndex
     });
 
     rootGroup.add(mesh);
@@ -1097,9 +1203,11 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
 
       if (objId && meshMap.has(objId)) {
         const mData = meshMap.get(objId)!;
-        instantiateMesh(mData.geometry, mData.name, mData.colorHex, matrix);
+        instantiateMesh(mData.geometry, mData.name, mData.colorHex, matrix, objId, resolveBuildPlate(objId));
       } else if (objId && componentMap.has(objId)) {
         const subComps = componentMap.get(objId)!;
+        // Bàn gắn với object cấp assembly (build item), dùng chung cho mọi object con.
+        const buildPlate = resolveBuildPlate(objId);
         subComps.forEach((sc) => {
           if (meshMap.has(sc.objectId)) {
             const mData = meshMap.get(sc.objectId)!;
@@ -1113,7 +1221,8 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
               );
               combinedMatrix.multiply(scMat);
             }
-            instantiateMesh(mData.geometry, mData.name, mData.colorHex, combinedMatrix);
+            // Bàn in/đầu đùn gắn với object cấp assembly (build item), không phải object con.
+            instantiateMesh(mData.geometry, mData.name, mData.colorHex, combinedMatrix, objId, buildPlate);
           }
         });
       }
@@ -1122,8 +1231,8 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
 
   // Fallback: If build is empty, instantiate all parsed meshes
   if (rootGroup.children.length === 0 && meshMap.size > 0) {
-    meshMap.forEach((mData) => {
-      instantiateMesh(mData.geometry, mData.name, mData.colorHex);
+    meshMap.forEach((mData, objId) => {
+      instantiateMesh(mData.geometry, mData.name, mData.colorHex, undefined, objId, resolveBuildPlate(objId));
     });
   }
 
@@ -1141,6 +1250,18 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
   orientedBox.getSize(size);
   const center = new THREE.Vector3();
   orientedBox.getCenter(center);
+
+  // F2 (P4): hộp bao THẬT của TỪNG chi tiết (cùng hệ toạ độ đã xoay như `size`), để tính
+  // kích thước riêng của mỗi bàn thay vì lấy hộp bao cả mô hình.
+  const partBoxById = new Map<string, THREE.Box3>();
+  rootGroup.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!(mesh as unknown as { isMesh?: boolean }).isMesh || !mesh.userData?.partId) return;
+    const box = new THREE.Box3().setFromObject(mesh);
+    const existing = partBoxById.get(mesh.userData.partId);
+    if (existing) existing.union(box);
+    else partBoxById.set(mesh.userData.partId, box);
+  });
 
   // Normalize group position so (X=0, Z=0) is center and bottom sits at Y=0
   const normalizedGroup = new THREE.Group();
@@ -1161,40 +1282,50 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
     );
   }
 
-  const computedPlates: PlateInfo[] = (slicerPreset.plates && slicerPreset.plates.length > 0)
-    ? slicerPreset.plates.map((plate, pIdx) => {
-        const plateParts = parts.filter(p => (p.plateIndex || 1) === plate.index);
-        const partCount = plateParts.length > 0 ? plateParts.length : (pIdx === 0 ? parts.length : 0);
-        const partIds = plateParts.map(p => p.id);
+  // F2 (P4/P5): tệp KHÔNG kèm dữ liệu bàn in ⇒ KHÔNG dựng "bàn giả". `computedPlates` là
+  // `undefined`; tầng UI nói rõ "tệp không kèm dữ liệu bàn in". Khi có bàn thật, thành viên
+  // lấy đúng từ `plateIndex` do `model_settings.config` khai (không đoán), và kích thước bàn
+  // tính từ chính các chi tiết thuộc bàn đó.
+  // `model_settings.config` vắng ⇒ không có nguồn thành viên bàn (xem `extract3MFBuildMaps`).
+  const hasPartMembership = buildMaps.objectPlate.size > 0;
+  const computedPlates: PlateInfo[] | undefined =
+    slicerPreset.plates && slicerPreset.plates.length > 0
+      ? slicerPreset.plates.map((plate) => {
+          const plateParts = parts.filter(p => p.plateIndex === plate.index);
 
-        return {
-          // R2 (MP-13): khối lượng nhựa/giờ in CHỈ giữ đúng thứ tệp khai báo (`...plate`). Không suy
-          // `thể tích × 1.24 g/cm3` rồi bày ra như preset của máy cắt lớp.
-          ...plate,
-          partCount,
-          partIds,
-          dimensions: {
-            x: Number(size.x.toFixed(1)),
-            y: Number(size.z.toFixed(1)),
-            z: Number(size.y.toFixed(1))
+          const plateBox = new THREE.Box3();
+          let hasPlateBox = false;
+          for (const part of plateParts) {
+            const box = partBoxById.get(part.id);
+            if (box && !box.isEmpty()) {
+              plateBox.union(box);
+              hasPlateBox = true;
+            }
           }
-        };
-      })
-    : [
-        {
-          // Tệp không kèm dữ liệu bàn in ⇒ chỉ nêu thứ ĐO ĐƯỢC (số chi tiết + kích thước khay).
-          // Không bịa 3600 giây / '45m' / khối lượng nhựa / loại bàn in.
-          index: 1,
-          name: 'Bàn in 1 (lưới đọc từ tệp — tệp không kèm dữ liệu slicer)',
-          partCount: parts.length,
-          partIds: parts.map(p => p.id),
-          dimensions: {
-            x: Number(size.x.toFixed(1)),
-            y: Number(size.z.toFixed(1)),
-            z: Number(size.y.toFixed(1))
+          let dimensions: { x: number; y: number; z: number } | undefined;
+          if (hasPlateBox) {
+            const plateSize = new THREE.Vector3();
+            plateBox.getSize(plateSize);
+            dimensions = {
+              x: Number(plateSize.x.toFixed(1)),
+              y: Number(plateSize.z.toFixed(1)),
+              z: Number(plateSize.y.toFixed(1))
+            };
           }
-        }
-      ];
+
+          return {
+            // R2 (MP-13): khối lượng nhựa/giờ in CHỈ giữ đúng thứ tệp khai báo (`...plate`). Không suy
+            // `thể tích × 1.24 g/cm3` rồi bày ra như preset của máy cắt lớp.
+            ...plate,
+            // F2/P2 (MINOR): `model_settings.config` là nguồn DUY NHẤT cho biết part nào thuộc bàn
+            // nào. Thiếu nó ⇒ thành viên bàn là CHƯA BIẾT, không phải "0 part": để `undefined` (UI
+            // hiển thị `—`) thay vì 0/[] như thể đã đo. Gram/giờ thật từ `slice_info` vẫn giữ.
+            partCount: hasPartMembership ? plateParts.length : undefined,
+            partIds: hasPartMembership ? plateParts.map(p => p.id) : undefined,
+            dimensions
+          };
+        })
+      : undefined;
 
   // R2 (MP-12): gộp số đo các chi tiết + đo chiều dày trên tối đa 4 chi tiết lớn nhất.
   const defects: MeshDefectAnalysis = {
@@ -1224,10 +1355,11 @@ async function parse3MFNative(arrayBuffer: ArrayBuffer, fileName: string): Promi
     slicerPreset: {
       ...slicerPreset,
       plates: computedPlates,
-      plateCount: computedPlates.length
+      plateCount: computedPlates?.length ?? 0
     },
     plates: computedPlates,
-    activePlateIndex: 1
+    // F2 (P6): index bàn in THẬT từ tệp; không khai ⇒ `undefined` (KHÔNG mặc định 1).
+    activePlateIndex: slicerPreset.activePlateIndex
   };
 }
 
@@ -1469,12 +1601,12 @@ function measureGroup(
       name: mesh.name || `Chi tiết ${partIdx}`,
       color: palette.name,
       colorHex: palette.hex,
-      materialId: 'pla-basic',
+      // F2 (P7/P3): OBJ không khai vật liệu riêng cho từng object trong đường đo này và không có
+      // bản đồ đầu đùn ⇒ để trống, không gán 'pla-basic' / T1 như trước.
       visible: true,
       // R2 (MP-17): số tam giác / thể tích của TỪNG chi tiết đều ĐO từ lưới của chi tiết đó.
       triangleCount: Math.round(triCount),
-      volumeCm3: Number(vol.toFixed(2)),
-      extruderIndex: 1
+      volumeCm3: Number(vol.toFixed(2))
     });
     defectEntries.push({ defects, triangleCount: triCount });
     thicknessEntries.push({ geometry: measured, triangleCount: triCount });
@@ -1518,6 +1650,37 @@ function measureGroup(
 }
 
 /**
+ * F2 (P8): khi phải rơi về `ThreeMFLoader`, gói ZIP VẪN có thể đọc được ⇒ cố lấy metadata
+ * slicer (gram/giờ/layer/AMS) từ `slice_info.config` / `project_settings.config` thay vì bỏ mất.
+ * Trả `null` nếu không đọc được hoặc không có thông tin nào hữu ích.
+ */
+async function read3MFMetadataFromZip(arrayBuffer: ArrayBuffer): Promise<SlicerPresetInfo | null> {
+  try {
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    const xmlDocs: Document[] = [];
+    const domParser = new DOMParser();
+    const mainModel = zip.file('3D/3dmodel.model') || zip.file('3dmodel.model');
+    if (mainModel) {
+      const doc = domParser.parseFromString(await mainModel.async('text'), 'application/xml');
+      if (!findFirstByLocalName(doc, 'parsererror')) xmlDocs.push(doc);
+    }
+    const preset = await extract3MFMetadata(zip, xmlDocs);
+    const hasUsefulData =
+      (preset.plates && preset.plates.length > 0) ||
+      preset.palettes.length > 0 ||
+      preset.totalFilamentGrams !== undefined ||
+      preset.totalFilamentMeters !== undefined ||
+      preset.estimatedPrintTimeSeconds !== undefined ||
+      preset.layerHeight !== undefined ||
+      preset.infillDensity !== undefined;
+    return hasUsefulData ? preset : null;
+  } catch (e) {
+    console.warn('Không đọc được metadata ZIP của 3MF khi dùng ThreeMFLoader:', e);
+    return null;
+  }
+}
+
+/**
  * Parse an uploaded File (3MF, STL, OBJ, STEP, IGES) into real Three.js Geometry/Group and extract exact metrics.
  *
  * R4: STEP/STP/IGES được giải mã qua WebAssembly CAD Kernel trong Web Worker.
@@ -1547,7 +1710,21 @@ export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
       const objectGroup = loader.parse(arrayBuffer);
       objectGroup.rotation.x = -Math.PI / 2;
       objectGroup.updateMatrixWorld(true);
-      return measureGroup(objectGroup, file.name, true);
+      const measured = measureGroup(objectGroup, file.name, true);
+
+      // F2 (P8): dù hình học đi đường ThreeMFLoader, vẫn cố đọc metadata ZIP để không mất
+      // dữ liệu slicer THẬT (gram/giờ/layer/AMS) mà tệp đang có.
+      const fallbackPreset = await read3MFMetadataFromZip(arrayBuffer);
+      if (fallbackPreset) {
+        measured.slicerPreset = fallbackPreset;
+        if (fallbackPreset.plates && fallbackPreset.plates.length > 0) {
+          measured.plates = fallbackPreset.plates;
+        }
+        if (fallbackPreset.activePlateIndex !== undefined) {
+          measured.activePlateIndex = fallbackPreset.activePlateIndex;
+        }
+      }
+      return measured;
     } catch (threeErr) {
       console.error('Tất cả bộ đọc 3MF đều lỗi:', threeErr);
       if (threeErr instanceof MeshParseError) throw threeErr;
@@ -1594,11 +1771,10 @@ export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
         name: file.name.replace(/\.[^/.]+$/, ''),
         color: 'Xanh Teal Công Nghiệp',
         colorHex: '#00687a',
-        materialId: 'pla-basic',
+        // F2 (P7/P3): tệp không khai vật liệu/đầu đùn ⇒ để trống, không gán 'pla-basic'/T1.
         visible: true,
         triangleCount: Math.round(measured.triangleCount),
-        volumeCm3: measured.volume,
-        extruderIndex: 1
+        volumeCm3: measured.volume
       }
     ];
 
@@ -1666,11 +1842,10 @@ export async function parse3DFile(file: File): Promise<ParsedMeshResult> {
         name: file.name.replace(/\.[^/.]+$/, ''),
         color: 'Xanh Teal Công Nghiệp',
         colorHex: '#00687a',
-        materialId: 'pla-basic',
+        // F2 (P7/P3): tệp không khai vật liệu/đầu đùn ⇒ để trống, không gán 'pla-basic'/T1.
         visible: true,
         triangleCount: Math.round(measured.triangleCount),
-        volumeCm3: measured.volume,
-        extruderIndex: 1
+        volumeCm3: measured.volume
       }
     ];
 

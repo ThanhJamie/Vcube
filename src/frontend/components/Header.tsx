@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   onShowToast,
 }) => {
   const { user, profile, role, isLoggedIn, logout, switchDemoRole } = useAuth();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickSearchQuery, setQuickSearchQuery] = useState('');
   const navRef = useRef<HTMLElement | null>(null);
@@ -222,42 +222,6 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Zone 3: Primary Actions */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Language Switcher — chữ VIE | ENG, không dùng emoji cờ (§2.5).
-                < lg: nằm trong drawer (P1 §1). */}
-            <div
-              className="hidden lg:flex items-center bg-surface-muted p-0.5 rounded-full text-xs font-tech font-bold"
-              role="group"
-              aria-label="Language selector"
-            >
-              <button
-                type="button"
-                onClick={() => setLanguage('vi')}
-                title="Chuyển sang Tiếng Việt"
-                aria-pressed={language === 'vi'}
-                className={`px-2.5 py-1 rounded-full transition-all leading-none cursor-pointer ${
-                  language === 'vi'
-                    ? 'bg-primary text-primary-fg shadow-e1'
-                    : 'text-fg-muted hover:text-fg hover:bg-surface'
-                }`}
-              >
-                VIE
-              </button>
-              <span aria-hidden="true" className="px-0.5 text-fg-subtle">|</span>
-              <button
-                type="button"
-                onClick={() => setLanguage('en')}
-                title="Switch to English"
-                aria-pressed={language === 'en'}
-                className={`px-2.5 py-1 rounded-full transition-all leading-none cursor-pointer ${
-                  language === 'en'
-                    ? 'bg-primary text-primary-fg shadow-e1'
-                    : 'text-fg-muted hover:text-fg hover:bg-surface'
-                }`}
-              >
-                ENG
-              </button>
-            </div>
-
             {/*
               Quick Search — desktop ngang (>= lg), ẩn ở mobile/tablet (nằm trong drawer).
               P1 §2: `w-64` (256px) là bề rộng TỐI THIỂU để placeholder hiện đủ ở 12px
@@ -339,7 +303,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            {/* Mobile Hamburger Toggle (< lg: nav + tìm kiếm + VIE|ENG + tài khoản) */}
+            {/* Mobile Hamburger Toggle (< lg: nav + tìm kiếm + tài khoản) */}
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="lg:hidden p-2 text-fg hover:bg-surface rounded-full transition-colors touch-target-btn cursor-pointer"
@@ -395,39 +359,6 @@ export const Header: React.FC<HeaderProps> = ({
                 />
               </div>
             </form>
-
-            {/* Language Selector */}
-            <div className="p-3 bg-surface-muted rounded-lg space-y-1.5">
-              <span className="text-xs font-tech uppercase font-bold text-fg-muted block">
-                Ngôn ngữ / Language:
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setLanguage('vi')}
-                  aria-pressed={language === 'vi'}
-                  className={`py-2 px-3 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                    language === 'vi'
-                      ? 'bg-primary text-primary-fg shadow-e1'
-                      : 'bg-surface text-fg hover:bg-canvas'
-                  }`}
-                >
-                  <span>Tiếng Việt</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLanguage('en')}
-                  aria-pressed={language === 'en'}
-                  className={`py-2 px-3 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                    language === 'en'
-                      ? 'bg-primary text-primary-fg shadow-e1'
-                      : 'bg-surface text-fg hover:bg-canvas'
-                  }`}
-                >
-                  <span>English</span>
-                </button>
-              </div>
-            </div>
 
             {/* Nav Items List - visible to all visitors */}
             <nav className="space-y-1">

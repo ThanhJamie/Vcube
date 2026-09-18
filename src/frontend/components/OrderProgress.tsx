@@ -70,7 +70,7 @@ export const OrderProgress: React.FC<OrderProgressProps> = ({
                     isCompleted
                       ? 'bg-primary'
                       : isCurrent
-                      ? 'bg-gradient-to-r from-primary to-accent animate-pulse ring-1 ring-accent'
+                      ? 'bg-gradient-to-r from-primary to-accent animate-pulse motion-reduce:animate-none ring-1 ring-accent'
                       : 'bg-line-subtle'
                   }`}
                 />
@@ -88,7 +88,7 @@ export const OrderProgress: React.FC<OrderProgressProps> = ({
           <span className="flex items-center gap-1.5 font-bold text-fg">
             {hasStage ? (
               <>
-                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping motion-reduce:animate-none" />
                 Nấc {Math.min(8, activeStage + 1)}/8: {MES_PIPELINE_STAGES[Math.min(7, activeStage)]?.label}
               </>
             ) : (
@@ -128,7 +128,7 @@ export const OrderProgress: React.FC<OrderProgressProps> = ({
                 <span className={`text-xs font-bold ${isCurrent ? 'text-accent' : isCompleted ? 'text-primary' : 'text-fg-subtle'}`}>
                   0{stage.step}
                 </span>
-                <Icon name={isCompleted ? 'check_circle' : stage.icon} size={18} className={isCurrent ? 'text-accent animate-spin-slow' : isCompleted ? 'text-primary font-bold' : 'text-fg-subtle'} />
+                <Icon name={isCompleted ? 'check_circle' : stage.icon} size={18} className={isCurrent ? 'text-accent animate-spin motion-reduce:animate-none' : isCompleted ? 'text-primary font-bold' : 'text-fg-subtle'} />
               </div>
               <div>
                 <p className={`font-bold text-xs leading-tight uppercase tracking-wider ${isCurrent ? 'text-on-inverse' : 'text-fg'}`}>

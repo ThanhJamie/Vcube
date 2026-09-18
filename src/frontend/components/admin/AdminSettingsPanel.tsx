@@ -121,7 +121,7 @@ const TextField: React.FC<TextFieldProps> = ({ id, label, value, onChange, error
       aria-invalid={error ? true : undefined}
       aria-describedby={error ? `${id}-error` : undefined}
       className={`w-full p-2.5 border rounded-lg text-xs bg-canvas text-fg ${
-        error ? 'border-danger' : 'border-line'
+        error ? 'border-danger' : 'border-line-control'
       } ${mono ? 'font-tech' : ''}`}
     />
     {error ? (
@@ -151,7 +151,7 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({ id, label, value, onChang
       aria-invalid={error ? true : undefined}
       aria-describedby={error ? `${id}-error` : undefined}
       className={`w-full p-2.5 border rounded-lg text-xs bg-canvas text-fg ${
-        error ? 'border-danger' : 'border-line'
+        error ? 'border-danger' : 'border-line-control'
       }`}
     />
     {error ? (

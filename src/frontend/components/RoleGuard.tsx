@@ -40,7 +40,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-6 bg-surface-muted">
         <div className="flex items-center gap-2 text-fg-muted text-xs font-sans">
-          <Icon name="sync" size={18} className="animate-spin text-primary" />
+          <Icon name="sync" size={18} className="animate-spin motion-reduce:animate-none text-primary" />
           <span>Đang xác thực phiên đăng nhập…</span>
         </div>
       </div>

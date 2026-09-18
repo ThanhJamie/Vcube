@@ -242,7 +242,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
         <div className="flex items-center gap-1.5 p-1 bg-surface-muted rounded-lg">
           <button
             onClick={() => setActiveTab('designers')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'designers'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -253,7 +253,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('withdrawals')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'withdrawals'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -264,7 +264,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'analytics'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -400,7 +400,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                   placeholder={isVi ? 'Tìm tên designer, email...' : 'Search designer...'}
                   value={filters.searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus:border-primary focus:bg-surface"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary focus:bg-surface"
                 />
               </div>
               <button
@@ -408,7 +408,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                 disabled={isLoading}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-60 shrink-0"
               >
-                <Icon name="sync" size={16} className={isLoading ? 'animate-spin' : ''} />
+                <Icon name="sync" size={16} className={isLoading ? 'animate-spin motion-reduce:animate-none' : ''} />
                 {isVi ? 'Tải Lại' : 'Reload'}
               </button>
             </div>
@@ -712,7 +712,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                         key={tier.id}
                         type="button"
                         onClick={() => setBadgeDraft(tier.id)}
-                        className={`p-2.5 text-left rounded-lg border text-xs transition-all cursor-pointer ${
+                        className={`p-2.5 text-left rounded-lg border text-xs transition-colors cursor-pointer ${
                           badgeDraft === tier.id
                             ? 'border-primary bg-primary/5 ring-1 ring-primary'
                             : 'border-line-subtle hover:bg-canvas'

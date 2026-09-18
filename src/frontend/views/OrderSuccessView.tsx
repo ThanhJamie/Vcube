@@ -59,7 +59,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
 
           <div>
             <div className="flex items-center justify-center gap-2 font-mono text-xs text-fg-subtle uppercase tracking-wider mb-2">
-              <span className="w-2 h-2 rounded-full bg-positive animate-pulse"></span>
+              <span className="w-2 h-2 rounded-full bg-positive animate-pulse motion-reduce:animate-none"></span>
               <span>Đơn Hàng Đã Được Khởi Tạo Thành Công</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-fg">

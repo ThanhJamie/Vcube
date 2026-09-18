@@ -3,6 +3,7 @@ import { Star } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, SiteContentConfig } from '../types';
 import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_SITE_CONTENT } from '../data/mockData';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
+import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { CustomIdeaRequestModal } from '../components/custom/CustomIdeaRequestModal';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
@@ -16,6 +17,10 @@ interface HomeViewProps {
   products: Product[];
   /** true khi catalog đang nạp từ DB (hiện skeleton thay vì rỗng). */
   productsLoading?: boolean;
+  /** Lỗi đọc catalog lần gần nhất — phân biệt "lỗi tải" với "kho rỗng"/"filter miss". */
+  productsError?: boolean;
+  /** Gọi lại lượt đọc catalog (nút "Thử lại"). */
+  onRetryProducts?: () => void;
   materials?: MaterialProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
   siteContent?: SiteContentConfig;
@@ -102,6 +107,8 @@ const HERO_CHASSIS_MODELS: HeroChassisModel[] = [
 export const HomeView: React.FC<HomeViewProps> = ({
   products,
   productsLoading = false,
+  productsError,
+  onRetryProducts,
   materials = MATERIALS_CATALOG,
   pricingConfig,
   siteContent,
@@ -255,9 +262,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const hasPartners = partnersList.length > 0;
   // Dải số liệu: giá trị rỗng ⇒ "Chưa cấu hình" (nhập ở /admin -> Nội dung site), không đoán.
   const heroMetrics = [
-    { label: activeContent.heroMetric1Label || 'Dung Sai Đo Kiểm', value: (activeContent.heroMetric1Value || '').trim() },
-    { label: activeContent.heroMetric2Label || 'Thời Gian Bàn Giao', value: (activeContent.heroMetric2Value || '').trim() },
-    { label: activeContent.heroMetric3Label || 'Tiêu Chuẩn Sản Xuất', value: (activeContent.heroMetric3Value || '').trim() },
+    { label: activeContent.heroMetric1Label || (isVi ? 'Dung Sai Đo Kiểm' : 'Inspection tolerance'), value: (activeContent.heroMetric1Value || '').trim() },
+    { label: activeContent.heroMetric2Label || (isVi ? 'Thời Gian Bàn Giao' : 'Lead time'), value: (activeContent.heroMetric2Value || '').trim() },
+    { label: activeContent.heroMetric3Label || (isVi ? 'Tiêu Chuẩn Sản Xuất' : 'Production standard'), value: (activeContent.heroMetric3Value || '').trim() },
   ];
   // P1 §5: cả 3 chỉ số rỗng ⇒ gộp thành MỘT DÒNG MẢNH thay vì một hàng 3 thẻ trống.
   const heroMetricsFilled = heroMetrics.filter((m) => m.value);
@@ -267,8 +274,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     <div className="min-h-dvh flex flex-col bg-canvas text-fg font-sans relative selection:bg-primary selection:text-primary-fg">
       {/* SEO & Dynamic Head */}
       <SEOHead
-        title={activeContent.seoTitle || 'VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì'}
-        description={activeContent.seoDescription || 'Nền tảng sản xuất bồi đắp linh kiện cơ khí và khuôn mẫu kỹ thuật số hàng đầu Việt Nam.'}
+        title={activeContent.seoTitle || (isVi ? 'VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì' : 'VCUBE — Industrial 3D Printing & Instant CAD Quotes')}
+        description={activeContent.seoDescription || (isVi ? 'Nền tảng sản xuất bồi đắp linh kiện cơ khí và khuôn mẫu kỹ thuật số hàng đầu Việt Nam.' : 'Additive manufacturing platform for precision mechanical parts and digital tooling.')}
         image={activeContent.seoOgImage}
         url={activeContent.seoCanonicalUrl}
         type="website"
@@ -289,7 +296,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               {/* §2.5/§3: không emoji làm icon, không bịa tên chiến dịch ⇒ badge rỗng thì ẩn hẳn. */}
               {activeContent.announcementBadge && (
                 <span className="bg-primary text-primary-fg text-xs font-mono font-bold uppercase px-2.5 py-0.5 rounded-sm shadow-e1 tracking-wider shrink-0 flex items-center gap-1.5 border border-accent/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping motion-reduce:animate-none" />
                   {activeContent.announcementBadge}
                 </span>
               )}
@@ -309,7 +316,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 }}
                 trailingIcon={<Icon name="arrow_downward" size={16} />}
               >
-                <span>{activeContent.announcementActionText || 'Xem Sản Phẩm Tag 2/9'}</span>
+                <span>{activeContent.announcementActionText || (isVi ? 'Xem Sản Phẩm Tag 2/9' : 'View Tagged Products')}</span>
               </Button>
             </div>
           </div>
@@ -317,21 +324,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
       )}
 
       {/* 2. Hero Section with Interactive 3D Model Switcher */}
-      <section className="relative overflow-hidden py-10 sm:py-14 lg:py-16 px-4 sm:px-6 md:px-12">
+      <section className="relative overflow-hidden py-8 sm:py-10 lg:py-12 px-4 sm:px-6 md:px-12">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Left Content Column */}
             <div className="lg:col-span-7 flex flex-col justify-center space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface border border-line-subtle rounded-sm text-xs uppercase font-mono tracking-[0.2em] text-primary font-bold w-fit">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse motion-reduce:animate-none" />
                 <span>{activeContent.heroBadge || 'VCUBE PRECISION ANTHOLOGY // 2026'}</span>
               </div>
 
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-fg tracking-tight leading-[1.12]">
-                {activeContent.heroHeadlineLine1 || 'CHẾ TÁC CƠ KHÍ'}
+                {activeContent.heroHeadlineLine1 || (isVi ? 'CHẾ TÁC CƠ KHÍ' : 'MECHANICAL FABRICATION')}
                 <br />
                 <span className="text-primary">
-                  {activeContent.heroHeadlineHighlight || 'IN 3D CÔNG NGHIỆP CHÍNH XÁC'}
+                  {activeContent.heroHeadlineHighlight || (isVi ? 'IN 3D CÔNG NGHIỆP CHÍNH XÁC' : 'PRECISION INDUSTRIAL 3D PRINTING')}
                 </span>
               </h1>
 
@@ -350,7 +357,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   onClick={() => onNavigate('quote')}
                   leadingIcon={<Icon name="upload_file" size={20} />}
                 >
-                  <span>{activeContent.heroCtaQuoteText || 'Báo Giá File 3D Tức Thì'}</span>
+                  <span>{activeContent.heroCtaQuoteText || (isVi ? 'Báo Giá File 3D Tức Thì' : 'Get an Instant 3D Quote')}</span>
                 </Button>
 
                 <Button size="lg" variant="secondary"
@@ -360,90 +367,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   }}
                   leadingIcon={<Icon name="view_in_ar" size={20} className="text-primary" />}
                 >
-                  <span>{activeContent.heroCtaCatalogText || 'Khám Phá Kho Mẫu CAD'}</span>
+                  <span>{activeContent.heroCtaCatalogText || (isVi ? 'Khám Phá Kho Mẫu CAD' : 'Browse the CAD Catalog')}</span>
                 </Button>
-              </div>
-
-              {/* Instant CAD Dropzone Widget */}
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label={isVi ? 'Tải tệp CAD lên để báo giá' : 'Upload a CAD file to quote'}
-                onClick={() => heroFileInputRef.current?.click()}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    heroFileInputRef.current?.click();
-                  }
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDraggingFile(true);
-                }}
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDraggingFile(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDraggingFile(false);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDraggingFile(false);
-                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    const file = e.dataTransfer.files[0];
-                    onNavigate('quote', { uploadedFile: file });
-                  } else {
-                    onNavigate('quote');
-                  }
-                }}
-                className={`mt-2 p-3.5 border-2 border-dashed rounded-lg transition-colors cursor-pointer group ${
-                  isDraggingFile
-                    ? 'border-primary bg-primary/15 shadow-e2 ring-2 ring-primary/30'
-                    : 'bg-surface border-primary/40 hover:border-primary'
-                }`}
-                title="Bấm hoặc kéo thả file STL, 3MF, STEP, OBJ vào đây để nhận báo giá tức thì"
-              >
-                <input
-                  ref={heroFileInputRef}
-                  type="file"
-                  accept=".stl,.3mf,.step,.stp,.obj"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      const file = e.target.files[0];
-                      onNavigate('quote', { uploadedFile: file });
-                    }
-                  }}
-                  className="hidden"
-                />
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-md flex items-center justify-center transition-transform ${
-                    isDraggingFile ? 'bg-primary text-primary-fg scale-110' : 'bg-surface-muted text-primary group-hover:scale-105'
-                  }`}>
-                    <Icon name="cloud_upload" size={24} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-fg">
-                        {isDraggingFile ? 'Thả tệp CAD vào đây để phân tích tức thì!' : 'Kéo thả tệp CAD (STL, 3MF, STEP, OBJ) vào đây hoặc bấm để chọn'}
-                      </span>
-                      <InfoTip label={isVi ? 'Tệp CAD được xử lý thế nào?' : 'How the CAD file is processed'}>
-                        {isVi
-                          ? 'Hệ thống tính thể tích, kiểm tra độ kín nước và dựng BOM từ chính tệp bạn tải lên. Mọi số đo hiển thị ở /quote đều lấy từ tệp đó.'
-                          : 'Volume, watertightness and the BOM are computed from the file you upload. Every figure shown at /quote comes from that file.'}
-                      </InfoTip>
-                    </div>
-                    <p className="text-xs text-fg-muted truncate">
-                      STL · 3MF · STEP · STP · OBJ
-                    </p>
-                  </div>
-                  <Icon name="arrow_forward" size={18} className="text-primary shrink-0" />
-                </div>
               </div>
 
               {/* 3 Technical Quality Spec Metrics Cards */}
@@ -493,7 +418,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 {/* Top Header on 3D Chassis */}
                 <div className="px-4 py-3 bg-surface-inverse/90 border-b border-line-subtle flex items-center justify-between z-10">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
                     <span className="font-mono text-xs font-bold text-accent tracking-wider uppercase">
                       CHASSIS // 3D VIEWER
                     </span>
@@ -531,13 +456,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                 {/* 3D Canvas Viewer Stage */}
                 <div className="w-full h-[320px] sm:h-[360px] relative bg-surface-inverse">
-                  <ThreeModelViewer
-                    modelType={heroModel}
-                    color={activeHeroModelMeta.color}
-                    showGrid={true}
-                    autoRotate={true}
-                    className="h-full w-full border-0 rounded-none"
-                  />
+                  <CanvasErrorBoundary fallbackHeight="h-full">
+                    <ThreeModelViewer
+                      modelType={heroModel}
+                      color={activeHeroModelMeta.color}
+                      showGrid={true}
+                      autoRotate={true}
+                      className="h-full w-full border-0 rounded-none"
+                    />
+                  </CanvasErrorBoundary>
 
                   {/* Telemetry HUD Overlay (Bottom Left) — mô hình minh họa, KHÔNG phải sản phẩm
                       thật nên không in số đo/vật liệu cụ thể (tránh khẳng định sai). */}
@@ -582,6 +509,93 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </div>
                 </Card>
               )}
+            </div>
+          </div>
+
+          {/* Instant CAD Dropzone — hạ xuống dưới grid để headline + CTA chính nằm gọn
+              trong màn hình đầu tiên (next-steps §2.2 "hero fit viewport"). */}
+          <div className="mt-6 sm:mt-8 max-w-3xl">
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label={isVi ? 'Tải tệp CAD lên để báo giá' : 'Upload a CAD file to quote'}
+              onClick={() => heroFileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  heroFileInputRef.current?.click();
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDraggingFile(true);
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDraggingFile(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDraggingFile(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDraggingFile(false);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  const file = e.dataTransfer.files[0];
+                  onNavigate('quote', { uploadedFile: file });
+                } else {
+                  onNavigate('quote');
+                }
+              }}
+              className={`p-3.5 border-2 border-dashed rounded-lg transition-colors cursor-pointer group ${
+                isDraggingFile
+                  ? 'border-primary bg-primary/15 shadow-e2 ring-2 ring-primary/30'
+                  : 'bg-surface border-primary/40 hover:border-primary'
+              }`}
+              title={isVi ? 'Bấm hoặc kéo thả file STL, 3MF, STEP, OBJ vào đây để nhận báo giá tức thì' : 'Click or drop an STL, 3MF, STEP or OBJ file here for an instant quote'}
+            >
+              <input
+                ref={heroFileInputRef}
+                type="file"
+                accept=".stl,.3mf,.step,.stp,.obj"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    onNavigate('quote', { uploadedFile: file });
+                  }
+                }}
+                className="hidden"
+              />
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-md flex items-center justify-center transition-transform ${
+                  isDraggingFile ? 'bg-primary text-primary-fg scale-110' : 'bg-surface-muted text-primary group-hover:scale-105'
+                }`}>
+                  <Icon name="cloud_upload" size={24} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-fg">
+                      {isDraggingFile
+                        ? (isVi ? 'Thả tệp CAD vào đây để phân tích tức thì!' : 'Drop the CAD file here to analyse it instantly!')
+                        : (isVi ? 'Kéo thả tệp CAD (STL, 3MF, STEP, OBJ) vào đây hoặc bấm để chọn' : 'Drag & drop a CAD file (STL, 3MF, STEP, OBJ) here or click to choose')}
+                    </span>
+                    <InfoTip label={isVi ? 'Tệp CAD được xử lý thế nào?' : 'How the CAD file is processed'}>
+                      {isVi
+                        ? 'Hệ thống tính thể tích, kiểm tra độ kín nước và dựng BOM từ chính tệp bạn tải lên. Mọi số đo hiển thị ở /quote đều lấy từ tệp đó.'
+                        : 'Volume, watertightness and the BOM are computed from the file you upload. Every figure shown at /quote comes from that file.'}
+                    </InfoTip>
+                  </div>
+                  <p className="text-xs text-fg-muted truncate">
+                    STL · 3MF · STEP · STP · OBJ
+                  </p>
+                </div>
+                <Icon name="arrow_forward" size={18} className="text-primary shrink-0" />
+              </div>
             </div>
           </div>
         </div>
@@ -767,29 +781,88 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           </Card>
 
+          {/* Dải cảnh báo: lỗi làm mới nhưng còn dữ liệu cũ để xem (D2). */}
+          {productsError && products.length > 0 && (
+            <p
+              role="status"
+              className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning-tint px-3 py-2 text-xs text-warning"
+            >
+              <Icon name="warning" size={16} />
+              {isVi
+                ? 'Không làm mới được kho — đang hiển thị dữ liệu lần trước.'
+                : 'Could not refresh the catalogue — showing previous data.'}
+            </p>
+          )}
+
           {/* Loading skeleton — catalog đang nạp từ DB (không hiện "0 bản vẽ" rồi mới bung ra) */}
           {productsLoading && products.length === 0 && displayedProducts.length === 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            <div
+              role="status"
+              aria-label={isVi ? 'Đang tải kho bản vẽ' : 'Loading the catalogue'}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
+            >
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="rounded-lg border border-line bg-surface overflow-hidden">
-                  <div className="aspect-4/3 bg-surface-muted animate-pulse" />
+                  <div className="aspect-4/3 bg-surface-muted animate-pulse motion-reduce:animate-none" />
                   <div className="p-4 space-y-2">
-                    <div className="h-4 w-3/4 rounded-sm bg-surface-muted animate-pulse" />
-                    <div className="h-3 w-1/2 rounded-sm bg-surface-muted animate-pulse" />
+                    <div className="h-4 w-3/4 rounded-sm bg-surface-muted animate-pulse motion-reduce:animate-none" />
+                    <div className="h-3 w-1/2 rounded-sm bg-surface-muted animate-pulse motion-reduce:animate-none" />
                   </div>
                 </div>
               ))}
             </div>
+          ) : Boolean(productsError) && products.length === 0 ? (
+            /* ERROR — lỗi TẢI hẳn, KHÔNG đổ cho filter; bọc role="alert". */
+            <Card padding="none">
+              <div role="alert">
+                <EmptyState
+                  icon={<Icon name="error" size={20} />}
+                  title={isVi ? 'Không tải được kho bản vẽ' : 'Could not load the catalogue'}
+                  description={isVi
+                    ? 'Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại.'
+                    : 'Could not reach the data server. Check your connection and try again.'}
+                  action={
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        loading={Boolean(productsLoading)}
+                        loadingLabel={isVi ? 'Đang tải…' : 'Loading…'}
+                        leadingIcon={<Icon name="refresh" size={16} />}
+                        onClick={() => onRetryProducts?.()}
+                      >
+                        {isVi ? 'Thử lại' : 'Retry'}
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        leadingIcon={<Icon name="upload_file" size={16} />}
+                        onClick={() => onNavigate('quote')}
+                      >
+                        {isVi ? 'Báo giá file 3D của bạn' : 'Quote your own 3D file'}
+                      </Button>
+                    </>
+                  }
+                />
+              </div>
+            </Card>
           ) : displayedProducts.length === 0 ? (
+            /* EMPTY — phân biệt KHO RỖNG THẬT với FILTER KHÔNG KHỚP (F9). */
             <Card padding="none">
               <EmptyState
                 bordered={false}
-                icon={<Icon name="search_off" size={20} />}
-                title={isVi ? 'Không tìm thấy linh kiện CAD phù hợp' : 'No CAD parts match your criteria'}
-                description={isVi
-                  ? 'Bộ lọc hiện tại không khớp bản vẽ nào trong kho — thử xóa từ khóa hoặc đổi danh mục.'
-                  : 'The current filters match nothing in the library — clear the query or switch category.'}
-                action={
+                icon={<Icon name={products.length === 0 ? 'inventory_2' : 'search_off'} size={20} />}
+                title={products.length === 0
+                  ? (isVi ? 'Kho bản vẽ đang trống' : 'The catalogue is empty')
+                  : (isVi ? 'Không tìm thấy linh kiện CAD phù hợp' : 'No CAD parts match your criteria')}
+                description={products.length === 0
+                  ? (isVi ? 'Chưa có bản vẽ CAD nào được đăng trên VCUBE.' : 'No CAD model has been published on VCUBE yet.')
+                  : (isVi ? 'Bộ lọc hiện tại không khớp bản vẽ nào trong kho — thử xóa từ khóa hoặc đổi danh mục.' : 'The current filters match nothing in the library — clear the query or switch category.')}
+                action={products.length === 0 ? (
+                  <Button size="sm" onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}>
+                    {isVi ? 'Tải file CAD của bạn' : 'Upload your CAD file'}
+                  </Button>
+                ) : (
                   <Button size="sm"
                     onClick={() => {
                       setCadSearch('');
@@ -799,7 +872,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   >
                     {isVi ? 'Hiển thị tất cả bản vẽ' : 'Reset All Filters'}
                   </Button>
-                }
+                )}
               />
             </Card>
           ) : catalogViewMode === 'grid' ? (
@@ -810,7 +883,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   key={product.id}
                   as="article"
                   padding="none"
-                  className="group flex flex-col overflow-hidden transition-[transform,box-shadow] duration-300 hover:shadow-e2 hover:-translate-y-1 rounded-lg border border-line bg-surface"
+                  className="content-auto group flex flex-col overflow-hidden transition-[transform,box-shadow] duration-300 hover:shadow-e2 hover:-translate-y-1 rounded-lg border border-line bg-surface"
                 >
                   {/* Card Image Area with Quick 3D Inspect Overlay */}
                   <div
@@ -1103,7 +1176,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           <div className="relative z-10 max-w-3xl mx-auto text-center space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-inverse-raised/80 border border-line-subtle rounded-full text-xs uppercase font-mono tracking-[0.2em] text-accent font-bold">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
               <span>{isVi ? 'SẴN SÀNG SẢN XUẤT // RAPID FABRICATION' : 'READY TO MANUFACTURE // ON DEMAND'}</span>
             </div>
 

@@ -309,7 +309,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                   required
                   checked={termsAgreed}
                   onChange={(e) => setTermsAgreed(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded-sm border-line text-primary focus:ring-primary cursor-pointer"
+                  className="mt-0.5 w-4 h-4 rounded-sm border-line-control text-primary focus:ring-primary cursor-pointer"
                 />
                 <span className="text-xs text-fg-muted leading-relaxed">
                   {isVi ? (
@@ -333,7 +333,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             >
               {isLoading ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-primary-fg/30 border-t-primary-fg rounded-full animate-spin"></span>
+                  <span className="w-4 h-4 border-2 border-primary-fg/30 border-t-primary-fg rounded-full animate-spin motion-reduce:animate-none"></span>
                   <span>{isVi ? 'Đang khởi tạo tài khoản...' : 'Creating Account...'}</span>
                 </>
               ) : (

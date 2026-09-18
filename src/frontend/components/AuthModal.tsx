@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
-import { Icon } from '@frontend/ui';
+import { Icon, Modal } from '@frontend/ui';
 
 /**
  * Chuc nang "Quen mat khau" TAM AN.
@@ -226,15 +226,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const activeRoleBadge = getRoleBadgeInfo(currentRole);
 
   return (
-    <div className="fixed inset-0 z-modal flex items-center justify-center p-3 sm:p-4">
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        className="fixed inset-0 bg-surface-inverse/75 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
-      />
-
-      {/* Modal Container */}
-      <div className="relative bg-surface w-full max-w-2xl shadow-e3 rounded-lg z-sticky overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      showCloseButton={false}
+      bodyClassName="flex min-h-0 flex-1 flex-col"
+      aria-label="Tài khoản VCUBE"
+    >
         {/* Header */}
         <div className="bg-surface text-fg px-6 py-5 border-b border-line shrink-0">
           <div className="flex items-center justify-between">
@@ -274,7 +273,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {isLoggedIn && (
             <div className="mt-3.5 pt-2.5 border-t border-line flex items-center justify-between text-xs bg-on-inverse/5 px-3.5 py-2 rounded-lg">
               <div className="flex items-center gap-2 truncate">
-                <span className="w-2 h-2 rounded-full bg-positive animate-pulse shrink-0"></span>
+                <span className="w-2 h-2 rounded-full bg-positive animate-pulse motion-reduce:animate-none shrink-0"></span>
                 <span className="text-on-inverse/70 text-xs">Đang đăng nhập:</span>
                 <span className="font-bold text-on-inverse truncate text-xs">{profile?.displayName || user?.user_metadata?.full_name || 'Thành viên'}</span>
                 <span className={`text-xs font-tech uppercase px-2 py-0.5 rounded-full font-bold ${activeRoleBadge.badgeClass}`}>
@@ -384,7 +383,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="flex-1 py-2 px-3 bg-danger hover:bg-danger text-on-inverse font-bold text-xs uppercase tracking-wider rounded-full transition-colors flex items-center justify-center gap-1.5 shadow-e1 cursor-pointer"
                 >
                   {loading ? (
-                    <Icon name="sync" size={18} className="animate-spin" />
+                    <Icon name="sync" size={18} className="animate-spin motion-reduce:animate-none" />
                   ) : (
                     <Icon name="logout" size={18} />
                   )}
@@ -565,7 +564,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded-sm text-primary border-line focus:ring-primary cursor-pointer"
+                      className="w-4 h-4 rounded-sm text-primary border-line-control focus:ring-primary cursor-pointer"
                     />
                     <span>Ghi nhớ đăng nhập</span>
                   </label>
@@ -578,7 +577,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 >
                   {loading ? (
                     <>
-                      <Icon name="sync" size={18} className="animate-spin text-primary-fg" />
+                      <Icon name="sync" size={18} className="animate-spin motion-reduce:animate-none text-primary-fg" />
                       <span>Đang xác thực...</span>
                     </>
                   ) : (
@@ -731,7 +730,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     type="checkbox"
                     checked={showPassword}
                     onChange={(e) => setShowPassword(e.target.checked)}
-                    className="w-4 h-4 rounded-sm text-primary border-line focus:ring-primary cursor-pointer"
+                    className="w-4 h-4 rounded-sm text-primary border-line-control focus:ring-primary cursor-pointer"
                   />
                   <span>Hiện mật khẩu</span>
                 </label>
@@ -750,7 +749,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               >
                 {loading ? (
                   <>
-                    <Icon name="sync" size={18} className="animate-spin text-primary-fg" />
+                    <Icon name="sync" size={18} className="animate-spin motion-reduce:animate-none text-primary-fg" />
                     <span>Đang tạo tài khoản...</span>
                   </>
                 ) : (
@@ -791,7 +790,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   disabled={loading}
                   className="flex-1 py-3.5 px-4 bg-primary hover:bg-primary-hover text-primary-fg font-bold text-xs uppercase tracking-wider rounded-full transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-e2 cursor-pointer"
                 >
-                  {loading && <Icon name="sync" size={18} className="animate-spin text-primary-fg" />}
+                  {loading && <Icon name="sync" size={18} className="animate-spin motion-reduce:animate-none text-primary-fg" />}
                   <span>Gửi Hướng Dẫn Đặt Lại</span>
                 </button>
                 <button
@@ -855,7 +854,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

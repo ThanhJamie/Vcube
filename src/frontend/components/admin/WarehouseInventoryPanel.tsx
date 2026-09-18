@@ -182,7 +182,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
         <div className="flex items-center gap-2">
           <div className="flex -space-x-1">
             {mat.colors.slice(0, 3).map((col, idx) => (
-              <span key={idx} className="w-3.5 h-3.5 rounded-full border border-line shadow-e1 inline-block" style={{ backgroundColor: col }} />
+              <span key={`${col}-${idx}`} className="w-3.5 h-3.5 rounded-full border border-line shadow-e1 inline-block" style={{ backgroundColor: col }} />
             ))}
           </div>
           <div>
@@ -425,7 +425,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
         <div className="bg-surface p-4 border border-line rounded-sm shadow-e1">
           <div className="flex items-center justify-between text-fg-muted">
             <span className="text-xs font-tech uppercase font-bold tracking-wider">Cảnh Báo Sắp Hết Hàng</span>
-            <Icon name="warning" size={24} className={totalLowStockAlerts > 0 ? 'text-danger animate-pulse' : 'text-fg-subtle'} />
+            <Icon name="warning" size={24} className={totalLowStockAlerts > 0 ? 'text-danger animate-pulse motion-reduce:animate-none' : 'text-fg-subtle'} />
           </div>
           <div className="mt-2">
             <span className={`text-xl font-tech font-bold ${totalLowStockAlerts > 0 ? 'text-danger' : 'text-positive'}`}>
@@ -460,7 +460,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
 
           <div className="flex items-center gap-2 shrink-0">
             <span className="px-3 py-1 bg-positive/20 border border-positive/30 text-accent rounded-sm text-xs font-tech font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-positive animate-ping"></span>
+              <span className="w-2 h-2 rounded-full bg-positive animate-ping motion-reduce:animate-none"></span>
               Đồng Bộ Thời Gian Thực
             </span>
           </div>
@@ -510,7 +510,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
               key={tab.id}
               type="button"
               onClick={() => setFilterType(tab.id as any)}
-              className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors ${
                 filterType === tab.id
                   ? 'bg-primary text-primary-fg shadow-e1'
                   : 'bg-surface-muted text-fg-muted hover:bg-line-subtle'
@@ -526,9 +526,10 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
           <input
             type="text"
             placeholder="Tìm theo tên hàng, mã SKU, vị trí..."
+            aria-label="Tìm hàng trong kho theo tên, mã SKU hoặc vị trí"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 border border-line rounded-sm text-xs focus:outline-none focus:border-primary"
+            className="w-full pl-8 pr-3 py-1.5 border border-line-control rounded-sm text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
           />
         </div>
       </div>

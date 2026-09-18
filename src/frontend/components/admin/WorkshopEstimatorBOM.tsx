@@ -348,7 +348,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   type="text"
                   value={jobName}
                   onChange={(e) => setJobName(e.target.value)}
-                  className="w-full p-2 border border-line rounded-sm font-medium"
+                  className="w-full p-2 border border-line-control rounded-sm font-medium"
                 />
               </div>
 
@@ -359,7 +359,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   type="text"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full p-2 border border-line rounded-sm font-medium"
+                  className="w-full p-2 border border-line-control rounded-sm font-medium"
                 />
               </div>
             </div>
@@ -379,7 +379,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   id="bom-printer"
                   value={selectedPrinterId}
                   onChange={(e) => setSelectedPrinterId(e.target.value)}
-                  className="w-full p-2 border border-line rounded-sm font-bold bg-surface"
+                  className="w-full p-2 border border-line-control rounded-sm font-bold bg-surface"
                 >
                   {printers.map(p => (
                     <option key={p.id} value={p.id}>
@@ -395,7 +395,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   id="bom-material"
                   value={selectedMaterialId}
                   onChange={(e) => setSelectedMaterialId(e.target.value)}
-                  className="w-full p-2 border border-line rounded-sm font-bold bg-surface"
+                  className="w-full p-2 border border-line-control rounded-sm font-bold bg-surface"
                 >
                   {materials.map(m => (
                     <option key={m.id} value={m.id}>
@@ -414,7 +414,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   placeholder="Chưa nhập"
                   value={weightGrams ?? ''}
                   onChange={(e) => setWeightGrams(numberOrUndefined(e.target.value))}
-                  className="w-full p-2 border border-line rounded-sm font-tech font-bold"
+                  className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
                 />
               </div>
 
@@ -428,7 +428,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   placeholder="Chưa nhập"
                   value={printHours ?? ''}
                   onChange={(e) => setPrintHours(numberOrUndefined(e.target.value))}
-                  className="w-full p-2 border border-line rounded-sm font-tech font-bold"
+                  className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
                 />
               </div>
 
@@ -442,7 +442,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                     placeholder="Chưa nhập"
                     value={quantity ?? ''}
                     onChange={(e) => setQuantity(numberOrUndefined(e.target.value))}
-                    className="w-full p-2 border border-line rounded-sm font-tech font-bold text-base text-primary"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold text-base text-primary"
                   />
                   <div className="flex gap-1 shrink-0">
                     {[1, 10, 50, 100].map(q => (
@@ -495,7 +495,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
             </div>
 
             {hasOutOfStockAccessories && (
-              <div className="p-3 bg-danger-tint border border-danger/30 rounded-sm text-xs text-danger flex items-center gap-2 font-bold animate-pulse">
+              <div className="p-3 bg-danger-tint border border-danger/30 rounded-sm text-xs text-danger flex items-center gap-2 font-bold animate-pulse motion-reduce:animate-none">
                 <Icon name="warning" size={18} className="text-danger" />
                 Cảnh báo: Có phụ kiện trong đơn hàng đang thiếu hàng trong kho! Cần nhập thêm.
               </div>
@@ -513,7 +513,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                 return (
                   <div
                     key={acc.id}
-                    className={`p-3 border rounded-sm transition-all text-xs ${
+                    className={`p-3 border rounded-sm transition-colors text-xs ${
                       isSelected
                         ? 'border-primary bg-primary-tint/40 ring-1 ring-primary'
                         : 'border-line-subtle hover:border-line bg-surface-muted'

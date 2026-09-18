@@ -274,6 +274,9 @@ export function rowToPrinter(d: SupabaseRow): PrinterProfile {
     hourlyRate: numOrNull(d.hourly_rate),
     maxPrintSpeedMmS: optNum(d.max_print_speed_mms),
     heatedBedMaxTemp: optNum(d.heated_bed_max_temp),
+    // Năng suất in (g/giờ): cột nullable. `null` = CHƯA KHAI — KHÔNG điền số mặc định;
+    // engine rơi về ước lượng thể tích có gắn nhãn nguồn (data-honesty PC-05/MP-13).
+    throughputGramsPerHour: numOrNull(d.throughput_grams_per_hour),
     hasEnclosure: d.has_enclosure === true,
     hasAMS: d.has_ams === true,
     status: d.status || 'Idle',

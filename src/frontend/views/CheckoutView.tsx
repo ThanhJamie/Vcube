@@ -8,7 +8,8 @@ import { useCartStore } from '../stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
-import { Icon, Button, EmptyState } from '@frontend/ui';
+import { Icon, Button, EmptyState, Money } from '@frontend/ui';
+import { formatNumber } from '@frontend/lib/format';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
 import { OrderService } from '../../backend/services/orderService';
 
@@ -382,7 +383,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
 
@@ -396,7 +397,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
 
@@ -410,7 +411,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
 
@@ -422,7 +423,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     id="checkout-city"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary cursor-pointer"
+                    className="w-full bg-canvas border border-line-control px-3 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                   >
                     <option value="" disabled>Chọn Tỉnh / Thành phố…</option>
                     <option value="Hà Nội">Hà Nội (Hub Miền Bắc - 24h)</option>
@@ -446,7 +447,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     required
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
 
@@ -460,7 +461,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
 
@@ -473,7 +474,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     rows={2}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
               </div>
@@ -596,7 +597,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                         <div>Chủ tài khoản: <strong className="text-fg">{accountHolder}</strong></div>
                       )}
                       <div>
-                        Số tiền: <strong className="text-primary">{totalAmount.toLocaleString('vi-VN')} đ</strong>
+                        Số tiền: <Money as="strong" value={totalAmount} size="sm" className="text-primary" />
                       </div>
                       <div className="col-span-2">
                         Nội dung chuyển khoản: <strong className="text-warning">VCUBE {phone.replace(/\s/g, '') || '<SĐT>'}</strong>
@@ -611,8 +612,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                       </p>
                       <p className="leading-relaxed">
                         {isVi
-                          ? `VCUBE chưa khai báo ngân hàng, số tài khoản và tên pháp nhân nhận chuyển khoản. Vui lòng liên hệ VCUBE để nhận thông tin chính xác trước khi chuyển ${totalAmount.toLocaleString('vi-VN')} đ.`
-                          : `VCUBE has not configured a receiving bank account. Contact VCUBE for the correct details before transferring ${totalAmount.toLocaleString('vi-VN')} đ.`}
+                          ? `VCUBE chưa khai báo ngân hàng, số tài khoản và tên pháp nhân nhận chuyển khoản. Vui lòng liên hệ VCUBE để nhận thông tin chính xác trước khi chuyển ${formatNumber(totalAmount)} đ.`
+                          : `VCUBE has not configured a receiving bank account. Contact VCUBE for the correct details before transferring ${formatNumber(totalAmount)} đ.`}
                       </p>
                       {canConfigureTransferInfo && (
                         <Link
@@ -663,7 +664,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                       placeholder="CÔNG TY TNHH CÔNG NGHỆ..."
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
-                      className="w-full bg-canvas border border-line-control px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-primary"
+                      className="w-full bg-canvas border border-line-control px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </div>
                   <div>
@@ -676,7 +677,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                       placeholder="Nhập mã số thuế"
                       value={taxId}
                       onChange={(e) => setTaxId(e.target.value)}
-                      className="w-full bg-canvas border border-line-control px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-primary"
+                      className="w-full bg-canvas border border-line-control px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -689,7 +690,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                       placeholder="Tầng 5, Tòa nhà Innovation, Cầu Giấy, Hà Nội"
                       value={companyAddress}
                       onChange={(e) => setCompanyAddress(e.target.value)}
-                      className="w-full bg-canvas border border-line-control px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-primary"
+                      className="w-full bg-canvas border border-line-control px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </div>
                 </div>
@@ -729,7 +730,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                       </p>
                     </div>
                     <span className="font-bold text-fg text-xs shrink-0">
-                      {(item.price * item.quantity).toLocaleString('vi-VN')} đ
+                      <Money value={item.price * item.quantity} size="sm" className="font-bold text-fg" />
                     </span>
                   </div>
                 ))}
@@ -739,27 +740,27 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               <div className="space-y-2.5 text-xs font-mono text-fg-muted border-t border-line pt-4">
                 <div className="flex justify-between">
                   <span>Tạm tính sản phẩm:</span>
-                  <span className="font-bold text-fg">{subtotal.toLocaleString('vi-VN')} đ</span>
+                  <Money value={subtotal} size="sm" className="font-bold text-fg" />
                 </div>
 
                 <div className="flex justify-between">
                   <span>Phí vận chuyển:</span>
                   <span className={`font-bold ${shippingFee === 0 ? 'text-positive' : 'text-fg'}`}>
-                    {shippingFee === 0 ? 'Miễn phí' : `${shippingFee.toLocaleString('vi-VN')} đ`}
+                    {shippingFee === 0 ? 'Miễn phí' : `${formatNumber(shippingFee)} đ`}
                   </span>
                 </div>
 
                 {appliedDiscount > 0 && (
                   <div className="flex justify-between text-positive font-bold">
                     <span>Mã ưu đãi đã áp dụng:</span>
-                    <span>- {appliedDiscount.toLocaleString('vi-VN')} đ</span>
+                    <span>- <Money value={appliedDiscount} size="sm" className="text-positive" /></span>
                   </div>
                 )}
 
                 {vat ? (
                   <div className="flex justify-between">
                     <span>{vatLabel(vat.rate)}:</span>
-                    <span className="font-bold text-fg">{vat.amount.toLocaleString('vi-VN')} đ</span>
+                    <Money value={vat.amount} size="sm" className="font-bold text-fg" />
                   </div>
                 ) : pricingError ? (
                   <p className="text-xs text-danger leading-relaxed">
@@ -777,7 +778,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                   <span className="text-sm font-bold text-fg">Tổng thanh toán:</span>
                   <div className="text-right">
                     <span className="font-mono text-xl font-black text-primary block">
-                      {totalAmount.toLocaleString('vi-VN')} đ
+                      <Money value={totalAmount} className="font-mono text-xl font-black text-primary" />
                     </span>
                     <span className="text-xs text-fg-subtle block">
                       {vatTotalNote(isVi, vatRate)}

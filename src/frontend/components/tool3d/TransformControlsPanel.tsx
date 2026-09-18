@@ -24,9 +24,6 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-line-subtle pb-3">
         <div>
-          <span className="font-sans text-xs uppercase tracking-widest text-fg-muted font-bold block">
-            Hiệu Chỉnh Không Gian // Model Transforms & Bed Positioning
-          </span>
           <h3 className="font-bold text-sm sm:text-base text-fg flex items-center gap-2 mt-0.5">
             <Icon name="transform" size={18} className="text-primary" />
             Tỷ Lệ, Góc Xoay & Tọa Độ Bàn In
@@ -43,9 +40,17 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
       </div>
 
       {/* Mode Sub-Tabs (Scale / Rotate / Move) */}
-      <div className="grid grid-cols-3 gap-1 bg-surface-muted p-1 rounded-lg border border-line-subtle text-xs">
+      <div
+        role="tablist"
+        aria-label="Chế độ hiệu chỉnh mô hình"
+        className="grid grid-cols-3 gap-1 bg-surface-muted p-1 rounded-lg border border-line-subtle text-xs"
+      >
         <button
           type="button"
+          role="tab"
+          id="transform-tab-scale"
+          aria-selected={activeTab === 'scale'}
+          aria-controls="transform-panel-scale"
           onClick={() => setActiveTab('scale')}
           className={`py-1.5 font-bold rounded-sm text-xs flex items-center justify-center gap-1 transition-colors ${
             activeTab === 'scale' ? 'bg-primary text-primary-fg shadow-e1' : 'text-fg-muted hover:text-fg'
@@ -56,6 +61,10 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
         </button>
         <button
           type="button"
+          role="tab"
+          id="transform-tab-rotate"
+          aria-selected={activeTab === 'rotate'}
+          aria-controls="transform-panel-rotate"
           onClick={() => setActiveTab('rotate')}
           className={`py-1.5 font-bold rounded-sm text-xs flex items-center justify-center gap-1 transition-colors ${
             activeTab === 'rotate' ? 'bg-primary text-primary-fg shadow-e1' : 'text-fg-muted hover:text-fg'
@@ -66,6 +75,10 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
         </button>
         <button
           type="button"
+          role="tab"
+          id="transform-tab-move"
+          aria-selected={activeTab === 'move'}
+          aria-controls="transform-panel-move"
           onClick={() => setActiveTab('move')}
           className={`py-1.5 font-bold rounded-sm text-xs flex items-center justify-center gap-1 transition-colors ${
             activeTab === 'move' ? 'bg-primary text-primary-fg shadow-e1' : 'text-fg-muted hover:text-fg'
@@ -78,10 +91,10 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
 
       {/* TAB 1: SCALE CONTROLS */}
       {activeTab === 'scale' && (
-        <div className="space-y-4">
+        <div role="tabpanel" id="transform-panel-scale" aria-labelledby="transform-tab-scale" className="space-y-4">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <label className="font-semibold text-fg flex items-center gap-1">
+              <label htmlFor="transform-scale-uniform" className="font-semibold text-fg flex items-center gap-1">
                 <span>Tỷ lệ đồng nhất (Uniform Scale):</span>
               </label>
               <span className="font-tech font-bold text-primary text-sm">
@@ -89,6 +102,7 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
               </span>
             </div>
             <input
+              id="transform-scale-uniform"
               type="range"
               min="20"
               max="300"
@@ -128,7 +142,7 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
 
       {/* TAB 2: ROTATE CONTROLS */}
       {activeTab === 'rotate' && (
-        <div className="space-y-4">
+        <div role="tabpanel" id="transform-panel-rotate" aria-labelledby="transform-tab-rotate" className="space-y-4">
           <div className="space-y-2">
             <label className="text-xs font-semibold text-fg block">
               Xoay nhanh 90° từng trục:
@@ -173,6 +187,7 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
               max="360"
               step="5"
               value={transform.rotationX}
+              aria-label="Góc xoay trục X"
               onChange={(e) => onUpdateTransform({ rotationX: Number(e.target.value) })}
               className="w-full accent-primary"
             />
@@ -182,7 +197,7 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
 
       {/* TAB 3: MOVE / POSITION CONTROLS */}
       {activeTab === 'move' && (
-        <div className="space-y-4">
+        <div role="tabpanel" id="transform-panel-move" aria-labelledby="transform-tab-move" className="space-y-4">
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="space-y-1">
               <div className="flex justify-between">
@@ -195,6 +210,7 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
                 max="100"
                 step="5"
                 value={transform.positionX || 0}
+                aria-label="Tọa độ X (mm)"
                 onChange={(e) => onUpdateTransform({ positionX: Number(e.target.value) })}
                 className="w-full accent-primary"
               />
@@ -211,6 +227,7 @@ export const TransformControlsPanel: React.FC<TransformControlsPanelProps> = ({
                 max="100"
                 step="5"
                 value={transform.positionY || 0}
+                aria-label="Tọa độ Y (mm)"
                 onChange={(e) => onUpdateTransform({ positionY: Number(e.target.value) })}
                 className="w-full accent-primary"
               />

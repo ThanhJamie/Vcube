@@ -399,7 +399,7 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
       {/* Standby placeholder when scrolled out of viewport */}
       {!isInViewport && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-inverse text-on-inverse/60 font-mono text-xs z-10 select-none">
-          <Icon name="view_in_ar" size={28} className="mb-2 text-accent/60 animate-pulse" />
+          <Icon name="view_in_ar" size={28} className="mb-2 text-accent/60 animate-pulse motion-reduce:animate-none" />
           <span className="font-bold tracking-wider uppercase text-on-inverse/80">
             WebGL Standby (±100px)
           </span>
@@ -415,7 +415,7 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
       {/* Optional Minimal Model Badge */}
       {showTitleBadge && (
         <div className="absolute top-3 left-3 flex items-center gap-2 bg-surface-inverse/85 px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2 z-10">
-          <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+          <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none"></span>
           <span className="font-mono text-xs font-bold text-on-inverse/90 uppercase tracking-wider">
             {modelType}
           </span>

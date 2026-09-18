@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { disposeHierarchy } from '../../three/dispose';
 import { ModelPart, TransformState, MeasurementResult, PlateInfo } from '../../types';
 import { Icon } from '@frontend/ui';
+import { EMPTY_VALUE, formatWeight } from '../../lib/format';
 
 export type WebGLRecoveryState = 'ACTIVE' | 'CONTEXT_LOST' | 'RECOVERING';
 
@@ -42,6 +43,36 @@ export interface ModelViewer3DProps {
  * hiển thị như một số đo (Đợt S #3: trước đây component tự mặc định một khối bàn in 256 mm).
  */
 const MIN_VIEW_FRAME = 260;
+
+/** F7 — đổi số giây slicer thành nhãn giờ/phút; thiếu/0/âm/NaN ⇒ `—`. */
+const formatSeconds = (seconds: number | null | undefined): string => {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) return EMPTY_VALUE;
+  const totalMinutes = Math.round(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return minutes > 0 ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
+  return `${minutes} phút`;
+};
+
+/**
+ * F7 — nhãn gram/giờ của MỘT bàn, chỉ dựng từ số đo tệp khai. Không có số nào ⇒ `null`
+ * để UI không bày dòng rỗng hay số đoán.
+ */
+const plateMetaText = (plate: PlateInfo): string | null => {
+  const grams =
+    typeof plate.filamentGrams === 'number' && Number.isFinite(plate.filamentGrams)
+      ? formatWeight(plate.filamentGrams)
+      : null;
+  const time =
+    plate.predictionFormatted ||
+    (typeof plate.predictionSeconds === 'number' &&
+    Number.isFinite(plate.predictionSeconds) &&
+    plate.predictionSeconds > 0
+      ? formatSeconds(plate.predictionSeconds)
+      : null);
+  const parts = [grams, time].filter((v): v is string => Boolean(v));
+  return parts.length > 0 ? parts.join(' · ') : null;
+};
 
 export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   fileName,
@@ -994,9 +1025,12 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         const partId = currentPart?.id || `part-${partIndex}`;
         const isSelected = partId === selectedPartId;
         const partColor = currentPart?.colorHex || (partIndex === 0 ? '#00687a' : '#ea580c');
-        const partPlateIndex = currentPart?.plateIndex || 1;
+        // F2 (P2): tệp KHÔNG khai bàn cho chi tiết ⇒ giữ `null`, KHÔNG ngầm gán Bàn 1.
+        // Chi tiết chưa khai bàn luôn hiển thị (không thể ẩn nó vào một bàn không xác định).
+        const partPlateIndex = currentPart?.plateIndex ?? null;
 
-        const isPlateVisible = activePlateIndex === 0 || partPlateIndex === activePlateIndex;
+        const isPlateVisible =
+          activePlateIndex === 0 || partPlateIndex === null || partPlateIndex === activePlateIndex;
         const isPartVisible = (currentPart ? currentPart.visible !== false : true) && isPlateVisible;
 
         m.material = createPartMaterial(partId, partColor, isSelected);
@@ -1318,12 +1352,14 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
         if (!mat) return;
 
         const partId = m.userData?.partId;
-        const partPlateIndex = m.userData?.plateIndex || 1;
+        // F2 (P2): đồng bộ với lúc dựng mesh — `null` = tệp chưa khai bàn, không gán Bàn 1.
+        const partPlateIndex = m.userData?.plateIndex ?? null;
         const currentPart = parts.find(p => p.id === partId);
         const isSelected = partId === selectedPartId;
 
         // Visibility
-        const isPlateVisible = activePlateIndex === 0 || partPlateIndex === activePlateIndex;
+        const isPlateVisible =
+          activePlateIndex === 0 || partPlateIndex === null || partPlateIndex === activePlateIndex;
         const isPartVisible = (currentPart ? currentPart.visible !== false : true) && isPlateVisible;
         m.visible = isPartVisible;
 
@@ -1680,7 +1716,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       {/* Drag and Drop Over Canvas Overlay */}
       {isDragOver && (
         <div className="absolute inset-0 z-modal bg-primary/90 flex flex-col items-center justify-center text-primary-fg border-2 border-dashed border-accent">
-          <Icon name="upload_file" size={48} className="animate-bounce text-accent" />
+          <Icon name="upload_file" size={48} className="animate-bounce motion-reduce:animate-none text-accent" />
           <p className="font-mono text-sm font-bold mt-2 uppercase tracking-wider">Thả tập tin 3D (3MF / STL / OBJ / STEP) vào đây</p>
           <span className="text-xs text-primary-fg font-mono">Hệ thống sẽ bóc tách cấu trúc 3D tự động</span>
         </div>
@@ -1690,7 +1726,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       {webglState !== 'ACTIVE' && (
         <div className="absolute inset-0 z-modal bg-surface-inverse/85 flex flex-col items-center justify-center p-6 text-center select-none">
           <div className="w-16 h-16 rounded-2xl bg-surface-inverse-raised/80 border border-surface-inverse-raised flex items-center justify-center mb-4 shadow-e2">
-            <Icon name="sync" size={32} className="animate-spin text-accent" />
+            <Icon name="sync" size={32} className="animate-spin motion-reduce:animate-none text-accent" />
           </div>
           <h3 className="text-base font-bold text-on-inverse tracking-wide mb-1.5 font-mono">
             Đang khôi phục tài nguyên đồ họa 3D...
@@ -1699,7 +1735,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
             Ngữ cảnh WebGL đang được thiết lập lại từ bộ nhớ đệm hình học. Quá trình này diễn ra tự động mà không làm mất trạng thái của mô hình.
           </p>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-inverse-raised/60 border border-surface-inverse-raised/80 text-xs font-mono text-accent mb-4">
-            <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-warning animate-pulse motion-reduce:animate-none" />
             <span>
               {webglState === 'CONTEXT_LOST'
                 ? 'Trạng thái: Mất ngữ cảnh GPU (Đang chờ khôi phục)'
@@ -1727,7 +1763,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
       <div className="absolute top-3 left-3 right-3 z-panel flex items-center justify-between gap-2 pointer-events-none">
         {/* Top-Left: VCUBE ENGINE v2.6 // 60 FPS // Model Name */}
         <div className="pointer-events-auto flex items-center gap-2 bg-surface-inverse/90 px-3 py-1.5 rounded-lg border border-surface-inverse-raised/70 text-xs text-on-inverse font-mono shadow-e2">
-          <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0"></span>
+          <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0"></span>
           <span className="font-bold text-accent tracking-wider shrink-0">VCUBE ENGINE v2.6</span>
           <span className="text-on-inverse/70">//</span>
           <span ref={fpsDisplayRef} className="text-positive font-bold shrink-0">60 FPS</span>
@@ -1907,6 +1943,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           </button>
           {plates.map((plate) => {
             const isActive = activePlateIndex === plate.index;
+            // F7: chỉ hiện gram/giờ khi CHÍNH tệp khai số cho bàn này.
+            const meta = plateMetaText(plate);
             return (
               <button
                 key={plate.index}
@@ -1915,14 +1953,23 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
                   if (onSelectPlate) onSelectPlate(plate.index);
                   handleAutoFit();
                 }}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer text-center ${
                   isActive
                     ? 'bg-primary text-primary-fg border border-accent/50 shadow-e1'
                     : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised'
                 }`}
                 title={`Chuyển sang Bàn ${plate.index}`}
               >
-                Bàn {plate.index}
+                <span className="block">Bàn {plate.index}</span>
+                {meta && (
+                  <span
+                    className={`block text-xs font-normal tabular-nums ${
+                      isActive ? 'text-primary-fg/80' : 'text-on-inverse/60'
+                    }`}
+                  >
+                    {meta}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -1931,7 +1978,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
       {/* Bed overflow warning banner when dimensions exceed build plate */}
       {isBedOverflow && (
-        <div className="absolute top-14 left-3 right-3 z-panel bg-danger-tint border border-danger/40 text-danger px-4 py-2.5 rounded-lg shadow-e3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono animate-pulse">
+        <div className="absolute top-14 left-3 right-3 z-panel bg-danger-tint border border-danger/40 text-danger px-4 py-2.5 rounded-lg shadow-e3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono animate-pulse motion-reduce:animate-none">
           <div className="flex items-center gap-2.5">
             <Icon name="warning" size={24} className="text-danger shrink-0" />
             <div>

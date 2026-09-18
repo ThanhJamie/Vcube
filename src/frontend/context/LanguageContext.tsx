@@ -450,10 +450,9 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>(() => {
-    const saved = localStorage.getItem('vcube_language') as Language;
-    return saved === 'en' || saved === 'vi' ? saved : 'vi';
-  });
+  // A7 — Vietnamese-only: UI không còn control đổi ngôn ngữ; trạng thái cũ trong
+  // `localStorage` (kể cả `'en'`) không được phép kéo giao diện sang tiếng Anh.
+  const [language, setLanguageState] = useState<Language>('vi');
 
   // NHÓM A: cấu hình admin (cache + realtime của `settingsService`, xem `useSettings`).
   // `data === null` = CHƯA CẤU HÌNH ⇒ mọi tuyên bố Nhóm A rỗng ⇒ ẩn.
@@ -464,15 +463,18 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     [language, siteContent, appSettings],
   );
 
-  const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem('vcube_language', lang);
+  // A7: giữ API như cũ nhưng ép về `vi` — mọi giá trị khác (kể cả `'en'`) đều bị hạ cấp
+  // để không tồn tại đường nào đưa UI về tiếng Anh.
+  const setLanguage = (_lang: Language) => {
+    setLanguageState('vi');
+    try {
+      localStorage.setItem('vcube_language', 'vi');
+    } catch {
+      /* localStorage có thể bị chặn — bỏ qua, state vẫn là `vi`. */
+    }
   };
 
-  const toggleLanguage = () => {
-    const nextLang: Language = language === 'vi' ? 'en' : 'vi';
-    setLanguage(nextLang);
-  };
+  const toggleLanguage = () => setLanguage('vi');
 
   const t = (key: string, fallbackVi?: string, fallbackEn?: string): string => {
     // NHÓM A thắng từ điển: giá trị đọc từ cấu hình admin — kể cả khi RỖNG

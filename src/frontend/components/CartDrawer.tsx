@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { CartItem } from '../../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useCartStore } from '../stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
-import { Icon } from '@frontend/ui';
+import { formatNumber } from '@frontend/lib/format';
+import { Icon, Modal, Money } from '@frontend/ui';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -36,29 +37,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   // Cấu hình tỉ lệ thuế VAT
   const { data: pricingGlobal, loading: pricingLoading, error: pricingError } = usePricingGlobalSettings();
   const vatRate = vatRateFromPercent(pricingGlobal?.vatPercent);
-
-  // Keyboard Escape listener
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  // Prevent background body scroll when drawer is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -95,17 +73,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-drawer overflow-hidden font-sans">
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        className="fixed inset-0 bg-surface-inverse/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
-        aria-hidden="true"
-      />
-
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-full sm:w-[28rem] bg-surface shadow-e3 flex flex-col animate-in slide-in-from-right duration-300">
-          
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      placement="right"
+      showCloseButton={false}
+      bodyClassName="flex min-h-0 flex-1 flex-col"
+      panelClassName="font-sans"
+      aria-label={isVi ? 'Giỏ hàng' : 'Cart'}
+    >
           {/* Drawer Header */}
           <div className="p-4 sm:p-5 border-b border-line flex items-center justify-between bg-canvas">
             <div className="flex items-center gap-2">
@@ -135,7 +111,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <Icon name="local_shipping" size={18} />
                   {isFreeShipping
                     ? (isVi ? 'Đã đạt Miễn Phí Vận Chuyển!' : 'Free Shipping Unlocked!')
-                    : (isVi ? `Thêm ${remainingForFreeShip.toLocaleString('vi-VN')} đ để FreeShip` : `Add ${remainingForFreeShip.toLocaleString()} đ for Free Ship`)}
+                    : (isVi ? `Thêm ${formatNumber(remainingForFreeShip)} đ để FreeShip` : `Add ${formatNumber(remainingForFreeShip)} đ for Free Ship`)}
                 </span>
                 <span className="text-info font-bold">{progressPercent}%</span>
               </div>
@@ -272,7 +248,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         )}
 
                         <span className="font-mono font-bold text-xs text-fg tabular-nums">
-                          {(item.price * item.quantity).toLocaleString('vi-VN')} đ
+                          <Money value={item.price * item.quantity} size="sm" className="font-mono font-bold text-fg" />
                         </span>
                       </div>
                     </div>
@@ -289,7 +265,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="space-y-1 text-xs font-mono">
                 <div className="flex items-center justify-between text-fg-muted">
                   <span>{isVi ? 'Tạm tính' : 'Subtotal'}:</span>
-                  <span className="tabular-nums">{subtotal.toLocaleString('vi-VN')} đ</span>
+                  <Money value={subtotal} size="sm" />
                 </div>
                 {physicalItems.length > 0 && (
                   <div className="flex items-center justify-between text-fg-muted">
@@ -297,20 +273,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <span className={isFreeShipping ? 'text-positive font-bold' : 'tabular-nums'}>
                       {isFreeShipping
                         ? (isVi ? 'MIỄN PHÍ' : 'FREE')
-                        : `${shippingFee.toLocaleString('vi-VN')} đ`}
+                        : `${formatNumber(shippingFee)} đ`}
                     </span>
                   </div>
                 )}
                 {appliedDiscount > 0 && (
                   <div className="flex items-center justify-between text-positive font-bold">
                     <span>{isVi ? 'Giảm giá ưu đãi' : 'Discount'}:</span>
-                    <span className="tabular-nums">- {appliedDiscount.toLocaleString('vi-VN')} đ</span>
+                    <span className="tabular-nums">- <Money value={appliedDiscount} size="sm" /></span>
                   </div>
                 )}
                 {vat ? (
                   <div className="flex items-center justify-between text-fg-muted">
                     <span>{vatLabel(vat.rate)}:</span>
-                    <span className="tabular-nums">{vat.amount.toLocaleString('vi-VN')} đ</span>
+                    <Money value={vat.amount} size="sm" />
                   </div>
                 ) : pricingError ? (
                   <p className="text-xs text-danger leading-relaxed">
@@ -324,9 +300,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="flex items-baseline justify-between pt-2 border-t border-line text-fg">
                   <span className="font-extrabold text-sm">{isVi ? 'Tổng thanh toán' : 'Total'}:</span>
                   <div className="text-right">
-                    <span className="font-extrabold text-lg text-primary tabular-nums">
-                      {totalAmount.toLocaleString('vi-VN')} đ
-                    </span>
+                    <Money value={totalAmount} size="heading" className="block font-extrabold text-primary" />
                     <span className="block text-xs text-fg-subtle font-sans">
                       {vatTotalNote(isVi, vatRate)}
                     </span>
@@ -356,9 +330,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

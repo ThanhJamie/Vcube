@@ -172,7 +172,7 @@ export interface DigitalAsset {
 }
 
 export interface FilamentPaletteItem {
-  index: number; // 1-indexed (AMS Slot 1, 2, 3, 4...)
+  index: number | null; // 1-indexed (AMS Slot 1, 2, 3, 4...) — `null` = tệp KHÔNG khai đầu đùn
   colorHex: string;
   name: string;
   materialType: string; // e.g. "PLA", "PETG", "TPU", "ABS", "PA-CF"
@@ -230,8 +230,12 @@ export interface ModelPart {
   visible: boolean;
   triangleCount: number;
   volumeCm3: number;
-  extruderIndex: number; // 1 to 4
-  plateIndex?: number; // 1-indexed (Plate 1, Plate 2...)
+  /**
+   * R2 (MP-... F2/P3): chỉ là số ĐẦU ĐÙN ĐỌC ĐƯỢC từ tệp (`model_settings.config`).
+   * `undefined`/`null` = TỆP KHÔNG KHAI — KHÔNG được gán vòng tròn `((i-1)%4)+1` hay mặc định T1.
+   */
+  extruderIndex?: number | null; // 1 to 4 khi tệp khai báo
+  plateIndex?: number; // 1-indexed (Plate 1, Plate 2...) — chỉ khi tệp khai báo bàn
 }
 
 export interface ValidationIssue {
@@ -448,6 +452,12 @@ export interface PrinterProfile {
   heatedBedMaxTemp?: number; // °C e.g. 120
   hasEnclosure?: boolean;
   hasAMS?: boolean;
+  /**
+   * Năng suất in khai báo (g/giờ). `null`/`undefined` = CHƯA KHAI (khác 0 = khai 0 g/giờ).
+   * KHÔNG có giá trị mặc định: thiếu khai thì engine rơi về ước lượng thể tích (có gắn nhãn nguồn),
+   * không được thay bằng một con số "trông như thật" (data-honesty PC-05/MP-13).
+   */
+  throughputGramsPerHour?: number | null;
   status: 'Idle' | 'Printing' | 'Maintenance';
 }
 
@@ -462,6 +472,14 @@ export interface DetailedCostBreakdown {
   totalFilamentGrams: number;
   materialCostPerGram: number;
   materialCost: number;
+
+  // 3.1b Provenance của gram/giờ in (data-honesty: khách phải biết số nào đo từ file, số nào ước)
+  /** Nguồn số gram: `slicer` = đọc từ dữ liệu cắt lớp trong file; `volume_estimate` = ước từ thể tích. */
+  gramsSource?: 'slicer' | 'volume_estimate';
+  /** Nguồn số giờ in: `slicer` = file; `throughput` = suy từ năng suất máy; `volume_estimate` = ước từ thể tích. */
+  printHoursSource?: 'slicer' | 'throughput' | 'volume_estimate';
+  /** Năng suất máy (g/giờ) ĐÃ DÙNG khi `printHoursSource === 'throughput'`; `null` = không dùng/chưa khai. */
+  throughputGramsPerHourUsed?: number | null;
 
   // 3.2 Electricity
   printHours: number;

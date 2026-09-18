@@ -61,6 +61,9 @@ tmp/
 temp/
 supabase/.temp/
 
+# Loop Improvement: state/metrics/backup cua vong lap tu toi uu — khong commit
+.loop/
+
 # Artefact Playwright/agent de lai trong repo (bang chung) — khong commit
 pwtest/
 # Nguyên trạng seed (dữ liệu vận hành) — KHÔNG commit

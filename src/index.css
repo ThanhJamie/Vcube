@@ -159,6 +159,14 @@
   font-feature-settings: "tnum" 1;
 }
 
+/* Bỏ qua render ngoài viewport cho danh sách dài (Explore grid, Home catalog).
+   `auto` trong `contain-intrinsic-size` ghi nhớ kích thước thật sau lần render đầu,
+   nên không giật scrollbar khi ảo hoá/khôi phục. Giá trị dự phòng ~ chiều cao thẻ. */
+@utility content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 380px;
+}
+
 /* ---------------------------------------------------------------------------
    Dark theme — giá trị đã kiểm tương phản: docs/plans/01-theme-migration.md §5.1/§5.3
    Không dùng #000/#FFF tuyệt đối; phân cấp bề mặt bằng viền, không bằng độ sáng.

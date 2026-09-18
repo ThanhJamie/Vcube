@@ -3,6 +3,7 @@ import { Star, Minus } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { MATERIALS_CATALOG } from '../../data/mockData';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
+import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { MaterialTechnicalAdvisory } from '../components/material/MaterialTechnicalAdvisory';
 import { SEOHead } from '../components/SEOHead';
 import { useLanguage } from '../context/LanguageContext';
@@ -55,7 +56,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const [viewMode, setViewMode] = useState<'3d' | 'image'>('3d');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [selectedMaterial, setSelectedMaterial] = useState<string>(product.supportedMaterials?.[0] || 'PLA Tough');
+  const [selectedMaterial, setSelectedMaterial] = useState<string>(product.supportedMaterials?.[0] ?? '');
   const [selectedColorName, setSelectedColorName] = useState<string>(product.colors?.[0]?.name || '');
   const [resolution, setResolution] = useState('0.16 mm (Tiêu chuẩn kỹ thuật)');
   const [customEngraving, setCustomEngraving] = useState('');
@@ -67,13 +68,21 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   const imageList = Array.isArray(product.images) ? product.images : [];
   const colorOptions = Array.isArray(product.colors) ? product.colors : [];
+  const declaredMaterials = Array.isArray(product.supportedMaterials) ? product.supportedMaterials : [];
   const selectedColor = colorOptions.find((c) => c.name === selectedColorName) || null;
 
+  // A5 (data-honesty): KHÔNG ghi cứng `'PLA Tough'`. Người bán chưa khai vật liệu ⇒ không có
+  // vật liệu nào để gắn vào đơn; bắt buộc chặn đặt in thay vì âm thầm mặc định một vật liệu bịa.
+  const materialSelected = selectedMaterial.trim().length > 0;
+  const materialBlocked = !materialSelected;
+
   // Dynamic pricing calculation
-  const selectedMaterialObj = materialsList.find(
-    m => m.name.toLowerCase().includes(selectedMaterial.toLowerCase()) ||
-         m.id.toLowerCase() === selectedMaterial.toLowerCase()
-  ) || materialsList[0];
+  const selectedMaterialObj = selectedMaterial
+    ? materialsList.find(
+        m => m.name.toLowerCase().includes(selectedMaterial.toLowerCase()) ||
+             m.id.toLowerCase() === selectedMaterial.toLowerCase()
+      ) || materialsList[0]
+    : null;
 
   const applicableDiscountTier = (cfg?.volumeDiscounts || []).find(
     d => quantity >= d.minQty && (d.maxQty === undefined || quantity <= d.maxQty)
@@ -120,7 +129,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     ? null
     : Math.round(unitBeforeDiscount * (1 - volumeDiscountPercent / 100));
   const orderTotal = dynamicPricePhysical === null ? null : dynamicPricePhysical * quantity;
-  const purchaseBlocked = dynamicPricePhysical === null || engravingBlocked;
+  const purchaseBlocked = dynamicPricePhysical === null || engravingBlocked || materialBlocked;
 
   // T3: đánh giá chỉ có nghĩa khi có CẢ điểm VÀ số lượng đánh giá thật.
   const reviewsCount: number | null = isNum(product.reviewsCount) ? product.reviewsCount : null;
@@ -341,7 +350,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 {/* HUD Top Bar */}
                 <div className="w-full flex items-center justify-between z-sticky text-fg-muted font-mono text-xs uppercase tracking-wider mb-2">
                   <span className="flex items-center gap-1.5 bg-surface-muted px-2.5 py-1 rounded-md border border-line">
-                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse motion-reduce:animate-none"></span>
                     <span className="font-bold text-fg">WebGL 360° Inspection</span>
                   </span>
                   <span className="bg-surface-muted px-2.5 py-1 rounded-md border border-line text-primary font-bold truncate ml-2">
@@ -351,12 +360,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
                 {/* 3D Model Rendering Canvas */}
                 <div className="flex-1 w-full h-full relative rounded-md overflow-hidden">
-                  <ThreeModelViewer
-                    modelType={modelGeometryType}
-                    color={selectedColor?.hex}
-                    wireframe={isWireframe}
-                    className="h-full w-full"
-                  />
+                  <CanvasErrorBoundary fallbackHeight="h-full">
+                    <ThreeModelViewer
+                      modelType={modelGeometryType}
+                      color={selectedColor?.hex}
+                      wireframe={isWireframe}
+                      className="h-full w-full"
+                    />
+                  </CanvasErrorBoundary>
                 </div>
 
                 {/* HUD Bottom Bar */}
@@ -391,10 +402,10 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   <div className="flex items-center gap-2.5 overflow-x-auto py-1 scrollbar-none">
                     {imageList.map((img, idx) => (
                       <button
-                        key={idx}
+                        key={img}
                         onClick={() => setSelectedImageIndex(idx)}
                         aria-label={isVi ? `Xem ảnh ${idx + 1}` : `View image ${idx + 1}`}
-                        className={`w-18 h-18 rounded-md border-2 shrink-0 transition-all overflow-hidden cursor-pointer ${
+                        className={`w-18 h-18 rounded-md border-2 shrink-0 transition overflow-hidden cursor-pointer ${
                           selectedImageIndex === idx
                             ? 'border-primary ring-2 ring-primary/30'
                             : 'border-line-subtle opacity-70 hover:opacity-100'
@@ -413,7 +424,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <Card padding="md" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="w-2 h-2 rounded-full bg-positive animate-pulse"></span>
+                    <span className="w-2 h-2 rounded-full bg-positive animate-pulse motion-reduce:animate-none"></span>
                     <span className="font-mono text-xs uppercase tracking-wider font-bold text-fg">
                       Đợt Sản Xuất Gom Chung
                     </span>
@@ -433,8 +444,17 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
             {/* Technical Detail Tabs: Overview, Specs & Tolerances, Reviews, Slicing */}
             <Card padding="lg">
-              <div className="flex border-b border-line-subtle gap-4 sm:gap-6 text-xs font-mono uppercase tracking-wider mb-6 overflow-x-auto scrollbar-none">
+              <div
+                role="tablist"
+                aria-label={isVi ? 'Nội dung chi tiết sản phẩm' : 'Product detail sections'}
+                className="flex border-b border-line-subtle gap-4 sm:gap-6 text-xs font-mono uppercase tracking-wider mb-6 overflow-x-auto scrollbar-none"
+              >
                 <button
+                  type="button"
+                  role="tab"
+                  id="pdp-tab-desc"
+                  aria-selected={activeTab === 'desc'}
+                  aria-controls="pdp-panel-desc"
                   onClick={() => setActiveTab('desc')}
                   className={`pb-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
                     activeTab === 'desc'
@@ -445,6 +465,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   {isVi ? 'Tổng quan & Kết cấu' : 'Overview & Features'}
                 </button>
                 <button
+                  type="button"
+                  role="tab"
+                  id="pdp-tab-specs"
+                  aria-selected={activeTab === 'specs'}
+                  aria-controls="pdp-panel-specs"
                   onClick={() => setActiveTab('specs')}
                   className={`pb-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
                     activeTab === 'specs'
@@ -455,6 +480,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   {isVi ? 'Thông số & Dung sai' : 'Specs & Tolerances'}
                 </button>
                 <button
+                  type="button"
+                  role="tab"
+                  id="pdp-tab-reviews"
+                  aria-selected={activeTab === 'reviews'}
+                  aria-controls="pdp-panel-reviews"
                   onClick={() => setActiveTab('reviews')}
                   className={`pb-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
                     activeTab === 'reviews'
@@ -465,6 +495,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   {isVi ? `Đánh giá (${reviewsCountLabel})` : `Reviews (${reviewsCountLabel})`}
                 </button>
                 <button
+                  type="button"
+                  role="tab"
+                  id="pdp-tab-slicing"
+                  aria-selected={activeTab === 'slicing'}
+                  aria-controls="pdp-panel-slicing"
                   onClick={() => setActiveTab('slicing')}
                   className={`pb-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
                     activeTab === 'slicing'
@@ -478,7 +513,12 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
               {/* Tab 1: Overview */}
               {activeTab === 'desc' && (
-                <div className="space-y-4 text-sm text-fg-muted leading-relaxed">
+                <div
+                  role="tabpanel"
+                  id="pdp-panel-desc"
+                  aria-labelledby="pdp-tab-desc"
+                  className="space-y-4 text-sm text-fg-muted leading-relaxed"
+                >
                   <Card padding="md" className="bg-surface-muted text-base text-fg font-medium leading-relaxed">
                     {product.description || EMPTY_VALUE}
                   </Card>
@@ -504,7 +544,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
               {/* Tab 2: Technical Specs — `KeyValue` (nhãn/giá trị ngữ nghĩa <dl>) */}
               {activeTab === 'specs' && (
-                <div className="space-y-3">
+                <div role="tabpanel" id="pdp-panel-specs" aria-labelledby="pdp-tab-specs" className="space-y-3">
                   <KeyValue items={specItems} columns={2} variant="panel" labelWidth="8.5rem" />
                   <p className="flex items-center gap-1.5 text-xs text-fg-muted">
                     <Icon name="info" size={16} className="shrink-0" />
@@ -519,7 +559,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
               {/* Tab 3: Reviews */}
               {activeTab === 'reviews' && (
-                <div className="space-y-4">
+                <div role="tabpanel" id="pdp-panel-reviews" aria-labelledby="pdp-tab-reviews" className="space-y-4">
                   {showRating ? (
                     <Card padding="md" className="bg-surface-muted flex items-center gap-5">
                       <div className="text-center pr-5 border-r border-line-subtle">
@@ -566,7 +606,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   KHÔNG hardcode profile máy (Bambu X1C 215–230°C…) và KHÔNG gắn nhãn
                   "In được" cho mọi sản phẩm: đó là khẳng định không có nguồn. */}
               {activeTab === 'slicing' && (
-                <div className="space-y-3 text-xs font-mono">
+                <div role="tabpanel" id="pdp-panel-slicing" aria-labelledby="pdp-tab-slicing" className="space-y-3 text-xs font-mono">
                   <div className="p-3.5 bg-canvas border border-line rounded-md text-fg-muted">
                     {isVi
                       ? 'Thông số cắt lớp ở cấp sản phẩm. Nhiệt độ đùn/bàn in phụ thuộc vật liệu & máy cụ thể — xưởng xác nhận khi báo giá.'
@@ -699,13 +739,15 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       {selectedMaterialObj?.strength || EMPTY_VALUE}
                     </span>
                   </label>
-                  {(product.supportedMaterials || []).length === 0 ? (
-                    <p className="text-xs text-fg-muted">
-                      {isVi ? 'Người bán chưa khai vật liệu hỗ trợ.' : 'The seller has not declared supported materials.'}
+                  {declaredMaterials.length === 0 ? (
+                    <p className="text-xs text-danger">
+                      {isVi
+                        ? 'Người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in — hệ thống không tự gán một vật liệu thay thế.'
+                        : 'The seller has not declared supported materials, so this print cannot be ordered — no substitute material is assigned automatically.'}
                     </p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      {(product.supportedMaterials || []).map((mat) => {
+                      {declaredMaterials.map((mat) => {
                         const isSelected = selectedMaterial === mat;
                         return (
                           <Button
@@ -755,7 +797,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                           onClick={() => c.available && setSelectedColorName(c.name)}
                           disabled={!c.available}
                           aria-label={c.available ? c.name : `${c.name} (Hết hàng)`}
-                          className={`relative w-8 h-8 rounded-full border-2 transition-all touch-target-btn cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                          className={`relative w-8 h-8 rounded-full border-2 transition touch-target-btn cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                             selectedColor?.name === c.name
                               ? 'border-primary scale-110 ring-2 ring-primary/30'
                               : 'border-line-subtle hover:scale-105'
@@ -852,6 +894,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     {isVi
                       ? 'Người bán không mở bán kênh in vật lý cho sản phẩm này (price_physical không lớn hơn 0) nên chưa thể đặt in.'
                       : 'The seller does not sell this product as a physical print (price_physical is not greater than 0), so it cannot be ordered yet.'}
+                  </p>
+                )}
+
+                {materialBlocked && physicalPrice !== null && (
+                  <p className="text-xs text-danger">
+                    {isVi
+                      ? 'Chưa chọn được vật liệu vì người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in.'
+                      : 'No material can be selected because the seller has not declared supported materials, so the print cannot be ordered.'}
                   </p>
                 )}
 

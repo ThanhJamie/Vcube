@@ -197,8 +197,8 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
             </div>
             {item.compatibleWith && item.compatibleWith.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1">
-                {item.compatibleWith.map((c, i) => (
-                  <span key={i} className="text-xs bg-surface-muted text-fg-muted px-1.5 py-0.5 rounded-sm font-sans">{c}</span>
+                {item.compatibleWith.map((c) => (
+                  <span key={c} className="text-xs bg-surface-muted text-fg-muted px-1.5 py-0.5 rounded-sm font-sans">{c}</span>
                 ))}
               </div>
             )}
@@ -410,7 +410,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
               placeholder="Tìm theo tên phụ kiện, mã SKU, vị trí kệ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-line rounded-sm text-xs focus:outline-none focus:border-primary"
+              className="w-full pl-9 pr-3 py-2 border border-line-control rounded-sm text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
             />
           </div>
         </div>
@@ -420,7 +420,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 border border-line rounded-sm text-xs font-bold bg-surface focus:outline-none focus:border-primary"
+            className="px-3 py-2 border border-line-control rounded-sm text-xs font-bold bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
           >
             {categories.map(c => (
               <option key={c.id} value={c.id}>
@@ -487,7 +487,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     placeholder="Ví dụ: Khoen móc khóa Inox 304 có dây xích 25mm"
                     value={newItemForm.name}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full p-2 border border-line rounded-sm focus:outline-none focus:border-primary"
+                    className="w-full p-2 border border-line-control rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
 
@@ -498,7 +498,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     required
                     value={newItemForm.sku}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, sku: e.target.value }))}
-                    className="w-full p-2 border border-line rounded-sm font-tech"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech"
                   />
                 </div>
 
@@ -507,7 +507,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                   <select
                     value={newItemForm.category}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, category: e.target.value as any }))}
-                    className="w-full p-2 border border-line rounded-sm font-bold bg-surface"
+                    className="w-full p-2 border border-line-control rounded-sm font-bold bg-surface"
                   >
                     <option value="keychain">Móc Khóa & Dây Đeo (Keychain)</option>
                     <option value="fastener">Ốc Cấy Ren & Tán Nhiệt (Inserts)</option>
@@ -526,7 +526,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     placeholder="cái, bộ, con, sợi, hộp, túi..."
                     value={newItemForm.unit}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, unit: e.target.value }))}
-                    className="w-full p-2 border border-line rounded-sm"
+                    className="w-full p-2 border border-line-control rounded-sm"
                   />
                 </div>
 
@@ -537,7 +537,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     placeholder="Kệ A1 - Hộc 02"
                     value={newItemForm.warehouseLocation}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, warehouseLocation: e.target.value }))}
-                    className="w-full p-2 border border-line rounded-sm font-tech"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech"
                   />
                 </div>
 
@@ -549,7 +549,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     step="100"
                     value={numInputValue(newItemForm.costPrice)}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, costPrice: parseNumOrNull(e.target.value) }))}
-                    className="w-full p-2 border border-line rounded-sm font-tech font-bold"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
                   />
                 </div>
 
@@ -561,7 +561,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     step="500"
                     value={numInputValue(newItemForm.sellingPrice)}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, sellingPrice: parseNumOrNull(e.target.value) }))}
-                    className="w-full p-2 border border-line rounded-sm font-tech font-bold text-primary"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold text-primary"
                   />
                 </div>
 
@@ -572,7 +572,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     min="0"
                     value={numInputValue(newItemForm.stockCount)}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, stockCount: parseNumOrNull(e.target.value) }))}
-                    className="w-full p-2 border border-line rounded-sm font-tech font-bold"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
                   />
                 </div>
 
@@ -583,7 +583,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     min="1"
                     value={numInputValue(newItemForm.lowStockThreshold)}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, lowStockThreshold: parseNumOrNull(e.target.value) }))}
-                    className="w-full p-2 border border-line rounded-sm font-tech text-danger font-bold"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech text-danger font-bold"
                   />
                 </div>
 
@@ -594,7 +594,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     placeholder="Xưởng Kim Khí Tân Bình, Fasteners VN..."
                     value={newItemForm.supplier}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, supplier: e.target.value }))}
-                    className="w-full p-2 border border-line rounded-sm"
+                    className="w-full p-2 border border-line-control rounded-sm"
                   />
                 </div>
 
@@ -605,7 +605,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     placeholder="Đặc tính kim loại, dung sai, khả năng chịu lực..."
                     value={newItemForm.description}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full p-2 border border-line rounded-sm"
+                    className="w-full p-2 border border-line-control rounded-sm"
                   />
                 </div>
               </div>
@@ -646,7 +646,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     required
                     value={editingItem.name}
                     onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                    className="w-full p-2 border border-line rounded-sm focus:outline-none focus:border-primary"
+                    className="w-full p-2 border border-line-control rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
 
@@ -657,7 +657,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     required
                     value={editingItem.sku}
                     onChange={(e) => setEditingItem({ ...editingItem, sku: e.target.value })}
-                    className="w-full p-2 border border-line rounded-sm font-tech"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech"
                   />
                 </div>
 
@@ -666,7 +666,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                   <select
                     value={editingItem.category}
                     onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value as any })}
-                    className="w-full p-2 border border-line rounded-sm font-bold bg-surface"
+                    className="w-full p-2 border border-line-control rounded-sm font-bold bg-surface"
                   >
                     <option value="keychain">Móc Khóa & Dây Đeo (Keychain)</option>
                     <option value="fastener">Ốc Cấy Ren & Tán Nhiệt (Inserts)</option>
@@ -684,7 +684,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     type="text"
                     value={editingItem.unit}
                     onChange={(e) => setEditingItem({ ...editingItem, unit: e.target.value })}
-                    className="w-full p-2 border border-line rounded-sm"
+                    className="w-full p-2 border border-line-control rounded-sm"
                   />
                 </div>
 
@@ -694,7 +694,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     type="text"
                     value={editingItem.warehouseLocation || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, warehouseLocation: e.target.value })}
-                    className="w-full p-2 border border-line rounded-sm font-tech"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech"
                   />
                 </div>
 
@@ -705,7 +705,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     min="0"
                     value={numInputValue(editingItem.costPrice)}
                     onChange={(e) => setEditingItem({ ...editingItem, costPrice: parseNumOrNull(e.target.value) })}
-                    className="w-full p-2 border border-line rounded-sm font-tech font-bold"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
                   />
                 </div>
 
@@ -716,7 +716,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     min="0"
                     value={numInputValue(editingItem.sellingPrice)}
                     onChange={(e) => setEditingItem({ ...editingItem, sellingPrice: parseNumOrNull(e.target.value) })}
-                    className="w-full p-2 border border-line rounded-sm font-tech font-bold text-primary"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold text-primary"
                   />
                 </div>
 
@@ -727,7 +727,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     min="0"
                     value={numInputValue(editingItem.stockCount)}
                     onChange={(e) => setEditingItem({ ...editingItem, stockCount: parseNumOrNull(e.target.value) })}
-                    className="w-full p-2 border border-line rounded-sm font-tech font-bold"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
                   />
                 </div>
 
@@ -738,7 +738,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     min="1"
                     value={numInputValue(editingItem.lowStockThreshold)}
                     onChange={(e) => setEditingItem({ ...editingItem, lowStockThreshold: parseNumOrNull(e.target.value) })}
-                    className="w-full p-2 border border-line rounded-sm font-tech text-danger font-bold"
+                    className="w-full p-2 border border-line-control rounded-sm font-tech text-danger font-bold"
                   />
                 </div>
 
@@ -748,7 +748,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     type="text"
                     value={editingItem.supplier || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, supplier: e.target.value })}
-                    className="w-full p-2 border border-line rounded-sm"
+                    className="w-full p-2 border border-line-control rounded-sm"
                   />
                 </div>
 
@@ -758,7 +758,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                     rows={2}
                     value={editingItem.description || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                    className="w-full p-2 border border-line rounded-sm"
+                    className="w-full p-2 border border-line-control rounded-sm"
                   />
                 </div>
               </div>

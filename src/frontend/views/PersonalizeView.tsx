@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Star, X } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { PersonalizeModelViewer3D } from '../components/personalize/PersonalizeModelViewer3D';
+import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { Badge, Button, Card, EmptyState, Icon, InfoTip } from '@frontend/ui';
 import { EMPTY_VALUE } from '@frontend/lib/format';
 
@@ -354,21 +355,23 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
           <div className="lg:col-span-7 space-y-6">
             {/* 3D Canvas Frame — panel HUD tối, giữ nguyên token nghịch đảo */}
             <div className="bg-surface-inverse border border-surface-inverse-raised rounded-lg shadow-e3 relative overflow-hidden flex flex-col h-[480px] sm:h-[560px] lg:h-[620px]">
-              <PersonalizeModelViewer3D
-                modelType="arduino-case"
-                colorHex={selectedColorHex}
-                materialName={selectedMaterial || EMPTY_VALUE}
-                engravingText={engravingText}
-                fontFamily={selectedFont}
-                fontSizeMm={fontSizeMm}
-                engravingDepth={engravingDepth}
-                engravingPosition={engravingPosition}
-                logoName={uploadedLogoName}
-                lidExplodeDistance={lidExplodeDistance}
-                onLidExplodeChange={(distance) => setLidExplodeDistance(distance)}
-                dimensions={parsedDimensions}
-                className="w-full h-full"
-              />
+              <CanvasErrorBoundary fallbackHeight="h-full">
+                <PersonalizeModelViewer3D
+                  modelType="arduino-case"
+                  colorHex={selectedColorHex}
+                  materialName={selectedMaterial || EMPTY_VALUE}
+                  engravingText={engravingText}
+                  fontFamily={selectedFont}
+                  fontSizeMm={fontSizeMm}
+                  engravingDepth={engravingDepth}
+                  engravingPosition={engravingPosition}
+                  logoName={uploadedLogoName}
+                  lidExplodeDistance={lidExplodeDistance}
+                  onLidExplodeChange={(distance) => setLidExplodeDistance(distance)}
+                  dimensions={parsedDimensions}
+                  className="w-full h-full"
+                />
+              </CanvasErrorBoundary>
             </div>
 
             {/* Proxy disclosure (docs/design/data-honesty.md §3): khung 3D là mô hình minh hoạ,
@@ -385,7 +388,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
             <Card padding="lg" className="space-y-4">
               <div className="flex items-center justify-between border-b border-line pb-3 gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" aria-hidden="true" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse motion-reduce:animate-none" aria-hidden="true" />
                   <span className="font-mono text-xs uppercase font-bold text-fg tracking-wider truncate">
                     Thông Số Kỹ Thuật (từ dữ liệu sản phẩm)
                   </span>
@@ -481,7 +484,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                           type="button"
                           aria-pressed={isSelected}
                           onClick={() => setSelectedMaterial(mat.name)}
-                          className={`p-3 rounded-lg border text-left transition-all cursor-pointer relative flex flex-col justify-between gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                          className={`p-3 rounded-lg border text-left transition cursor-pointer relative flex flex-col justify-between gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                             isSelected
                               ? 'border-primary bg-primary/5 ring-2 ring-primary/30'
                               : 'border-line bg-canvas hover:border-primary/60'
@@ -541,7 +544,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                             setSelectedColorHex(c.hex);
                             setSelectedColorName(c.name);
                           }}
-                          className={`relative w-9 h-9 rounded-full border-2 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                          className={`relative w-9 h-9 rounded-full border-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                             isSelected ? 'border-primary scale-110 ring-2 ring-primary/40' : 'border-line hover:scale-105'
                           }`}
                           style={{ backgroundColor: c.hex }}
@@ -623,7 +626,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                         type="button"
                         aria-pressed={engravingDepth === mode.id}
                         onClick={() => setEngravingDepth(mode.id as any)}
-                        className={`p-2.5 rounded-md border text-center transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        className={`p-2.5 rounded-md border text-center transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           engravingDepth === mode.id
                             ? 'border-primary bg-primary/10 text-primary font-bold'
                             : 'border-line bg-canvas text-fg-muted hover:text-fg'
@@ -776,7 +779,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                       type="button"
                       aria-pressed={lidExplodeDistance === preset.value}
                       onClick={() => setLidExplodeDistance(preset.value)}
-                      className={`py-1.5 px-2 rounded-md text-xs font-mono font-bold transition-all cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      className={`py-1.5 px-2 rounded-md text-xs font-mono font-bold transition cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         lidExplodeDistance === preset.value
                           ? 'bg-primary text-primary-fg border-primary'
                           : 'bg-canvas text-fg-muted border-line-control hover:text-fg'
@@ -811,7 +814,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                       type="button"
                       aria-pressed={quantity === qty}
                       onClick={() => setQuantity(qty)}
-                      className={`py-2 text-xs font-mono font-bold rounded-md border transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      className={`py-2 text-xs font-mono font-bold rounded-md border transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         quantity === qty
                           ? 'bg-primary text-primary-fg border-primary'
                           : 'bg-surface text-fg border-line-control hover:border-primary'
@@ -867,7 +870,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                         type="button"
                         aria-pressed={isSelected}
                         onClick={() => setSelectedPackageTier(pkg.id)}
-                        className={`p-2.5 rounded-md border text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        className={`p-2.5 rounded-md border text-left transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           isSelected
                             ? 'border-primary bg-primary-tint/50 ring-1 ring-primary'
                             : 'border-line-control bg-surface hover:border-line-control'

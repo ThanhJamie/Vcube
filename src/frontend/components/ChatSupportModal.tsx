@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { Icon, useBodyScrollLock } from '@frontend/ui';
+import { Icon, Modal } from '@frontend/ui';
 
 interface ChatSupportModalProps {
   isOpen: boolean;
@@ -19,17 +19,6 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
-
-  // Khoá cuộn nền + đóng bằng Esc (drawer này trước đây không có cả hai).
-  useBodyScrollLock(isOpen);
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -53,8 +42,14 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
   };
 
   return (
-    <div className="fixed inset-0 bg-surface-inverse/70 z-modal flex justify-end">
-      <div className="bg-surface w-full max-w-md h-full flex flex-col shadow-e3 text-fg">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      placement="right"
+      showCloseButton={false}
+      bodyClassName="flex min-h-0 flex-1 flex-col"
+      aria-label={t('supportAssistant', 'Trợ lý tự động', 'Automated assistant')}
+    >
         {/* Header */}
         <div className="p-4 sm:p-5 bg-surface text-fg flex items-center justify-between border-b border-line">
           <div className="flex items-center gap-3">
@@ -124,7 +119,6 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
             Gửi
           </button>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 };

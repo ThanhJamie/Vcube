@@ -12,7 +12,7 @@ export interface SEOHeadProps {
 export const SEOHead: React.FC<SEOHeadProps> = ({
   title,
   description,
-  image = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=1200&h=630&fit=crop',
+  image,
   url,
   type = 'website',
   schema
@@ -33,6 +33,11 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
       element.setAttribute('content', content);
     };
 
+    // Không có ảnh thật ⇒ GỠ meta cũ, KHÔNG rơi về ảnh stock bịa (data-honesty).
+    const removeMeta = (nameAttr: 'name' | 'property', nameVal: string) => {
+      document.querySelector(`meta[${nameAttr}="${nameVal}"]`)?.remove();
+    };
+
     // 2. Standard Meta Tags
     setMeta('name', 'description', description);
     setMeta('name', 'robots', 'index, follow');
@@ -40,8 +45,12 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     // 3. OpenGraph Tags
     setMeta('property', 'og:title', fullTitle);
     setMeta('property', 'og:description', description);
-    setMeta('property', 'og:image', image);
     setMeta('property', 'og:type', type);
+    if (image) {
+      setMeta('property', 'og:image', image);
+    } else {
+      removeMeta('property', 'og:image');
+    }
     if (url) {
       setMeta('property', 'og:url', url);
     }
@@ -50,7 +59,11 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     setMeta('name', 'twitter:card', 'summary_large_image');
     setMeta('name', 'twitter:title', fullTitle);
     setMeta('name', 'twitter:description', description);
-    setMeta('name', 'twitter:image', image);
+    if (image) {
+      setMeta('name', 'twitter:image', image);
+    } else {
+      removeMeta('name', 'twitter:image');
+    }
 
     // 5. JSON-LD Structured Data Schema
     let scriptTag = document.getElementById('vcube-schema-ld') as HTMLScriptElement | null;

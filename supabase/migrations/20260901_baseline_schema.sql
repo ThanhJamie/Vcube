@@ -644,6 +644,26 @@ do $do$ begin
              or (failure_extra_percent >= 0 and failure_extra_percent <= 30));
   end if;
 end $do$;
+
+-- ==============================================================================
+-- 2g. NĂNG SUẤT IN THEO MÁY — throughput_grams_per_hour (Đợt F)
+-- ==============================================================================
+-- Ý NGHĨA: năng suất in (g/giờ) do admin khai cho từng máy. Dùng để suy THỜI GIAN IN
+-- từ tổng gram khi tệp KHÔNG kèm dữ liệu slicer (`printHours = grams / throughput`).
+-- NULL = CHƯA KHAI (KHÁC 0): engine KHÔNG thay bằng một năng suất mặc định — nó rơi về
+-- ước lượng thể tích và gắn nhãn nguồn (data-honesty PC-05/MP-13).
+--
+-- VÌ SAO `add column if not exists`: `create table if not exists printer_fleet` ở trên là
+-- no-op trên DB đã tồn tại, nên cột phải được thêm tường minh (idempotent) — cùng tiền lệ
+-- `materials.failure_extra_percent` ở mục 2f.
+--
+-- CÔNG KHAI: `printer_fleet` vốn đã public-read (catalog) — cột này là THÔNG SỐ GIÁ,
+-- không phải bí mật.
+alter table public.printer_fleet
+  add column if not exists throughput_grams_per_hour numeric;  -- NULL = chưa khai
+
+comment on column public.printer_fleet.throughput_grams_per_hour is
+  'Năng suất in (g/giờ) do admin khai cho máy. Dùng để suy thời gian in từ tổng gram khi tệp không kèm dữ liệu slicer. NULL = chưa khai (KHÁC 0); engine không thay bằng số mặc định mà rơi về ước lượng thể tích có gắn nhãn nguồn.';
 -- ==============================================================================
 -- 3. ĐƠN HÀNG, BÁO GIÁ, THANH TOÁN
 -- ==============================================================================

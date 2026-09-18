@@ -5,8 +5,9 @@ import { useCartStore } from '../stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
-import { Icon } from '@frontend/ui';
+import { Icon, Money } from '@frontend/ui';
 import { Button } from '@frontend/ui';
+import { formatNumber } from '@frontend/lib/format';
 
 interface CartViewProps {
   cart: CartItem[];
@@ -181,15 +182,15 @@ export const CartView: React.FC<CartViewProps> = ({
                 {remainingForFreeShip > 0 ? (
                   <span>
                     {isVi ? 'Mua thêm ' : 'Add '}
-                    <strong className="text-primary">{remainingForFreeShip.toLocaleString('vi-VN')} đ</strong>
+                    <Money as="strong" value={remainingForFreeShip} size="sm" className="text-primary" />
                     {isVi ? ' để được MIỄN PHÍ VẬN CHUYỂN toàn quốc!' : ' for FREE SHIPPING!'}
                   </span>
                 ) : (
                   <span className="text-positive font-bold flex items-center gap-1">
                     <Icon name="verified" size={18} />
                     {isVi
-                      ? `Đủ điều kiện MIỄN PHÍ GIAO HÀNG toàn quốc (đơn từ ${freeShippingThreshold.toLocaleString('vi-VN')} đ)!`
-                      : `FREE SHIPPING UNLOCKED (orders from ${freeShippingThreshold.toLocaleString('vi-VN')} đ)!`}
+                      ? `Đủ điều kiện MIỄN PHÍ GIAO HÀNG toàn quốc (đơn từ ${formatNumber(freeShippingThreshold)} đ)!`
+                      : `FREE SHIPPING UNLOCKED (orders from ${formatNumber(freeShippingThreshold)} đ)!`}
                   </span>
                 )}
               </div>
@@ -197,7 +198,7 @@ export const CartView: React.FC<CartViewProps> = ({
             </div>
             <div className="w-full bg-line-subtle h-2 rounded-full overflow-hidden border border-line/60">
               <div
-                className="bg-primary h-full rounded-full transition-all duration-500"
+                className="bg-primary h-full rounded-full transition-[width] duration-500"
                 style={{ width: `${freeShipPercent}%` }}
               />
             </div>
@@ -248,7 +249,7 @@ export const CartView: React.FC<CartViewProps> = ({
                       <div className="flex items-center justify-between w-full sm:w-auto gap-4 sm:gap-6 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-line/60">
                         <div className="text-right font-mono">
                           <span className="text-base font-extrabold text-primary block">
-                            {item.price.toLocaleString('vi-VN')} đ
+                            <Money value={item.price} className="text-base font-extrabold text-primary" />
                           </span>
                           <span className="text-xs text-fg-subtle">{isVi ? 'Giá một tệp' : 'Per file'}</span>
                         </div>
@@ -331,17 +332,23 @@ export const CartView: React.FC<CartViewProps> = ({
                         {/* Quantity Selector */}
                         <div className="flex items-center border border-line rounded-lg bg-canvas overflow-hidden shadow-e0">
                           <button
+                            type="button"
                             onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                            className="px-3 py-1.5 hover:bg-surface-muted active:scale-90 text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-all select-none"
+                            aria-label={isVi ? `Giảm số lượng ${item.name}` : `Decrease quantity of ${item.name}`}
+                            className="px-3 py-1.5 hover:bg-surface-muted active:scale-90 text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-[color,background-color,transform] select-none"
                           >
                             -
                           </button>
-                          <span className="px-3.5 py-1.5 font-mono text-xs font-bold text-fg bg-surface border-x border-line tabular-nums">
+                          <span
+                            className="px-3.5 py-1.5 font-mono text-xs font-bold text-fg bg-surface border-x border-line tabular-nums"
+                          >
                             {item.quantity}
                           </span>
                           <button
+                            type="button"
                             onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                            className="px-3 py-1.5 hover:bg-surface-muted active:scale-90 text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-all select-none"
+                            aria-label={isVi ? `Tăng số lượng ${item.name}` : `Increase quantity of ${item.name}`}
+                            className="px-3 py-1.5 hover:bg-surface-muted active:scale-90 text-fg font-bold text-xs font-mono touch-target-btn cursor-pointer transition-[color,background-color,transform] select-none"
                           >
                             +
                           </button>
@@ -350,10 +357,10 @@ export const CartView: React.FC<CartViewProps> = ({
                         {/* Price Breakdown */}
                         <div className="text-right font-mono min-w-[90px]">
                           <span className="font-extrabold text-sm text-fg block tabular-nums">
-                            {(item.price * item.quantity).toLocaleString('vi-VN')} đ
+                            <Money value={item.price * item.quantity} size="base" className="font-extrabold text-fg" />
                           </span>
                           <span className="text-xs text-fg-subtle">
-                            {item.price.toLocaleString('vi-VN')} đ / cái
+                            <Money value={item.price} size="sm" /> / cái
                           </span>
                         </div>
 
@@ -383,7 +390,7 @@ export const CartView: React.FC<CartViewProps> = ({
                 </label>
                 {appliedDiscount > 0 && (
                   <span className="text-xs font-mono text-positive font-bold">
-                    {appliedPromoCode ? `${appliedPromoCode} • ` : ''}- {appliedDiscount.toLocaleString('vi-VN')} đ
+                    {appliedPromoCode ? `${appliedPromoCode} • ` : ''}- <Money value={appliedDiscount} size="sm" className="text-positive" />
                   </span>
                 )}
               </div>
@@ -395,7 +402,7 @@ export const CartView: React.FC<CartViewProps> = ({
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
                   placeholder={isVi ? 'Nhập mã ưu đãi...' : 'Enter promo code...'}
-                  className="flex-1 bg-canvas border border-line-control rounded-lg px-3.5 py-2 text-xs font-mono uppercase text-fg focus:outline-none focus:border-primary"
+                  className="flex-1 bg-canvas border border-line-control rounded-lg px-3.5 py-2 text-xs font-mono uppercase text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 <Button
                   type="button"
@@ -434,14 +441,14 @@ export const CartView: React.FC<CartViewProps> = ({
                 {digitalItems.length > 0 && (
                   <div className="flex justify-between">
                     <span>Tạm tính File CAD ({digitalItems.length}):</span>
-                    <span className="font-bold text-fg">{subtotalDigital.toLocaleString('vi-VN')} đ</span>
+                    <Money value={subtotalDigital} size="sm" className="font-bold text-fg" />
                   </div>
                 )}
 
                 {physicalItems.length > 0 && (
                   <div className="flex justify-between">
                     <span>Tạm tính In 3D ({physicalItems.reduce((a, b) => a + b.quantity, 0)} sp):</span>
-                    <span className="font-bold text-fg">{subtotalPhysical.toLocaleString('vi-VN')} đ</span>
+                    <Money value={subtotalPhysical} size="sm" className="font-bold text-fg" />
                   </div>
                 )}
 
@@ -453,21 +460,21 @@ export const CartView: React.FC<CartViewProps> = ({
                     )}
                   </div>
                   <span className={`font-bold ${shippingFee === 0 ? 'text-positive' : 'text-fg'}`}>
-                    {physicalItems.length === 0 ? (isVi ? 'Không áp dụng' : 'N/A') : (shippingFee === 0 ? (isVi ? 'Miễn phí' : 'Free') : `${shippingFee.toLocaleString('vi-VN')} đ`)}
+                    {physicalItems.length === 0 ? (isVi ? 'Không áp dụng' : 'N/A') : (shippingFee === 0 ? (isVi ? 'Miễn phí' : 'Free') : `${formatNumber(shippingFee)} đ`)}
                   </span>
                 </div>
 
                 {appliedDiscount > 0 && (
                   <div className="flex justify-between text-positive font-bold">
                     <span>Giảm giá ưu đãi{appliedPromoCode ? ` (${appliedPromoCode})` : ''}:</span>
-                    <span>- {appliedDiscount.toLocaleString('vi-VN')} đ</span>
+                    <span>- <Money value={appliedDiscount} size="sm" className="text-positive" /></span>
                   </div>
                 )}
 
                 {vat ? (
                   <div className="flex justify-between">
                     <span>{vatLabel(vat.rate)}:</span>
-                    <span className="font-bold text-fg">{vat.amount.toLocaleString('vi-VN')} đ</span>
+                    <Money value={vat.amount} size="sm" className="font-bold text-fg" />
                   </div>
                 ) : pricingError ? (
                   <p className="text-xs text-danger leading-relaxed">
@@ -483,7 +490,7 @@ export const CartView: React.FC<CartViewProps> = ({
                   <span className="text-sm font-bold text-fg">Tổng thanh toán:</span>
                   <div className="text-right">
                     <span className="font-mono text-xl font-black text-primary block">
-                      {totalAmount.toLocaleString('vi-VN')} đ
+                      <Money value={totalAmount} className="font-mono text-xl font-black text-primary" />
                     </span>
                     <span className="text-xs text-fg-subtle block">
                       {vatTotalNote(isVi, vatRate)}

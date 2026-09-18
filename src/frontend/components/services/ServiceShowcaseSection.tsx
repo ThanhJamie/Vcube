@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Button, Card, Icon, Modal } from '@frontend/ui';
+import { readColorToken, subscribeTheme, type ColorTokenName } from '@frontend/theme/tokens';
 import { ThreeModelViewer } from '../ThreeModelViewer';
 import { useLanguage } from '../../context/LanguageContext';
+
+/** Bảng màu chọn được cho khung xem 3D — tên token, KHÔNG hex cứng. */
+const VIEWER_COLOR_TOKENS: ColorTokenName[] = ['primary', 'accent', 'positive', 'warning', 'danger'];
 
 export interface ServiceItem {
   id: 'rapid_print' | 'custom_idea' | 'cad_catalog' | 'qc_advisory';
@@ -15,7 +19,7 @@ export interface ServiceItem {
   fullDescVi: string;
   fullDescEn: string;
   modelType: 'gear' | 'drone' | 'box' | 'arch';
-  color: string;
+  colorToken: ColorTokenName;
   iconName: string;
   featuresVi: string[];
   featuresEn: string[];
@@ -38,7 +42,7 @@ const SERVICES: ServiceItem[] = [
     fullDescVi: 'VCUBE kết nối hệ thống máy in 3D công nghiệp đa kích cỡ và vật liệu kỹ thuật cao. Hệ thống tự động phân tích lưới 3D STL/STEP, tính toán thể tích và đề xuất phương án gia công tối ưu chi phí và độ bền.',
     fullDescEn: 'VCUBE connects multi-capacity industrial 3D printing systems with high-performance engineering filaments and resins. Automatic mesh analysis calculates volume, wall thickness, and optimal production paths.',
     modelType: 'gear',
-    color: '#00687A',
+    colorToken: 'primary',
     iconName: 'precision_manufacturing',
     featuresVi: [
       'Hỗ trợ FDM, SLA Resin & SLS kỹ thuật',
@@ -79,7 +83,7 @@ const SERVICES: ServiceItem[] = [
     fullDescVi: 'Dịch vụ biến ý tưởng kinh doanh, phụ tùng thay thế hoặc mô hình tùy chỉnh thành bản vẽ CAD 3D chuẩn kỹ thuật cơ khí. Bao gồm tư vấn kết cấu chịu lực, tối ưu khả năng in 3D (DFAM) và cung cấp file số gốc.',
     fullDescEn: 'Turn product ideas, replacement parts or bespoke mechanisms into production-ready 3D CAD models. Includes structural engineering, Design for Additive Manufacturing (DFAM), and native file export.',
     modelType: 'drone',
-    color: '#57DFFE',
+    colorToken: 'accent',
     iconName: 'design_services',
     featuresVi: [
       'Dựng hình theo phác thảo 2D hoặc mô tả công năng',
@@ -120,7 +124,7 @@ const SERVICES: ServiceItem[] = [
     fullDescVi: 'Hệ sinh thái bản vẽ 3D được thiết kế bởi cộng đồng kỹ sư và nhà thiết kế được xác minh. Khách hàng có thể mua bản quyền file số gốc hoặc đặt in trực tiếp chỉ với 1 cú nhấp chuột.',
     fullDescEn: 'Ecosystem of premium 3D engineering designs crafted by verified industrial designers. Purchase original digital CAD files or order physical prints with a single click.',
     modelType: 'box',
-    color: '#15803D',
+    colorToken: 'positive',
     iconName: 'inventory_2',
     featuresVi: [
       'Danh mục kiểm tra tính khép kín khi đọc tệp (manifold)',
@@ -161,7 +165,7 @@ const SERVICES: ServiceItem[] = [
     fullDescVi: 'Dành cho các ứng dụng cơ khí chính xác đòi hỏi khả năng chịu nhiệt, kháng dầu mỡ hoặc tải trọng cao. Đội ngũ VCUBE đo kiểm mẫu in bằng thước cặp điện tử và máy quét quang học 3D để đảm bảo đúng dung sai bản vẽ.',
     fullDescEn: 'Tailored for precision applications requiring thermal stability, chemical resistance, or load-bearing strength. VCUBE verifies parts using digital metrology calipers and 3D optical scanning.',
     modelType: 'arch',
-    color: '#B45309',
+    colorToken: 'warning',
     iconName: 'verified',
     featuresVi: [
       'Đo kiểm kích thước dung sai theo yêu cầu kỹ thuật',
@@ -208,16 +212,21 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState<string>('rapid_print');
   const [modalService, setModalService] = useState<ServiceItem | null>(null);
 
+  // Theme-reactive token lookup cho màu vẽ trong Three.js (không dùng hex cứng).
+  const [themeTick, setThemeTick] = useState(0);
+  useEffect(() => subscribeTheme(() => setThemeTick((n) => n + 1)), []);
+  const colorOf = useCallback((token: ColorTokenName) => readColorToken(token), [themeTick]);
+
   // 3D Viewer live controls state
   const [wireframe, setWireframe] = useState<boolean>(false);
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
-  const [viewerColor, setViewerColor] = useState<string>('#00687A');
+  const [viewerColorToken, setViewerColorToken] = useState<ColorTokenName>('primary');
 
   const activeService = SERVICES.find((s) => s.id === selectedServiceId) || SERVICES[0];
 
   const handleSelectService = (service: ServiceItem) => {
     setSelectedServiceId(service.id);
-    setViewerColor(service.color);
+    setViewerColorToken(service.colorToken);
   };
 
   const handleExecuteAction = (actionType: ServiceItem['actionType']) => {
@@ -396,7 +405,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
               {/* 3D Header Bar */}
               <div className="p-3.5 bg-surface border-b border-line flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-positive animate-pulse" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-positive animate-pulse motion-reduce:animate-none" />
                   <span className="font-mono text-xs font-bold text-fg uppercase tracking-wider">
                     {isVi ? 'Mô Phỏng 3D // ' : 'LIVE 3D MESH // '}
                     <span className="text-primary">{activeService.modelType.toUpperCase()}</span>
@@ -414,7 +423,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
               <div className="relative bg-surface-inverse aspect-4/3 sm:aspect-square md:aspect-4/3 w-full">
                 <ThreeModelViewer
                   modelType={activeService.modelType}
-                  color={viewerColor}
+                  color={colorOf(viewerColorToken)}
                   wireframe={wireframe}
                   autoRotate={autoRotate}
                   showGrid={true}
@@ -451,7 +460,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                           : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised'
                       }`}
                     >
-                      <Icon name="sync" size={14} className={autoRotate ? 'animate-spin' : ''} />
+                      <Icon name="sync" size={14} className={autoRotate ? 'animate-spin motion-reduce:animate-none' : ''} />
                     </button>
                   </div>
                 </div>
@@ -461,18 +470,22 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                   <span className="text-xs font-mono text-on-inverse/60 mr-1">
                     {isVi ? 'Màu:' : 'Color:'}
                   </span>
-                  {['#00687A', '#57DFFE', '#15803D', '#B45309', '#B91C1C'].map((hex) => (
-                    <button
-                      key={hex}
-                      type="button"
-                      onClick={() => setViewerColor(hex)}
-                      className={`w-4 h-4 rounded-full transition-transform cursor-pointer border ${
-                        viewerColor === hex ? 'scale-125 border-white ring-1 ring-primary' : 'border-line/40 hover:scale-110'
-                      }`}
-                      style={{ backgroundColor: hex }}
-                      aria-label={`Chọn màu ${hex}`}
-                    />
-                  ))}
+                  {VIEWER_COLOR_TOKENS.map((token) => {
+                    const hex = colorOf(token);
+                    const isActive = viewerColorToken === token;
+                    return (
+                      <button
+                        key={token}
+                        type="button"
+                        onClick={() => setViewerColorToken(token)}
+                        className={`w-4 h-4 rounded-full transition-transform cursor-pointer border ${
+                          isActive ? 'scale-125 border-on-inverse ring-1 ring-primary' : 'border-line/40 hover:scale-110'
+                        }`}
+                        style={{ backgroundColor: hex }}
+                        aria-label={`Chọn màu ${hex}`}
+                      />
+                    );
+                  })}
                 </div>
               </div>
 
@@ -561,7 +574,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
             <div className="rounded-lg overflow-hidden border border-line bg-surface-inverse aspect-16/9 relative">
               <ThreeModelViewer
                 modelType={modalService.modelType}
-                color={modalService.color}
+                color={colorOf(modalService.colorToken)}
                 wireframe={false}
                 autoRotate={true}
                 showGrid={true}

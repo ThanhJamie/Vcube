@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -62,7 +62,7 @@ import { PageSkeleton } from '@frontend/components/PageSkeleton';
 import { RouteErrorBoundary } from '@frontend/components/RouteErrorBoundary';
 import { useCartStore } from '@frontend/stores/useCartStore';
 import { useUIStore } from '@frontend/stores/useUIStore';
-import { AppShell, Button, Icon, SideNav, Topbar } from '@frontend/ui';
+import { AppShell, Button, EmptyState, Icon, SideNav, Topbar } from '@frontend/ui';
 import {
   Boxes,
   ClipboardList,
@@ -104,13 +104,16 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const ExploreRoute: React.FC<{
   products: Product[];
+  productsLoading?: boolean;
+  productsError?: boolean;
+  onRetry?: () => void;
   materials?: MaterialProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
   onAddToCart: (item: CartItem) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onSelectProduct: (product: Product) => void;
   onShowToast: (msg: string) => void;
-}> = ({ products, materials, pricingConfig, onAddToCart, onNavigate, onSelectProduct, onShowToast }) => {
+}> = ({ products, productsLoading, productsError, onRetry, materials, pricingConfig, onAddToCart, onNavigate, onSelectProduct, onShowToast }) => {
   const [searchParams] = useSearchParams();
   const category = searchParams.get('category') || 'all';
   const search = searchParams.get('search') || '';
@@ -119,6 +122,9 @@ const ExploreRoute: React.FC<{
   return (
     <ExploreView
       products={products}
+      productsLoading={productsLoading}
+      productsError={productsError}
+      onRetry={onRetry}
       materials={materials}
       pricingConfig={pricingConfig}
       initialCategory={category}
@@ -134,54 +140,87 @@ const ExploreRoute: React.FC<{
 
 const ProductDetailRoute: React.FC<{
   products: Product[];
+  productsLoading?: boolean;
+  productsError?: boolean;
+  onRetry?: () => void;
   materials?: MaterialProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
   onAddToCart: (item: CartItem) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onShowToast: (msg: string) => void;
-}> = ({ products, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
+}> = ({ products, productsLoading, productsError, onRetry, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
   const { productId } = useParams<{ productId: string }>();
+  const { language } = useLanguage();
+  const isVi = language === 'vi';
   const product = products.find((p) => p.id === productId);
 
-  if (!product && products.length === 0) {
+  if (product) {
     return (
-      <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
+      <ProductDetailView
+        product={product}
+        allProducts={products}
+        materials={materials}
+        pricingConfig={pricingConfig}
+        onAddToCart={onAddToCart}
+        onNavigate={onNavigate}
+        onShowToast={onShowToast}
+      />
+    );
+  }
+
+  if (productsLoading) {
+    return (
+      <div role="status" className="min-h-dvh bg-canvas flex items-center justify-center p-6">
         <div className="text-center space-y-3">
-          <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin motion-reduce:animate-none mx-auto" />
           <p className="font-mono text-xs text-fg-subtle">Đang tải thông số kỹ thuật mô hình 3D...</p>
         </div>
       </div>
     );
   }
 
-  if (!product && products.length > 0) {
+  if (productsError) {
     return (
-      <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
-        <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
-          <Icon name="precision_manufacturing" size={36} className="text-fg-subtle" />
-          <h2 className="font-bold text-lg text-fg">Không tìm thấy bản vẽ CAD này</h2>
-          <p className="text-xs text-fg-subtle">Mô hình bạn đang tìm có thể đã được lưu trữ hoặc thay đổi mã định danh.</p>
-          <button
-            onClick={() => onNavigate('explore')}
-            className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg font-mono text-xs uppercase font-bold rounded-full shadow-e1 cursor-pointer"
-          >
-            Quay lại Kho Bản Vẽ
-          </button>
+      <div role="alert" className="min-h-dvh bg-canvas flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <EmptyState
+            icon={<Icon name="error" size={20} />}
+            title={isVi ? 'Không tải được kho bản vẽ' : 'Could not load the catalogue'}
+            description={isVi
+              ? 'Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại.'
+              : 'Could not reach the data server. Check your connection and try again.'}
+            action={
+              <Button
+                variant="secondary"
+                size="md"
+                loading={Boolean(productsLoading)}
+                loadingLabel={isVi ? 'Đang tải…' : 'Loading…'}
+                leadingIcon={<Icon name="refresh" size={18} />}
+                onClick={() => onRetry?.()}
+              >
+                {isVi ? 'Thử lại' : 'Retry'}
+              </Button>
+            }
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <ProductDetailView
-      product={product!}
-      allProducts={products}
-      materials={materials}
-      pricingConfig={pricingConfig}
-      onAddToCart={onAddToCart}
-      onNavigate={onNavigate}
-      onShowToast={onShowToast}
-    />
+    <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
+      <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
+        <Icon name="precision_manufacturing" size={36} className="text-fg-subtle" />
+        <h2 className="font-bold text-lg text-fg">Không tìm thấy bản vẽ CAD này</h2>
+        <p className="text-xs text-fg-subtle">Mô hình bạn đang tìm có thể đã được lưu trữ hoặc thay đổi mã định danh.</p>
+        <button
+          onClick={() => onNavigate('explore')}
+          className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg font-mono text-xs uppercase font-bold rounded-full shadow-e1 cursor-pointer"
+        >
+          Quay lại Kho Bản Vẽ
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -581,7 +620,7 @@ const LabRoute: React.FC<{
 
 function MainApp() {
   const { language, t } = useLanguage();
-  const { user, role, isLoggedIn } = useAuth();
+  const { user, role, isLoggedIn, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -597,6 +636,23 @@ function MainApp() {
   });
   /** Đang nạp catalog từ DB — HomeView dùng để hiện skeleton thay vì "0 bản vẽ". */
   const [productsLoading, setProductsLoading] = useState(true);
+  /** Lỗi đọc catalog lần gần nhất (D1=1A: chỉ boolean, không lộ err.message). */
+  const [productsError, setProductsError] = useState(false);
+  /** Theo dõi mounted để không setState sau unmount. */
+  const mountedRef = useRef(true);
+  /** Chặn double-fetch (StrictMode / retry khi in-flight). */
+  const productsLoadingRef = useRef(false);
+  /** Tăng mỗi khi realtime/admin cập nhật state để fetch cũ không đè (D6/D7). */
+  const productsRevisionRef = useRef(0);
+  /**
+   * Khoá ngữ cảnh auth (`user?.id|role`) của lượt fetch: `requestAuthKeyRef` = lượt SẮP gọi,
+   * `activeAuthKeyRef` = lượt ĐANG bay. Nếu guard `productsLoadingRef` chặn một lượt có khoá
+   * KHÁC lượt đang bay (user/role đổi giữa chừng) thì ghi vào `pendingRefetchRef` để chạy lại
+   * sau `finally`. CÙNG khoá (StrictMode double-invoke) KHÔNG xếp hàng ⇒ vẫn chống double-fetch.
+   */
+  const requestAuthKeyRef = useRef<string | null>(null);
+  const activeAuthKeyRef = useRef<string | null>(null);
+  const pendingRefetchRef = useRef<string | null>(null);
   // Zustand State Management for Cart & UI
   const cart = useCartStore((s) => s.cart);
   const appliedDiscount = useCartStore((s) => s.appliedDiscount);
@@ -699,30 +755,68 @@ function MainApp() {
     return subscribeSettings(setMarketplaceFeeFromCache);
   }, [pricingConfig]);
 
-  // Synchronize products from Supabase DB on startup + Realtime Channel + Auto Seeding
+  // Synchronize products from Supabase DB on startup (retryable, revision-guarded)
+  //
+  // `loadProducts` là nguồn DUY NHẤT thay `products` từ DB. Cờ `productsLoadingRef` chặn
+  // double-fetch (StrictMode/retry khi in-flight); `productsRevisionRef` nhường quyền cho
+  // realtime/admin mới hơn đã cập nhật state trong lúc fetch còn bay (R1/R3/R8).
+  const loadProducts = useCallback(async () => {
+    const authKey = requestAuthKeyRef.current;
+    if (productsLoadingRef.current) {
+      // Đang có lượt bay. Chỉ hẹn chạy lại khi ngữ cảnh auth ĐÃ ĐỔI; cùng ngữ cảnh (StrictMode)
+      // thì bỏ qua để không tạo double-fetch.
+      if (authKey !== activeAuthKeyRef.current) pendingRefetchRef.current = authKey;
+      return;
+    }
+    productsLoadingRef.current = true;
+    activeAuthKeyRef.current = authKey;
+    setProductsLoading(true);
+    setProductsError(false);
+    const startRev = productsRevisionRef.current;
+    try {
+      const remote = await dbService.getProducts();          // RLS quyết định; KHÔNG seed fixture
+      if (!mountedRef.current) return;
+      if (productsRevisionRef.current !== startRev) return;  // nhường realtime/admin mới hơn
+      setProducts(remote);
+      if (remote.length === 0) {
+        // D7(a-safe): DB xác nhận rỗng và không lỗi ⇒ xoá cache để empty-state nói thật.
+        try { localStorage.removeItem('vcube_products'); } catch { /* bỏ qua */ }
+      }
+    } catch (err) {
+      console.warn('[vcube] Could not sync remote products:', err);
+      if (mountedRef.current) setProductsError(true);        // giữ cache hiện có (D2)
+    } finally {
+      productsLoadingRef.current = false;
+      if (mountedRef.current) setProductsLoading(false);
+      // Lượt bị nuốt khi auth/user/role đổi giữa chừng → chạy lại một lần với ngữ cảnh mới nhất.
+      const pendingKey = pendingRefetchRef.current;
+      pendingRefetchRef.current = null;
+      if (pendingKey !== null && pendingKey !== activeAuthKeyRef.current && mountedRef.current) {
+        requestAuthKeyRef.current = pendingKey;
+        void loadProducts();
+      }
+    }
+  }, []);
+
+  // Theo dõi mounted để không setState sau unmount (StrictMode-safe).
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // Fetch catalog sau khi auth đã resolve — tránh anon RLS trả [] rồi xoá cache oan (F14/F15).
+  useEffect(() => {
+    if (authLoading) return;
+    // Ghi ngữ cảnh auth của lượt sắp gọi để `loadProducts` phân biệt "đổi user/role" với
+    // StrictMode double-invoke cùng ngữ cảnh.
+    requestAuthKeyRef.current = `${user?.id ?? 'anon'}|${role ?? ''}`;
+    void loadProducts();
+  }, [authLoading, user?.id, role, loadProducts]);
+
+  // Supabase Realtime Channel for Multi-user Sync — tách riêng khỏi fetch (D6).
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Initial Fetch with auto-seed fallback
-    dbService.getProducts().then(async (remoteProducts) => {
-      if (isMounted) {
-        if (remoteProducts && remoteProducts.length > 0) {
-          setProducts(remoteProducts);
-        } else {
-          // If empty, auto-seed mockData into Supabase
-          const seeded = await dbService.seedInitialProductsIfEmpty();
-          if (seeded) {
-            const fresh = await dbService.getProducts();
-            if (isMounted && fresh.length > 0) setProducts(fresh);
-          }
-        }
-      }
-    }).catch((err) => console.warn('Could not sync remote products:', err))
-      .finally(() => {
-        if (isMounted) setProductsLoading(false);
-      });
-
-    // 2. Supabase Realtime Channel for Multi-user Sync
     const channel = supabase
       .channel('public:products')
       .on(
@@ -732,6 +826,7 @@ function MainApp() {
           if (!isMounted) return;
           if (payload.eventType === 'INSERT') {
             const newRecord: any = payload.new;
+            productsRevisionRef.current++;
             setProducts((prev) => {
               if (prev.some((p) => p.id === newRecord.id)) return prev;
               // Dùng CHÍNH mapper của tầng dữ liệu (cùng hàm mà `dbService.getProducts()` dùng ở
@@ -743,6 +838,7 @@ function MainApp() {
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedRecord: any = payload.new;
+            productsRevisionRef.current++;
             setProducts((prev) =>
               prev.map((p) =>
                 p.id === updatedRecord.id
@@ -762,6 +858,7 @@ function MainApp() {
             );
           } else if (payload.eventType === 'DELETE') {
             const deletedRecord: any = payload.old;
+            productsRevisionRef.current++;
             if (deletedRecord?.id) {
               setProducts((prev) => prev.filter((p) => p.id !== deletedRecord.id));
             }
@@ -1298,6 +1395,7 @@ function MainApp() {
     const previous = [...products];
     // Optimistic UI update
     setProducts((prev) => {
+      productsRevisionRef.current++;
       const updated = [prod, ...prev];
       try { localStorage.setItem('vcube_products', JSON.stringify(updated)); } catch (e) {}
       return updated;
@@ -1319,6 +1417,7 @@ function MainApp() {
     const previous = [...products];
     // Optimistic UI update
     setProducts((prev) => {
+      productsRevisionRef.current++;
       const next = prev.map((p) => (p.id === updated.id ? updated : p));
       try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch (e) {}
       return next;
@@ -1340,6 +1439,7 @@ function MainApp() {
     const previous = [...products];
     // Optimistic UI update
     setProducts((prev) => {
+      productsRevisionRef.current++;
       const next = prev.filter((p) => p.id !== productId);
       try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch (e) {}
       return next;
@@ -1461,6 +1561,8 @@ function MainApp() {
               <HomeView
                 products={products}
                 productsLoading={productsLoading}
+                productsError={productsError}
+                onRetryProducts={loadProducts}
                 materials={materials}
                 pricingConfig={effectivePricingConfig as InkiriCostFormulaConfig | undefined}
                 siteContent={siteContent}
@@ -1476,6 +1578,9 @@ function MainApp() {
             element={
               <ExploreRoute
                 products={products}
+                productsLoading={productsLoading}
+                productsError={productsError}
+                onRetry={loadProducts}
                 materials={materials}
                 pricingConfig={effectivePricingConfig as InkiriCostFormulaConfig | undefined}
                 onAddToCart={handleAddToCart}
@@ -1492,6 +1597,9 @@ function MainApp() {
             element={
               <ProductDetailRoute
                 products={products}
+                productsLoading={productsLoading}
+                productsError={productsError}
+                onRetry={loadProducts}
                 materials={materials}
                 pricingConfig={effectivePricingConfig as InkiriCostFormulaConfig | undefined}
                 onAddToCart={handleAddToCart}
@@ -1793,7 +1901,7 @@ function MainApp() {
         }`}
         aria-label={t('liveSupportAria', 'Tư vấn kỹ thuật trực tuyến', 'Live technical consultation')}
       >
-        <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+        <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none"></span>
         <Icon name="support_agent" size={20} className="text-on-inverse" />
         <span className="font-bold text-xs uppercase tracking-widest hidden sm:inline font-tech">
           {t('supportAssistant', 'Trợ lý tự động', 'Automated assistant')}

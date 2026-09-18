@@ -1,6 +1,7 @@
 import { AnalysisFile, DetailedCostBreakdown, PrinterProfile, MaterialProfile, InkiriCostFormulaConfig, DeliveryPackageOption, MachineComparisonItem, OrderFinancialSplit } from '../types';
 import { MATERIALS_CATALOG, PRINTER_PROFILES } from '../data/mockData';
 import { getPricingGlobalSettings, peekSettings, settingsAccessors } from '../backend/services/settingsService';
+import { resolveFilamentUsage } from './printEstimate';
 
 /* ── Đợt 9 (R1): HAI hằng số "giá mặc định" dưới đây đã bị XOÁ ─────────────────
  *   ELECTRICITY_PRICE_PER_KWH = 2850   (VND/kWh)
@@ -456,23 +457,54 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   need.throwIfAny();
 
   // 1. Multi-color & Part Extruder analysis
-  const activeExtruders = new Set(file.parts.map(p => p.extruderIndex)).size;
+  // Chỉ đếm đầu đùn TỆP KHAI THẬT (`extruderIndex` là số hữu hạn > 0). Trước đây đếm cả
+  // `undefined` như một "màu" nên tệp không khai đầu đùn bị coi là multi-color (purge + thay
+  // màu + phí đa màu bịa ra). Lọc trước khi đếm.
+  const activeExtruders = new Set(
+    file.parts
+      .map(p => p.extruderIndex)
+      .filter((n): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0)
+  ).size;
   const isMultiColor = activeExtruders > 1;
   const toolChangesCount = isMultiColor ? (activeExtruders - 1) * 85 : 0;
   const purgeWasteGrams = isMultiColor ? (activeExtruders - 1) * purgeWasteGramsPerColor : 0;
 
   // 2. Material Grams Breakdown
-  // Shell volume (perimeter walls ~22%) + infill volume
+  // Shell volume (perimeter walls ~22%) + infill volume.
+  // Đợt F: `resolveFilamentUsage` chọn nguồn gram/giờ theo thứ tự ưu tiên (slicer trong tệp →
+  // năng suất máy do admin khai → ước từ thể tích) và trả kèm NHÃN NGUỒN để tầng hiển thị nói
+  // thật số nào đo được, số nào ước (data-honesty PC-05/MP-13). `null` năng suất KHÔNG bị thay
+  // bằng số mặc định.
   const supportRatio = supportVolumeRatioPercent / 100;
-  const rawModelGrams = Math.max(5, Math.round(modelVolumeCm3 * materialDensity * (0.22 + (infillPercent / 100) * 0.78)));
-  const supportGrams = supportsMode === 'none' ? 0 : Math.round(rawModelGrams * supportRatio);
-  const totalFilamentGramsPerUnit = rawModelGrams + supportGrams + brimRaftGrams + purgeWasteGrams;
+  const usage = resolveFilamentUsage({
+    volumeCm3: modelVolumeCm3,
+    density: materialDensity,
+    infillPercent,
+    layerHeightMm,
+    slicerGrams: file.slicerPreset?.totalFilamentGrams,
+    slicerPrintSeconds: file.slicerPreset?.estimatedPrintTimeSeconds,
+    plates: file.plates,
+    throughputGramsPerHour: currentPrinter.throughputGramsPerHour,
+  });
+  const rawModelGrams = usage.totalGrams;
+  // `gramsSource === 'slicer'` nghĩa là số đến từ `filament used_g` của Bambu/Orca — con số đó
+  // ĐÃ bao gồm support, brim/raft, purge tower và mọi thứ đùn ra. Cộng thêm các ước lượng
+  // support/brim/purge nữa là đếm trùng rồi dán nhãn "từ file" (thổi giá + sai nguồn). Khi có
+  // slicer: để các thành phần additive = 0 để breakdown vẫn khớp tổng; khi không có slicer giữ
+  // nguyên hành vi ước lượng cũ.
+  const slicerIncludesAdditives = usage.gramsSource === 'slicer';
+  const supportGrams = slicerIncludesAdditives || supportsMode === 'none' ? 0 : Math.round(rawModelGrams * supportRatio);
+  const effectiveBrimRaftGrams = slicerIncludesAdditives ? 0 : brimRaftGrams;
+  const effectivePurgeWasteGrams = slicerIncludesAdditives ? 0 : purgeWasteGrams;
+  const totalFilamentGramsPerUnit = rawModelGrams + supportGrams + effectiveBrimRaftGrams + effectivePurgeWasteGrams;
 
   const materialCost = Math.round(totalFilamentGramsPerUnit * materialCostPerGram);
 
   // 3. Print Time (Hours) & Electricity Cost
-  const basePrintHours = Math.max(0.6, (modelVolumeCm3 * 3.8) / (layerHeightMm * 100));
-  const toolChangeHours = (toolChangesCount * toolChangeMinutes) / 60;
+  const basePrintHours = usage.printHours;
+  // Tool-change CHỈ cộng khi giờ in KHÔNG đến từ slicer — slicer đã tính thời gian thay màu
+  // vào dự phóng của nó, cộng thêm nữa là cộng trùng (thổi giá).
+  const toolChangeHours = usage.printHoursSource === 'slicer' ? 0 : (toolChangesCount * toolChangeMinutes) / 60;
   const totalPrintHoursPerUnit = Number((basePrintHours + toolChangeHours).toFixed(2));
 
   const electricityCost = computeElectricityCostVnd(averagePowerKW, totalPrintHoursPerUnit, electricityRateVnd);
@@ -573,11 +605,17 @@ export function calculateDetailedPricing(input: PricingEngineInput): {
   const breakdown: DetailedCostBreakdown = {
     modelGrams: rawModelGrams,
     supportGrams,
-    brimRaftGrams,
-    purgeGrams: purgeWasteGrams,
+    brimRaftGrams: effectiveBrimRaftGrams,
+    purgeGrams: effectivePurgeWasteGrams,
     totalFilamentGrams: totalFilamentGramsPerUnit,
     materialCostPerGram,
     materialCost,
+
+    // Nguồn gram/giờ in của lượt tính này (data-honesty): UI dùng để dán nhãn
+    // "từ file" / "ước tính theo năng suất máy" / "ước tính theo thể tích".
+    gramsSource: usage.gramsSource,
+    printHoursSource: usage.printHoursSource,
+    throughputGramsPerHourUsed: usage.throughputGramsPerHourUsed,
 
     printHours: totalPrintHoursPerUnit,
     averagePowerKW,

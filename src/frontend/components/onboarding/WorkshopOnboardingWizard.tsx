@@ -590,7 +590,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 value={workshopName}
                 onChange={e => setWorkshopName(e.target.value)}
                 placeholder="VD: FabLab CNC & 3D Printing Cầu Giấy"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-line-control focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
               />
               <span className="text-xs text-fg-subtle">Tên thương hiệu xưởng sẽ hiển thị trên tem đóng gói bưu phẩm</span>
             </div>
@@ -606,7 +606,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 value={contactPhone}
                 onChange={e => setContactPhone(e.target.value)}
                 placeholder="Nhập hotline kỹ thuật"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-line-control focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
               />
               <span className="text-xs text-fg-subtle">Nhận thông báo đơn hàng hỏa tốc qua Zalo / SMS</span>
             </div>
@@ -622,7 +622,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 value={contactEmail}
                 onChange={e => setContactEmail(e.target.value)}
                 placeholder="VD: tech@xuongin3d.vn"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-line-control focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
               />
             </div>
           </div>
@@ -638,7 +638,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               value={address}
               onChange={e => setAddress(e.target.value)}
               placeholder="Số nhà, ngõ/đường, Phường/Xã, Quận/Huyện, Tỉnh/TP"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
+              className="w-full px-3.5 py-2.5 rounded-lg border border-line-control focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
             />
           </div>
 
@@ -716,7 +716,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 value={electricityRate}
                 placeholder="Chưa khai"
                 onChange={e => setElectricityRate(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-28 px-3 py-1.5 rounded-lg border border-line text-right font-bold text-sm"
+                className="w-28 px-3 py-1.5 rounded-lg border border-line-control text-right font-bold text-sm"
               />
               <span className="text-xs font-semibold text-fg-muted">đ/kWh</span>
             </div>
@@ -841,7 +841,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     value={tempMachineName}
                     onChange={e => setTempMachineName(e.target.value)}
                     placeholder="VD: Bambu Lab X1C - Máy số 1"
-                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-medium focus:ring-1 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-medium focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
@@ -851,7 +851,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   <select
                     value={tempMachineType}
                     onChange={e => setTempMachineType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-medium focus:ring-1 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-medium focus:ring-1 focus:ring-primary"
                   >
                     <option value="FDM">FDM / FFF (Sợi nhựa)</option>
                     <option value="SLA">SLA / MSLA (Quang hóa Resin)</option>
@@ -868,21 +868,21 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                       value={tempVolumeX}
                       onChange={e => setTempVolumeX(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="X"
-                      className="px-2 py-2 rounded-lg border border-line text-xs text-center font-bold"
+                      className="px-2 py-2 rounded-lg border border-line-control text-xs text-center font-bold"
                     />
                     <input
                       type="number"
                       value={tempVolumeY}
                       onChange={e => setTempVolumeY(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="Y"
-                      className="px-2 py-2 rounded-lg border border-line text-xs text-center font-bold"
+                      className="px-2 py-2 rounded-lg border border-line-control text-xs text-center font-bold"
                     />
                     <input
                       type="number"
                       value={tempVolumeZ}
                       onChange={e => setTempVolumeZ(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="Z"
-                      className="px-2 py-2 rounded-lg border border-line text-xs text-center font-bold"
+                      className="px-2 py-2 rounded-lg border border-line-control text-xs text-center font-bold"
                     />
                   </div>
                 </div>
@@ -899,7 +899,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     value={tempHourlyRate}
                     onChange={e => setTempHourlyRate(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 60000"
-                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-bold text-fg"
+                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-bold text-fg"
                   />
                 </div>
 
@@ -1100,7 +1100,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     value={tempMaterialName}
                     onChange={e => setTempMaterialName(e.target.value)}
                     placeholder="VD: eSUN PLA+ Đen Mờ, SUNLU PETG..."
-                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-medium focus:ring-1 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-medium focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
@@ -1110,7 +1110,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   <select
                     value={tempMaterialType}
                     onChange={e => setTempMaterialType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-medium focus:ring-1 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-medium focus:ring-1 focus:ring-primary"
                   >
                     <option value="PLA">PLA / PLA+ (Phổ biến, dễ in)</option>
                     <option value="PETG">PETG (Bền cơ, chịu nước ngoài trời)</option>
@@ -1130,7 +1130,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     value={tempStockGrams}
                     onChange={e => setTempStockGrams(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 3000g = 3 cuộn"
-                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-bold text-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-bold text-primary"
                   />
                 </div>
 
@@ -1143,7 +1143,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     value={tempPricePerKg}
                     onChange={e => setTempPricePerKg(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 250000"
-                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-bold text-fg"
+                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-bold text-fg"
                   />
                 </div>
 
@@ -1158,7 +1158,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     value={tempLowStockThreshold}
                     onChange={e => setTempLowStockThreshold(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 1000"
-                    className="w-full px-3 py-2 rounded-lg border border-line text-sm font-bold text-fg"
+                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-bold text-fg"
                   />
                 </div>
 
@@ -1191,7 +1191,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                         setTempColorHex(e.target.value);
                         setTempColorName('Màu tự chọn');
                       }}
-                      className="w-7 h-7 rounded-full cursor-pointer border border-line p-0 overflow-hidden"
+                      className="w-7 h-7 rounded-full cursor-pointer border border-line-control p-0 overflow-hidden"
                       title="Màu tùy chỉnh"
                     />
                   </div>
@@ -1316,12 +1316,12 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {currentStep === 4 && submittedProfile && (
         <div className="bg-surface rounded-lg shadow-e1 p-8 text-center space-y-6 animate-fadeIn">
           <div className="w-20 h-20 rounded-full bg-warning-tint text-warning flex items-center justify-center mx-auto ring-8 ring-warning-tint">
-            <Clock className="w-10 h-10 animate-pulse" />
+            <Clock className="w-10 h-10 animate-pulse motion-reduce:animate-none" />
           </div>
 
           <div className="max-w-xl mx-auto space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-tint border border-warning/40 text-xs font-bold text-warning">
-              <span className="w-2 h-2 rounded-full bg-warning animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-warning animate-ping motion-reduce:animate-none" />
               verified_status: Pending (Chờ Admin Duyệt)
             </div>
             <h2 className="text-2xl font-bold text-fg tracking-tight">

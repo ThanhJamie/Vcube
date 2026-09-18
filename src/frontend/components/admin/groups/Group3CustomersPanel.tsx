@@ -432,7 +432,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
         <div className="flex items-center gap-1.5 p-1 bg-surface-muted rounded-lg">
           <button
             onClick={() => setActiveTab('customers')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'customers'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -443,7 +443,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('nda')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'nda'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -454,7 +454,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('rfq')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'rfq'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -465,7 +465,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('kyc')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'kyc'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -593,9 +593,10 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                 <input
                   type="text"
                   placeholder={isVi ? 'Tìm tên, công ty, MST, email...' : 'Search customer, tax ID...'}
+                  aria-label={isVi ? 'Tìm khách hàng theo tên, công ty, MST hoặc email' : 'Search customers by name, company, tax ID or email'}
                   value={filters.searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus:border-primary focus:bg-surface"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary focus:bg-surface"
                 />
               </div>
               <button
@@ -603,7 +604,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                 disabled={isCustomersLoading}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-60 shrink-0"
               >
-                <Icon name="sync" size={16} className={isCustomersLoading ? 'animate-spin' : ''} />
+                <Icon name="sync" size={16} className={isCustomersLoading ? 'animate-spin motion-reduce:animate-none' : ''} />
                 {isVi ? 'Tải Lại' : 'Reload'}
               </button>
             </div>
@@ -1003,7 +1004,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                 disabled={isKycLoading}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-60"
               >
-                <Icon name="sync" size={16} className={isKycLoading ? 'animate-spin' : ''} />
+                <Icon name="sync" size={16} className={isKycLoading ? 'animate-spin motion-reduce:animate-none' : ''} />
                 {isVi ? 'Tải lại' : 'Reload'}
               </button>
             </div>
@@ -1012,10 +1013,11 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
               <Icon name="search" size={16} className="absolute left-2.5 top-2 text-fg-subtle" />
               <input
                 type="text"
+                aria-label={isVi ? 'Tìm kiếm hồ sơ KYC theo tên, email, doanh nghiệp' : 'Search KYC profiles by name, email, company'}
                 placeholder={isVi ? 'Tìm tên, email, doanh nghiệp...' : 'Search name, email, company...'}
                 value={kycSearch}
                 onChange={(e) => setKycSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus:border-primary focus:bg-surface"
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary focus:bg-surface"
               />
             </div>
           </div>
@@ -1105,7 +1107,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                       value={kycRejectionReason}
                       onChange={(e) => setKycRejectionReason(e.target.value)}
                       placeholder={isVi ? 'Ví dụ: Ảnh CCCD bị mờ, MST không khớp tên doanh nghiệp...' : 'e.g. blurry ID, tax code mismatch...'}
-                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                     />
                   </div>
                 </div>

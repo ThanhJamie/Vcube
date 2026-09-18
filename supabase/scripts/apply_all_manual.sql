@@ -290,6 +290,51 @@ alter table public.site_content
 comment on column public.site_content.settings is
   'Truong storefront chua co cot rieng (standardShippingFee, freeShippingThreshold, toleranceSpec, nhom SEO). Key giu nguyen camelCase.';
 
+-- ---------------------------------------------------------------------------
+-- site_content: cot THAT cho nhom storefront/SEO truoc day bi NUOT khi luu.
+-- Truoc day admin sua duoc nhung `saveSiteContent` khong ghi o dau (khong cot,
+-- khong jsonb) ⇒ mat du lieu am tham. Nay moi truong co mot cot rieng de query/index
+-- (khong don cuc vao jsonb). Cot text mac dinh '' = chua cau hinh; boolean/jsonb
+-- nullable de phan biet "chua khai" voi false/[].
+-- ---------------------------------------------------------------------------
+alter table public.site_content
+  add column if not exists announcement_badge         text default '',
+  add column if not exists announcement_action_text   text default '',
+  add column if not exists announcement_action_tag    text default '',
+  add column if not exists hero_headline_line1        text default '',
+  add column if not exists hero_headline_highlight    text default '',
+  add column if not exists hero_cta_quote_text        text default '',
+  add column if not exists hero_cta_catalog_text      text default '',
+  add column if not exists hero_metric1_label         text default '',
+  add column if not exists hero_metric1_value         text default '',
+  add column if not exists hero_metric2_label         text default '',
+  add column if not exists hero_metric2_value         text default '',
+  add column if not exists hero_metric3_label         text default '',
+  add column if not exists hero_metric3_value         text default '',
+  add column if not exists workflow_badge             text default '',
+  add column if not exists workflow_title             text default '',
+  add column if not exists workflow_step1_title       text default '',
+  add column if not exists workflow_step1_desc        text default '',
+  add column if not exists workflow_step2_title       text default '',
+  add column if not exists workflow_step2_desc        text default '',
+  add column if not exists workflow_step3_title       text default '',
+  add column if not exists workflow_step3_desc        text default '',
+  add column if not exists estimator_badge            text default '',
+  add column if not exists estimator_title            text default '',
+  add column if not exists estimator_subtitle         text default '',
+  add column if not exists estimator_benefit1         text default '',
+  add column if not exists estimator_benefit2         text default '',
+  add column if not exists estimator_cta_text         text default '',
+  add column if not exists trust_partners_title       text default '',
+  add column if not exists trust_partners_list        jsonb default '[]'::jsonb,
+  add column if not exists seo_title                  text default '',
+  add column if not exists seo_description            text default '',
+  add column if not exists seo_keywords               text default '',
+  add column if not exists seo_og_image               text default '',
+  add column if not exists seo_canonical_url          text default '',
+  add column if not exists seo_robots_index           boolean,
+  add column if not exists seo_structured_data        text default '';
+
 
 create table if not exists public.pricing_configs (
     id               text primary key,
@@ -704,6 +749,26 @@ do $do$ begin
              or (failure_extra_percent >= 0 and failure_extra_percent <= 30));
   end if;
 end $do$;
+
+-- ==============================================================================
+-- 2g. NĂNG SUẤT IN THEO MÁY — throughput_grams_per_hour (Đợt F)
+-- ==============================================================================
+-- Ý NGHĨA: năng suất in (g/giờ) do admin khai cho từng máy. Dùng để suy THỜI GIAN IN
+-- từ tổng gram khi tệp KHÔNG kèm dữ liệu slicer (`printHours = grams / throughput`).
+-- NULL = CHƯA KHAI (KHÁC 0): engine KHÔNG thay bằng một năng suất mặc định — nó rơi về
+-- ước lượng thể tích và gắn nhãn nguồn (data-honesty PC-05/MP-13).
+--
+-- VÌ SAO `add column if not exists`: `create table if not exists printer_fleet` ở trên là
+-- no-op trên DB đã tồn tại, nên cột phải được thêm tường minh (idempotent) — cùng tiền lệ
+-- `materials.failure_extra_percent` ở mục 2f.
+--
+-- CÔNG KHAI: `printer_fleet` vốn đã public-read (catalog) — cột này là THÔNG SỐ GIÁ,
+-- không phải bí mật.
+alter table public.printer_fleet
+  add column if not exists throughput_grams_per_hour numeric;  -- NULL = chưa khai
+
+comment on column public.printer_fleet.throughput_grams_per_hour is
+  'Năng suất in (g/giờ) do admin khai cho máy. Dùng để suy thời gian in từ tổng gram khi tệp không kèm dữ liệu slicer. NULL = chưa khai (KHÁC 0); engine không thay bằng số mặc định mà rơi về ước lượng thể tích có gắn nhãn nguồn.';
 -- ==============================================================================
 -- 3. ĐƠN HÀNG, BÁO GIÁ, THANH TOÁN
 -- ==============================================================================
@@ -1526,19 +1591,19 @@ as $fn$
 begin
   if new.action = 'Import' then
     update public.workshop_materials
-       set current_stock_grams = current_stock_grams + new.grams,
+       set current_stock_grams = coalesce(current_stock_grams, 0) + new.grams,
            price_per_kg = coalesce(nullif(new.price_per_kg_at_time, 0), price_per_kg),
            stock_status = case
-             when current_stock_grams + new.grams <= 0 then 'OutOfStock'
-             when current_stock_grams + new.grams <= low_stock_threshold_grams then 'LowStock'
+             when coalesce(current_stock_grams, 0) + new.grams <= 0 then 'OutOfStock'
+             when coalesce(current_stock_grams, 0) + new.grams <= low_stock_threshold_grams then 'LowStock'
              else 'Tracking' end,
            updated_at = now()
      where id = new.material_id;
   elsif new.action = 'Export' then
     update public.workshop_materials
-       set current_stock_grams = greatest(0, current_stock_grams - new.grams),
+       set current_stock_grams = greatest(0, coalesce(current_stock_grams, 0) - new.grams),
            stock_status = case
-             when greatest(0, current_stock_grams - new.grams) <= low_stock_threshold_grams then 'LowStock'
+             when greatest(0, coalesce(current_stock_grams, 0) - new.grams) <= low_stock_threshold_grams then 'LowStock'
              else 'Tracking' end,
            updated_at = now()
      where id = new.material_id;
@@ -1754,6 +1819,7 @@ alter table public.designer_profiles        alter column rating                 
 alter table public.workshop_machines        alter column hourly_rate                      drop default;
 alter table public.workshop_machines        alter column bed_dimensions                   drop default;
 alter table public.workshop_materials       alter column price_per_kg                     drop default;
+alter table public.workshop_materials       alter column current_stock_grams              drop default;
 alter table public.workshop_materials       alter column low_stock_threshold_grams        drop default;
 alter table public.quotes                   alter column volume_cm3                       drop default;
 alter table public.quotes                   alter column infill_percent                   drop default;
@@ -1773,6 +1839,7 @@ alter table public.accessories              alter column low_stock_threshold    
 alter table public.workshop_partners        alter column max_build_volume                 drop not null;
 alter table public.workshop_machines        alter column bed_dimensions                   drop not null;
 alter table public.workshop_materials       alter column price_per_kg                     drop not null;
+alter table public.workshop_materials       alter column current_stock_grams              drop not null;
 alter table public.workshop_materials       alter column low_stock_threshold_grams        drop not null;
 alter table public.digital_assets            alter column file_size_bytes                drop not null;
 alter table public.digital_assets            alter column checksum                        drop not null;
@@ -2630,7 +2697,10 @@ begin
 
   -- ---------- 5.4l custom_design_requests (Đợt 30 — Studio Designer) ----------
   -- Yêu cầu CAD tuỳ chỉnh. Khách hàng đọc/nộp/sửa yêu cầu của mình.
-  -- Designer và Admin được đọc và cập nhật tiến độ / trao đổi kỹ thuật / gửi báo giá.
+  -- Designer CHỈ đọc/ghi yêu cầu ĐƯỢC GÁN cho mình (designer_id = auth.uid()) hoặc còn TRỐNG
+  -- (designer_id is null — chợ mở để nhận việc); admin toàn quyền. KHÔNG dùng
+  -- `current_app_role() in ('designer','admin')` vì như vậy MỌI designer đọc được yêu cầu của
+  -- designer khác (rò dữ liệu khách hàng).
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_customer_select', 'select', array['authenticated'],
     'customer_id::text = (select auth.uid())::text', null);
@@ -2643,11 +2713,11 @@ begin
     'customer_id::text = (select auth.uid())::text');
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_designer_select', 'select', array['authenticated'],
-    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$, null);
+    $p$public.is_admin() or designer_id::text = (select auth.uid())::text or designer_id is null$p$, null);
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_designer_update', 'update', array['authenticated'],
-    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$,
-    $p$public.current_app_role() in ('designer','admin') or designer_id::text = (select auth.uid())::text$p$);
+    $p$public.is_admin() or designer_id::text = (select auth.uid())::text or designer_id is null$p$,
+    $p$public.is_admin() or designer_id::text = (select auth.uid())::text or designer_id is null$p$);
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_admin_all', 'all', array['authenticated'],
     'public.is_admin()', 'public.is_admin()');

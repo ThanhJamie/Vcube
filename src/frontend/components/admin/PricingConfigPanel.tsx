@@ -282,6 +282,8 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
     hasEnclosure: false,
     hasAMS: false,
     status: 'Idle',
+    // Năng suất in khai báo (g/giờ). `null` = CHƯA KHAI — không có số mặc định.
+    throughputGramsPerHour: null,
   });
 
   /**
@@ -753,6 +755,15 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
     });
   };
 
+  /**
+   * Ô "Năng suất in (g/giờ)": để trống ⇒ `null` = CHƯA KHAI (KHÔNG rơi về số mặc định).
+   * Nhập số ⇒ giữ đúng số admin gõ để validate (> 0).
+   */
+  const setPrinterThroughput = (text: string) => {
+    const raw = String(text).trim();
+    setPrinterField('throughputGramsPerHour', raw === '' ? null : Number(raw));
+  };
+
   const validatePrinterValues = (values: Record<string, unknown>, bed: Record<string, unknown> | undefined): Record<string, string> => {
     const issues: Record<string, string> = {};
     requireNumber(issues, values, 'nozzleDiameter', 'Đường kính đầu phun', { min: 0, exclusiveMin: true });
@@ -763,6 +774,12 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
     requireNumber(issues, values, 'hourlyRate', 'Đơn giá giờ máy', { min: 0 });
     requireNumber(issues, values, 'maxPrintSpeedMmS', 'Tốc độ in tối đa', { min: 0, exclusiveMin: true });
     requireNumber(issues, values, 'heatedBedMaxTemp', 'Nhiệt độ bàn tối đa', { min: 0, exclusiveMin: true });
+    // Năng suất in (g/giờ): để TRỐNG / `null` là HỢP LỆ (chưa khai — engine rơi về ước lượng
+    // thể tích có gắn nhãn nguồn). ĐÃ NHẬP thì phải là số hữu hạn > 0.
+    const throughput = values.throughputGramsPerHour;
+    if (throughput !== null && throughput !== undefined && !(isConfiguredNumber(throughput) && throughput > 0)) {
+      issues.throughputGramsPerHour = 'Năng suất in: để trống nếu chưa khai, hoặc nhập số lớn hơn 0 (g/giờ).';
+    }
     if (!values.technology) issues.technology = 'Công nghệ in: chưa chọn.';
     for (const axis of ['x', 'y', 'z'] as const) {
       const raw = bed?.[axis];
@@ -806,6 +823,8 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
       hourlyRate: printerForm.hourlyRate as number,
       maxPrintSpeedMmS: printerForm.maxPrintSpeedMmS as number,
       heatedBedMaxTemp: printerForm.heatedBedMaxTemp as number,
+      // `null` = chưa khai năng suất (không thay bằng số mặc định).
+      throughputGramsPerHour: printerForm.throughputGramsPerHour ?? null,
       hasEnclosure: printerForm.hasEnclosure === true,
       hasAMS: printerForm.hasAMS === true,
       status: printerForm.status ?? 'Idle',
@@ -989,10 +1008,19 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
         )}
 
         {/* Sub Navigation Bar */}
-        <div className="flex border-b border-line gap-2 mt-6 pt-2 overflow-x-auto">
+        <div
+          role="tablist"
+          aria-label="Các nhóm cấu hình định giá"
+          className="flex border-b border-line gap-2 mt-6 pt-2 overflow-x-auto"
+        >
           <button
+            type="button"
+            role="tab"
+            id="pricing-tab-formula"
+            aria-selected={subTab === 'formula'}
+            aria-controls="pricing-panel-formula"
             onClick={() => setSubTab('formula')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
               subTab === 'formula'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-fg-muted hover:text-fg'
@@ -1003,8 +1031,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           </button>
 
           <button
+            type="button"
+            role="tab"
+            id="pricing-tab-materials"
+            aria-selected={subTab === 'materials'}
+            aria-controls="pricing-panel-materials"
             onClick={() => setSubTab('materials')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
               subTab === 'materials'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-fg-muted hover:text-fg'
@@ -1015,8 +1048,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           </button>
 
           <button
+            type="button"
+            role="tab"
+            id="pricing-tab-printers"
+            aria-selected={subTab === 'printers'}
+            aria-controls="pricing-panel-printers"
             onClick={() => setSubTab('printers')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
               subTab === 'printers'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-fg-muted hover:text-fg'
@@ -1027,8 +1065,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           </button>
 
           <button
+            type="button"
+            role="tab"
+            id="pricing-tab-accessories"
+            aria-selected={subTab === 'accessories'}
+            aria-controls="pricing-panel-accessories"
             onClick={() => setSubTab('accessories')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
               subTab === 'accessories'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-fg-muted hover:text-fg'
@@ -1039,8 +1082,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           </button>
 
           <button
+            type="button"
+            role="tab"
+            id="pricing-tab-inventory"
+            aria-selected={subTab === 'inventory'}
+            aria-controls="pricing-panel-inventory"
             onClick={() => setSubTab('inventory')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
               subTab === 'inventory'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-fg-muted hover:text-fg'
@@ -1051,8 +1099,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           </button>
 
           <button
+            type="button"
+            role="tab"
+            id="pricing-tab-estimator"
+            aria-selected={subTab === 'estimator'}
+            aria-controls="pricing-panel-estimator"
             onClick={() => setSubTab('estimator')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
               subTab === 'estimator'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-fg-muted hover:text-fg'
@@ -1066,7 +1119,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
 
       {/* SUB-TAB 1: FORMULA & OPERATING RATES */}
       {subTab === 'formula' && (
-        <form onSubmit={handleSaveFormula} className="space-y-6">
+        <form
+          role="tabpanel"
+          id="pricing-panel-formula"
+          aria-labelledby="pricing-tab-formula"
+          onSubmit={handleSaveFormula}
+          className="space-y-6"
+        >
 
           {/* KHO RIÊNG: pricing_global_settings — VAT · điện · nhân công (có audit log) */}
           <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e1 border border-line">
@@ -1120,7 +1179,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   }}
                   aria-invalid={!!globalIssues.vatPercent}
                   aria-describedby={globalIssues.vatPercent ? 'pricing-global-vat-error' : undefined}
-                  className="w-full bg-surface-muted border border-line rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
+                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
                 />
                 <FieldError id="pricing-global-vat" message={globalIssues.vatPercent} />
                 <p className="text-xs text-fg-muted mt-1">
@@ -1146,7 +1205,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   }}
                   aria-invalid={!!globalIssues.electricityRateVnd}
                   aria-describedby={globalIssues.electricityRateVnd ? 'pricing-global-electricity-error' : undefined}
-                  className="w-full bg-surface-muted border border-line rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
+                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
                 />
                 <FieldError id="pricing-global-electricity" message={globalIssues.electricityRateVnd} />
                 <p className="text-xs text-fg-muted mt-1">Bỏ trống = chưa cấu hình (KHÔNG mặc định 2850).</p>
@@ -1170,7 +1229,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   }}
                   aria-invalid={!!globalIssues.laborHourlyRateVnd}
                   aria-describedby={globalIssues.laborHourlyRateVnd ? 'pricing-global-labor-error' : undefined}
-                  className="w-full bg-surface-muted border border-line rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
+                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
                 />
                 <FieldError id="pricing-global-labor" message={globalIssues.laborHourlyRateVnd} />
                 <p className="text-xs text-fg-muted mt-1">Bỏ trống = chưa cấu hình (KHÔNG mặc định 65000).</p>
@@ -1195,7 +1254,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   }}
                   aria-invalid={!!globalIssues.marketplaceFeePercent}
                   aria-describedby={globalIssues.marketplaceFeePercent ? 'pricing-global-marketplace-fee-error' : undefined}
-                  className="w-full bg-surface-muted border border-line rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
+                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
                 />
                 <FieldError id="pricing-global-marketplace-fee" message={globalIssues.marketplaceFeePercent} />
                 <p className="text-xs text-fg-muted mt-1">
@@ -1299,7 +1358,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   aria-describedby="cfg-electricity-rate-deprecated"
                   value={formulaForm.electricityRatePerKWh ?? ''}
                   placeholder="Không còn dùng"
-                  className="w-full bg-surface-muted border border-line rounded-sm px-3 py-2 text-xs font-tech text-fg-subtle cursor-not-allowed"
+                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech text-fg-subtle cursor-not-allowed"
                 />
                 <p id="cfg-electricity-rate-deprecated" className="text-xs text-fg-subtle">
                   * Công thức điện: Công suất máy (kW) × Giờ in (h) × Đơn giá điện (mục 0).
@@ -1452,7 +1511,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   aria-describedby="cfg-labor-rate-deprecated"
                   value={formulaForm.laborHourlyRate ?? ''}
                   placeholder="Không còn dùng"
-                  className="w-full bg-surface-muted border border-line rounded-sm px-3 py-2 text-xs font-tech text-fg-subtle cursor-not-allowed"
+                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech text-fg-subtle cursor-not-allowed"
                 />
                 <p id="cfg-labor-rate-deprecated" className="text-xs text-fg-subtle">
                   * Tiền công = (tổng số phút bên dưới ÷ 60) × Lương giờ (mục 0).
@@ -1647,7 +1706,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       setFormulaForm((prev) => ({ ...prev, profitMode: value }));
                     }}
                     aria-describedby="cfg-profit-mode-help"
-                    className="w-full bg-surface-muted border border-line rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg cursor-pointer"
+                    className="w-full bg-surface-muted border border-line-control rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg cursor-pointer"
                   >
                     <option value="markup">Markup — lãi trên GIÁ VỐN (công thức hiện tại)</option>
                     <option value="margin" disabled>Margin — lãi trên GIÁ BÁN (chưa hỗ trợ)</option>
@@ -2208,7 +2267,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
 
       {/* SUB-TAB 2: MATERIALS CATALOG CRUD */}
       {subTab === 'materials' && (
-        <div className="space-y-6">
+        <div role="tabpanel" id="pricing-panel-materials" aria-labelledby="pricing-tab-materials" className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-4 sm:p-5 rounded-lg">
             <div>
               <h3 className="font-bold text-sm text-fg">Danh Sách Nhựa & Vật Liệu Đang Quản Lý ({materials.length})</h3>
@@ -2318,7 +2377,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
 
       {/* SUB-TAB 3: PRINTER FLEET CRUD */}
       {subTab === 'printers' && (
-        <div className="space-y-6">
+        <div role="tabpanel" id="pricing-panel-printers" aria-labelledby="pricing-tab-printers" className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-4 sm:p-5 rounded-lg">
             <div>
               <h3 className="font-bold text-sm text-fg">Danh Sách Đội Máy In Công Nghiệp ({printers.length})</h3>
@@ -2342,7 +2401,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     <h4 className="font-bold text-sm text-fg">{prn.name}</h4>
                   </div>
                   <span className={`px-2 py-0.5 text-xs font-tech font-bold uppercase rounded-sm ${
-                    prn.status === 'Printing' ? 'bg-warning-tint text-warning animate-pulse' :
+                    prn.status === 'Printing' ? 'bg-warning-tint text-warning animate-pulse motion-reduce:animate-none' :
                     prn.status === 'Idle' ? 'bg-positive-tint text-positive' :
                     'bg-line-subtle text-fg-muted'
                   }`}>
@@ -2390,6 +2449,10 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     <span>Tốc độ in tối đa:</span>
                     <strong className="text-fg font-tech">{isConfiguredNumber(prn.maxPrintSpeedMmS) ? `${prn.maxPrintSpeedMmS} mm/s` : '—'}</strong>
                   </div>
+                  <div className="flex justify-between">
+                    <span>Năng suất in:</span>
+                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.throughputGramsPerHour) ? `${prn.throughputGramsPerHour} g/giờ` : '—'}</strong>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 pt-2 border-t border-line/40 text-xs">
@@ -2426,33 +2489,39 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
 
       {/* SUB-TAB 4: ACCESSORIES & PACKAGING MANAGEMENT */}
       {subTab === 'accessories' && (
-        <AccessoriesManager
-          accessories={accessories}
-          onUpdateAccessories={onUpdateAccessories}
-          onShowToast={onShowToast}
-        />
+        <div role="tabpanel" id="pricing-panel-accessories" aria-labelledby="pricing-tab-accessories">
+          <AccessoriesManager
+            accessories={accessories}
+            onUpdateAccessories={onUpdateAccessories}
+            onShowToast={onShowToast}
+          />
+        </div>
       )}
 
       {/* SUB-TAB 5: WAREHOUSE INVENTORY & STOCK MAPPING */}
       {subTab === 'inventory' && (
-        <WarehouseInventoryPanel
-          materials={materials}
-          accessories={accessories}
-          onUpdateMaterials={onUpdateMaterials}
-          onUpdateAccessories={onUpdateAccessories}
-          onShowToast={onShowToast}
-        />
+        <div role="tabpanel" id="pricing-panel-inventory" aria-labelledby="pricing-tab-inventory">
+          <WarehouseInventoryPanel
+            materials={materials}
+            accessories={accessories}
+            onUpdateMaterials={onUpdateMaterials}
+            onUpdateAccessories={onUpdateAccessories}
+            onShowToast={onShowToast}
+          />
+        </div>
       )}
 
       {/* SUB-TAB 6: WORKSHOP ESTIMATOR & MANUFACTURING BOM */}
       {subTab === 'estimator' && (
-        <WorkshopEstimatorBOM
-          materials={materials}
-          printers={printers}
-          accessories={accessories}
-          pricingConfig={formulaForm as unknown as InkiriCostFormulaConfig}
-          onShowToast={onShowToast}
-        />
+        <div role="tabpanel" id="pricing-panel-estimator" aria-labelledby="pricing-tab-estimator">
+          <WorkshopEstimatorBOM
+            materials={materials}
+            printers={printers}
+            accessories={accessories}
+            pricingConfig={formulaForm as unknown as InkiriCostFormulaConfig}
+            onShowToast={onShowToast}
+          />
+        </div>
       )}
 
       {/* NEW/EDIT MATERIAL MODAL */}
@@ -2939,6 +3008,26 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
                   />
                   <FieldError id="prn-heated-bed" message={printerIssues.heatedBedMaxTemp} />
+                </div>
+
+                <div className="col-span-2">
+                  <label htmlFor="prn-throughput" className="block font-semibold mb-1 text-fg">Năng Suất In (g/giờ)</label>
+                  <input
+                    id="prn-throughput"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder="Để trống nếu chưa khai"
+                    value={editingPrinter ? (editingPrinter.throughputGramsPerHour ?? '') : (printerForm.throughputGramsPerHour ?? '')}
+                    onChange={(e) => setPrinterThroughput(e.target.value)}
+                    aria-invalid={!!printerIssues.throughputGramsPerHour}
+                    aria-describedby={printerIssues.throughputGramsPerHour ? 'prn-throughput-error prn-throughput-help' : 'prn-throughput-help'}
+                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                  />
+                  <p id="prn-throughput-help" className="text-xs text-fg-muted mt-1">
+                    Ví dụ: 100 g trong 3 giờ ⇒ 33,3 g/giờ. Để trống nếu chưa khai — hệ thống ước tính theo thể tích và ghi rõ nguồn, không tự điền số.
+                  </p>
+                  <FieldError id="prn-throughput" message={printerIssues.throughputGramsPerHour} />
                 </div>
 
                 <div className="flex items-center gap-4 col-span-2 pt-2">

@@ -70,7 +70,9 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
     // `volumeCm3 x 1.24` / `x 0.4` — do la cac con so bia duoc trung nhu du lieu cua file.
     // Chi giu lai nhung gi doc duoc TU CHINH tep: slot, mau, ten mau, loai vat lieu.
     : parts.map((p, idx) => ({
-        index: p.extruderIndex || idx + 1,
+        // F2/P3 (data-honesty): chỉ dùng đầu đùn tệp khai. Không khai ⇒ `null` (hiển thị "—"),
+        // KHÔNG bịa số khe AMS từ vị trí mảng.
+        index: p.extruderIndex ?? null,
         colorHex: p.colorHex,
         name: p.color || `Màu Part ${idx + 1}`,
         materialType: p.materialId?.toUpperCase() || 'PLA/PETG'
@@ -87,7 +89,7 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
       setCurrentPalettes(
         // R4: xem ghi chu o `initialPalettes` — khong suy dien khoi luong / chieu dai / hang nhua.
         parts.map((p, idx) => ({
-          index: p.extruderIndex || idx + 1,
+          index: p.extruderIndex ?? null,
           colorHex: p.colorHex,
           name: p.color || `Màu Part ${idx + 1}`,
           materialType: p.materialId?.toUpperCase() || 'PLA/PETG'
@@ -298,7 +300,7 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
                         />
                       </label>
                       <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-surface-inverse text-on-inverse font-tech text-xs font-bold rounded-full flex items-center justify-center pointer-events-none">
-                        T{pal.index || palIdx + 1}
+                        T{pal.index ?? '—'}
                       </span>
                     </div>
 
@@ -321,11 +323,11 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
                 <div className="grid grid-cols-3 gap-2 text-xs bg-surface-muted p-2 rounded-sm font-tech">
                   <div>
                     <span className="text-xs text-fg-muted block font-sans">Tiêu hao</span>
-                    <strong>{typeof pal.usedGrams === 'number' ? `${pal.usedGrams} g` : '—'}</strong>
+                    <strong>{typeof pal.usedGrams === 'number' && Number.isFinite(pal.usedGrams) ? `${pal.usedGrams} g` : '—'}</strong>
                   </div>
                   <div>
                     <span className="text-xs text-fg-muted block font-sans">Chiều dài</span>
-                    <strong>{typeof pal.usedMeters === 'number' ? `${pal.usedMeters} m` : '—'}</strong>
+                    <strong>{typeof pal.usedMeters === 'number' && Number.isFinite(pal.usedMeters) ? `${pal.usedMeters} m` : '—'}</strong>
                   </div>
                   <div>
                     <span className="text-xs text-fg-muted block font-sans">Đổi Slot</span>

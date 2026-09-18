@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Product, MaterialProfile, InkiriCostFormulaConfig } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Button, Icon, PageHeader } from '@frontend/ui';
+import { Button, Icon, PageHeader, PanelErrorBoundary } from '@frontend/ui';
 import { DesignerOverviewTab } from '../components/designer/DesignerOverviewTab';
 import { DesignerModelsManagerTab } from '../components/designer/DesignerModelsManagerTab';
 import { DesignerUploadWizardTab } from '../components/designer/DesignerUploadWizardTab';
@@ -82,49 +82,59 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
 
       <div className="flex w-full flex-col gap-block">
         {activeTab === 'overview' && (
-          <DesignerOverviewTab
-            products={products}
-            currentDesignerId={user?.id}
-            onNavigate={onNavigate}
-            onTabChange={setActiveTab}
-            onSelectRequest={(reqId) => setSelectedReqId(reqId)}
-          />
+          <PanelErrorBoundary label="Tổng quan nhà thiết kế" resetKey={activeTab}>
+            <DesignerOverviewTab
+              products={products}
+              currentDesignerId={user?.id}
+              onNavigate={onNavigate}
+              onTabChange={setActiveTab}
+              onSelectRequest={(reqId) => setSelectedReqId(reqId)}
+            />
+          </PanelErrorBoundary>
         )}
         {activeTab === 'models' && (
-          <DesignerModelsManagerTab
-            products={products}
-            currentDesignerName={currentDesignerName}
-            onUpdateProduct={onUpdateProduct}
-            onDeleteProduct={onDeleteProduct}
-            onShowToast={onShowToast}
-            onNavigateToUpload={() => setActiveTab('wizard')}
-          />
+          <PanelErrorBoundary label="Quản lý ấn phẩm" resetKey={activeTab}>
+            <DesignerModelsManagerTab
+              products={products}
+              currentDesignerName={currentDesignerName}
+              onUpdateProduct={onUpdateProduct}
+              onDeleteProduct={onDeleteProduct}
+              onShowToast={onShowToast}
+              onNavigateToUpload={() => setActiveTab('wizard')}
+            />
+          </PanelErrorBoundary>
         )}
         {activeTab === 'wizard' && (
-          <DesignerUploadWizardTab
-            onAddNewProduct={(prod) => {
-              onAddNewProduct(prod);
-              setActiveTab('models');
-            }}
-            onShowToast={onShowToast}
-            currentDesignerName={currentDesignerName}
-            designerAvatar={profile?.avatarUrl}
-            onCancel={() => setActiveTab('models')}
-          />
+          <PanelErrorBoundary label="Đăng tải ấn phẩm" resetKey={activeTab}>
+            <DesignerUploadWizardTab
+              onAddNewProduct={(prod) => {
+                onAddNewProduct(prod);
+                setActiveTab('models');
+              }}
+              onShowToast={onShowToast}
+              currentDesignerName={currentDesignerName}
+              designerAvatar={profile?.avatarUrl}
+              onCancel={() => setActiveTab('models')}
+            />
+          </PanelErrorBoundary>
         )}
         {activeTab === 'requests' && (
-          <DesignerRequestsTab
-            currentDesignerName={currentDesignerName}
-            currentDesignerId={user?.id}
-            onShowToast={onShowToast}
-            selectedRequestId={selectedReqId}
-          />
+          <PanelErrorBoundary label="Yêu cầu thiết kế" resetKey={activeTab}>
+            <DesignerRequestsTab
+              currentDesignerName={currentDesignerName}
+              currentDesignerId={user?.id}
+              onShowToast={onShowToast}
+              selectedRequestId={selectedReqId}
+            />
+          </PanelErrorBoundary>
         )}
         {activeTab === 'payouts' && (
-          <DesignerPayoutsTab
-            currentDesignerName={currentDesignerName}
-            onShowToast={onShowToast}
-          />
+          <PanelErrorBoundary label="Quyết toán bản quyền" resetKey={activeTab}>
+            <DesignerPayoutsTab
+              currentDesignerName={currentDesignerName}
+              onShowToast={onShowToast}
+            />
+          </PanelErrorBoundary>
         )}
       </div>
     </div>

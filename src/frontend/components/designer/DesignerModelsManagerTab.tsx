@@ -1,10 +1,27 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Product } from '../../../types';
 import { ThreeModelViewer } from '../ThreeModelViewer';
 import { Button, ConfirmDialog, DataTable, EmptyState, Icon, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
-import { formatCurrency } from '@frontend/lib/format';
+import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
 import { useLanguage } from '../../context/LanguageContext';
+import { settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
+
+/**
+ * A6 (data-honesty): tỉ lệ bản quyền tác giả đọc từ cấu hình giá thật
+ * (`pricing_configs.designerRoyaltyPercent`), KHÔNG dùng số cứng 90%/10%. Chưa cấu hình ⇒
+ * `null` ⇒ hiện `—`.
+ */
+const readDesignerRoyaltyPercent = (): number | null => {
+  const v = settingsAccessors.pricingConfig()?.designerRoyaltyPercent;
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+};
+
+function useDesignerRoyaltyPercent(): number | null {
+  const [percent, setPercent] = useState<number | null>(readDesignerRoyaltyPercent);
+  useEffect(() => subscribeSettings(() => setPercent(readDesignerRoyaltyPercent())), []);
+  return percent;
+}
 
 export interface DesignerModelsManagerTabProps {
   products: Product[];
@@ -26,6 +43,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
 }) => {
   const { language } = useLanguage();
   const isVi = language === 'vi';
+  const designerRoyaltyPercent = useDesignerRoyaltyPercent();
   // Filter state
   const [modelCategoryFilter, setModelCategoryFilter] = useState('all');
   const [modelStatusFilter, setModelStatusFilter] = useState('all');
@@ -273,13 +291,13 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
             placeholder="Tìm theo tên, SKU, tag..."
             value={searchModelQuery}
             onChange={(e) => setSearchModelQuery(e.target.value)}
-            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm w-full sm:w-52 focus:outline-none focus:border-primary"
+            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm w-full sm:w-52 focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
           />
 
           <select
             value={modelCategoryFilter}
             onChange={(e) => setModelCategoryFilter(e.target.value)}
-            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary"
+            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="all">Mọi Danh Mục</option>
             <option value="mechanical">Cơ khí</option>
@@ -292,7 +310,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
           <select
             value={modelStatusFilter}
             onChange={(e) => setModelStatusFilter(e.target.value)}
-            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary"
+            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="all">Mọi Trạng Thái</option>
             <option value="Published">Đã Xuất Bản</option>
@@ -339,7 +357,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                     required
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
 
@@ -351,7 +369,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                     type="text"
                     value={editSku}
                     onChange={(e) => setEditSku(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs font-tech focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs font-tech focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
               </div>
@@ -364,7 +382,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                   <select
                     value={editCategory}
                     onChange={(e) => setEditCategory(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="mechanical">Cơ khí chính xác</option>
                     <option value="iot">Vỏ hộp IoT</option>
@@ -381,7 +399,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                   <select
                     value={editLicense}
                     onChange={(e) => setEditLicense(e.target.value as any)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="Standard">Standard (Cá nhân)</option>
                     <option value="Commercial">Commercial (Thương mại)</option>
@@ -396,7 +414,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                   <select
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value as any)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary"
+                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="Published">Published (Đã xuất bản)</option>
                     <option value="Under Review">Under Review (Chờ duyệt)</option>
@@ -420,16 +438,15 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                         type="number"
                         value={editPriceDigital}
                         onChange={(e) => setEditPriceDigital(e.target.value)}
-                        className="w-full bg-surface border border-line-control p-2 text-xs font-tech font-bold rounded-sm focus:outline-none focus:border-primary"
+                        className="w-full bg-surface border border-line-control p-2 text-xs font-tech font-bold rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                       />
                       <span className="absolute right-2.5 top-2 text-xs font-tech text-fg-muted">
                         đ
                       </span>
                     </div>
-                    <p className="text-xs text-primary font-tech mt-1">
-                      Tác giả nhận:{' '}
-                      {Math.round((Number(editPriceDigital) || 0) * 0.9).toLocaleString('vi-VN')} đ
-                      (90%)
+                    <p className="text-xs text-fg-muted font-tech mt-1">
+                      Tác giả nhận: <strong>{EMPTY_VALUE}</strong> — tỉ lệ bản quyền file số không
+                      nằm trong cấu hình giá, VCUBE công bố khi quyết toán.
                     </p>
                   </div>
 
@@ -442,17 +459,24 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                         type="number"
                         value={editPricePhysical}
                         onChange={(e) => setEditPricePhysical(e.target.value)}
-                        className="w-full bg-surface border border-line-control p-2 text-xs font-tech font-bold rounded-sm focus:outline-none focus:border-primary"
+                        className="w-full bg-surface border border-line-control p-2 text-xs font-tech font-bold rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                       />
                       <span className="absolute right-2.5 top-2 text-xs font-tech text-fg-muted">
                         đ
                       </span>
                     </div>
-                    <p className="text-xs text-fg-muted font-tech mt-1">
-                      Hoa hồng tác giả:{' '}
-                      {Math.round((Number(editPricePhysical) || 0) * 0.1).toLocaleString('vi-VN')} đ /
-                      sp
-                    </p>
+                    {designerRoyaltyPercent !== null ? (
+                      <p className="text-xs text-fg-muted font-tech mt-1">
+                        Bản quyền tác giả theo cấu hình giá:{' '}
+                        <strong>{designerRoyaltyPercent}%</strong> — số tiền quyết toán theo công
+                        thức giá của VCUBE.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-fg-muted font-tech mt-1">
+                        Hoa hồng tác giả: <strong>{EMPTY_VALUE}</strong> (chưa cấu hình tỉ lệ bản
+                        quyền trong giá)
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -496,7 +520,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                   rows={3}
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
-                  className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary"
+                  className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 

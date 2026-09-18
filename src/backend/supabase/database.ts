@@ -608,6 +608,7 @@ export const dbService = {
         hourly_rate: printer.hourlyRate,
         max_print_speed_mms: printer.maxPrintSpeedMmS,
         heated_bed_max_temp: printer.heatedBedMaxTemp,
+        throughput_grams_per_hour: printer.throughputGramsPerHour ?? null,
         has_enclosure: printer.hasEnclosure,
         has_ams: printer.hasAMS,
         status: printer.status,

@@ -709,7 +709,7 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
 
       {/* TOP-LEFT MINIMAL PRODUCT BADGE */}
       <div className="absolute top-3 left-3 z-panel pointer-events-auto flex items-center gap-2 bg-surface-inverse/85 backdrop-blur-md px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2">
-        <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+        <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none"></span>
         <span className="font-mono text-xs font-bold text-on-inverse uppercase">
           {modelType || 'ARDUINO-CASE'}
         </span>

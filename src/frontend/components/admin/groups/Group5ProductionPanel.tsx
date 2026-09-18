@@ -315,7 +315,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
     if (isLoading && orders === null) {
       return (
         <div className="bg-surface border border-line-subtle rounded-lg p-8 flex flex-col items-center gap-2 text-fg-muted text-xs font-tech">
-          <Icon name="sync" size={28} className="animate-spin text-primary" />
+          <Icon name="sync" size={28} className="animate-spin motion-reduce:animate-none text-primary" />
           <span>{isVi ? 'ĐANG TẢI ĐƠN HÀNG THẬT TỪ SUPABASE…' : 'LOADING REAL ORDERS FROM SUPABASE…'}</span>
         </div>
       );
@@ -415,7 +415,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
           <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg">
             <button
               onClick={() => setActiveTab('kanban')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'kanban'
                   ? 'bg-surface text-primary shadow-e1'
                   : 'text-fg-muted hover:text-fg'
@@ -430,7 +430,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
 
             <button
               onClick={() => setActiveTab('dispatcher')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'dispatcher'
                   ? 'bg-surface text-primary shadow-e1'
                   : 'text-fg-muted hover:text-fg'
@@ -447,7 +447,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
 
             <button
               onClick={() => setActiveTab('fleet')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'fleet'
                   ? 'bg-surface text-primary shadow-e1'
                   : 'text-fg-muted hover:text-fg'
@@ -470,7 +470,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={isVi ? 'Tìm mã đơn, khách hàng, vật liệu...' : 'Search orders...'}
-                className="pl-8 pr-3 py-1.5 bg-canvas border border-line-subtle rounded-lg text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:border-primary focus:bg-surface w-48 sm:w-64"
+                className="pl-8 pr-3 py-1.5 bg-canvas border border-line-subtle rounded-lg text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary focus:bg-surface w-48 sm:w-64"
               />
               <Icon name="search" size={16} className="text-fg-subtle absolute left-2.5 top-2 pointer-events-none" />
               {searchQuery && (
@@ -489,7 +489,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                 <button
                   key={reg}
                   onClick={() => setActiveRegionFilter(reg)}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
                     activeRegionFilter === reg
                       ? 'bg-primary text-primary-fg font-bold shadow-e1'
                       : 'text-fg-muted hover:text-fg'
@@ -504,7 +504,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
             <select
               value={activeWorkshopFilter}
               onChange={(e) => setActiveWorkshopFilter(e.target.value)}
-              className="px-3 py-1.5 bg-canvas border border-line-subtle rounded-lg text-xs text-fg-muted font-medium focus:outline-none focus:border-primary"
+              className="px-3 py-1.5 bg-canvas border border-line-subtle rounded-lg text-xs text-fg-muted font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
             >
               <option value="all">{isVi ? 'Tất cả trạm MES' : 'All MES hubs'}</option>
               {workshops.map((w) => (
@@ -664,7 +664,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                                 </div>
                                 <div className="w-full h-1.5 bg-surface-muted rounded-full overflow-hidden">
                                   <div
-                                    className="h-full bg-primary rounded-full transition-all duration-300"
+                                    className="h-full bg-primary rounded-full transition-[width] duration-300"
                                     style={{
                                       width: `${
                                         typeof job.layerProgress === 'number'
@@ -711,7 +711,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                                   {stage.index < KANBAN_STAGES.length - 1 && (
                                     <button
                                       onClick={() => handleAdvance(job.id)}
-                                      className="px-2.5 py-1 bg-primary hover:bg-primary-hover text-primary-fg rounded-md text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-e0"
+                                      className="px-2.5 py-1 bg-primary hover:bg-primary-hover text-primary-fg rounded-md text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-e0"
                                       title={`Chuyển sang: ${KANBAN_STAGES[stage.index + 1].shortVi}`}
                                     >
                                       <span>Tiếp</span>
@@ -1076,7 +1076,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                     <button
                       key={s.key}
                       onClick={() => handleSetStage(selectedJob.id, s.index)}
-                      className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                      className={`p-2 rounded-lg border text-left transition-colors cursor-pointer ${
                         selectedJob.stageIndex === s.index
                           ? 'bg-primary text-primary-fg border-primary font-bold shadow-e1'
                           : 'bg-canvas hover:bg-surface-muted text-fg-muted border-line-subtle'
@@ -1123,7 +1123,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   value={editingJobNotes}
                   onChange={(e) => setEditingJobNotes(e.target.value)}
                   rows={3}
-                  className="w-full p-3 bg-canvas border border-line-subtle rounded-lg text-xs focus:bg-surface focus:outline-none focus:border-primary"
+                  className="w-full p-3 bg-canvas border border-line-subtle rounded-lg text-xs focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   placeholder="Nhập hướng dẫn gá đặt, nhiệt độ bàn, dung sai thước kẹp..."
                 />
                 <button
@@ -1160,7 +1160,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   value={qcNotesInput}
                   onChange={(e) => setQcNotesInput(e.target.value)}
                   placeholder="Kết quả đo kiểm / lý do không đạt..."
-                  className="w-full p-2.5 bg-surface border border-line-subtle rounded-lg text-xs focus:outline-none focus:border-primary"
+                  className="w-full p-2.5 bg-surface border border-line-subtle rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 />
 
                 <div className="flex items-center gap-2">

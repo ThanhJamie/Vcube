@@ -51,7 +51,7 @@ export class CanvasErrorBoundary extends Component<Props, State> {
           {/* Top Engine HUD Overlay */}
           <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-xs font-mono pointer-events-none z-panel">
             <div className="bg-surface-inverse/90 border border-line px-3 py-1 rounded-lg flex items-center gap-2 text-accent">
-              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
               <span className="font-bold">VCUBE MESH ENGINE v2.6</span>
               <span className="text-fg-subtle">//</span>
               <span className="text-warning text-xs font-semibold uppercase">Render Error</span>

@@ -14,7 +14,7 @@ import {
   AdminNavSection,
   buildAdminNavGroups,
 } from '../components/admin/AdminSidebar';
-import { AppShell, Button, Field, Icon, Input, SideNav, Topbar } from '@frontend/ui';
+import { AppShell, Button, Field, Icon, Input, PanelErrorBoundary, SideNav, Topbar } from '@frontend/ui';
 
 // ==============================================================================
 // LAZY-LOADED ADMIN PANELS FOR OPTIMAL CODE SPLITTING & FAST INITIAL LOAD
@@ -47,7 +47,7 @@ const WarehouseInventoryPanel = React.lazy(() =>
 
 // High-tech Suspense Loading Skeleton
 const AdminPanelLoadingSkeleton: React.FC = () => (
-  <div className="space-y-6 animate-pulse p-2 sm:p-4">
+  <div className="space-y-6 animate-pulse motion-reduce:animate-none p-2 sm:p-4">
     <div className="bg-surface p-6 rounded-lg shadow-e1 space-y-3">
       <div className="h-4 bg-line-subtle rounded-md w-1/4"></div>
       <div className="h-8 bg-line-subtle rounded-md w-1/2"></div>
@@ -64,7 +64,7 @@ const AdminPanelLoadingSkeleton: React.FC = () => (
     </div>
     <div className="bg-surface p-6 rounded-lg h-80 flex items-center justify-center">
       <div className="flex flex-col items-center gap-2 text-fg-subtle text-xs font-tech">
-        <Icon name="sync" size={28} className="animate-spin text-primary" />
+        <Icon name="sync" size={28} className="animate-spin motion-reduce:animate-none text-primary" />
         <span>ĐANG TẢI DỮ LIỆU BẢNG ĐIỀU KHIỂN...</span>
       </div>
     </div>
@@ -317,44 +317,64 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
   const panelContent = (
       <Suspense fallback={<AdminPanelLoadingSkeleton />}>
-        {/* Tổng quan điều hành */}
+        {/* Mỗi panel được bọc riêng: một panel lỗi chỉ thay đúng panel đó, không trắng cả console. */}
         {(activeSection === 'overview' || activeSection === 'group0-overview') && (
-          <Group0OverviewPanel
-            orders={orders}
-            products={products}
-            printers={printers}
-            materials={materials}
-            accessories={accessories}
-            onNavigateSection={handleSelectSection}
-            onNavigateTracking={(order) => onNavigate('tracking', { order })}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Bảng điều khiển tổng quan' : 'Overview dashboard'}
+            resetKey={activeSection}
+          >
+            <Group0OverviewPanel
+              orders={orders}
+              products={products}
+              printers={printers}
+              materials={materials}
+              accessories={accessories}
+              onNavigateSection={handleSelectSection}
+              onNavigateTracking={(order) => onNavigate('tracking', { order })}
+            />
+          </PanelErrorBoundary>
         )}
 
         {/* Xưởng in & thiết bị */}
         {(activeSection === 'workshops' || activeSection === 'partners' || activeSection === 'machines') && (
-          <Group1WorkshopsPanel
-            printers={printers}
-            onUpdatePrinters={onUpdatePrinters}
-            onShowToast={onShowToast}
-            onNavigateSection={handleSelectSection}
-            section={activeSection}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Xưởng in & thiết bị' : 'Workshops & fleet'}
+            resetKey={activeSection}
+          >
+            <Group1WorkshopsPanel
+              printers={printers}
+              onUpdatePrinters={onUpdatePrinters}
+              onShowToast={onShowToast}
+              onNavigateSection={handleSelectSection}
+              section={activeSection}
+            />
+          </PanelErrorBoundary>
         )}
 
         {/* Nhà thiết kế & bản quyền */}
         {activeSection === 'designers' && (
-          <Group2DesignersPanel
-            onShowToast={onShowToast}
-            onNavigateSection={handleSelectSection}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Nhà thiết kế & bản quyền' : 'Designers & IP rights'}
+            resetKey={activeSection}
+          >
+            <Group2DesignersPanel
+              onShowToast={onShowToast}
+              onNavigateSection={handleSelectSection}
+            />
+          </PanelErrorBoundary>
         )}
 
         {/* Khách hàng & KYC */}
         {(activeSection === 'users' || activeSection === 'customers') && (
-          <Group3CustomersPanel
-            onShowToast={onShowToast}
-            onNavigateSection={handleSelectSection}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Khách hàng & hồ sơ KYC' : 'Customers & KYC'}
+            resetKey={activeSection}
+          >
+            <Group3CustomersPanel
+              onShowToast={onShowToast}
+              onNavigateSection={handleSelectSection}
+            />
+          </PanelErrorBoundary>
         )}
 
         {/* Danh mục & định giá (Inkiri) */}
@@ -365,26 +385,31 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           activeSection === 'materials' ||
           activeSection === 'hardware' ||
           activeSection === 'quote-calc') && (
-          <Group4PricingEnginePanel
-            initialSubTab={
-              activeSection === 'materials'
-                ? 'materials'
-                : activeSection === 'hardware'
-                ? 'accessories'
-                : activeSection === 'quote-calc'
-                ? 'estimator'
-                : 'formula'
-            }
-            materials={materials}
-            printers={printers}
-            accessories={accessories}
-            pricingConfig={pricingConfig}
-            onUpdateMaterials={onUpdateMaterials}
-            onUpdatePrinters={onUpdatePrinters}
-            onUpdateAccessories={onUpdateAccessories}
-            onUpdatePricingConfig={onUpdatePricingConfig}
-            onShowToast={onShowToast}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Danh mục & định giá' : 'Catalog & pricing'}
+            resetKey={activeSection}
+          >
+            <Group4PricingEnginePanel
+              initialSubTab={
+                activeSection === 'materials'
+                  ? 'materials'
+                  : activeSection === 'hardware'
+                  ? 'accessories'
+                  : activeSection === 'quote-calc'
+                  ? 'estimator'
+                  : 'formula'
+              }
+              materials={materials}
+              printers={printers}
+              accessories={accessories}
+              pricingConfig={pricingConfig}
+              onUpdateMaterials={onUpdateMaterials}
+              onUpdatePrinters={onUpdatePrinters}
+              onUpdateAccessories={onUpdateAccessories}
+              onUpdatePricingConfig={onUpdatePricingConfig}
+              onShowToast={onShowToast}
+            />
+          </PanelErrorBoundary>
         )}
 
         {/* Vận hành sản xuất — BA mục menu, BA màn KHÁC NHAU:
@@ -392,56 +417,86 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             orders = Đơn Hàng & Điều Phối trạm in (tab mặc định: dispatcher)
             inventory = Kho Vật Liệu & Vị Trí Kệ (WarehouseInventoryPanel) */}
         {(activeSection === 'queue' || activeSection === 'orders') && (
-          <Group5ProductionPanel
-            section={activeSection}
-            onUpdateOrderStatus={onUpdateOrderStatus}
-            onNavigateTracking={(order) => onNavigate('tracking', { order })}
-            onShowToast={onShowToast}
-            onNavigateSection={handleSelectSection}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Vận hành sản xuất' : 'Production operations'}
+            resetKey={activeSection}
+          >
+            <Group5ProductionPanel
+              section={activeSection}
+              onUpdateOrderStatus={onUpdateOrderStatus}
+              onNavigateTracking={(order) => onNavigate('tracking', { order })}
+              onShowToast={onShowToast}
+              onNavigateSection={handleSelectSection}
+            />
+          </PanelErrorBoundary>
         )}
 
         {activeSection === 'inventory' && (
-          <WarehouseInventoryPanel
-            materials={materials}
-            accessories={accessories}
-            onUpdateMaterials={onUpdateMaterials}
-            onUpdateAccessories={onUpdateAccessories}
-            onShowToast={onShowToast}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Kho vật liệu' : 'Warehouse inventory'}
+            resetKey={activeSection}
+          >
+            <WarehouseInventoryPanel
+              materials={materials}
+              accessories={accessories}
+              onUpdateMaterials={onUpdateMaterials}
+              onUpdateAccessories={onUpdateAccessories}
+              onShowToast={onShowToast}
+            />
+          </PanelErrorBoundary>
         )}
 
         {/* STOREFRONT, CONTENT & SYSTEM CMS */}
         {activeSection === 'products' && (
-          <AdminProductsPanel
-            products={products}
-            onAddProduct={onAddProduct}
-            onUpdateProduct={onUpdateProduct}
-            onDeleteProduct={onDeleteProduct}
-            onShowToast={onShowToast}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Sản phẩm & catalog' : 'Products & catalog'}
+            resetKey={activeSection}
+          >
+            <AdminProductsPanel
+              products={products}
+              onAddProduct={onAddProduct}
+              onUpdateProduct={onUpdateProduct}
+              onDeleteProduct={onDeleteProduct}
+              onShowToast={onShowToast}
+            />
+          </PanelErrorBoundary>
         )}
 
         {activeSection === 'storefront' && (
-          <AdminStorefrontPanel
-            siteContent={siteContent}
-            onUpdateSiteContent={onUpdateSiteContent}
-            onShowToast={onShowToast}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Cấu hình storefront' : 'Storefront CMS'}
+            resetKey={activeSection}
+          >
+            <AdminStorefrontPanel
+              siteContent={siteContent}
+              onUpdateSiteContent={onUpdateSiteContent}
+              onShowToast={onShowToast}
+            />
+          </PanelErrorBoundary>
         )}
 
         {activeSection === 'seo' && (
-          <AdminSeoPanel
-            siteContent={siteContent}
-            onUpdateSiteContent={onUpdateSiteContent}
-            onShowToast={onShowToast}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Quản trị SEO' : 'SEO metadata'}
+            resetKey={activeSection}
+          >
+            <AdminSeoPanel
+              siteContent={siteContent}
+              onUpdateSiteContent={onUpdateSiteContent}
+              onShowToast={onShowToast}
+            />
+          </PanelErrorBoundary>
         )}
 
         {activeSection === 'settings' && (
-          <AdminSettingsPanel
-            onShowToast={onShowToast}
-          />
+          <PanelErrorBoundary
+            label={isVi ? 'Cài đặt xưởng in' : 'Workshop settings'}
+            resetKey={activeSection}
+          >
+            <AdminSettingsPanel
+              onShowToast={onShowToast}
+            />
+          </PanelErrorBoundary>
         )}
       </Suspense>
   );

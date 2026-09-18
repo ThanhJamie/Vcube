@@ -73,9 +73,23 @@ node scripts/inspect-db.mjs          # trạng thái bảng: publishable vs secr
 node scripts/verify-rls.mjs          # kiểm chứng RLS bằng anon key (--writes để thử ghi no-op)
 node scripts/a8-sql-syntax-check.mjs # cú pháp tĩnh 7 file SQL + chặn nối chuỗi với cột "char" (lỗi 42725)
 node scripts/check-icon-names.mjs    # chặn glyph `<Icon name>` không có trong iconMap (fallback im lặng ở production)
+node scripts/check-ui-rules.mjs      # chặn hồi quy design-system: `border-line` trên control, `toLocaleString` thiếu guard, `focus:outline-none` thiếu ring, `animate-*` vô hạn thiếu `motion-reduce:animate-none` (allowlist có budget)
 ```
 
 Chi tiết vận hành & khắc phục sự cố: `docs/security/rls-runbook.md`.
+
+## Loop Improvement (tự lặp tối ưu web)
+
+Vòng lặp tự cải tiến: **audit → chọn 1 mục nợ ưu tiên → sửa nhỏ nhất → đo lại → lặp**.
+
+- Đo/backlog (nguồn sự thật): `node scripts/loop-audit.mjs` (`--quick` bỏ build, `--json` cho máy;
+  ghi `.loop/latest.json` + `.loop/history.jsonl`, đã gitignore). `score` càng thấp càng tốt;
+  RC=1 = có hồi quy.
+- Chạy trong opencode: `/improve` (một vòng) và `/loop <N> [vùng]` (N vòng, mặc định 3) — dùng
+  agent `loop-orchestrator` + skill `web-improvement-loop` (ở `.opencode/`).
+- Ràng buộc: mỗi vòng một mục, sao lưu file vào `.loop/backups/` trước khi sửa, hoàn nguyên nếu
+  score không giảm hoặc gate/lint fail; không commit/push; không thêm dependency.
+- Smoke browser tùy chọn: `LOOP_BROWSER_CMD="node /tmp/opencode/pwtest/test.mjs" node scripts/loop-audit.mjs`.
 
 ## Tài liệu — nguồn chuẩn
 

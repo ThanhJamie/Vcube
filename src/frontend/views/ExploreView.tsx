@@ -13,6 +13,12 @@ import { EMPTY_VALUE } from '@frontend/lib/format';
 
 interface ExploreViewProps {
   products: Product[];
+  /** true khi catalog đang nạp từ DB (giữ skeleton tới khi xong thay vì empty giả). */
+  productsLoading?: boolean;
+  /** Lỗi đọc catalog lần gần nhất — hiện error + retry, hoặc warning nếu còn cache. */
+  productsError?: boolean;
+  /** Gọi lại lượt đọc catalog (nút "Thử lại"). */
+  onRetry?: () => void;
   materials?: MaterialProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
   initialCategory?: string;
@@ -25,16 +31,6 @@ interface ExploreViewProps {
 }
 
 type PricePreset = 'all' | 'under100' | '100to250' | '250to500' | 'above500';
-
-/**
- * Cửa sổ chờ catalog ngay sau lần vẽ đầu tiên.
- *
- * `App.tsx` đọc `products` từ Supabase rồi chỉ truyền xuống MẢNG kết quả — view không nhận
- * được cờ "đang tải". Nếu dựng empty state ngay lập tức, khách sẽ đọc thấy "kho trống" trong
- * lúc lượt đọc đầu còn đang bay. Vì vậy giữ skeleton trong một cửa sổ ngắn: có sản phẩm thật
- * ⇒ skeleton tắt ngay; hết cửa sổ mà vẫn rỗng ⇒ mới hiện empty state thật.
- */
-const CATALOG_HYDRATION_WINDOW_MS = 1200;
 
 /** Skeleton khớp lưới 1/2/3 cột: 6 thẻ = 2 hàng đầy ở desktop. */
 const SKELETON_CARD_COUNT = 6;
@@ -103,6 +99,9 @@ const ProductCardSkeleton: React.FC = () => (
 
 export const ExploreView: React.FC<ExploreViewProps> = ({
   products,
+  productsLoading,
+  productsError,
+  onRetry,
   materials = [],
   // KHÔNG mặc định về bộ số mẫu: thiếu cấu hình ⇒ view này không tự bịa thông số giá.
   // (`pricingConfig` chỉ được chuyển tiếp xuống `CadQuickViewModal`.)
@@ -135,7 +134,6 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const [mobileFilterOpen, setMobileFilterOpen] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'grid' | 'tech-table'>('grid');
   const [visibleCount, setVisibleCount] = useState<number>(12);
-  const [hydrationWindowOpen, setHydrationWindowOpen] = useState<boolean>(true);
 
   const addToCartStore = useCartStore((s) => s.addToCart);
 
@@ -156,16 +154,6 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   useEffect(() => {
     if (initialTag) setSelectedTag(initialTag);
   }, [initialTag]);
-
-  // Skeleton chỉ giữ trong cửa sổ chờ đầu tiên; có sản phẩm thật ⇒ tắt ngay.
-  useEffect(() => {
-    if (products.length > 0) {
-      setHydrationWindowOpen(false);
-      return;
-    }
-    const timer = window.setTimeout(() => setHydrationWindowOpen(false), CATALOG_HYDRATION_WINDOW_MS);
-    return () => window.clearTimeout(timer);
-  }, [products.length]);
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -368,7 +356,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   };
 
   const renderedProducts = filteredProducts.slice(0, visibleCount);
-  const isCatalogLoading = hydrationWindowOpen && products.length === 0;
+  // Predicate tính trên `catalogProducts` (đã role-lọc) để dải cảnh báo không nói dối:
+  // admin thấy cả bản nháp còn khách chỉ thấy published.
+  const hasVisible = catalogProducts.length > 0;
+  const isCatalogLoading = Boolean(productsLoading) && products.length === 0;
+  const showError = Boolean(productsError) && !hasVisible && !isCatalogLoading;
+  const showWarning = Boolean(productsError) && hasVisible;
   const catalogIsEmpty = catalogProducts.length === 0;
   const hasActiveFilters = selectedCategory !== 'all' || selectedTag !== 'all' || (selectedMaterial !== 'all' && materialOptions.length > 0) || pricePreset !== 'all' || priceMax !== null || onlyCustomizable || searchQuery.trim() !== '';
   const goToQuote = () => onNavigate('quote');
@@ -584,13 +577,17 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             </h1>
             <p className="text-xs sm:text-sm text-fg-muted mt-1 font-sans max-w-2xl leading-relaxed flex items-center gap-1.5 flex-wrap">
               <span>
-                {catalogProducts.length > 0
-                  ? (isVi
-                    ? `${catalogProducts.length} bản vẽ đang có — vật liệu hỗ trợ, định dạng tệp và giá lấy từ dữ liệu sản phẩm.`
-                    : `${catalogProducts.length} models available — materials, file formats and prices read from product data.`)
-                  : (isVi
-                    ? 'Kho bản vẽ đang trống.'
-                    : 'The catalogue is empty.')}
+                {showError
+                  ? (isVi ? 'Chưa tải được kho bản vẽ.' : 'The catalogue could not be loaded.')
+                  : isCatalogLoading
+                    ? (isVi ? 'Đang tải kho bản vẽ…' : 'Loading the catalogue…')
+                    : catalogProducts.length > 0
+                      ? (isVi
+                        ? `${catalogProducts.length} bản vẽ đang có — vật liệu hỗ trợ, định dạng tệp và giá lấy từ dữ liệu sản phẩm.`
+                        : `${catalogProducts.length} models available — materials, file formats and prices read from product data.`)
+                      : (isVi
+                        ? 'Kho bản vẽ đang trống.'
+                        : 'The catalogue is empty.')}
               </span>
               <InfoTip label={isVi ? 'Số bản vẽ này đếm gì?' : 'What does this count cover?'}>
                 {isVi
@@ -692,14 +689,14 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
-                  <span>Tìm: "{searchQuery}"</span>
+                  <span>{isVi ? 'Tìm' : 'Search'}: "{searchQuery}"</span>
                   <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Xoá tìm kiếm' : 'Clear search'} onClick={() => setSearchQuery('')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {selectedCategory !== 'all' && (
                 <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-primary">
-                  <span>Danh mục: {CATEGORIES.find(c => c.id === selectedCategory)?.name || selectedCategory}</span>
+                  <span>{isVi ? 'Danh mục' : 'Category'}: {CATEGORIES.find(c => c.id === selectedCategory)?.name || selectedCategory}</span>
                   <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc danh mục' : 'Clear category'} onClick={() => setSelectedCategory('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
@@ -713,7 +710,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
               {selectedMaterial !== 'all' && materialOptions.length > 0 && (
                 <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
-                  <span>Vật liệu: {selectedMaterial}</span>
+                  <span>{isVi ? 'Vật liệu' : 'Material'}: {selectedMaterial}</span>
                   <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc vật liệu' : 'Clear material'} onClick={() => setSelectedMaterial('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
@@ -721,7 +718,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               {pricePreset !== 'all' && (
                 <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
                   <span>
-                    Giá: {pricePreset === 'under100' ? '< 100k' : pricePreset === '100to250' ? '100k - 250k' : pricePreset === '250to500' ? '250k - 500k' : '> 500k'}
+                    {isVi ? 'Giá' : 'Price'}: {pricePreset === 'under100' ? '< 100k' : pricePreset === '100to250' ? '100k - 250k' : pricePreset === '250to500' ? '250k - 500k' : '> 500k'}
                   </span>
                   <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc khoảng giá' : 'Clear price range'} onClick={() => setPricePreset('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
@@ -729,14 +726,14 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
               {priceMax !== null && (
                 <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
-                  <span>Tối đa: {priceMax.toLocaleString(numberLocale)} đ</span>
+                  <span>{isVi ? 'Tối đa' : 'Max'}: {priceMax.toLocaleString(numberLocale)} đ</span>
                   <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ giới hạn giá' : 'Clear max price'} onClick={() => setPriceMax(null)} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {onlyCustomizable && (
                 <span className="inline-flex items-center gap-1 bg-surface border border-line px-2.5 py-1 rounded-sm text-xs font-medium text-fg">
-                  <span>Hỗ trợ khắc tên & tùy biến</span>
+                  <span>{isVi ? 'Hỗ trợ khắc tên & tùy biến' : 'Engraving & customization supported'}</span>
                   <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc tuỳ biến' : 'Clear customizable filter'} onClick={() => setOnlyCustomizable(false)} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
@@ -852,6 +849,19 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               </div>
             </Card>
 
+            {/* Dải cảnh báo đặt TRÊN state switch: lỗi nhưng vẫn còn dữ liệu cũ để xem (R6). */}
+            {showWarning && (
+              <p
+                role="status"
+                className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning-tint px-3 py-2 text-xs text-warning"
+              >
+                <Icon name="warning" size={16} />
+                {isVi
+                  ? 'Không làm mới được kho — đang hiển thị dữ liệu lần trước.'
+                  : 'Could not refresh the catalogue — showing previous data.'}
+              </p>
+            )}
+
             {isCatalogLoading ? (
               /* LOADING — skeleton đúng layout lưới thẻ */
               <div
@@ -862,6 +872,34 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 {Array.from({ length: SKELETON_CARD_COUNT }).map((_, index) => (
                   <ProductCardSkeleton key={index} />
                 ))}
+              </div>
+            ) : showError ? (
+              /* ERROR — lỗi thật, bọc role="alert"; EmptyState KHÔNG truyền `live` (R7). */
+              <div role="alert">
+                <EmptyState
+                  icon={<Icon name="error" size={20} />}
+                  title={isVi ? 'Không tải được kho bản vẽ' : 'Could not load the catalogue'}
+                  description={isVi
+                    ? 'Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại.'
+                    : 'Could not reach the data server. Check your connection and try again.'}
+                  action={
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        loading={Boolean(productsLoading)}
+                        loadingLabel={isVi ? 'Đang tải…' : 'Loading…'}
+                        leadingIcon={<Icon name="refresh" size={18} />}
+                        onClick={() => onRetry?.()}
+                      >
+                        {isVi ? 'Thử lại' : 'Retry'}
+                      </Button>
+                      <Button variant="primary" size="md" onClick={goToQuote} leadingIcon={<Icon name="request_quote" size={18} />}>
+                        {isVi ? 'Báo giá file 3D của bạn' : 'Quote your own 3D file'}
+                      </Button>
+                    </>
+                  }
+                />
               </div>
             ) : filteredProducts.length === 0 ? (
               /* EMPTY STATE — nêu đúng nguyên nhân + đường thoát thật */
@@ -931,7 +969,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                         key={product.id}
                         as="article"
                         padding="none"
-                        className="group relative flex flex-col overflow-hidden transition-[transform,box-shadow,border-color] duration-300 hover:border-primary/40 hover:shadow-e2 hover:-translate-y-1 active:scale-[0.99]"
+                        className="content-auto group relative flex flex-col overflow-hidden transition-[transform,box-shadow,border-color] duration-300 hover:border-primary/40 hover:shadow-e2 hover:-translate-y-1 active:scale-[0.99]"
                       >
                         {/* Product Image Frame — tỉ lệ cố định 4:3 */}
                         <div className="responsive-aspect-frame">
@@ -1185,7 +1223,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                         </th>
                         <th className="py-3 px-3">
                           <span className="inline-flex items-center gap-1">
-                            Giấy Phép
+                            {isVi ? 'Giấy Phép' : 'License'}
                             <InfoTip label={isVi ? 'Giấy phép hiển thị thế nào?' : 'How is the licence shown?'}>
                               {isVi
                                 ? 'Giấy phép đọc từ trường license_type của sản phẩm. Người bán chưa khai thì ghi rõ "— (người bán chưa khai báo)" — không tự gán Commercial.'

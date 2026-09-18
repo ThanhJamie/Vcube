@@ -346,12 +346,12 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
               const nextStatus = e.target.value as ProductStatus;
               onUpdateProduct({ ...prod, status: nextStatus });
             }}
-            className={`text-xs font-mono font-bold px-2 py-1 rounded-lg border cursor-pointer focus:outline-none transition-colors ${
+            className={`text-xs font-mono font-bold px-2 py-1 rounded-lg border cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${
               status === 'published'
                 ? 'bg-positive-tint text-positive border-positive/30'
                 : status === 'draft'
                 ? 'bg-warning-tint text-warning border-warning/30'
-                : 'bg-surface-muted text-fg-muted border-line'
+                : 'bg-surface-muted text-fg-muted border-line-control'
             }`}
           >
             <option value="published">{isVi ? '● Đang bán' : '● Published'}</option>
@@ -422,7 +422,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
               placeholder={isVi ? 'Tìm theo tên sản phẩm, SKU...' : 'Search by name, SKU...'}
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-line rounded-lg text-xs focus:outline-none focus:border-primary bg-surface-muted"
+              className="w-full pl-9 pr-3 py-2 border border-line-control rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary bg-surface-muted"
             />
           </div>
         </div>
@@ -432,7 +432,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
           <select
             value={productCategoryFilter}
             onChange={(e) => setProductCategoryFilter(e.target.value)}
-            className="px-3 py-2 border border-line rounded-lg text-xs font-bold bg-surface focus:outline-none cursor-pointer"
+            className="px-3 py-2 border border-line-control rounded-lg text-xs font-bold bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
           >
             <option value="all">{isVi ? 'Tất Cả Danh Mục' : 'All Categories'}</option>
             {CATEGORIES.filter(c => c.id !== 'all').map(c => (
@@ -444,7 +444,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
           <select
             value={readinessFilter}
             onChange={(e) => setReadinessFilter(e.target.value)}
-            className="px-3 py-2 border border-line rounded-lg text-xs font-bold bg-surface focus:outline-none cursor-pointer"
+            className="px-3 py-2 border border-line-control rounded-lg text-xs font-bold bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
           >
             <option value="all">{isVi ? 'Tất Cả Chuẩn In' : 'All Readiness'}</option>
             <option value="ready_to_print">{isVi ? 'Sẵn sàng in' : 'Ready to print'}</option>
@@ -494,7 +494,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   type="text"
                   value={editingProduct.name}
                   onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  className="w-full p-2.5 border border-line rounded-lg text-xs font-bold"
+                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
                   required
                 />
               </div>
@@ -506,7 +506,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     type="text"
                     value={editingProduct.sku || ''}
                     onChange={(e) => setEditingProduct({ ...editingProduct, sku: e.target.value })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-tech"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech"
                   />
                 </div>
                 <div className="space-y-1">
@@ -514,7 +514,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   <select
                     value={editingProduct.category}
                     onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-bold bg-surface"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
                   >
                     {CATEGORIES.filter(c => c.id !== 'all').map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
@@ -532,7 +532,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     aria-required="true"
                     value={editingProduct.pricePhysical ?? ''}
                     onChange={(e) => setEditingProduct({ ...editingProduct, pricePhysical: parseMoneyInput(e.target.value) })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-tech font-bold"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech font-bold"
                   />
                 </div>
                 <div className="space-y-1">
@@ -543,7 +543,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     aria-required="true"
                     value={editingProduct.priceDigital ?? ''}
                     onChange={(e) => setEditingProduct({ ...editingProduct, priceDigital: parseMoneyInput(e.target.value) })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-tech"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech"
                   />
                 </div>
               </div>
@@ -558,7 +558,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   <select
                     value={editingProduct.productionReadiness || 'ready_to_print'}
                     onChange={(e) => setEditingProduct({ ...editingProduct, productionReadiness: e.target.value as any })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-bold bg-surface"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
                   >
                     <option value="ready_to_print">Sẵn sàng in</option>
                     <option value="missing_profile">⚠ Thiếu Profile Slicing</option>
@@ -570,7 +570,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   <select
                     value={editingProduct.status}
                     onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value as any })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-bold bg-surface"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
                   >
                     <option value="Published">Đang Mở Bán (Published)</option>
                     <option value="Out of Stock">Tạm Hết Hàng (Out of Stock)</option>
@@ -614,7 +614,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   placeholder="VD: Khớp nối mềm Coupler 8x8mm"
                   value={newProductForm.name}
                   onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
-                  className="w-full p-2.5 border border-line rounded-lg text-xs font-bold"
+                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
                   required
                 />
               </div>
@@ -627,7 +627,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     placeholder={isVi ? 'Để trống nếu chưa có mã' : 'Leave empty if none'}
                     value={newProductForm.sku}
                     onChange={(e) => setNewProductForm({ ...newProductForm, sku: e.target.value })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-tech"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech"
                   />
                 </div>
                 <div className="space-y-1">
@@ -635,7 +635,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   <select
                     value={newProductForm.category}
                     onChange={(e) => setNewProductForm({ ...newProductForm, category: e.target.value })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-bold bg-surface"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
                   >
                     {CATEGORIES.filter(c => c.id !== 'all').map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
@@ -654,7 +654,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     placeholder={isVi ? 'Bắt buộc — nhập giá bản in' : 'Required — enter print price'}
                     value={newProductForm.pricePhysical ?? ''}
                     onChange={(e) => setNewProductForm({ ...newProductForm, pricePhysical: parseMoneyInput(e.target.value) })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-tech font-bold"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech font-bold"
                   />
                 </div>
                 <div className="space-y-1">
@@ -666,7 +666,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     placeholder={isVi ? 'Bắt buộc — nhập giá file STL' : 'Required — enter STL file price'}
                     value={newProductForm.priceDigital ?? ''}
                     onChange={(e) => setNewProductForm({ ...newProductForm, priceDigital: parseMoneyInput(e.target.value) })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-tech"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech"
                   />
                 </div>
               </div>
@@ -686,7 +686,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   value={newProductFeaturesText}
                   onChange={(e) => setNewProductFeaturesText(e.target.value)}
                   placeholder={isVi ? 'Để trống nếu chưa xác nhận được tính năng nào' : 'Leave empty if none confirmed'}
-                  className="w-full p-2 border border-line rounded-lg text-xs"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs"
                 />
                 <p className="text-xs text-fg-muted">
                   Chỉ nhập tính năng đã xác nhận. Bỏ trống ⇒ sản phẩm không có tính năng nào, hệ thống
@@ -700,7 +700,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   <select
                     value={newProductForm.productionReadiness || 'ready_to_print'}
                     onChange={(e) => setNewProductForm({ ...newProductForm, productionReadiness: e.target.value as any })}
-                    className="w-full p-2 border border-line rounded-lg text-xs font-bold bg-surface"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
                   >
                     <option value="ready_to_print">Sẵn sàng in</option>
                     <option value="missing_profile">⚠ Thiếu Profile Slicing</option>
@@ -715,7 +715,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     placeholder="https://..."
                     value={newProductForm.images?.[0] || ''}
                     onChange={(e) => setNewProductForm({ ...newProductForm, images: [e.target.value] })}
-                    className="w-full p-2 border border-line rounded-lg text-xs"
+                    className="w-full p-2 border border-line-control rounded-lg text-xs"
                   />
                   <p className="text-xs text-fg-muted">
                     Dán URL ảnh thật của sản phẩm — hệ thống không tự chèn ảnh mẫu.

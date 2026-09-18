@@ -148,9 +148,10 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
             <input
               type="text"
               placeholder="Tìm theo mã đơn, mã vận đơn, tên chi tiết..."
+              aria-label="Tìm đơn hàng theo mã đơn, mã vận đơn hoặc tên chi tiết"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg placeholder-fg-subtle focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary font-sans shadow-e0 transition-all"
+              className="w-full pl-9 pr-3 py-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg placeholder-fg-subtle focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary font-sans shadow-e0 transition-colors"
             />
             <Icon name="search" size={18} className="absolute left-2.5 top-2.5 text-fg-subtle" />
           </div>
@@ -164,7 +165,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveFilter(tab.id)}
-                className={`px-3 sm:px-3.5 py-1.5 text-xs font-mono font-bold rounded-md whitespace-nowrap transition-all flex items-center gap-1.5 border cursor-pointer ${
+                className={`px-3 sm:px-3.5 py-1.5 text-xs font-mono font-bold rounded-md whitespace-nowrap transition-colors flex items-center gap-1.5 border cursor-pointer ${
                   isActive
                     ? 'bg-primary text-primary-fg border-primary shadow-e1'
                     : 'bg-surface text-fg-muted hover:text-fg hover:bg-canvas border-line'
@@ -214,7 +215,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
               const stageIdx = ord.statusStageIndex ?? (ord.status === 'completed' ? 7 : ord.status === 'shipping' ? 7 : ord.status === 'post_processing' ? 5 : ord.status === 'printing' ? 4 : 0);
 
               return (
-                <div key={ord.id} className="bg-surface rounded-lg p-5 sm:p-7 hover:border-primary/50 transition-all space-y-5 shadow-e1" >
+                <div key={ord.id} className="bg-surface rounded-lg p-5 sm:p-7 hover:border-primary/50 transition-colors space-y-5 shadow-e1" >
                   {/* Card Header Row */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-line gap-3">
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -233,7 +234,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
 
                     <div className="flex items-center gap-2 self-start sm:self-auto">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border ${statusBadge.bg}`}>
-                        <span className={`w-2 h-2 rounded-full ${statusBadge.dot} animate-pulse`}></span>
+                        <span className={`w-2 h-2 rounded-full ${statusBadge.dot} animate-pulse motion-reduce:animate-none`}></span>
                         {statusBadge.label}
                       </span>
                     </div>

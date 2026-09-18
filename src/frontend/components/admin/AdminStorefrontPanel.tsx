@@ -165,7 +165,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
       <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-line">
         <button
           onClick={() => setActiveTab('hero')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'hero'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -177,7 +177,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('announcement')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'announcement'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -189,7 +189,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('workflow')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'workflow'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -201,7 +201,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('estimator')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'estimator'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -213,7 +213,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('facilities')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'facilities'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -225,7 +225,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('customIdea')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'customIdea'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -256,7 +256,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.heroBadge || ''}
                 onChange={(e) => handleChange('heroBadge', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg font-mono text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 placeholder="VD: VCUBE PRECISION ANTHOLOGY // 2026"
               />
             </div>
@@ -267,7 +267,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.heroHeadlineLine1 || ''}
                 onChange={(e) => handleChange('heroHeadlineLine1', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg font-bold text-xs focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg font-bold text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 placeholder="VD: CHẾ TÁC CƠ KHÍ"
               />
             </div>
@@ -278,7 +278,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.heroHeadlineHighlight || ''}
                 onChange={(e) => handleChange('heroHeadlineHighlight', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg font-bold text-xs text-primary focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg font-bold text-xs text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 placeholder="VD: IN 3D CÔNG NGHIỆP CHÍNH XÁC"
               />
             </div>
@@ -289,7 +289,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 rows={3}
                 value={localContent.heroSubheadline || ''}
                 onChange={(e) => handleChange('heroSubheadline', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs focus:outline-none focus:border-primary leading-relaxed"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary leading-relaxed"
                 placeholder="Mô tả tóm tắt dịch vụ, năng lực sản xuất và tiêu chuẩn dung sai..."
               />
             </div>
@@ -300,7 +300,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.heroCtaQuoteText || ''}
                 onChange={(e) => handleChange('heroCtaQuoteText', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs font-bold focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 placeholder="Báo Giá File 3D Tức Thì"
               />
             </div>
@@ -311,7 +311,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.heroCtaCatalogText || ''}
                 onChange={(e) => handleChange('heroCtaCatalogText', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs font-bold focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 placeholder="Khám Phá Kho Mẫu CAD"
               />
             </div>
@@ -329,14 +329,14 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="text"
                   value={localContent.heroMetric1Label || ''}
                   onChange={(e) => handleChange('heroMetric1Label', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs"
                   placeholder="Nhãn: Dung sai"
                 />
                 <input
                   type="text"
                   value={localContent.heroMetric1Value || ''}
                   onChange={(e) => handleChange('heroMetric1Value', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs font-mono font-bold text-primary"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs font-mono font-bold text-primary"
                   placeholder="Giá trị: nhập mức dung sai đã cam kết"
                 />
               </div>
@@ -347,14 +347,14 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="text"
                   value={localContent.heroMetric2Label || ''}
                   onChange={(e) => handleChange('heroMetric2Label', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs"
                   placeholder="Nhãn: Thời gian giao"
                 />
                 <input
                   type="text"
                   value={localContent.heroMetric2Value || ''}
                   onChange={(e) => handleChange('heroMetric2Value', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs font-mono font-bold text-fg"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs font-mono font-bold text-fg"
                   placeholder="Giá trị: nhập thời gian bàn giao thực tế"
                 />
               </div>
@@ -365,14 +365,14 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="text"
                   value={localContent.heroMetric3Label || ''}
                   onChange={(e) => handleChange('heroMetric3Label', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs"
                   placeholder="Nhãn: Tiêu chuẩn"
                 />
                 <input
                   type="text"
                   value={localContent.heroMetric3Value || ''}
                   onChange={(e) => handleChange('heroMetric3Value', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs font-mono font-bold text-fg"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs font-mono font-bold text-fg"
                   placeholder="Giá trị: nhập tiêu chuẩn/quy trình đang áp dụng"
                 />
               </div>
@@ -398,7 +398,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
               type="text"
               value={localContent.toleranceSpec || ''}
               onChange={(e) => handleChange('toleranceSpec', e.target.value)}
-              className="w-full p-2.5 border border-line rounded-lg text-xs"
+              className="w-full p-2.5 border border-line-control rounded-lg text-xs"
               placeholder="VD: Đo kiểm kích thước theo bản vẽ thoả thuận"
             />
             <div className="flex justify-end">
@@ -439,7 +439,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 onChange={(e) => handleChange('announcementActive', e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-line-subtle peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-line after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-line after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div className="w-11 h-6 bg-line-subtle peer-focus:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-line after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-line after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
 
@@ -450,7 +450,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.announcementBadge || ''}
                 onChange={(e) => handleChange('announcementBadge', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs font-bold text-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold text-primary"
                 placeholder="Nhập huy hiệu chiến dịch (để trống thì ẩn)"
               />
             </div>
@@ -461,7 +461,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.announcementActionText || ''}
                 onChange={(e) => handleChange('announcementActionText', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs font-bold"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
                 placeholder="VD: Xem sản phẩm trong bộ sưu tập"
               />
             </div>
@@ -472,7 +472,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.announcementText || ''}
                 onChange={(e) => handleChange('announcementText', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs"
                 placeholder="Nhập thông điệp thông báo..."
               />
             </div>
@@ -500,7 +500,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.workflowBadge || ''}
                 onChange={(e) => handleChange('workflowBadge', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg font-mono text-xs text-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg font-mono text-xs text-primary"
                 placeholder="CHRONICLE // QUY TRÌNH XƯỞNG"
               />
             </div>
@@ -511,7 +511,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.workflowTitle || ''}
                 onChange={(e) => handleChange('workflowTitle', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg font-bold text-xs"
+                className="w-full p-2.5 border border-line-control rounded-lg font-bold text-xs"
                 placeholder="Quy Trình Gia Công 3 Bước Chuẩn Xác"
               />
             </div>
@@ -530,7 +530,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="text"
                   value={localContent.workflowStep1Title || ''}
                   onChange={(e) => handleChange('workflowStep1Title', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs font-bold"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs font-bold"
                 />
               </div>
               <div className="space-y-1">
@@ -539,7 +539,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   rows={3}
                   value={localContent.workflowStep1Desc || ''}
                   onChange={(e) => handleChange('workflowStep1Desc', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs leading-relaxed"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs leading-relaxed"
                 />
               </div>
             </div>
@@ -556,7 +556,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="text"
                   value={localContent.workflowStep2Title || ''}
                   onChange={(e) => handleChange('workflowStep2Title', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs font-bold"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs font-bold"
                 />
               </div>
               <div className="space-y-1">
@@ -565,7 +565,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   rows={3}
                   value={localContent.workflowStep2Desc || ''}
                   onChange={(e) => handleChange('workflowStep2Desc', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs leading-relaxed"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs leading-relaxed"
                 />
               </div>
             </div>
@@ -582,7 +582,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="text"
                   value={localContent.workflowStep3Title || ''}
                   onChange={(e) => handleChange('workflowStep3Title', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs font-bold"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs font-bold"
                 />
               </div>
               <div className="space-y-1">
@@ -591,7 +591,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   rows={3}
                   value={localContent.workflowStep3Desc || ''}
                   onChange={(e) => handleChange('workflowStep3Desc', e.target.value)}
-                  className="w-full p-2 border border-line rounded-lg text-xs leading-relaxed"
+                  className="w-full p-2 border border-line-control rounded-lg text-xs leading-relaxed"
                 />
               </div>
             </div>
@@ -619,7 +619,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.estimatorBadge || ''}
                 onChange={(e) => handleChange('estimatorBadge', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg font-mono text-xs text-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg font-mono text-xs text-primary"
                 placeholder="VCUBE FAST ESTIMATOR // LIVE QUOTE"
               />
             </div>
@@ -630,7 +630,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.estimatorTitle || ''}
                 onChange={(e) => handleChange('estimatorTitle', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg font-bold text-xs"
+                className="w-full p-2.5 border border-line-control rounded-lg font-bold text-xs"
                 placeholder="Mô Phỏng & Ước Tính Chi Phí In 3D Trực Tiếp"
               />
             </div>
@@ -641,7 +641,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.estimatorSubtitle || ''}
                 onChange={(e) => handleChange('estimatorSubtitle', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs"
                 placeholder="Chọn vật liệu kỹ thuật, độ đặc infill và kích cỡ mẫu..."
               />
             </div>
@@ -652,7 +652,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.estimatorBenefit1 || ''}
                 onChange={(e) => handleChange('estimatorBenefit1', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs"
                 placeholder="Tự động tính toán theo tỉ trọng vật liệu g/cm³"
               />
             </div>
@@ -663,7 +663,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.estimatorBenefit2 || ''}
                 onChange={(e) => handleChange('estimatorBenefit2', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs"
                 placeholder="Miễn phí gọt support & rửa cồn siêu âm UV"
               />
             </div>
@@ -674,7 +674,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.estimatorCtaText || ''}
                 onChange={(e) => handleChange('estimatorCtaText', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs font-bold"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
                 placeholder="Tải File STL Lên Để Báo Giá Chi Tiết →"
               />
             </div>
@@ -702,7 +702,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={localContent.trustPartnersTitle || ''}
                 onChange={(e) => handleChange('trustPartnersTitle', e.target.value)}
-                className="w-full p-2.5 border border-line rounded-lg text-xs font-bold"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
                 placeholder="Được Tin Cậy Bởi Các Đơn Vị R&D & Xưởng Cơ Khí"
               />
             </div>
@@ -713,7 +713,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 type="text"
                 value={Array.isArray(localContent.trustPartnersList) ? localContent.trustPartnersList.join(', ') : ''}
                 onChange={(e) => handleChange('trustPartnersList', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                className="w-full p-2.5 border border-line rounded-lg text-xs font-mono"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono"
                 placeholder="BK ROBOTICS LAB, FPT HI-TECH INNOVATION, VNU AEROSPACE LAB, ..."
               />
               <p className="text-xs text-fg-subtle">Mỗi đơn vị sẽ được tự động hiển thị dưới dạng một chip công nghệ trên trang chủ.</p>
@@ -726,7 +726,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="text"
                   value={localContent.hanoiWorkshopAddress || ''}
                   onChange={(e) => handleChange('hanoiWorkshopAddress', e.target.value)}
-                  className="w-full p-2.5 border border-line rounded-lg text-xs"
+                  className="w-full p-2.5 border border-line-control rounded-lg text-xs"
                 />
               </div>
 
@@ -736,7 +736,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="text"
                   value={localContent.hcmWorkshopAddress || ''}
                   onChange={(e) => handleChange('hcmWorkshopAddress', e.target.value)}
-                  className="w-full p-2.5 border border-line rounded-lg text-xs"
+                  className="w-full p-2.5 border border-line-control rounded-lg text-xs"
                 />
               </div>
 
@@ -746,7 +746,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="text"
                   value={localContent.hotline || ''}
                   onChange={(e) => handleChange('hotline', e.target.value)}
-                  className="w-full p-2.5 border border-line rounded-lg text-xs font-mono"
+                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono"
                 />
               </div>
 
@@ -756,7 +756,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   type="email"
                   value={localContent.contactEmail || ''}
                   onChange={(e) => handleChange('contactEmail', e.target.value)}
-                  className="w-full p-2.5 border border-line rounded-lg text-xs font-mono"
+                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono"
                 />
               </div>
 
@@ -768,7 +768,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   value={shippingInputValue(localContent.freeShippingThreshold)}
                   onChange={(e) => handleShippingChange('freeShippingThreshold', e.target.value)}
                   placeholder={isVi ? 'Chưa cấu hình' : 'Not configured'}
-                  className="w-full p-2.5 border border-line rounded-lg text-xs font-mono font-bold"
+                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono font-bold"
                 />
                 <p className="text-xs text-fg-muted">
                   Để trống = CHƯA cấu hình (ô hiển thị trống, hệ thống không tự điền số mặc định).
@@ -784,7 +784,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                   value={shippingInputValue(localContent.standardShippingFee)}
                   onChange={(e) => handleShippingChange('standardShippingFee', e.target.value)}
                   placeholder={isVi ? 'Chưa cấu hình' : 'Not configured'}
-                  className="w-full p-2.5 border border-line rounded-lg text-xs font-mono font-bold"
+                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono font-bold"
                 />
                 <p className="text-xs text-fg-muted">
                   Để trống = CHƯA cấu hình. Nhập 0 nghĩa là không thu phí vận chuyển.
@@ -826,7 +826,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
               type="checkbox"
               checked={localContent.customIdeaActive !== false}
               onChange={(e) => handleChange('customIdeaActive', e.target.checked)}
-              className="size-5 rounded border-line text-primary focus:ring-primary cursor-pointer"
+              className="size-5 rounded border-line-control text-primary focus:ring-primary cursor-pointer"
             />
           </div>
 
@@ -839,7 +839,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 value={localContent.customIdeaBadge || ''}
                 onChange={(e) => handleChange('customIdeaBadge', e.target.value)}
                 placeholder="CUSTOM CAD // THEO Ý TƯỞNG"
-                className="w-full p-2.5 border border-line rounded-lg font-mono text-xs focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg font-mono text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
               />
             </div>
 
@@ -850,7 +850,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 value={localContent.customIdeaCtaText || ''}
                 onChange={(e) => handleChange('customIdeaCtaText', e.target.value)}
                 placeholder={isVi ? 'Đăng Ký Dịch Vụ Custom Từ Ý Tưởng' : 'Submit Custom 3D Idea'}
-                className="w-full p-2.5 border border-line rounded-lg text-xs focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
               />
             </div>
 
@@ -861,7 +861,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 value={localContent.customIdeaTitle || ''}
                 onChange={(e) => handleChange('customIdeaTitle', e.target.value)}
                 placeholder={isVi ? 'Biến Ý Tưởng Thành Bản Vẽ CAD 3D & Sản Phẩm Thực Tế' : 'Transform Concept Ideas into Precision 3D CAD & Physical Prototypes'}
-                className="w-full p-2.5 border border-line rounded-lg text-xs font-semibold focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
               />
             </div>
 
@@ -872,7 +872,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 value={localContent.customIdeaSubtitle || ''}
                 onChange={(e) => handleChange('customIdeaSubtitle', e.target.value)}
                 placeholder={isVi ? 'Bạn chưa có file CAD 3D? Chỉ cần phác thảo sơ bộ hoặc bài toán thực tế, đội ngũ kỹ sư VCUBE sẽ dựng mô hình CAD chuẩn kỹ thuật và gia công mẫu thử nghiệm bàn giao tận tay.' : 'No 3D CAD file yet? Provide preliminary sketches or functional criteria, and VCUBE engineers will build engineering-grade CAD models and deliver physical prototypes.'}
-                className="w-full p-2.5 border border-line rounded-lg text-xs focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
               />
             </div>
 
@@ -883,7 +883,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                 value={localContent.customIdeaImageUrl || ''}
                 onChange={(e) => handleChange('customIdeaImageUrl', e.target.value)}
                 placeholder="Dán URL ảnh (https://…)"
-                className="w-full p-2.5 border border-line rounded-lg text-xs font-mono focus:outline-none focus:border-primary"
+                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
               />
             </div>
           </div>
@@ -908,7 +908,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                     value={localContent.customIdeaStep1Title || ''}
                     onChange={(e) => handleChange('customIdeaStep1Title', e.target.value)}
                     placeholder={isVi ? 'Tiếp Nhận Ý Tưởng & Phác Thảo' : 'Idea Intake & Concept Sketching'}
-                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
                 <div className="space-y-1">
@@ -918,7 +918,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                     value={localContent.customIdeaStep1Desc || ''}
                     onChange={(e) => handleChange('customIdeaStep1Desc', e.target.value)}
                     placeholder={isVi ? 'Cung cấp bản vẽ tay, ảnh chụp mẫu vật hoặc mô tả bài toán công năng. Kỹ sư tiếp nhận, phân tích tính khả thi DFM và lập phương án sơ bộ.' : 'Submit preliminary hand sketches, physical photos, or functional criteria. Engineers assess DFM feasibility and establish design briefs.'}
-                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
               </div>
@@ -936,7 +936,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                     value={localContent.customIdeaStep2Title || ''}
                     onChange={(e) => handleChange('customIdeaStep2Title', e.target.value)}
                     placeholder={isVi ? 'Thiết Kế CAD 3D Chuẩn Kỹ Thuật' : 'Parametric 3D CAD Modeling'}
-                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
                 <div className="space-y-1">
@@ -946,7 +946,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                     value={localContent.customIdeaStep2Desc || ''}
                     onChange={(e) => handleChange('customIdeaStep2Desc', e.target.value)}
                     placeholder={isVi ? 'Mô hình hoá tham số B-Rep trên phần mềm cơ khí chuyên nghiệp, kiểm tra lắp ghép dung sai ren cấy và tối ưu cho công nghệ in 3D.' : 'Parametric B-Rep solid modeling, tolerance assembly fit checks, and Design for Additive Manufacturing (DFAM) optimization.'}
-                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
               </div>
@@ -964,7 +964,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                     value={localContent.customIdeaStep3Title || ''}
                     onChange={(e) => handleChange('customIdeaStep3Title', e.target.value)}
                     placeholder={isVi ? 'In Mẫu Thử Nghiệm & Bàn Giao' : 'Rapid Prototyping & Handover'}
-                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
                 <div className="space-y-1">
@@ -974,7 +974,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                     value={localContent.customIdeaStep3Desc || ''}
                     onChange={(e) => handleChange('customIdeaStep3Desc', e.target.value)}
                     placeholder={isVi ? 'Gia công mẫu thử 1:1 bằng vật liệu kỹ thuật thực tế, đo kiểm kích thước và bàn giao bộ tệp nguồn gốc kèm quyền sở hữu bản quyền.' : '1:1 rapid physical prototyping, precision dimensional validation, and complete handover of native CAD files with commercial IP rights.'}
-                    className="w-full p-2 border border-line rounded bg-surface text-xs focus:outline-none focus:border-primary"
+                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
               </div>

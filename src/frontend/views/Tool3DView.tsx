@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import * as THREE from 'three';
-import { AnalysisFile, CartItem, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, PrintabilityAnalysis, InkiriCostFormulaConfig } from '../types';
+import { AnalysisFile, CartItem, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, PrintabilityAnalysis, InkiriCostFormulaConfig, SlicerPresetInfo } from '../types';
 import { SAMPLE_ANALYSIS_FILES, PRINTER_PROFILES, MATERIALS_CATALOG } from '../data/mockData';
 import { ModelViewer3D } from '../components/tool3d/ModelViewer3D';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
@@ -320,8 +320,10 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   });
 
   // Slicing parameters
-  const [selectedPrinterId, setSelectedPrinterId] = useState<string>(printers[0]?.id || 'bambu-x1c');
-  const [selectedMaterialId, setSelectedMaterialId] = useState<string>(materials[0]?.id || 'pla-tough');
+  // Không có máy/vật liệu nào trong DB ⇒ để TRỐNG id, KHÔNG gán id bịa ('bambu-x1c'/'pla-tough')
+  // để tránh báo giá từ dữ liệu không tồn tại (data-honesty).
+  const [selectedPrinterId, setSelectedPrinterId] = useState<string>(printers[0]?.id || '');
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string>(materials[0]?.id || '');
   const [infillDensity, setInfillDensity] = useState<number>(25);
   const [infillPattern, setInfillPattern] = useState<string>('Gyroid');
   const [layerHeight, setLayerHeight] = useState<string>('0.16');
@@ -363,6 +365,22 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
   const handleUpdateTransform = (updated: Partial<TransformState>) => {
     setTransform(prev => ({ ...prev, ...updated }));
+  };
+
+  // F2 (P9): tệp có dữ liệu slicer ⇒ khởi tạo layer height / infill / pattern từ CHÍNH tệp,
+  // không để mặc định cứng (25% / Gyroid / 0.16) áp đè lên cấu hình thật của khách.
+  const applySlicerPresetDefaults = (preset?: SlicerPresetInfo) => {
+    if (!preset) return;
+    if (typeof preset.layerHeight === 'number' && Number.isFinite(preset.layerHeight) && preset.layerHeight > 0) {
+      setLayerHeight(String(preset.layerHeight));
+    }
+    if (preset.infillPattern) {
+      setInfillPattern(preset.infillPattern);
+    }
+    if (preset.infillDensity) {
+      const pct = parseFloat(preset.infillDensity);
+      if (Number.isFinite(pct) && pct > 0) setInfillDensity(Math.round(pct));
+    }
   };
 
   // Workspace sub-tab for Left Column (Viewport + Object Tree vs Preset Palettes vs Transforms vs Validation)
@@ -486,13 +504,14 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         isUnitConfirmed: is3mf ? true : false,
         slicerPreset: parsed.slicerPreset,
         plates: parsed.plates || (parsed.slicerPreset?.plates) || [],
-        activePlateIndex: 1
+        // F2 (P6): index bàn in THẬT từ tệp; không khai ⇒ `undefined` (KHÔNG cứng = 1).
+        activePlateIndex: parsed.activePlateIndex
       };
 
       setFiles(prev => [newFile, ...prev]);
       setSelectedFile(newFile);
       setSelectedPartId(null);
-      setActivePlateIndex(1);
+      setActivePlateIndex(parsed.activePlateIndex ?? 0);
 
       // Default true 1:1 scale (100%) on import
       setTransform({
@@ -510,6 +529,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         layFlat: true,
         centered: true
       });
+
+      // F2 (P9): áp cấu hình cắt lớp thật của tệp (nếu có) trước khi người dùng chỉnh.
+      applySlicerPresetDefaults(parsed.slicerPreset);
 
       if (is3mf && parsed.slicerPreset) {
         setActiveWorkspaceTab('preset');
@@ -607,7 +629,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
           >
             {isAnalyzing ? (
               <div className="py-10 space-y-3 font-mono text-center">
-                <div className="w-10 h-10 border-2 border-primary border-t-transparent animate-spin mx-auto rounded-full" />
+                <div className="w-10 h-10 border-2 border-primary border-t-transparent animate-spin motion-reduce:animate-none mx-auto rounded-full" />
                 <p className="text-xs uppercase tracking-widest text-primary font-bold">
                   Đang giải mã Mesh 3D, bóc tách cấu trúc tam giác và tính toán thể tích...
                 </p>
@@ -870,7 +892,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   const handleSelectSample = (file: AnalysisFile) => {
     setSelectedFile(file);
     setSelectedPartId(null);
-    setActivePlateIndex(file.activePlateIndex || (file.plates && file.plates.length > 0 ? 1 : 0));
+    // F2 (P9): mẫu có preset ⇒ cũng khởi tạo tham số cắt lớp từ preset thật.
+    applySlicerPresetDefaults(file.slicerPreset);
+    setActivePlateIndex(file.activePlateIndex ?? (file.plates && file.plates.length > 0 ? 1 : 0));
     setTransform({
       scaleUniform: 100,
       scaleX: 100,
@@ -927,7 +951,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
         {/* Out of Bounds Warning Banner */}
         {isOutOfBounds && currentPrinter && (
-          <div className="bg-danger-tint border-2 border-danger/50 p-4 sm:p-5 rounded-lg text-danger flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-e1 animate-pulse font-mono">
+          <div className="bg-danger-tint border-2 border-danger/50 p-4 sm:p-5 rounded-lg text-danger flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-e1 animate-pulse motion-reduce:animate-none font-mono">
             <div className="flex items-center gap-3">
               <Icon name="warning" size={28} className="text-danger shrink-0" />
               <div>
@@ -969,7 +993,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         >
           {isAnalyzing ? (
             <div className="py-6 space-y-3 font-mono">
-              <div className="w-10 h-10 border-2 border-primary border-t-transparent animate-spin mx-auto rounded-full"></div>
+              <div className="w-10 h-10 border-2 border-primary border-t-transparent animate-spin motion-reduce:animate-none mx-auto rounded-full"></div>
               <p className="text-xs uppercase tracking-widest text-primary font-bold">
                 Đang giải mã Mesh 3D, bóc tách cấu trúc tam giác và tính toán thể tích...
               </p>
@@ -1105,7 +1129,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                     {selectedFile.format} Standard
                   </span>
                   <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-primary-tint text-primary text-xs font-mono font-bold border border-primary/20 shadow-e0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse motion-reduce:animate-none" />
                     <span>VCUBE MESH ENGINE v2.6</span>
                   </span>
                 </div>
@@ -1284,6 +1308,11 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                     onChange={(e) => setLayerHeight(e.target.value)}
                     className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary"
                   >
+                    {/* F2 (P9): nếu tệp khai layer height ngoài 4 mức sẵn có, hiện đúng giá trị đó
+                        thay vì để select trống/kẹt ở lựa chọn không khớp. */}
+                    {layerHeight && !['0.08', '0.12', '0.16', '0.20'].includes(layerHeight) && (
+                      <option value={layerHeight}>{layerHeight} mm (theo tệp)</option>
+                    )}
                     <option value="0.08">0.08 mm (Ultra Fine - Chi tiết sắc nét)</option>
                     <option value="0.12">0.12 mm (Fine Detail - Chuẩn chất lượng)</option>
                     <option value="0.16">0.16 mm (Standard Pro - Cân bằng tốc độ/đẹp)</option>
@@ -1618,6 +1647,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                     onChangeColor={handleChangePartColor}
                     onChangeExtruder={handleChangePartExtruder}
                     onChangeMaterial={handleChangePartMaterial}
+                    materials={materials}
                     plates={selectedFile.plates || selectedFile.slicerPreset?.plates || []}
                     activePlateIndex={activePlateIndex}
                     onSelectPlate={handleSelectPlate}

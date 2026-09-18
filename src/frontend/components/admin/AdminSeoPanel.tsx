@@ -134,7 +134,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
       <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-line">
         <button
           onClick={() => setActiveTab('meta')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
             activeTab === 'meta'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -146,7 +146,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('serp')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
             activeTab === 'serp'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -158,7 +158,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('social')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
             activeTab === 'social'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -170,7 +170,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('schema')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
             activeTab === 'schema'
               ? 'bg-surface-inverse text-on-inverse shadow-e1'
               : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
@@ -207,7 +207,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
                 value={metaTitle}
                 onChange={(e) => handleChange('seoTitle', e.target.value)}
                 placeholder="VD: VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì"
-                className="w-full px-4 py-2.5 bg-canvas border border-line rounded-lg text-sm text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                className="w-full px-4 py-2.5 bg-canvas border border-line-control rounded-lg text-sm text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
               <div className="flex justify-end">
                 <InfoTip label="Tiêu đề trang xuất hiện ở đâu?">
@@ -238,7 +238,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
                 value={metaDesc}
                 onChange={(e) => handleChange('seoDescription', e.target.value)}
                 placeholder="Mô tả tóm tắt nội dung nền tảng và thế mạnh in 3D công nghiệp..."
-                className="w-full px-4 py-2.5 bg-canvas border border-line rounded-lg text-sm text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+                className="w-full px-4 py-2.5 bg-canvas border border-line-control rounded-lg text-sm text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
               />
               <div className="flex justify-end">
                 <InfoTip label="Mô tả tóm tắt ảnh hưởng gì?">
@@ -259,14 +259,14 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
                 value={keywords}
                 onChange={(e) => handleChange('seoKeywords', e.target.value)}
                 placeholder="in 3d, gia cong in 3d, bao gia stl, in resin, vcube..."
-                className="w-full px-4 py-2.5 bg-canvas border border-line rounded-lg text-sm text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                className="w-full px-4 py-2.5 bg-canvas border border-line-control rounded-lg text-sm text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {keywords.split(',').map((k, idx) => {
+                {keywords.split(',').map((k) => {
                   const trimmed = k.trim();
                   if (!trimmed) return null;
                   return (
-                    <span key={idx} className="px-2 py-0.5 bg-surface-muted text-primary font-medium text-xs rounded-md border border-line-subtle">
+                    <span key={trimmed} className="px-2 py-0.5 bg-surface-muted text-primary font-medium text-xs rounded-md border border-line-subtle">
                       #{trimmed}
                     </span>
                   );
@@ -286,7 +286,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
                   value={canonicalUrl}
                   onChange={(e) => handleChange('seoCanonicalUrl', e.target.value)}
                   placeholder="https://vcube.vn"
-                  className="w-full px-3 py-2 bg-canvas border border-line rounded-lg text-xs text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 bg-canvas border border-line-control rounded-lg text-xs text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
 
@@ -300,7 +300,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
                   value={ogImage}
                   onChange={(e) => handleChange('seoOgImage', e.target.value)}
                   placeholder="https://... ảnh tỉ lệ 1200x630"
-                  className="w-full px-3 py-2 bg-canvas border border-line rounded-lg text-xs text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 bg-canvas border border-line-control rounded-lg text-xs text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             </div>
@@ -394,7 +394,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
             <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg border border-line-subtle shrink-0">
               <button
                 onClick={() => setDevicePreview('desktop')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ${
                   devicePreview === 'desktop' ? 'bg-surface text-fg shadow-e1' : 'text-fg-subtle hover:text-fg'
                 }`}
               >
@@ -403,7 +403,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
               </button>
               <button
                 onClick={() => setDevicePreview('mobile')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ${
                   devicePreview === 'mobile' ? 'bg-surface text-fg shadow-e1' : 'text-fg-subtle hover:text-fg'
                 }`}
               >

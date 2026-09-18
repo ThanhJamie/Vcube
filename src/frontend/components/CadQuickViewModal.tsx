@@ -194,7 +194,7 @@ export const CadQuickViewModal: React.FC<CadQuickViewModalProps> = ({
       title={
         <span className="flex w-full flex-wrap items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-2.5">
-            <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-primary" />
+            <span className="h-2.5 w-2.5 shrink-0 animate-pulse motion-reduce:animate-none rounded-full bg-primary" />
             <span className="truncate font-mono text-xs font-bold uppercase tracking-widest text-primary">
               CAD MESH INSPECTOR // 360° PREVIEW
             </span>

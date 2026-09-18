@@ -1,6 +1,25 @@
 import React, { useState } from 'react';
 import { DetailedCostBreakdown, PrinterProfile } from '../../types';
-import { Icon, Modal } from '@frontend/ui';
+import { formatNumber } from '@frontend/lib/format';
+import { Icon, Modal, Money } from '@frontend/ui';
+
+/**
+ * F7 — nhãn NGUỒN của gram/giờ để báo cáo nội bộ truy được con số về đâu (data-honesty).
+ * Thiếu provenance (bản ghi cũ) ⇒ "chưa xác định nguồn", KHÔNG đoán.
+ */
+const GRAMS_SOURCE_TEXT: Record<string, string> = {
+  slicer: 'từ file slicer',
+  volume_estimate: 'ước tính theo thể tích'
+};
+
+const TIME_SOURCE_TEXT: Record<string, string> = {
+  slicer: 'từ file slicer',
+  throughput: 'ước tính theo năng suất máy',
+  volume_estimate: 'ước tính theo thể tích'
+};
+
+const sourceText = (map: Record<string, string>, source?: string): string =>
+  source ? map[source] ?? source : 'chưa xác định nguồn';
 
 interface InternalCostBreakdownModalProps {
   isOpen: boolean;
@@ -59,7 +78,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
       return;
     }
     if (newPrice < breakdown.costPrice) {
-      setOverrideError(`Giá bán điều chỉnh không được thấp hơn giá vốn xuất xưởng (${breakdown.costPrice.toLocaleString('vi-VN')} đ).`);
+      setOverrideError(`Giá bán điều chỉnh không được thấp hơn giá vốn xuất xưởng (${formatNumber(breakdown.costPrice)} đ).`);
       return;
     }
     if (!overrideReason.trim()) {
@@ -67,7 +86,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
       return;
     }
     onApplyOverride?.(newPrice, overrideReason);
-    setOverrideSuccessMsg(`Đã ghi đè đơn giá: ${newPrice.toLocaleString('vi-VN')} đ/cái`);
+    setOverrideSuccessMsg(`Đã ghi đè đơn giá: ${formatNumber(newPrice)} đ/cái`);
   };
 
   const costItems = [
@@ -75,19 +94,19 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
       title: '1. Chi phí Vật liệu (Filament / Resin)',
       amount: breakdown.materialCost,
       percent: sharePercent(breakdown.materialCost),
-      details: `${breakdown.totalFilamentGrams}g nhựa (Model: ${breakdown.modelGrams}g + Support: ${breakdown.supportGrams}g + Purge: ${breakdown.purgeGrams}g + Brim: ${breakdown.brimRaftGrams}g) × ${breakdown.materialCostPerGram} đ/g`
+      details: `${breakdown.totalFilamentGrams}g nhựa (Model: ${breakdown.modelGrams}g + Support: ${breakdown.supportGrams}g + Purge: ${breakdown.purgeGrams}g + Brim: ${breakdown.brimRaftGrams}g) × ${breakdown.materialCostPerGram} đ/g • Nguồn khối lượng: ${sourceText(GRAMS_SOURCE_TEXT, breakdown.gramsSource)}`
     },
     {
       title: '2. Chi phí Điện năng tiêu thụ',
       amount: breakdown.electricityCost,
       percent: sharePercent(breakdown.electricityCost),
-      details: `${breakdown.averagePowerKW} kW (Công suất TB) × ${breakdown.printHours}h × ${breakdown.electricityRatePerKWh.toLocaleString()} đ/kWh`
+      details: `${breakdown.averagePowerKW} kW (Công suất TB) × ${breakdown.printHours}h × ${formatNumber(breakdown.electricityRatePerKWh)} đ/kWh`
     },
     {
       title: '3. Khấu hao máy & Vật tư hao mòn (Nozzle/Plate)',
       amount: breakdown.machineOperatingCost,
       percent: sharePercent(breakdown.machineOperatingCost),
-      details: `Khấu hao: ${breakdown.machineDepreciationCost.toLocaleString()}đ + Bảo trì/Vật tư: ${breakdown.maintenanceAndConsumablesCost.toLocaleString()}đ (${currentPrinter.name})`
+      details: `Khấu hao: ${formatNumber(breakdown.machineDepreciationCost)}đ + Bảo trì/Vật tư: ${formatNumber(breakdown.maintenanceAndConsumablesCost)}đ (${currentPrinter.name})`
     },
     {
       title: '4. Chi phí Nhân công kỹ thuật (Labor)',
@@ -103,7 +122,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
         + ` + Post-process ${breakdown.postProcessingLaborMinutes}p`
         + ` + QC ${breakdown.qcLaborMinutes}p`
         + ` + Pack ${breakdown.packagingLaborMinutes}p)`
-        + ` @ ${breakdown.laborHourlyRate.toLocaleString('vi-VN')} đ/h`
+        + ` @ ${formatNumber(breakdown.laborHourlyRate)} đ/h`
     },
     {
       title: '5. Phụ kiện & Đóng gói tiêu chuẩn',
@@ -150,7 +169,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
             <div className="p-3.5 bg-surface-muted rounded-sm">
               <span className="text-xs uppercase font-sans text-fg-muted font-bold block">Giá Vốn Xuất Xưởng (1 cái)</span>
               <span className="font-tech text-base font-bold text-fg mt-1 block">
-                {breakdown.costPrice.toLocaleString('vi-VN')} đ
+                <Money value={breakdown.costPrice} />
               </span>
               <span className="text-xs text-fg-muted">Gồm {(breakdown.failureReserveRate * 100).toFixed(0)}% dự phòng hỏng</span>
             </div>
@@ -158,7 +177,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
             <div className="p-3.5 bg-primary-tint/60 border border-primary/30 rounded-sm">
               <span className="text-xs uppercase font-sans text-primary font-bold block">Giá Bán Đề Xuất (1 cái)</span>
               <span className="font-tech text-base font-bold text-primary mt-1 block">
-                {breakdown.finalSellingPriceRounded.toLocaleString('vi-VN')} đ
+                <Money value={breakdown.finalSellingPriceRounded} className="text-primary font-bold" />
               </span>
               <span className="text-xs text-primary">Markup {breakdown.targetMarkupPercent}% • Margin {breakdown.calculatedGrossMarginPercent}%</span>
             </div>
@@ -166,7 +185,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
             <div className="p-3.5 bg-positive-tint/60 border border-positive/40 rounded-sm">
               <span className="text-xs uppercase font-sans text-positive font-bold block">Lợi Nhuận Gộp Tổng Lô (x{quantity})</span>
               <span className="font-tech text-base font-bold text-positive mt-1 block">
-                +{totalBatchGrossProfit.toLocaleString('vi-VN')} đ
+                <Money value={totalBatchGrossProfit} signed className="text-positive font-bold" />
               </span>
               <span className="text-xs text-positive">Sau khi trừ giá vốn</span>
             </div>
@@ -177,6 +196,14 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
                 {breakdown.printHours} giờ / cái
               </span>
               <span className="text-xs text-fg-muted">Tổng lô: {(breakdown.printHours * quantity).toFixed(1)}h</span>
+              <span className="text-xs text-fg-muted block">
+                Nguồn thời gian: {sourceText(TIME_SOURCE_TEXT, breakdown.printHoursSource)}
+                {breakdown.printHoursSource === 'throughput' &&
+                typeof breakdown.throughputGramsPerHourUsed === 'number' &&
+                Number.isFinite(breakdown.throughputGramsPerHourUsed)
+                  ? ` (${formatNumber(breakdown.throughputGramsPerHourUsed, { maximumFractionDigits: 1 })} g/h)`
+                  : ''}
+              </span>
             </div>
           </div>
 
@@ -188,7 +215,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
                 Bảng Bóc Tách Chi Phí Sản Xuất Cơ Sở (Base Cost Breakdown)
               </h3>
               <span className="text-xs font-tech font-bold text-fg-muted">
-                Tổng Base Cost: {breakdown.baseCost.toLocaleString('vi-VN')} đ
+                Tổng Base Cost: {formatNumber(breakdown.baseCost)} đ
               </span>
             </div>
 
@@ -208,7 +235,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
                       <td className="p-3 font-semibold text-fg whitespace-nowrap">{item.title}</td>
                       <td className="p-3 text-fg-muted text-xs font-sans">{item.details}</td>
                       <td className="p-3 text-right font-tech text-fg-muted">{item.percent}%</td>
-                      <td className="p-3 text-right font-tech font-bold text-fg">{item.amount.toLocaleString('vi-VN')} đ</td>
+                      <td className="p-3 text-right font-tech font-bold text-fg"><Money value={item.amount} as="span" className="font-bold text-fg" /></td>
                     </tr>
                   ))}
                   
@@ -220,7 +247,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
                     </td>
                     <td className="p-3 text-right font-tech">{(breakdown.failureReserveRate * 100).toFixed(0)}%</td>
                     <td className="p-3 text-right font-tech font-bold text-warning">
-                      +{breakdown.failureReserveCost.toLocaleString('vi-VN')} đ
+                      <Money value={breakdown.failureReserveCost} signed className="text-warning font-bold" />
                     </td>
                   </tr>
 
@@ -231,7 +258,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
                     </td>
                     <td className="p-3 text-right font-tech">100%</td>
                     <td className="p-3 text-right font-tech text-primary text-sm">
-                      {breakdown.costPrice.toLocaleString('vi-VN')} đ
+                      <Money value={breakdown.costPrice} className="text-primary font-bold" />
                     </td>
                   </tr>
                 </tbody>
@@ -250,7 +277,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
               <div className="p-3 bg-surface rounded-sm">
                 <span className="text-fg-muted block text-xs uppercase">1. Markup Mục Tiêu</span>
                 <span className="font-tech font-bold text-base text-fg mt-0.5 block">{breakdown.targetMarkupPercent}%</span>
-                <span className="text-xs text-fg-muted">Giá trước phí: {breakdown.preFeeSellingPrice.toLocaleString()} đ</span>
+                <span className="text-xs text-fg-muted">Giá trước phí: {formatNumber(breakdown.preFeeSellingPrice)} đ</span>
               </div>
 
               <div className="p-3 bg-surface rounded-sm">
@@ -271,7 +298,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
             <div className="p-3 bg-surface rounded-sm font-mono text-xs text-fg-muted">
               <code>
                 SellingPrice = (CostPrice × (1 + Markup)) ÷ (1 − (PlatformFee% + PaymentFee% + Royalty%)) = 
-                ({breakdown.costPrice.toLocaleString()} × {markupMultiplier}) ÷ (1 − {variableFeeRate}) = <strong>{breakdown.finalSellingPriceRounded.toLocaleString('vi-VN')} đ</strong> (Làm tròn lên 1.000đ)
+                ({formatNumber(breakdown.costPrice)} × {markupMultiplier}) ÷ (1 − {variableFeeRate}) = <strong><Money value={breakdown.finalSellingPriceRounded} className="font-bold" /></strong> (Làm tròn lên 1.000đ)
               </code>
             </div>
           </div>
@@ -297,7 +324,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
                   step="1000"
                   value={overridePriceInput}
                   onChange={(e) => setOverridePriceInput(e.target.value)}
-                  className="w-full bg-surface border border-warning/40 p-2 text-xs font-tech font-bold text-fg rounded-sm focus:outline-none focus:border-warning"
+                  className="w-full bg-surface border border-warning/40 p-2 text-xs font-tech font-bold text-fg rounded-sm focus:outline-none focus:border-warning focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 
@@ -310,7 +337,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
                   placeholder="Ví dụ: Khách hàng thân thiết VIP, đơn dự án cơ khí..."
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
-                  className="w-full bg-surface border border-warning/40 p-2 text-xs text-fg rounded-sm focus:outline-none focus:border-warning"
+                  className="w-full bg-surface border border-warning/40 p-2 text-xs text-fg rounded-sm focus:outline-none focus:border-warning focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 

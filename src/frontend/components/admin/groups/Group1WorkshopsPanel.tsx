@@ -686,7 +686,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         <div className="flex items-center gap-1.5 p-1 bg-surface-muted rounded-lg">
           <button
             onClick={() => setActiveTab('workshops')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'workshops'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -697,7 +697,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('fleet')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'fleet'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -708,7 +708,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('materials')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'materials'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -724,7 +724,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('partners')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'partners'
                 ? 'bg-surface text-primary shadow-e1'
                 : 'text-fg-muted hover:text-fg'
@@ -862,7 +862,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   placeholder={isVi ? 'Tìm tên xưởng, địa chỉ, sđt...' : 'Search workshop...'}
                   value={filters.searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus:border-primary focus:bg-surface"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary focus:bg-surface"
                 />
               </div>
 
@@ -941,7 +941,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               return (
                 <div
                   key={w.id}
-                  className="bg-surface rounded-lg border border-line-subtle hover:border-line shadow-e0 transition-all flex flex-col justify-between overflow-hidden"
+                  className="bg-surface rounded-lg border border-line-subtle hover:border-line shadow-e0 transition-colors flex flex-col justify-between overflow-hidden"
                 >
                   <div className="p-4 border-b border-line-subtle">
                     <div className="flex items-start justify-between gap-2">
@@ -963,7 +963,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                               w.verifiedStatus === 'Verified'
                                 ? 'bg-positive-tint text-positive border border-positive/30'
                                 : w.verifiedStatus === 'Pending'
-                                ? 'bg-warning-tint text-warning border border-warning/30 animate-pulse'
+                                ? 'bg-warning-tint text-warning border border-warning/30 animate-pulse motion-reduce:animate-none'
                                 : 'bg-danger-tint text-danger border border-danger/30'
                             }`}
                           >
@@ -1104,7 +1104,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 disabled={isFleetLoading}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-60"
               >
-                <Icon name="sync" size={16} className={isFleetLoading ? 'animate-spin' : ''} />
+                <Icon name="sync" size={16} className={isFleetLoading ? 'animate-spin motion-reduce:animate-none' : ''} />
                 {isVi ? 'Tải Lại' : 'Reload'}
               </button>
 
@@ -1226,9 +1226,9 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
                               p.status === 'Idle'
-                                ? 'bg-positive animate-pulse'
+                                ? 'bg-positive animate-pulse motion-reduce:animate-none'
                                 : p.status === 'Printing'
-                                ? 'bg-info animate-pulse'
+                                ? 'bg-info animate-pulse motion-reduce:animate-none'
                                 : 'bg-warning'
                             }`}
                           />
@@ -1439,7 +1439,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   placeholder="Ví dụ: Smart 3D FabLab Đà Nẵng"
                   value={newWorkshopForm.workshopName}
                   onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, workshopName: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 />
               </div>
 
@@ -1451,7 +1451,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   <select
                     value={newWorkshopForm.region}
                     onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, region: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   >
                     <option value="Bắc">Miền Bắc (Hà Nội, Hải Phòng...)</option>
                     <option value="Trung">Miền Trung (Đà Nẵng, Huế...)</option>
@@ -1465,7 +1465,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   <select
                     value={newWorkshopForm.verifiedStatus}
                     onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, verifiedStatus: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   >
                     <option value="Pending">Chờ duyệt (Pending)</option>
                     <option value="Verified">Đã duyệt (Verified)</option>
@@ -1483,7 +1483,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   placeholder="Số nhà, đường, quận/huyện, tỉnh/thành"
                   value={newWorkshopForm.address}
                   onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, address: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 />
               </div>
 
@@ -1497,7 +1497,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     placeholder="0988 xxx xxx"
                     value={newWorkshopForm.contactPhone}
                     onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, contactPhone: e.target.value })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
                 <div>
@@ -1509,7 +1509,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     placeholder="workshop@vcube.vn"
                     value={newWorkshopForm.contactEmail}
                     onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, contactEmail: e.target.value })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
               </div>
@@ -1529,7 +1529,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         electricityRateOverride: e.target.value === '' ? null : Number(e.target.value)
                       })
                     }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
                 <div>
@@ -1546,7 +1546,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         laborRateOverride: e.target.value === '' ? null : Number(e.target.value)
                       })
                     }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
               </div>
@@ -1587,7 +1587,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   placeholder="Ví dụ: Bambu Lab X1-Carbon #05"
                   value={newMachineForm.machineName}
                   onChange={(e) => setNewMachineForm({ ...newMachineForm, machineName: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 />
               </div>
 
@@ -1598,7 +1598,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   placeholder={isVi ? 'Để trống nếu chưa rõ' : 'Leave empty if unknown'}
                   value={newMachineForm.brand}
                   onChange={(e) => setNewMachineForm({ ...newMachineForm, brand: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 />
               </div>
 
@@ -1608,7 +1608,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   <select
                     value={newMachineForm.machineType}
                     onChange={(e) => setNewMachineForm({ ...newMachineForm, machineType: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   >
                     <option value="FDM">FDM (Dây nhựa)</option>
                     <option value="SLA">SLA (Resin lỏng)</option>
@@ -1628,7 +1628,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         avgPowerKW: e.target.value === '' ? null : Number(e.target.value)
                       })
                     }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
               </div>
@@ -1646,7 +1646,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         purchasePrice: e.target.value === '' ? null : Number(e.target.value)
                       })
                     }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
                 <div>
@@ -1661,7 +1661,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         lifetimeHours: e.target.value === '' ? null : Number(e.target.value)
                       })
                     }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
               </div>
@@ -1705,7 +1705,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 <select
                   value={newMaterialForm.workshopId}
                   onChange={(e) => setNewMaterialForm({ ...newMaterialForm, workshopId: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 >
                   {workshops.map((w) => (
                     <option key={w.id} value={w.id}>{w.workshopName} ({w.region})</option>
@@ -1721,7 +1721,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   placeholder="Ví dụ: PETG-CF Carbon Fiber Đen"
                   value={newMaterialForm.materialName}
                   onChange={(e) => setNewMaterialForm({ ...newMaterialForm, materialName: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                 />
               </div>
 
@@ -1731,7 +1731,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   <select
                     value={newMaterialForm.materialType}
                     onChange={(e) => setNewMaterialForm({ ...newMaterialForm, materialType: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   >
                     <option value="PLA">PLA</option>
                     <option value="PETG">PETG</option>
@@ -1747,7 +1747,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     type="number"
                     value={newMaterialForm.pricePerKg}
                     onChange={(e) => setNewMaterialForm({ ...newMaterialForm, pricePerKg: Number(e.target.value) })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
               </div>
@@ -1759,7 +1759,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     type="number"
                     value={newMaterialForm.currentStockGrams}
                     onChange={(e) => setNewMaterialForm({ ...newMaterialForm, currentStockGrams: Number(e.target.value) })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
                 <div>
@@ -1768,7 +1768,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     type="number"
                     value={newMaterialForm.lowStockThresholdGrams}
                     onChange={(e) => setNewMaterialForm({ ...newMaterialForm, lowStockThresholdGrams: Number(e.target.value) })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                   />
                 </div>
               </div>
@@ -1808,7 +1808,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 disabled={isPartnersLoading}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-60"
               >
-                <Icon name="sync" size={16} className={isPartnersLoading ? 'animate-spin' : ''} />
+                <Icon name="sync" size={16} className={isPartnersLoading ? 'animate-spin motion-reduce:animate-none' : ''} />
                 {isVi ? 'Tải Lại' : 'Reload'}
               </button>
 
@@ -1890,7 +1890,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                       required
                       value={partnerDraft.name}
                       onChange={(e) => setPartnerDraft({ ...partnerDraft, name: e.target.value })}
-                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                     />
                   </div>
 
@@ -1904,7 +1904,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         onChange={(e) =>
                           setPartnerDraft({ ...partnerDraft, region: e.target.value as WorkshopPartner['region'] })
                         }
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                       >
                         <option value="hanoi">{isVi ? 'Miền Bắc (Hà Nội)' : 'North (Hanoi)'}</option>
                         <option value="danang">{isVi ? 'Miền Trung (Đà Nẵng)' : 'Central (Da Nang)'}</option>
@@ -1920,7 +1920,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         onChange={(e) =>
                           setPartnerDraft({ ...partnerDraft, status: e.target.value as WorkshopPartner['status'] })
                         }
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                       >
                         <option value="active">active</option>
                         <option value="busy">busy</option>
@@ -1938,7 +1938,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                       required
                       value={partnerDraft.address}
                       onChange={(e) => setPartnerDraft({ ...partnerDraft, address: e.target.value })}
-                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                     />
                   </div>
 
@@ -1951,7 +1951,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         type="text"
                         value={partnerDraft.contactPerson}
                         onChange={(e) => setPartnerDraft({ ...partnerDraft, contactPerson: e.target.value })}
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                       />
                     </div>
                     <div>
@@ -1962,7 +1962,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         type="text"
                         value={partnerDraft.phone}
                         onChange={(e) => setPartnerDraft({ ...partnerDraft, phone: e.target.value })}
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                       />
                     </div>
                   </div>
@@ -1975,7 +1975,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                       type="email"
                       value={partnerDraft.email}
                       onChange={(e) => setPartnerDraft({ ...partnerDraft, email: e.target.value })}
-                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                     />
                   </div>
 
@@ -1991,7 +1991,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         onChange={(e) =>
                           setPartnerDraft({ ...partnerDraft, activePrintersCount: Number(e.target.value) })
                         }
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                       />
                     </div>
                     <div>
@@ -2005,7 +2005,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         onChange={(e) =>
                           setPartnerDraft({ ...partnerDraft, availablePrintersCount: Number(e.target.value) })
                         }
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                       />
                     </div>
                     <div>
@@ -2019,7 +2019,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         max="5"
                         value={partnerDraft.slaRating}
                         onChange={(e) => setPartnerDraft({ ...partnerDraft, slaRating: Number(e.target.value) })}
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus:border-primary"
+                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
                       />
                     </div>
                   </div>

@@ -1,7 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product } from '../../../types';
 import { ThreeModelViewer } from '../ThreeModelViewer';
 import { Icon } from '@frontend/ui';
+import { EMPTY_VALUE } from '@frontend/lib/format';
+import { settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
+
+/**
+ * A6 (data-honesty): tỉ lệ bản quyền tác giả phải đọc từ cấu hình giá thật
+ * (`pricing_configs.designerRoyaltyPercent` qua cache `settingsAccessors.pricingConfig()`),
+ * KHÔNG dùng số cứng 90%/10%. Chưa cấu hình ⇒ `null` ⇒ UI hiện `—`, không đoán hộ.
+ */
+const readDesignerRoyaltyPercent = (): number | null => {
+  const v = settingsAccessors.pricingConfig()?.designerRoyaltyPercent;
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+};
+
+function useDesignerRoyaltyPercent(): number | null {
+  const [percent, setPercent] = useState<number | null>(readDesignerRoyaltyPercent);
+  useEffect(() => subscribeSettings(() => setPercent(readDesignerRoyaltyPercent())), []);
+  return percent;
+}
 
 export interface DesignerUploadWizardTabProps {
   onAddNewProduct: (product: Product) => void;
@@ -37,6 +55,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [uploadedFileSize, setUploadedFileSize] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const designerRoyaltyPercent = useDesignerRoyaltyPercent();
 
   const handleAddTag = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && newTagInput.trim()) {
@@ -173,7 +192,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
             </p>
           </div>
 
-          <div className="border-2 border-dashed border-primary/50 bg-primary/5 rounded-lg p-8 text-center space-y-3 cursor-pointer hover:bg-primary/10 transition-all">
+          <div className="border-2 border-dashed border-primary/50 bg-primary/5 rounded-lg p-8 text-center space-y-3 cursor-pointer hover:bg-primary/10 transition-colors">
             <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
               <Icon name="upload_file" size={30} />
             </div>
@@ -356,7 +375,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label
-                  className={`border p-3.5 rounded-sm cursor-pointer transition-all ${
+                  className={`border p-3.5 rounded-sm cursor-pointer transition-colors ${
                     licenseType === 'Standard'
                       ? 'border-primary bg-primary/10 ring-1 ring-primary'
                       : 'border-line hover:border-fg-muted'
@@ -379,7 +398,7 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                 </label>
 
                 <label
-                  className={`border p-3.5 rounded-sm cursor-pointer transition-all ${
+                  className={`border p-3.5 rounded-sm cursor-pointer transition-colors ${
                     licenseType === 'Commercial'
                       ? 'border-primary bg-primary/10 ring-1 ring-primary'
                       : 'border-line hover:border-fg-muted'
@@ -428,10 +447,9 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                       VNĐ
                     </span>
                   </div>
-                  <p className="text-xs text-primary font-tech mt-1">
-                    Tác giả thực nhận:{' '}
-                    <strong>{((Number(standardPrice) || 0) * 0.9).toLocaleString('vi-VN')} đ</strong>{' '}
-                    (90%)
+                  <p className="text-xs text-fg-muted font-tech mt-1">
+                    Tác giả thực nhận: <strong>{EMPTY_VALUE}</strong> — tỉ lệ bản quyền file số
+                    không nằm trong cấu hình giá, VCUBE công bố khi quyết toán.
                   </p>
                 </div>
 
@@ -450,11 +468,18 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                       VNĐ
                     </span>
                   </div>
-                  <p className="text-xs text-fg-muted font-tech mt-1">
-                    Hoa hồng tác giả:{' '}
-                    <strong>{((Number(physicalPrice) || 0) * 0.1).toLocaleString('vi-VN')} đ</strong> /
-                    sản phẩm in
-                  </p>
+                  {designerRoyaltyPercent !== null ? (
+                    <p className="text-xs text-fg-muted font-tech mt-1">
+                      Bản quyền tác giả theo cấu hình giá:{' '}
+                      <strong>{designerRoyaltyPercent}%</strong> — số tiền quyết toán theo công
+                      thức giá của VCUBE.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-fg-muted font-tech mt-1">
+                      Hoa hồng tác giả: <strong>{EMPTY_VALUE}</strong> (chưa cấu hình tỉ lệ bản
+                      quyền trong giá)
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

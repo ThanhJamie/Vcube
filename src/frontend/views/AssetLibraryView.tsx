@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DigitalAsset } from '../types';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
-import { supabase } from '../../backend/supabase/client';
+import { AssetService, SIGNED_URL_TTL_SECONDS } from '../../backend/services/assetService';
 import { Icon, Button, Modal } from '@frontend/ui';
 
 interface AssetLibraryViewProps {
@@ -25,9 +25,6 @@ interface AssetLibraryViewProps {
  * license, created_at)` + policy SELECT cho người mua, map `storage_path` vào
  * `DigitalAsset.storagePath`, rồi hàm dưới sẽ chạy đúng như thiết kế.
  */
-const CAD_BUCKET = 'cad-files';
-const SIGNED_URL_TTL_SECONDS = 60;
-
 export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
   assets,
   onNavigate,
@@ -64,17 +61,10 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
 
     setDownloadingId(asset.id);
     try {
-      const { data, error } = await supabase.storage
-        .from(CAD_BUCKET)
-        .createSignedUrl(asset.storagePath as string, SIGNED_URL_TTL_SECONDS);
-
-      if (error || !data?.signedUrl) {
-        onShowToast(`Không tạo được liên kết tải cho "${asset.name}": ${error?.message || 'không rõ nguyên nhân'}`);
-        return;
-      }
+      const signedUrl = await AssetService.createSignedUrl(asset.storagePath as string);
 
       const link = document.createElement('a');
-      link.href = data.signedUrl;
+      link.href = signedUrl;
       link.rel = 'noopener';
       link.download = asset.name;
       document.body.appendChild(link);
