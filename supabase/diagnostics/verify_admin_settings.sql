@@ -4,7 +4,7 @@
 -- Chạy trong Supabase SQL Editor SAU khi chạy supabase/scripts/apply_all_manual.sql.
 --
 -- Vì sao cần file này: PostgREST CHỈ expose schema `public`, nên script Node
--- (scripts/a8-db-probe.mjs) không đọc được `information_schema`/`pg_constraint`.
+-- (scripts/verify-rls.mjs) không đọc được `information_schema`/`pg_constraint`.
 -- Muốn chứng minh cột/constraint/policy CÓ THẬT trên DB thì phải chạy SQL trong
 -- SQL Editor — file này làm đúng việc đó.
 --

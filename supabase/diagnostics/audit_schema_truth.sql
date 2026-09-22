@@ -20,7 +20,7 @@
 --     nào của DB. Không in PII, không in giá trị pháp lý.
 --   * BẮT BUỘC chạy trong SQL Editor (hoặc psql). Các phép kiểm ở đây đọc
 --     `pg_catalog` + `information_schema`, mà PostgREST CHỈ phơi schema `public`
---     ⇒ mọi script Node (`scripts/inspect-db.mjs`, `scripts/a8-db-probe.mjs`) KHÔNG
+--     ⇒ mọi script Node (`scripts/inspect-db.mjs`, `scripts/verify-rls.mjs`) KHÔNG
 --     thấy được các bảng catalog đó. Đó chính là lý do file này tồn tại.
 --   * CHỈ CẦN ĐỌC 3 CHỖ để biết DB đã đúng chưa: P6 (`30` · `84` · `6`),
 --     P11 (`OK 24/24`), P9 (2 dòng tổng kết đều = 0).
@@ -341,7 +341,7 @@ order by 4, 2;
 -- Hậu quả: cột tiền nhận giá trị âm, % hoa hồng vô lý, status lạ… mà không ai biết.
 -- Đếm TỔNG số CHECK cũng KHÔNG bắt được (thiếu 1 cái thì vẫn thấy nhiều CHECK).
 --
--- 2 phép thử ghi trong `scripts/a8-db-probe.mjs` đã thành opt-in `--writes` (W15),
+-- 2 phép thử ghi đã thành opt-in `--writes` của `scripts/verify-rls.mjs` (W15),
 -- nên ĐÂY là chốt duy nhất còn phủ 2 CHECK của pricing_global_settings:
 -- `pricing_global_settings_vat_range_chk` + `pricing_global_settings_rates_nonneg_chk`.
 --
