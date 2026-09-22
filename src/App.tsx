@@ -40,7 +40,6 @@ import { Header } from '@frontend/components/Header';
 import { AuthModal } from '@frontend/components/AuthModal';
 import { RoleGuard } from '@frontend/components/RoleGuard';
 import { ScrollToTop } from '@frontend/components/ScrollToTop';
-import { ThemeProvider } from '@frontend/theme/ThemeProvider';
 import { NotFoundView } from '@frontend/components/NotFoundView';
 import { HomeView } from '@frontend/views/HomeView';
 import { ExploreView } from '@frontend/views/ExploreView';
@@ -422,6 +421,7 @@ const DashboardShell: React.FC<{
 
   return (
     <AppShell
+      chrome
       collapsed={collapsed}
       mobileOpen={mobileOpen}
       onMobileOpenChange={setMobileOpen}
@@ -433,21 +433,7 @@ const DashboardShell: React.FC<{
           onCollapsedChange={setCollapsed}
           activeId={activeId}
           onSelect={(id) => navigate(`${basePath}/${id}`)}
-          header={
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-fg">
-                V
-              </span>
-              {collapsed ? null : (
-                <span className="flex min-w-0 flex-col leading-tight">
-                  <span className="truncate text-sm font-semibold tracking-tight text-fg">
-                    {brandTitle}
-                  </span>
-                  <span className="truncate text-xs text-fg-subtle">{brandHint}</span>
-                </span>
-              )}
-            </span>
-          }
+          tone="chrome"
           groups={groups.map((group) => ({
             id: group.label,
             label: group.label,
@@ -472,6 +458,19 @@ const DashboardShell: React.FC<{
             >
               <Menu aria-hidden="true" className="size-4" />
             </Button>
+          }
+          brand={
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-fg">
+                V
+              </span>
+              <span className="hidden min-w-0 flex-col leading-tight sm:flex">
+                <span className="truncate text-sm font-semibold tracking-tight text-fg">
+                  {brandTitle}
+                </span>
+                <span className="truncate text-xs text-fg-subtle">{brandHint}</span>
+              </span>
+            </span>
           }
           breadcrumb={
             <span className="truncate text-xs text-fg-muted">
@@ -780,7 +779,7 @@ function MainApp() {
       setProducts(remote);
       if (remote.length === 0) {
         // D7(a-safe): DB xác nhận rỗng và không lỗi ⇒ xoá cache để empty-state nói thật.
-        try { localStorage.removeItem('vcube_products'); } catch { /* bỏ qua */ }
+        try { localStorage.removeItem('vcube_products'); } catch { /* ignore: localStorage cache clear — không chặn luồng catalog */ }
       }
     } catch (err) {
       console.warn('[vcube] Could not sync remote products:', err);
@@ -923,24 +922,20 @@ function MainApp() {
   }, [role]);
 
   /**
-   * FAB "Trợ lý tự động" (lớp phủ `fixed`) tự ẩn khi cuộn XUỐNG, hiện lại khi cuộn LÊN.
+   * FAB "Trợ lý tự động" (lớp phủ `fixed`) LUÔN hiển thị; chỉ tự ẩn khi hộp FAB thực sự
+   * đè lên một phần tử tương tác (nút/ô nhập/link) để không che control.
    *
-   * Vì sao: R3 đo trên /explore (1440×900, bước 50px, 22 vị trí) — FAB đè nút "Tải File
-   * CAD"/"Lưu bản vẽ" của thẻ sản phẩm ở 5 vị trí giữa trang; dải đệm `data-fab-spacer`
-   * chỉ cứu được ĐÁY trang.
+   * Vì sao KHÔNG ẩn theo hướng cuộn (bản cũ): người dùng cần trợ lý luôn trong tầm tay;
+   * ẩn-khi-cuộn-xuống làm nút biến mất giữa thao tác. An toàn "không đè control" vẫn giữ
+   * bằng đo va chạm — rẻ, và chỉ chạy khi người dùng đã ngừng cuộn.
    *
-   * Chống giật (thay logic cũ chạy `querySelectorAll` toàn trang + `getComputedStyle` trên
-   * MỖI scroll event):
-   *  - Scroll handler được throttle bằng `requestAnimationFrame`; chỉ đọc `scrollY` để quyết
-   *    định hướng ẩn/hiện — KHÔNG đo DOM.
-   *  - Va chạm với phần tử tương tác CHỈ được đo khi người dùng đã ngừng cuộn 600ms (hoặc vừa
-   *    đổi route/modal), bằng 5 hit-test `elementsFromPoint` (4 góc + tâm) thay vì quét mọi
-   *    control ⇒ không còn forced reflow.
-   *  - FAB tự hiện lại khi đổi route hoặc đóng/mở modal (trước đây bị kẹt ẩn do state không
-   *    được reset).
+   * Chống giật:
+   *  - Scroll handler throttle bằng `requestAnimationFrame`; KHÔNG đo DOM trong lúc cuộn,
+   *    chỉ hẹn đo va chạm sau khi ngừng cuộn 600ms.
+   *  - Va chạm đo bằng 5 hit-test `elementsFromPoint` (4 góc + tâm), không quét mọi control.
+   *  - FAB tự hiện lại khi đổi route hoặc đóng/mở modal (tránh kẹt ẩn).
    */
   useEffect(() => {
-    const HIDE_STEP_PX = 8;
     const IDLE_CHECK_MS = 600;
 
     /**
@@ -976,28 +971,17 @@ function MainApp() {
       return fab ? !controlUnderFab(fab) : true;
     };
 
-    let lastY = window.scrollY;
     let rafId: number | null = null;
     let idleTimer: number | undefined;
     let settleTimer: number | undefined;
-    let ticking = false;
-    let pendingY = lastY;
 
     // Va chạm CHỈ được đo khi người dùng đã ngừng cuộn (600ms) hoặc vừa đổi route/modal.
     const evaluateOverlap = () => setIsFabHidden(!canShow());
 
     const onScroll = () => {
-      pendingY = window.scrollY;
-      if (ticking) return;
-      ticking = true;
+      if (rafId !== null) return;
       rafId = window.requestAnimationFrame(() => {
-        ticking = false;
-        const delta = pendingY - lastY;
-        if (Math.abs(delta) >= HIDE_STEP_PX) {
-          lastY = pendingY;
-          // Cuộn xuống ⇒ ẩn; cuộn lên ⇒ hiện ngay (không chờ đo va chạm).
-          setIsFabHidden(delta > 0);
-        }
+        rafId = null;
         if (idleTimer !== undefined) window.clearTimeout(idleTimer);
         idleTimer = window.setTimeout(evaluateOverlap, IDLE_CHECK_MS);
       });
@@ -1397,7 +1381,7 @@ function MainApp() {
     setProducts((prev) => {
       productsRevisionRef.current++;
       const updated = [prod, ...prev];
-      try { localStorage.setItem('vcube_products', JSON.stringify(updated)); } catch (e) {}
+      try { localStorage.setItem('vcube_products', JSON.stringify(updated)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
       return updated;
     });
 
@@ -1406,7 +1390,7 @@ function MainApp() {
       // Rollback on DB error
       console.warn('Rollback adding product due to DB error:', res.error);
       setProducts(previous);
-      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch (e) {}
+      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
       showToast(language === 'vi' ? 'Không thể lưu vào Supabase. Đã hoàn tác.' : 'Could not save to Supabase. Reverted.');
     } else {
       showToast(language === 'vi' ? 'Đã thêm sản phẩm thành công!' : 'Product added successfully!');
@@ -1419,7 +1403,7 @@ function MainApp() {
     setProducts((prev) => {
       productsRevisionRef.current++;
       const next = prev.map((p) => (p.id === updated.id ? updated : p));
-      try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch (e) {}
+      try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
       return next;
     });
 
@@ -1428,7 +1412,7 @@ function MainApp() {
       // Rollback on DB error
       console.warn('Rollback updating product due to DB error:', res.error);
       setProducts(previous);
-      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch (e) {}
+      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
       showToast(language === 'vi' ? 'Lỗi cập nhật trên Supabase. Đã hoàn tác.' : 'Supabase update failed. Reverted.');
     } else {
       showToast(language === 'vi' ? 'Đã cập nhật sản phẩm thành công!' : 'Product updated successfully!');
@@ -1441,7 +1425,7 @@ function MainApp() {
     setProducts((prev) => {
       productsRevisionRef.current++;
       const next = prev.filter((p) => p.id !== productId);
-      try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch (e) {}
+      try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
       return next;
     });
 
@@ -1450,7 +1434,7 @@ function MainApp() {
       // Rollback on DB error
       console.warn('Rollback deleting product due to DB error:', res.error);
       setProducts(previous);
-      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch (e) {}
+      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
       showToast(language === 'vi' ? 'Lỗi xóa trên Supabase. Đã hoàn tác.' : 'Supabase delete failed. Reverted.');
     } else {
       showToast(language === 'vi' ? 'Đã xóa sản phẩm thành công!' : 'Product deleted successfully!');
@@ -2119,30 +2103,15 @@ function MainApp() {
   );
 }
 
-/**
- * Bơm `pathname` của react-router vào ThemeProvider.
- *
- * ThemeProvider phải nằm TRONG <BrowserRouter> để dùng `useLocation()` —
- * docs/plans/01-theme-migration.md §5.2. Ở chế độ này provider KHÔNG đụng tới
- * `history.pushState/replaceState`; bộ listener fallback chỉ chạy khi thiếu prop
- * `pathname` (xem src/frontend/theme/ThemeProvider.tsx).
- */
-const RouteThemeSync: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { pathname } = useLocation();
-  return <ThemeProvider pathname={pathname}>{children}</ThemeProvider>;
-};
-
 export function App() {
   return (
     <BrowserRouter>
-      <RouteThemeSync>
-        <AuthProvider>
-          <LanguageProvider>
-            <ScrollToTop />
-            <MainApp />
-          </LanguageProvider>
-        </AuthProvider>
-      </RouteThemeSync>
+      <AuthProvider>
+        <LanguageProvider>
+          <ScrollToTop />
+          <MainApp />
+        </LanguageProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

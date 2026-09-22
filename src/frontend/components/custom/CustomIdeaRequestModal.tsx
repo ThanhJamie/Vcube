@@ -120,7 +120,7 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
         consult: isVi ? 'Kỹ sư đề xuất vật liệu phù hợp' : 'Engineer to advise suitable material',
       };
 
-      await customDesignService.createRequest({
+      const res = await customDesignService.createRequest({
         clientName: clientName.trim(),
         clientInitials: clientName.trim().slice(0, 2).toUpperCase(),
         clientEmail: clientEmail.trim(),
@@ -136,6 +136,16 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
         },
         customerId: user?.uid,
       });
+
+      if (!res.success) {
+        const errMsg = isVi
+          ? `Không thể gửi yêu cầu: ${res.error}`
+          : `Failed to submit request: ${res.error}`;
+        if (onShowToast) {
+          onShowToast(errMsg);
+        }
+        return;
+      }
 
       const successMsg = isVi
         ? 'Đã gửi yêu cầu tư vấn ý tưởng CAD 3D thành công! Kỹ sư VCUBE sẽ liên hệ lại sớm nhất.'

@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import React, { useMemo, useState } from 'react';
 import { Button, Card, Icon, Modal } from '@frontend/ui';
-import { readColorToken, subscribeTheme, type ColorTokenName } from '@frontend/theme/tokens';
+import { readColorToken, type ColorTokenName } from '@frontend/theme/tokens';
 import { ThreeModelViewer } from '../ThreeModelViewer';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -212,10 +211,8 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState<string>('rapid_print');
   const [modalService, setModalService] = useState<ServiceItem | null>(null);
 
-  // Theme-reactive token lookup cho màu vẽ trong Three.js (không dùng hex cứng).
-  const [themeTick, setThemeTick] = useState(0);
-  useEffect(() => subscribeTheme(() => setThemeTick((n) => n + 1)), []);
-  const colorOf = useCallback((token: ColorTokenName) => readColorToken(token), [themeTick]);
+  // Light-only token lookup cho màu vẽ trong Three.js (không dùng hex cứng).
+  const colorOf = useMemo(() => (token: ColorTokenName) => readColorToken(token), []);
 
   // 3D Viewer live controls state
   const [wireframe, setWireframe] = useState<boolean>(false);
@@ -292,16 +289,15 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
               {SERVICES.map((service, idx) => {
                 const isSelected = service.id === selectedServiceId;
                 return (
-                  <motion.div
+                  <div
                     key={service.id}
-                    whileHover={{ y: -3 }}
-                    transition={{ duration: 0.15 }}
+                    className="hover:-translate-y-[3px] transition-transform duration-fast ease-out motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                   >
                     <Card
                       padding="md"
                       className={`relative flex flex-col justify-between h-full transition-all duration-200 cursor-pointer text-left ${
                         isSelected
-                          ? 'border-primary shadow-e2 bg-primary-tint/20 ring-1 ring-primary/40'
+                          ? 'border-primary shadow-e2 bg-primary-tint ring-2 ring-primary/50'
                           : 'hover:border-line-control hover:shadow-e1 bg-surface'
                       }`}
                       onClick={() => handleSelectService(service)}
@@ -313,13 +309,13 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                             0{idx + 1}
                           </span>
                           <span
-                            className={`p-2 rounded-md border transition-colors ${
+                            className={`p-2.5 rounded-md border transition-colors ${
                               isSelected
                                 ? 'bg-primary text-primary-fg border-primary'
-                                : 'bg-surface-muted text-primary border-line-subtle'
+                                : 'bg-primary-tint text-primary border-primary/20'
                             }`}
                           >
-                            <Icon name={service.iconName} size={20} />
+                            <Icon name={service.iconName} size={22} />
                           </span>
                         </div>
 
@@ -365,7 +361,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                         </Button>
                       </div>
                     </Card>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>

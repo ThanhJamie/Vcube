@@ -141,6 +141,8 @@ Also set `strokeWidth={1.5}` (closest to the old `'wght' 300`, avoids lucide's d
 | `bolt` | 3 | `Zap` | text-base x2, text-xl x1 | - |
 | `bookmark` | 3 | `Bookmark` | text-base x3 | state pair with `bookmark_border`: one `Bookmark`, `fill="currentColor"` when active. |
 | `bookmark_border` | 3 | `Bookmark` | text-base x3 | state pair with `bookmark`: plain outline `Bookmark`. The old code passed the class `fill-1`, defined nowhere, so the filled state never rendered. |
+| `favorite` | — | `Heart` | — | Filled heart (`fill="currentColor"`) cho trạng thái đã yêu thích ở card catalog; cặp với `favorite_border`. |
+| `favorite_border` | — | `Heart` | — | Heart rỗng cho trạng thái chưa yêu thích. |
 | `chat` | 3 | `MessageCircle` | text-base x1 | - |
 | `cloud_upload` | 3 | `CloudUpload` | text-base x1, text-2xl x1 | `CloudUpload` (`UploadCloud` alias removed in 0.546). |
 | `construction` | 3 | `Construction` | text-sm x1, text-xs x1 | `Construction`. |
@@ -222,6 +224,8 @@ Also set `strokeWidth={1.5}` (closest to the old `'wght' 300`, avoids lucide's d
 | `drag_pan` | 1 | `Hand` | text-xs x1 | `Hand`. |
 | `event` | 1 | `Calendar` | text-sm x1 | - |
 | `expand_more` | 1 | `ChevronDown` | text-base x1 | `ChevronDown`; same target as `arrow_drop_down`. |
+| `expand_less` | — | `ChevronUp` | — | Chevron lên cho accordion lọc (thu gọn); cặp với `expand_more`. |
+| `more_horiz` | — | `Ellipsis` | — | Nút menu thao tác phụ ("…") trên thẻ đơn hàng. |
 | `filter_alt` | 1 | `Funnel` | text-sm x1 | `Funnel` (`Filter` is no longer exported in 0.546). |
 | `filter_center_focus` | 1 | `Scan` | text-sm x1 | `Scan`. |
 | `fit_screen` | 1 | `Scaling` | text-sm x1 | - |

@@ -176,7 +176,7 @@ function ToastCard({ item, onDismiss, defaultDuration, autoDismiss, labels }: To
       }}
       className={cn(
         'pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-lg border bg-surface p-3 shadow-e2',
-        'transition duration-200 ease-out starting:translate-y-2 starting:opacity-0',
+        'transition duration-base ease-out starting:translate-y-2 starting:opacity-0',
         'motion-reduce:transition-none',
         SEVERITY_BORDER[severity],
       )}

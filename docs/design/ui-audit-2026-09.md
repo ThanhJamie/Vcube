@@ -50,7 +50,7 @@ FAB (rAF + overlap khi ngừng cuộn), ModelViewer3D on-demand loop + FPS ref, 
 - `text-[10px]/[11px]` dưới sàn 12px (9 chỗ); `tracking-wider` 232×, `uppercase` 530× (eyebrow tràn lan).
 - Hex cứng còn lại: `HomeView.tsx:523,1079`; token đã xoá `#94A3B8` ở `PersonalizeView.tsx:18`.
 - `ui/Money` 0 consumer; `ui/ConfirmDialog`/`Toolbar`/`Section` 0 consumer; `DataTable` dùng ở 1 view vs 23 `<table>` tự chế.
-- `ThemeProvider.tsx:27` `DARK_ROUTE_PREFIXES=[]` nhưng nhiều console tự style dark → lệch.
+- ~~`ThemeProvider.tsx:27` `DARK_ROUTE_PREFIXES=[]` nhưng nhiều console tự style dark → lệch.~~ **ĐÃ XỬ LÝ (W2)**: dark theme xoá hẳn, theme module gỡ; app light-only vĩnh viễn.
 - WebGL `ThreeModelViewer.tsx:330` rAF vô điều kiện + remount khi scroll; auto-rotate JS chưa gate reduced-motion.
 - `key={idx}` 19 chỗ; `useInViewport` không re-observe khi ref đổi.
 

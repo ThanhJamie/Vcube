@@ -1,4 +1,5 @@
 import { supabase } from '../supabase/client';
+import { ok, fail, type WriteResult } from '../lib/result';
 import {
   WorkshopProfile,
   WorkshopMachine,
@@ -500,7 +501,7 @@ export class WorkshopService {
     return list.find(w => w.userId === userId) || null;
   }
 
-  static async saveWorkshopProfile(profile: Partial<WorkshopProfile> & { workshopName: string; address: string }): Promise<{ success: boolean; data?: WorkshopProfile; error?: string }> {
+  static async saveWorkshopProfile(profile: Partial<WorkshopProfile> & { workshopName: string; address: string }): Promise<WriteResult<WorkshopProfile>> {
     const now = new Date().toISOString();
     const id = profile.id || `ws_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const fullProfile: WorkshopProfile = {
@@ -552,21 +553,21 @@ export class WorkshopService {
     try {
       const { error } = await supabase.from('workshop_profiles').upsert(payload);
       if (error) throw error;
-      return { success: true, data: fullProfile };
+      return ok(fullProfile);
     } catch (e: any) {
-      return { success: false, data: fullProfile, error: e?.message };
+      return fail(e, 'Không lưu được hồ sơ xưởng.');
     }
   }
 
-  static async deleteWorkshopProfile(id: string): Promise<{ success: boolean; error?: string }> {
+  static async deleteWorkshopProfile(id: string): Promise<WriteResult> {
     const local = readFromStorage<WorkshopProfile[]>(STORAGE_KEYS.WORKSHOP_PROFILES, SEED_WORKSHOP_PROFILES);
     writeToStorage(STORAGE_KEYS.WORKSHOP_PROFILES, local.filter(w => w.id !== id));
     try {
       const { error } = await supabase.from('workshop_profiles').delete().eq('id', id);
       if (error) throw error;
-      return { success: true };
+      return ok();
     } catch (e: any) {
-      return { success: false, error: e?.message };
+      return fail(e, 'Không xoá được hồ sơ xưởng.');
     }
   }
 
@@ -610,7 +611,7 @@ export class WorkshopService {
     return list.find(m => m.id === id) || null;
   }
 
-  static async saveWorkshopMachine(machine: WorkshopMachine): Promise<{ success: boolean; data?: WorkshopMachine; error?: string }> {
+  static async saveWorkshopMachine(machine: WorkshopMachine): Promise<WriteResult<WorkshopMachine>> {
     const now = new Date().toISOString();
     const id = machine.id || `wm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const fullMachine: WorkshopMachine = {
@@ -638,9 +639,9 @@ export class WorkshopService {
         updated_at: fullMachine.updatedAt
       });
       if (error) throw error;
-      return { success: true, data: fullMachine };
+      return ok(fullMachine);
     } catch (e: any) {
-      return { success: false, data: fullMachine, error: e?.message };
+      return fail(e, 'Không lưu được máy in.');
     }
   }
 
@@ -648,7 +649,7 @@ export class WorkshopService {
     machineId: string,
     status: 'Free' | 'Busy' | 'Maintenance' | 'Offline',
     currentJobId?: string
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<WriteResult> {
     const local = readFromStorage<WorkshopMachine[]>(STORAGE_KEYS.WORKSHOP_MACHINES, SEED_WORKSHOP_MACHINES);
     const updated = local.map(m => m.id === machineId ? { ...m, status, currentJobId: currentJobId ?? (status === 'Busy' ? m.currentJobId : undefined), updatedAt: new Date().toISOString() } : m);
     writeToStorage(STORAGE_KEYS.WORKSHOP_MACHINES, updated);
@@ -660,21 +661,21 @@ export class WorkshopService {
         updated_at: new Date().toISOString()
       }).eq('id', machineId);
       if (error) throw error;
-      return { success: true };
+      return ok();
     } catch (e: any) {
-      return { success: false, error: e?.message };
+      return fail(e, 'Không cập nhật được trạng thái máy.');
     }
   }
 
-  static async deleteWorkshopMachine(id: string): Promise<{ success: boolean; error?: string }> {
+  static async deleteWorkshopMachine(id: string): Promise<WriteResult> {
     const local = readFromStorage<WorkshopMachine[]>(STORAGE_KEYS.WORKSHOP_MACHINES, SEED_WORKSHOP_MACHINES);
     writeToStorage(STORAGE_KEYS.WORKSHOP_MACHINES, local.filter(m => m.id !== id));
     try {
       const { error } = await supabase.from('workshop_machines').delete().eq('id', id);
       if (error) throw error;
-      return { success: true };
+      return ok();
     } catch (e: any) {
-      return { success: false, error: e?.message };
+      return fail(e, 'Không xoá được máy in.');
     }
   }
 
@@ -719,7 +720,7 @@ export class WorkshopService {
     return list.find(m => m.id === id) || null;
   }
 
-  static async saveWorkshopMaterial(mat: WorkshopMaterial): Promise<{ success: boolean; data?: WorkshopMaterial; error?: string }> {
+  static async saveWorkshopMaterial(mat: WorkshopMaterial): Promise<WriteResult<WorkshopMaterial>> {
     const now = new Date().toISOString();
     const id = mat.id || `wmat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const fullMat: WorkshopMaterial = {
@@ -748,9 +749,9 @@ export class WorkshopService {
         updated_at: fullMat.updatedAt
       });
       if (error) throw error;
-      return { success: true, data: fullMat };
+      return ok(fullMat);
     } catch (e: any) {
-      return { success: false, data: fullMat, error: e?.message };
+      return fail(e, 'Không lưu được vật liệu.');
     }
   }
 
@@ -758,7 +759,7 @@ export class WorkshopService {
     materialId: string,
     currentStockGrams: number,
     stockStatus?: WorkshopMaterial['stockStatus']
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<WriteResult> {
     const local = readFromStorage<WorkshopMaterial[]>(STORAGE_KEYS.WORKSHOP_MATERIALS, SEED_WORKSHOP_MATERIALS);
     const target = local.find(m => m.id === materialId);
     const threshold = target?.lowStockThresholdGrams || 1000;
@@ -782,21 +783,21 @@ export class WorkshopService {
         updated_at: new Date().toISOString()
       }).eq('id', materialId);
       if (error) throw error;
-      return { success: true };
+      return ok();
     } catch (e: any) {
-      return { success: false, error: e?.message };
+      return fail(e, 'Không cập nhật được tồn kho vật liệu.');
     }
   }
 
-  static async deleteWorkshopMaterial(id: string): Promise<{ success: boolean; error?: string }> {
+  static async deleteWorkshopMaterial(id: string): Promise<WriteResult> {
     const local = readFromStorage<WorkshopMaterial[]>(STORAGE_KEYS.WORKSHOP_MATERIALS, SEED_WORKSHOP_MATERIALS);
     writeToStorage(STORAGE_KEYS.WORKSHOP_MATERIALS, local.filter(m => m.id !== id));
     try {
       const { error } = await supabase.from('workshop_materials').delete().eq('id', id);
       if (error) throw error;
-      return { success: true };
+      return ok();
     } catch (e: any) {
-      return { success: false, error: e?.message };
+      return fail(e, 'Không xoá được vật liệu.');
     }
   }
 
@@ -838,7 +839,7 @@ export class WorkshopService {
    */
   static async addInventoryLog(
     log: Omit<MaterialInventoryLog, 'id' | 'createdAt'> & { id?: string; createdAt?: string }
-  ): Promise<{ success: boolean; data?: MaterialInventoryLog; error?: string }> {
+  ): Promise<WriteResult<MaterialInventoryLog>> {
     const now = new Date().toISOString();
     const id = log.id || `inv_log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const fullLog: MaterialInventoryLog = {
@@ -901,9 +902,9 @@ export class WorkshopService {
         created_at: fullLog.createdAt
       });
       if (error) throw error;
-      return { success: true, data: fullLog };
+      return ok(fullLog);
     } catch (e: any) {
-      return { success: false, data: fullLog, error: e?.message };
+      return fail(e, 'Không ghi được phiếu kho.');
     }
   }
 
@@ -952,7 +953,7 @@ export class WorkshopService {
 
   static async saveDesignerProfile(
     profile: Partial<DesignerProfile> & { userId: string; displayName: string }
-  ): Promise<{ success: boolean; data?: DesignerProfile; error?: string }> {
+  ): Promise<WriteResult<DesignerProfile>> {
     const now = new Date().toISOString();
     const id = profile.id || `des_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const fullProfile: DesignerProfile = {
@@ -994,21 +995,21 @@ export class WorkshopService {
         updated_at: fullProfile.updatedAt
       });
       if (error) throw error;
-      return { success: true, data: fullProfile };
+      return ok(fullProfile);
     } catch (e: any) {
-      return { success: false, data: fullProfile, error: e?.message };
+      return fail(e, 'Không lưu được hồ sơ designer.');
     }
   }
 
-  static async deleteDesignerProfile(id: string): Promise<{ success: boolean; error?: string }> {
+  static async deleteDesignerProfile(id: string): Promise<WriteResult> {
     const local = readFromStorage<DesignerProfile[]>(STORAGE_KEYS.DESIGNER_PROFILES, SEED_DESIGNER_PROFILES);
     writeToStorage(STORAGE_KEYS.DESIGNER_PROFILES, local.filter(d => d.id !== id));
     try {
       const { error } = await supabase.from('designer_profiles').delete().eq('id', id);
       if (error) throw error;
-      return { success: true };
+      return ok();
     } catch (e: any) {
-      return { success: false, error: e?.message };
+      return fail(e, 'Không xoá được hồ sơ designer.');
     }
   }
 
@@ -1053,7 +1054,7 @@ export class WorkshopService {
 
   static async saveCustomerProfile(
     profile: Partial<CustomerProfile> & { userId: string }
-  ): Promise<{ success: boolean; data?: CustomerProfile; error?: string }> {
+  ): Promise<WriteResult<CustomerProfile>> {
     const now = new Date().toISOString();
     const id = profile.id || `cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const fullProfile: CustomerProfile = {
@@ -1087,21 +1088,21 @@ export class WorkshopService {
         updated_at: fullProfile.updatedAt
       });
       if (error) throw error;
-      return { success: true, data: fullProfile };
+      return ok(fullProfile);
     } catch (e: any) {
-      return { success: false, data: fullProfile, error: e?.message };
+      return fail(e, 'Không lưu được hồ sơ khách hàng.');
     }
   }
 
-  static async deleteCustomerProfile(id: string): Promise<{ success: boolean; error?: string }> {
+  static async deleteCustomerProfile(id: string): Promise<WriteResult> {
     const local = readFromStorage<CustomerProfile[]>(STORAGE_KEYS.CUSTOMER_PROFILES, SEED_CUSTOMER_PROFILES);
     writeToStorage(STORAGE_KEYS.CUSTOMER_PROFILES, local.filter(c => c.id !== id));
     try {
       const { error } = await supabase.from('customer_profiles').delete().eq('id', id);
       if (error) throw error;
-      return { success: true };
+      return ok();
     } catch (e: any) {
-      return { success: false, error: e?.message };
+      return fail(e, 'Không xoá được hồ sơ khách hàng.');
     }
   }
 
@@ -1156,7 +1157,7 @@ export class WorkshopService {
 
   static async saveWorkshopAccessory(
     acc: WorkshopAccessory
-  ): Promise<{ success: boolean; data?: WorkshopAccessory; error?: string }> {
+  ): Promise<WriteResult<WorkshopAccessory>> {
     const now = new Date().toISOString();
     const id = acc.id || `acc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const fullAcc: WorkshopAccessory = {
@@ -1179,21 +1180,21 @@ export class WorkshopService {
         is_active: fullAcc.isActive
       });
       if (error) throw error;
-      return { success: true, data: fullAcc };
+      return ok(fullAcc);
     } catch (e: any) {
-      return { success: false, data: fullAcc, error: e?.message };
+      return fail(e, 'Không lưu được phụ kiện.');
     }
   }
 
-  static async deleteWorkshopAccessory(id: string): Promise<{ success: boolean; error?: string }> {
+  static async deleteWorkshopAccessory(id: string): Promise<WriteResult> {
     const local = readFromStorage<WorkshopAccessory[]>(STORAGE_KEYS.WORKSHOP_ACCESSORIES, SEED_WORKSHOP_ACCESSORIES);
     writeToStorage(STORAGE_KEYS.WORKSHOP_ACCESSORIES, local.filter(a => a.id !== id));
     try {
       const { error } = await supabase.from('workshop_accessories').delete().eq('id', id);
       if (error) throw error;
-      return { success: true };
+      return ok();
     } catch (e: any) {
-      return { success: false, error: e?.message };
+      return fail(e, 'Không xoá được phụ kiện.');
     }
   }
 
@@ -1230,7 +1231,7 @@ export class WorkshopService {
    */
   static async getMyWorkshopProfile(): Promise<MyWorkshopProfileResult> {
     const uid = await WorkshopService.getCurrentUserId();
-    if (!uid) return { profile: null, error: null, duplicateCount: 0 };
+    if (!uid) return { profile: null, duplicateCount: 0 };
 
     const { data, error } = await supabase
       .from('workshop_profiles')
@@ -1244,11 +1245,10 @@ export class WorkshopService {
 
     if (error) return { profile: null, error: error.message, duplicateCount: 0 };
     const rows = (data ?? []) as unknown as Record<string, unknown>[];
-    if (rows.length === 0) return { profile: null, error: null, duplicateCount: 0 };
+    if (rows.length === 0) return { profile: null, duplicateCount: 0 };
 
     return {
       profile: WorkshopService.mapMyWorkshopProfile(rows[0]),
-      error: null,
       duplicateCount: rows.length,
     };
   }
@@ -1289,7 +1289,7 @@ export class WorkshopService {
           error: 'Máy chủ không ghi được hàng nào (quyền RLS) — chưa có thay đổi nào được lưu.',
         };
       }
-      return { success: true, error: null };
+      return ok();
     } catch (e: any) {
       return { success: false, error: e?.message || 'Lỗi không xác định khi lưu hồ sơ xưởng.' };
     }
@@ -1299,14 +1299,14 @@ export class WorkshopService {
   // W1b.1 — MÁY IN CỦA CHÍNH XƯỞNG (`workshop_machines`)
   // --------------------------------------------------------------------------
   static async getMyMachines(workshopProfileId: string): Promise<MyMachinesResult> {
-    if (!workshopProfileId) return { data: [], error: null };
+    if (!workshopProfileId) return { data: [] };
     const { data, error } = await supabase
       .from('workshop_machines')
       .select('id,workshop_id,name,brand,model,technology,bed_dimensions,status,hourly_rate,created_at,updated_at')
       .eq('workshop_id', workshopProfileId)
       .order('created_at', { ascending: true });
     if (error) return { data: [], error: error.message };
-    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyMachine), error: null };
+    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyMachine) };
   }
 
   static async saveMyMachine(input: MyMachineInput): Promise<WriteResult> {
@@ -1337,7 +1337,7 @@ export class WorkshopService {
         if (!data || data.length === 0) {
           return { success: false, error: 'Máy chủ không ghi được hàng nào (quyền RLS).' };
         }
-        return { success: true, error: null };
+        return ok();
       }
 
       const { data, error } = await supabase.from('workshop_machines').insert(payload).select('id');
@@ -1345,7 +1345,7 @@ export class WorkshopService {
       if (!data || data.length === 0) {
         return { success: false, error: 'Máy chủ không tạo được hàng nào (quyền RLS).' };
       }
-      return { success: true, error: null };
+      return ok();
     } catch (e: any) {
       return { success: false, error: e?.message || 'Lỗi không xác định khi lưu máy in.' };
     }
@@ -1367,7 +1367,7 @@ export class WorkshopService {
       if (!data || data.length === 0) {
         return { success: false, error: 'Máy chủ không ghi được hàng nào (quyền RLS).' };
       }
-      return { success: true, error: null };
+      return ok();
     } catch (e: any) {
       return { success: false, error: e?.message || 'Lỗi không xác định khi đổi trạng thái máy.' };
     }
@@ -1385,7 +1385,7 @@ export class WorkshopService {
       if (!data || data.length === 0) {
         return { success: false, error: 'Máy chủ không xoá được hàng nào (quyền RLS).' };
       }
-      return { success: true, error: null };
+      return ok();
     } catch (e: any) {
       return { success: false, error: e?.message || 'Lỗi không xác định khi xoá máy in.' };
     }
@@ -1396,7 +1396,7 @@ export class WorkshopService {
   // (`workshop_materials` + `material_inventory_logs`)
   // --------------------------------------------------------------------------
   static async getMyMaterials(workshopProfileId: string): Promise<MyMaterialsResult> {
-    if (!workshopProfileId) return { data: [], error: null };
+    if (!workshopProfileId) return { data: [] };
     const { data, error } = await supabase
       .from('workshop_materials')
       .select(
@@ -1405,7 +1405,7 @@ export class WorkshopService {
       .eq('workshop_id', workshopProfileId)
       .order('created_at', { ascending: true });
     if (error) return { data: [], error: error.message };
-    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyMaterial), error: null };
+    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyMaterial) };
   }
 
   static async saveMyMaterial(input: MyMaterialInput): Promise<WriteResult> {
@@ -1439,7 +1439,7 @@ export class WorkshopService {
         if (!data || data.length === 0) {
           return { success: false, error: 'Máy chủ không ghi được hàng nào (quyền RLS).' };
         }
-        return { success: true, error: null };
+        return ok();
       }
 
       const { data, error } = await supabase.from('workshop_materials').insert(payload).select('id');
@@ -1447,7 +1447,7 @@ export class WorkshopService {
       if (!data || data.length === 0) {
         return { success: false, error: 'Máy chủ không tạo được hàng nào (quyền RLS).' };
       }
-      return { success: true, error: null };
+      return ok();
     } catch (e: any) {
       return { success: false, error: e?.message || 'Lỗi không xác định khi lưu vật liệu.' };
     }
@@ -1465,7 +1465,7 @@ export class WorkshopService {
       if (!data || data.length === 0) {
         return { success: false, error: 'Máy chủ không xoá được hàng nào (quyền RLS).' };
       }
-      return { success: true, error: null };
+      return ok();
     } catch (e: any) {
       return { success: false, error: e?.message || 'Lỗi không xác định khi xoá vật liệu.' };
     }
@@ -1473,7 +1473,7 @@ export class WorkshopService {
 
   static async getMyInventoryLogs(materialIds: string[]): Promise<MyInventoryLogsResult> {
     const ids = materialIds.filter(Boolean);
-    if (ids.length === 0) return { data: [], error: null };
+    if (ids.length === 0) return { data: [] };
     const { data, error } = await supabase
       .from('material_inventory_logs')
       .select('id,material_id,action,grams,price_per_kg_at_time,supplier,batch_code,note,created_by,created_at')
@@ -1482,7 +1482,6 @@ export class WorkshopService {
     if (error) return { data: [], error: error.message };
     return {
       data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyInventoryLog),
-      error: null,
     };
   }
 
@@ -1493,7 +1492,7 @@ export class WorkshopService {
    */
   static async addMyInventoryLog(input: MyInventoryLogInput): Promise<MyInventoryLogResult> {
     if (!input.workshopProfileId || !input.materialId) {
-      return { success: false, error: 'Thiếu vật liệu hoặc hồ sơ xưởng.', stockUpdated: false, newStockGrams: null };
+      return fail('Thiếu vật liệu hoặc hồ sơ xưởng.');
     }
 
     const payload: Record<string, unknown> = {
@@ -1512,9 +1511,9 @@ export class WorkshopService {
         .from('material_inventory_logs')
         .insert(payload)
         .select('id');
-      if (logError) return { success: false, error: logError.message, stockUpdated: false, newStockGrams: null };
+      if (logError) return fail(logError.message, 'Chưa ghi được phiếu kho.');
       if (!logData || logData.length === 0) {
-        return { success: false, error: 'Phiếu kho chưa được ghi (quyền RLS).', stockUpdated: false, newStockGrams: null };
+        return fail('Phiếu kho chưa được ghi (quyền RLS).');
       }
 
       // Đọc tồn hiện tại TỪ MÁY CHỦ (không tin state trong RAM) rồi mới tính tồn mới.
@@ -1525,12 +1524,9 @@ export class WorkshopService {
         .eq('workshop_id', input.workshopProfileId);
 
       if (matError || !matData || matData.length === 0) {
-        return {
-          success: true,
-          error: matError ? matError.message : 'Không đọc được vật liệu để cập nhật tồn.',
-          stockUpdated: false,
-          newStockGrams: null,
-        };
+        // Phiếu ĐÃ ghi thành công; chỉ tồn kho chưa cập nhật được. Tầng view phải đọc
+        // `stockUpdated === false` để nói đúng — nhánh success không mang `error`.
+        return { success: true, stockUpdated: false, newStockGrams: null };
       }
 
       const row = matData[0] as Record<string, unknown>;
@@ -1558,20 +1554,15 @@ export class WorkshopService {
         .select('id');
 
       if (updError) {
-        return { success: false, error: updError.message, stockUpdated: false, newStockGrams: newStock };
+        return fail(updError.message, 'Chưa cập nhật được tồn kho vật liệu.');
       }
       if (!updData || updData.length === 0) {
-        return {
-          success: false,
-          error: 'Phiếu kho đã ghi nhưng tồn kho CHƯA cập nhật (quyền RLS).',
-          stockUpdated: false,
-          newStockGrams: newStock,
-        };
+        return fail('Phiếu kho đã ghi nhưng tồn kho CHƯA cập nhật (quyền RLS).');
       }
 
-      return { success: true, error: null, stockUpdated: true, newStockGrams: newStock };
+      return { success: true, stockUpdated: true, newStockGrams: newStock };
     } catch (e: any) {
-      return { success: false, error: e?.message || 'Lỗi không xác định khi ghi phiếu kho.', stockUpdated: false, newStockGrams: null };
+      return fail(e, 'Lỗi không xác định khi ghi phiếu kho.');
     }
   }
 
@@ -1581,14 +1572,14 @@ export class WorkshopService {
   // không thuộc phạm vi "năng lực của tôi" nên không hiển thị ở đây).
   // --------------------------------------------------------------------------
   static async getMyAccessories(workshopProfileId: string): Promise<MyAccessoriesResult> {
-    if (!workshopProfileId) return { data: [], error: null };
+    if (!workshopProfileId) return { data: [] };
     const { data, error } = await supabase
       .from('workshop_accessories')
       .select('id,workshop_id,name,unit,quantity,cost_price,selling_price,sku,is_active,created_at,updated_at')
       .eq('workshop_id', workshopProfileId)
       .order('created_at', { ascending: true });
     if (error) return { data: [], error: error.message };
-    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyAccessory), error: null };
+    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyAccessory) };
   }
 
   static async saveMyAccessory(input: MyAccessoryInput): Promise<WriteResult> {
@@ -1619,14 +1610,14 @@ export class WorkshopService {
         if (!data || data.length === 0) {
           return { success: false, error: 'Máy chủ không ghi được hàng nào (quyền RLS).' };
         }
-        return { success: true, error: null };
+        return ok();
       }
       const { data, error } = await supabase.from('workshop_accessories').insert(payload).select('id');
       if (error) return { success: false, error: error.message };
       if (!data || data.length === 0) {
         return { success: false, error: 'Máy chủ không tạo được hàng nào (quyền RLS).' };
       }
-      return { success: true, error: null };
+      return ok();
     } catch (e: any) {
       return { success: false, error: e?.message || 'Lỗi không xác định khi lưu phụ kiện.' };
     }
@@ -1644,7 +1635,7 @@ export class WorkshopService {
       if (!data || data.length === 0) {
         return { success: false, error: 'Máy chủ không xoá được hàng nào (quyền RLS).' };
       }
-      return { success: true, error: null };
+      return ok();
     } catch (e: any) {
       return { success: false, error: e?.message || 'Lỗi không xác định khi xoá phụ kiện.' };
     }
@@ -1654,7 +1645,7 @@ export class WorkshopService {
   // W1b.4 — HÀNG ĐỢI VIỆC: đơn được giao CHO XƯỞNG NÀY (`orders.assigned_workshop_id`)
   // --------------------------------------------------------------------------
   static async getMyQueueOrders(partnerId: string | null): Promise<MyQueueResult> {
-    if (!partnerId) return { data: [], error: null };
+    if (!partnerId) return { data: [] };
     const { data, error } = await supabase
       .from('orders')
       .select(
@@ -1663,7 +1654,7 @@ export class WorkshopService {
       .eq('assigned_workshop_id', partnerId)
       .order('created_at', { ascending: false });
     if (error) return { data: [], error: error.message };
-    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyQueueOrder), error: null };
+    return { data: ((data ?? []) as unknown as Record<string, unknown>[]).map(WorkshopService.mapMyQueueOrder) };
   }
 
   /**
@@ -1676,10 +1667,10 @@ export class WorkshopService {
    */
   static async updateMyOrderProgress(input: MyOrderProgressInput): Promise<MyOrderProgressResult> {
     if (!input.partnerId) {
-      return { success: false, error: 'Tài khoản chưa gắn mã đối tác xưởng — không thể cập nhật đơn.', updatedRows: 0 };
+      return fail('Tài khoản chưa gắn mã đối tác xưởng — không thể cập nhật đơn.');
     }
     if (!Number.isInteger(input.stageIndex) || input.stageIndex < 0 || input.stageIndex > 7) {
-      return { success: false, error: 'Nấc tiến độ không hợp lệ (chỉ nhận 0–7).', updatedRows: 0 };
+      return fail('Nấc tiến độ không hợp lệ (chỉ nhận 0–7).');
     }
 
     const payload: Record<string, unknown> = {
@@ -1699,19 +1690,92 @@ export class WorkshopService {
         .eq('assigned_workshop_id', input.partnerId)
         .select('id');
 
-      if (error) return { success: false, error: error.message, updatedRows: 0 };
+      if (error) return fail(error.message, 'Cập nhật tiến độ đơn thất bại.');
       const updatedRows = data ? data.length : 0;
       if (updatedRows === 0) {
-        return {
-          success: false,
-          error:
-            'Máy chủ không cập nhật hàng nào (đơn không thuộc xưởng này hoặc tài khoản chưa được cấp quyền sửa đơn). Chưa có thay đổi nào được lưu.',
-          updatedRows: 0,
-        };
+        return fail(
+          'Máy chủ không cập nhật hàng nào (đơn không thuộc xưởng này hoặc tài khoản chưa được cấp quyền sửa đơn). Chưa có thay đổi nào được lưu.'
+        );
       }
-      return { success: true, error: null, updatedRows };
+      // Đơn HOÀN THÀNH ⇒ tự động trừ kho vật liệu (chỉ với item khai `weightGrams`).
+      // Best-effort: lỗi trừ kho KHÔNG làm hỏng việc cập nhật trạng thái.
+      let stockDeduction: { deducted: number; skipped: number } | undefined;
+      if (input.status === 'completed') {
+        stockDeduction = await WorkshopService.deductMaterialsForCompletedOrder(
+          input.orderId,
+          input.partnerId as string,
+        );
+      }
+      return { success: true, updatedRows, stockDeduction };
     } catch (e: any) {
-      return { success: false, error: e?.message || 'Lỗi không xác định khi cập nhật tiến độ đơn.', updatedRows: 0 };
+      return fail(e, 'Lỗi không xác định khi cập nhật tiến độ đơn.');
+    }
+  }
+
+  /**
+   * Trừ kho vật liệu của xưởng khi một đơn HOÀN THÀNH.
+   *
+   * CHỈ trừ khi item khai `weightGrams` (khối lượng thực của chi tiết). Item không khai khối
+   * lượng ⇒ `skipped` (KHÔNG bịa số gram). Mỗi lần trừ ghi một phiếu `Export` vào sổ kho để
+   * truy vết, dùng lại `addMyInventoryLog` (đọc tồn từ máy chủ rồi mới tính tồn mới).
+   */
+  static async deductMaterialsForCompletedOrder(
+    orderId: string,
+    partnerId: string,
+  ): Promise<{ deducted: number; skipped: number }> {
+    const summary = { deducted: 0, skipped: 0 };
+    try {
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select('order_number,items')
+        .eq('id', orderId)
+        .eq('assigned_workshop_id', partnerId)
+        .maybeSingle();
+      if (error || !order) return summary;
+
+      const record = order as Record<string, unknown>;
+      const orderNumber = String(record.order_number ?? orderId);
+      const items: unknown[] = Array.isArray(record.items) ? (record.items as unknown[]) : [];
+      if (items.length === 0) return summary;
+
+      const { data: mats } = await supabase
+        .from('workshop_materials')
+        .select('id,name')
+        .eq('workshop_id', partnerId);
+      const materials = (mats ?? []) as Array<{ id: string; name: string | null }>;
+
+      for (const raw of items) {
+        const it = (raw ?? {}) as Record<string, unknown>;
+        const weight = Number(it.weightGrams ?? it.weight_grams);
+        const qtyRaw = Number(it.quantity);
+        const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
+        const materialName = typeof it.material === 'string' ? it.material.trim().toLowerCase() : '';
+        if (!materialName || !Number.isFinite(weight) || weight <= 0) {
+          summary.skipped++;
+          continue;
+        }
+        // Khớp tên vật liệu: item lưu dạng "PLA (Prusa MK4)" nên so khớp chứa tên vật liệu xưởng.
+        const mat = materials.find((m) => {
+          const n = (m.name ?? '').trim().toLowerCase();
+          return n.length > 0 && (materialName === n || materialName.includes(n));
+        });
+        if (!mat) {
+          summary.skipped++;
+          continue;
+        }
+        const res = await WorkshopService.addMyInventoryLog({
+          workshopProfileId: partnerId,
+          materialId: mat.id,
+          action: 'Export',
+          grams: weight * qty,
+          note: `Tự động trừ khi đơn ${orderNumber} hoàn thành (${weight} g × ${qty})`,
+        });
+        if (res.success) summary.deducted++;
+        else summary.skipped++;
+      }
+      return summary;
+    } catch {
+      return summary;
     }
   }
 
@@ -1726,7 +1790,7 @@ export class WorkshopService {
       .select('id,name,brand,model,technology,bed_dimensions,power_kw,status')
       .order('name', { ascending: true });
     if (error) return { data: [], error: error.message };
-    return { data: (data ?? []) as unknown as PrinterFleetRef[], error: null };
+    return { data: (data ?? []) as unknown as PrinterFleetRef[] };
   }
 
   static async getMaterialsCatalog(): Promise<MaterialCatalogResult> {
@@ -1735,7 +1799,7 @@ export class WorkshopService {
       .select('id,name,brand,type,density,cost_per_kg')
       .order('name', { ascending: true });
     if (error) return { data: [], error: error.message };
-    return { data: (data ?? []) as unknown as MaterialCatalogRef[], error: null };
+    return { data: (data ?? []) as unknown as MaterialCatalogRef[] };
   }
 
   // --------------------------------------------------------------------------
@@ -1876,11 +1940,6 @@ export class WorkshopService {
 // `avg_power_kw`, `current_stock_grams`…) — dùng chúng sẽ cho ra `undefined` hàng loạt.
 // ============================================================================
 
-export interface WriteResult {
-  success: boolean;
-  error: string | null;
-}
-
 export interface MyWorkshopProfile {
   id: string;
   userId: string | null;
@@ -1904,7 +1963,7 @@ export interface MyWorkshopProfile {
 
 export interface MyWorkshopProfileResult {
   profile: MyWorkshopProfile | null;
-  error: string | null;
+  error?: string | null;
   /** > 1 = user có nhiều hồ sơ xưởng (bảng KHÔNG có unique trên `user_id`). */
   duplicateCount: number;
 }
@@ -1938,7 +1997,7 @@ export interface MyMachine {
 
 export interface MyMachinesResult {
   data: MyMachine[];
-  error: string | null;
+  error?: string | null;
 }
 
 export interface MyMachineInput {
@@ -1972,7 +2031,7 @@ export interface MyMaterial {
 
 export interface MyMaterialsResult {
   data: MyMaterial[];
-  error: string | null;
+  error?: string | null;
 }
 
 export interface MyMaterialInput {
@@ -2003,7 +2062,7 @@ export interface MyInventoryLog {
 
 export interface MyInventoryLogsResult {
   data: MyInventoryLog[];
-  error: string | null;
+  error?: string | null;
 }
 
 export interface MyInventoryLogInput {
@@ -2019,11 +2078,14 @@ export interface MyInventoryLogInput {
   createdBy?: string;
 }
 
-export interface MyInventoryLogResult extends WriteResult {
-  /** `false` = phiếu đã ghi nhưng tồn kho CHƯA cập nhật ⇒ view phải nói đúng. */
-  stockUpdated: boolean;
-  newStockGrams: number | null;
-}
+export type MyInventoryLogResult = WriteResult<
+  void,
+  {
+    /** `false` = phiếu đã ghi nhưng tồn kho CHƯA cập nhật ⇒ view phải nói đúng. */
+    stockUpdated: boolean;
+    newStockGrams: number | null;
+  }
+>;
 
 /** Một phụ kiện riêng của xưởng (`workshop_accessories`). */
 export interface MyAccessory {
@@ -2042,7 +2104,7 @@ export interface MyAccessory {
 
 export interface MyAccessoriesResult {
   data: MyAccessory[];
-  error: string | null;
+  error?: string | null;
 }
 
 export interface MyAccessoryInput {
@@ -2082,7 +2144,7 @@ export interface MyQueueOrder {
 
 export interface MyQueueResult {
   data: MyQueueOrder[];
-  error: string | null;
+  error?: string | null;
 }
 
 export interface MyOrderProgressInput {
@@ -2095,9 +2157,14 @@ export interface MyOrderProgressInput {
   layerProgress?: number | null;
 }
 
-export interface MyOrderProgressResult extends WriteResult {
-  updatedRows: number;
-}
+export type MyOrderProgressResult = WriteResult<
+  void,
+  {
+    updatedRows: number;
+    /** Kết quả tự động trừ kho khi đơn chuyển sang `completed` (chỉ khi item khai khối lượng). */
+    stockDeduction?: { deducted: number; skipped: number };
+  }
+>;
 
 export interface PrinterFleetRef {
   id: string;
@@ -2112,7 +2179,7 @@ export interface PrinterFleetRef {
 
 export interface PrinterFleetCatalogResult {
   data: PrinterFleetRef[];
-  error: string | null;
+  error?: string | null;
 }
 
 export interface MaterialCatalogRef {
@@ -2126,7 +2193,7 @@ export interface MaterialCatalogRef {
 
 export interface MaterialCatalogResult {
   data: MaterialCatalogRef[];
-  error: string | null;
+  error?: string | null;
 }
 
 /** Nhãn trạng thái đơn — khớp union `Order['status']` trong `src/types/index.ts`. */

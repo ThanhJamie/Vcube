@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AccessoryItem } from '../../types';
 import { Icon, InfoTip, ConfirmDialog, DataTable, EmptyState, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
-import { EMPTY_VALUE } from '../../lib/format';
+import { EMPTY_VALUE, formatNumber } from '../../lib/format';
 import { useLanguage } from '../../context/LanguageContext';
 
 /**
@@ -11,7 +11,7 @@ import { useLanguage } from '../../context/LanguageContext';
  * `.toLocaleString()` sẽ **crash trắng** và component này đã sẵn sàng hiện `—`.
  */
 const numText = (v: number | null | undefined, suffix = ''): string =>
-  typeof v === 'number' && Number.isFinite(v) ? `${v.toLocaleString('vi-VN')}${suffix}` : EMPTY_VALUE;
+  typeof v === 'number' && Number.isFinite(v) ? `${formatNumber(v)}${suffix}` : EMPTY_VALUE;
 
 /**
  * Đợt T: ô nhập số để trống ⇒ `null` ("chưa cấu hình"), KHÔNG quy về 0.

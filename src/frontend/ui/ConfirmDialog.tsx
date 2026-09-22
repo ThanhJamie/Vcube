@@ -9,8 +9,7 @@
  *   (A12) — không còn inline style `var(--color-danger)`: biến thể được chọn bên trong
  *   primitive vì `cn()` không giải quyết xung đột utility và thứ tự CSS không đảm bảo
  *   (`.bg-danger` đứng TRƯỚC `.bg-primary` trong CSS build). Chữ `text-primary-fg`
- *   (light: chữ trắng trên nền danger = 6.47:1; dark: chữ navy trên nền danger = 5.67:1 —
- *   hai theme đều đạt AA).
+ *   (#FFFFFF trên nền danger = 6.47:1, đạt AA).
  * - Có icon cảnh báo + tiêu đề chữ: trạng thái nguy hiểm không chỉ thể hiện bằng màu.
  * - `loading` khoá cả hai nút để không submit hai lần.
  */

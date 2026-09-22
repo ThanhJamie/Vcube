@@ -54,7 +54,7 @@ export interface PageHeaderProps {
 
 const TAB_BASE = [
   'relative inline-flex min-h-11 items-center gap-2 rounded-t-md border-b-2 px-3 text-sm',
-  'transition-colors duration-150 ease-out motion-reduce:transition-none',
+  'transition-colors duration-fast ease-out motion-reduce:transition-none',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
 ].join(' ');
 

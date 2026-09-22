@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase/client';
 import { rowToCustomDesignRequest } from '../supabase/mappers';
+import { ok, fail, type WriteResult } from '../lib/result';
 import type { CustomDesignRequest, CustomDesignMessage } from '../../types';
 
 const LOCAL_REQUESTS_KEY = 'vcube_custom_design_requests';
@@ -66,7 +67,8 @@ export const customDesignService = {
 
   /**
    * Tạo yêu cầu thiết kế CAD tùy chỉnh mới (từ Section Custom Idea hoặc khách hàng).
-   * Hỗ trợ lưu Supabase khi khả dụng, có fallback lưu local mock store khi offline/demo.
+   * Lưu Supabase khi khả dụng; khi CHƯA cấu hình (offline/demo) rơi về local mock store.
+   * Lỗi máy chủ trả `fail()` để tầng view biết thất bại — KHÔNG báo thành công giả.
    */
   async createRequest(
     request: Partial<CustomDesignRequest> & {
@@ -76,7 +78,7 @@ export const customDesignService = {
       clientCompany?: string;
       description?: string;
     }
-  ): Promise<CustomDesignRequest> {
+  ): Promise<WriteResult<CustomDesignRequest>> {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const clientName = request.clientName || 'Khách hàng';
@@ -113,7 +115,7 @@ export const customDesignService = {
         const { data: sessionData } = await supabase.auth.getSession();
         customerId = sessionData?.session?.user?.id;
       } catch {
-        // Tiếp tục không có customerId
+        // ignore: không lấy được session (guest) — tiếp tục không có customerId
       }
     }
 
@@ -169,21 +171,24 @@ export const customDesignService = {
           .select()
           .single();
 
-        if (!error && data) {
-          const created = rowToCustomDesignRequest(data);
-          saveLocalRequest(created);
-          return created;
-        } else if (error) {
-          console.warn('[customDesignService] Supabase insert thất bại, chuyển sang local store:', error.message);
+        if (error) {
+          return fail(error.message, 'Không lưu được yêu cầu thiết kế lên máy chủ.');
         }
+        if (!data) {
+          return fail('Máy chủ không trả về yêu cầu thiết kế vừa tạo.', 'Không lưu được yêu cầu thiết kế lên máy chủ.');
+        }
+
+        const created = rowToCustomDesignRequest(data);
+        saveLocalRequest(created);
+        return ok(created);
       } catch (err) {
-        console.warn('[customDesignService] Supabase exception, chuyển sang local store:', err);
+        return fail(err, 'Không lưu được yêu cầu thiết kế lên máy chủ.');
       }
     }
 
-    // Fallback: Lưu vào local mock store
+    // Fallback offline/demo: lưu vào local mock store.
     saveLocalRequest(mockRequest);
-    return mockRequest;
+    return ok(mockRequest);
   },
 
   /**
@@ -192,79 +197,100 @@ export const customDesignService = {
   async updateStatus(
     id: string,
     status: 'pending' | 'quoted' | 'in_progress' | 'completed' | 'declined'
-  ): Promise<void> {
-    if (!isSupabaseConfigured) return;
+  ): Promise<WriteResult> {
+    if (!isSupabaseConfigured) {
+      return fail('Supabase chưa cấu hình — không thể cập nhật trạng thái yêu cầu.');
+    }
 
-    const { error } = await supabase
-      .from('custom_design_requests')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('custom_design_requests')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id);
 
-    if (error) {
-      throw new Error(`Cập nhật trạng thái thất bại: ${error.message}`);
+      if (error) {
+        return fail(error.message, 'Cập nhật trạng thái thất bại.');
+      }
+      return ok();
+    } catch (err) {
+      return fail(err, 'Cập nhật trạng thái thất bại.');
     }
   },
 
   /**
    * Thêm một tin nhắn vào luồng trao đổi kỹ thuật của yêu cầu CAD.
    */
-  async appendMessage(id: string, message: CustomDesignMessage): Promise<void> {
-    if (!isSupabaseConfigured) return;
-
-    const { data: current, error: fetchErr } = await supabase
-      .from('custom_design_requests')
-      .select('messages')
-      .eq('id', id)
-      .single();
-
-    if (fetchErr) {
-      throw new Error(`Không tìm thấy yêu cầu: ${fetchErr.message}`);
+  async appendMessage(id: string, message: CustomDesignMessage): Promise<WriteResult> {
+    if (!isSupabaseConfigured) {
+      return fail('Supabase chưa cấu hình — không thể gửi tin nhắn.');
     }
 
-    const updatedMessages = [...(current?.messages || []), message];
-    const { error } = await supabase
-      .from('custom_design_requests')
-      .update({
-        messages: updatedMessages,
-        unread: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
+    try {
+      const { data: current, error: fetchErr } = await supabase
+        .from('custom_design_requests')
+        .select('messages')
+        .eq('id', id)
+        .single();
 
-    if (error) {
-      throw new Error(`Gửi tin nhắn thất bại: ${error.message}`);
+      if (fetchErr) {
+        return fail(fetchErr.message, 'Không tìm thấy yêu cầu.');
+      }
+
+      const updatedMessages = [...(current?.messages || []), message];
+      const { error } = await supabase
+        .from('custom_design_requests')
+        .update({
+          messages: updatedMessages,
+          unread: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (error) {
+        return fail(error.message, 'Gửi tin nhắn thất bại.');
+      }
+      return ok();
+    } catch (err) {
+      return fail(err, 'Gửi tin nhắn thất bại.');
     }
   },
 
   /**
    * Phát hành báo giá kỹ thuật CAD kèm cập nhật trạng thái 'quoted'.
    */
-  async sendQuote(id: string, quoteMessage: CustomDesignMessage): Promise<void> {
-    if (!isSupabaseConfigured) return;
-
-    const { data: current, error: fetchErr } = await supabase
-      .from('custom_design_requests')
-      .select('messages')
-      .eq('id', id)
-      .single();
-
-    if (fetchErr) {
-      throw new Error(`Không tìm thấy yêu cầu: ${fetchErr.message}`);
+  async sendQuote(id: string, quoteMessage: CustomDesignMessage): Promise<WriteResult> {
+    if (!isSupabaseConfigured) {
+      return fail('Supabase chưa cấu hình — không thể phát hành báo giá.');
     }
 
-    const updatedMessages = [...(current?.messages || []), quoteMessage];
-    const { error } = await supabase
-      .from('custom_design_requests')
-      .update({
-        status: 'quoted',
-        messages: updatedMessages,
-        unread: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
+    try {
+      const { data: current, error: fetchErr } = await supabase
+        .from('custom_design_requests')
+        .select('messages')
+        .eq('id', id)
+        .single();
 
-    if (error) {
-      throw new Error(`Gửi báo giá thất bại: ${error.message}`);
+      if (fetchErr) {
+        return fail(fetchErr.message, 'Không tìm thấy yêu cầu.');
+      }
+
+      const updatedMessages = [...(current?.messages || []), quoteMessage];
+      const { error } = await supabase
+        .from('custom_design_requests')
+        .update({
+          status: 'quoted',
+          messages: updatedMessages,
+          unread: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (error) {
+        return fail(error.message, 'Gửi báo giá thất bại.');
+      }
+      return ok();
+    } catch (err) {
+      return fail(err, 'Gửi báo giá thất bại.');
     }
   },
 

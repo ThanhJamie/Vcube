@@ -125,6 +125,10 @@ Bản ghi nghiên cứu dùng làm căn cứ cho `docs/plans/05-feature-roadmap.
 
 ## 4. Bộ tham chiếu UI & pattern chuyển hoá
 
+> Ghi chú: các tham chiếu dưới đây là pattern tham khảo từ sản phẩm khác (một số có dark theme).
+> VCUBE chốt **light-only vĩnh viễn** — dark theme đã bị xoá (`docs/tasks/UI-CHROME-REFACTOR-PLAN.md` §2);
+> các nguyên tắc bên dưới được chọn lọc áp dụng cho nền sáng.
+
 | Sản phẩm | Pattern lấy được |
 |---|---|
 | Linear | Nền gần trung tính + **một accent chỉ dùng cho fill/CTA**, không trang trí |
@@ -141,7 +145,7 @@ Bản ghi nghiên cứu dùng làm căn cứ cho `docs/plans/05-feature-roadmap.
 | Spline / Onlook | Chrome của editor 3D: rail trái (đối tượng/tài nguyên) + tab stage + **một inspector theo ngữ cảnh** |
 
 **12 nguyên tắc thiết kế có thể trích dẫn**
-1. Cặp token semantic (`background`/`foreground`, `card`, `muted`, `border`, `ring`) để đổi theme không phải viết lại component.
+1. Cặp token semantic (`background`/`foreground`, `card`, `muted`, `border`, `ring`) để màu sắc không hardcode trong component.
 2. Thang màu 12 bậc với quy ước cố định (1–2 nền, 3–5 nền component, 6–8 viền/focus, 9–10 solid, 11–12 chữ).
 3. Ngưỡng tương phản: 4.5:1 chữ thường; 3:1 chữ lớn và mọi thông tin nhận diện control/trạng thái/focus ring.
 4. Focus là **trạng thái được thiết kế** — hiện rõ, không giới hạn thời gian, không bị chrome che.
@@ -149,7 +153,7 @@ Bản ghi nghiên cứu dùng làm căn cứ cho `docs/plans/05-feature-roadmap.
 6. Density là trục token (32/40/48px hàng).
 7. Hai bộ type cho hai việc (productive 14px vs expressive 16px) + **tabular-nums cho mọi số**.
 8. Radius suy từ 1 giá trị gốc.
-9. Elevation là **vật liệu có tên**, phải kiểm lại ở dark (shadow yếu hơn) và không dùng shadow làm tín hiệu duy nhất.
+9. Elevation là **vật liệu có tên** và không dùng shadow làm tín hiệu duy nhất.
 10. Motion 200–300ms, `ease-out` khi vào, spring cho thay đổi không gian, **không bao giờ bắt đầu từ scale(0)**.
 11. Tôn trọng `prefers-reduced-motion` (thay chuyển động bằng opacity); mọi chuyển động tự chạy >5s phải có nút dừng.
 12. **Canvas WebGL là một hình ảnh với screen reader**: phải có tên truy cập + mô tả dài, và **proxy DOM button 1-1 cho từng vùng tương tác**.

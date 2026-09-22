@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, SiteContentConfig } from '../types';
 import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_SITE_CONTENT } from '../data/mockData';
@@ -11,6 +11,7 @@ import { ServiceShowcaseSection } from '../components/services/ServiceShowcaseSe
 import { SEOHead } from '../components/SEOHead';
 import { useLanguage } from '../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber, formatPercent } from '@frontend/lib/format';
+import { realProductImageUrl } from '@frontend/lib/productImage';
 import { Icon, Button, Card, EmptyState, InfoTip } from '@frontend/ui';
 
 interface HomeViewProps {
@@ -44,6 +45,23 @@ const vnd = (v: unknown, locale: string): string =>
 /** Điểm đánh giá chỉ có nghĩa khi CÓ cả điểm VÀ số lượng đánh giá thật. */
 const hasRating = (product: Product): boolean =>
   isNum(product.rating) && product.rating > 0 && isNum(product.reviewsCount) && product.reviewsCount > 0;
+
+/** Icon placeholder theo danh mục khi sản phẩm chưa có ảnh thật. */
+const CATEGORY_ICON: Record<string, string> = Object.fromEntries(
+  CATEGORIES.map((c) => [c.id, c.icon]),
+);
+const categoryIcon = (category?: string): string =>
+  (category && CATEGORY_ICON[category]) || 'view_in_ar';
+
+/** Số sản phẩm hiển thị mỗi lượt ở lưới catalog (3 cột × 2 hàng). */
+const CATALOG_PAGE_SIZE = 6;
+
+/** Hotline hiển thị được: đủ 8 chữ số và KHÔNG phải dãy lặp (chặn placeholder '00000000000'). */
+const isDisplayableHotline = (v?: string): boolean => {
+  const digits = ((v || '').match(/\d/g) || []).join('');
+  if (digits.length < 8) return false;
+  return !/^(\d)\1+$/.test(digits);
+};
 
 interface HeroChassisModel {
   id: 'gear' | 'drone' | 'box' | 'arch';
@@ -141,6 +159,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [catalogViewMode, setCatalogViewMode] = useState<'grid' | 'tech-table'>('grid');
+  const [catalogLimit, setCatalogLimit] = useState<number>(CATALOG_PAGE_SIZE);
 
   // 3D Quick-Inspect Modal State
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
@@ -205,6 +224,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
       return true;
     });
   }, [products, cadSearch, selectedCategory, selectedTag]);
+
+  /** Đổi bộ lọc ⇒ thu gọn về trang đầu (tránh "Xem thêm" giữ trạng thái cũ). */
+  useEffect(() => {
+    setCatalogLimit(CATALOG_PAGE_SIZE);
+  }, [cadSearch, selectedCategory, selectedTag]);
+
+  /** Catalog hiển thị theo trang: 6 sản phẩm đầu, "Xem thêm" nạp tiếp. */
+  const visibleProducts = useMemo(
+    () => displayedProducts.slice(0, catalogLimit),
+    [displayedProducts, catalogLimit],
+  );
+  const hasMoreProducts = displayedProducts.length > visibleProducts.length;
   // Open Walled Garden: Seamless guest exploration without forced login redirects
   const handleProtectedAction = (action: () => void) => {
     action();
@@ -324,17 +355,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
       )}
 
       {/* 2. Hero Section with Interactive 3D Model Switcher */}
-      <section className="relative overflow-hidden py-8 sm:py-10 lg:py-12 px-4 sm:px-6 md:px-12">
+      <section className="relative overflow-hidden py-6 sm:py-8 lg:py-10 px-4 sm:px-6 md:px-10">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
             {/* Left Content Column */}
-            <div className="lg:col-span-7 flex flex-col justify-center space-y-6">
+            <div className="lg:col-span-7 flex flex-col justify-center space-y-5">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface border border-line-subtle rounded-sm text-xs uppercase font-mono tracking-[0.2em] text-primary font-bold w-fit">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse motion-reduce:animate-none" />
                 <span>{activeContent.heroBadge || 'VCUBE PRECISION ANTHOLOGY // 2026'}</span>
               </div>
 
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-fg tracking-tight leading-[1.12]">
+              <h1 className="text-3xl sm:text-5xl xl:text-6xl font-black text-fg tracking-tight leading-[1.1]">
                 {activeContent.heroHeadlineLine1 || (isVi ? 'CHẾ TÁC CƠ KHÍ' : 'MECHANICAL FABRICATION')}
                 <br />
                 <span className="text-primary">
@@ -455,7 +486,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 {/* 3D Canvas Viewer Stage */}
-                <div className="w-full h-[320px] sm:h-[360px] relative bg-surface-inverse">
+                <div className="w-full h-[300px] sm:h-[340px] lg:h-[360px] relative bg-surface-inverse">
                   <CanvasErrorBoundary fallbackHeight="h-full">
                     <ThreeModelViewer
                       modelType={heroModel}
@@ -552,10 +583,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   onNavigate('quote');
                 }
               }}
-              className={`p-3.5 border-2 border-dashed rounded-lg transition-colors cursor-pointer group ${
+              className={`p-4 sm:p-5 border-2 border-dashed rounded-xl transition-colors cursor-pointer group ${
                 isDraggingFile
                   ? 'border-primary bg-primary/15 shadow-e2 ring-2 ring-primary/30'
-                  : 'bg-surface border-primary/40 hover:border-primary'
+                  : 'bg-surface border-primary/60 hover:border-primary hover:bg-primary/5'
               }`}
               title={isVi ? 'Bấm hoặc kéo thả file STL, 3MF, STEP, OBJ vào đây để nhận báo giá tức thì' : 'Click or drop an STL, 3MF, STEP or OBJ file here for an instant quote'}
             >
@@ -572,17 +603,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 className="hidden"
               />
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-md flex items-center justify-center transition-transform ${
-                  isDraggingFile ? 'bg-primary text-primary-fg scale-110' : 'bg-surface-muted text-primary group-hover:scale-105'
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 border transition-transform ${
+                  isDraggingFile
+                    ? 'bg-primary text-primary-fg border-primary scale-110'
+                    : 'bg-primary-tint text-primary border-primary/30 group-hover:scale-105'
                 }`}>
-                  <Icon name="cloud_upload" size={24} />
+                  <Icon name={isDraggingFile ? 'download' : 'cloud_upload'} size={26} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-tech text-xs uppercase tracking-wider font-bold text-primary bg-primary-tint px-1.5 py-0.5 rounded-sm">
+                      {isDraggingFile ? (isVi ? 'Thả để tải lên' : 'Drop to upload') : (isVi ? 'Kéo & thả' : 'Drag & drop')}
+                    </span>
                     <span className="font-bold text-xs text-fg">
                       {isDraggingFile
                         ? (isVi ? 'Thả tệp CAD vào đây để phân tích tức thì!' : 'Drop the CAD file here to analyse it instantly!')
-                        : (isVi ? 'Kéo thả tệp CAD (STL, 3MF, STEP, OBJ) vào đây hoặc bấm để chọn' : 'Drag & drop a CAD file (STL, 3MF, STEP, OBJ) here or click to choose')}
+                        : (isVi ? 'Kéo thả tệp CAD vào đây hoặc bấm để chọn' : 'Drop a CAD file here or click to choose')}
                     </span>
                     <InfoTip label={isVi ? 'Tệp CAD được xử lý thế nào?' : 'How the CAD file is processed'}>
                       {isVi
@@ -590,11 +626,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         : 'Volume, watertightness and the BOM are computed from the file you upload. Every figure shown at /quote comes from that file.'}
                     </InfoTip>
                   </div>
-                  <p className="text-xs text-fg-muted truncate">
+                  <p className="text-xs text-fg-muted truncate mt-0.5 font-tech">
                     STL · 3MF · STEP · STP · OBJ
                   </p>
                 </div>
-                <Icon name="arrow_forward" size={18} className="text-primary shrink-0" />
+                <span className="hidden sm:flex items-center gap-1 text-xs font-tech uppercase tracking-wider text-primary font-bold shrink-0">
+                  <Icon name="drag_pan" size={18} />
+                  <span>{isVi ? 'Thả tệp' : 'Drop'}</span>
+                </span>
               </div>
             </div>
           </div>
@@ -878,7 +917,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           ) : catalogViewMode === 'grid' ? (
             /* GRID VIEW MODE */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-              {displayedProducts.map((product) => (
+              {visibleProducts.map((product) => (
                 <Card
                   key={product.id}
                   as="article"
@@ -899,11 +938,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       }
                     }}
                   >
-                    <img
-                      src={product.thumbnailUrl || product.images?.[0]}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
-                    />
+                    {/* Ảnh thật (nếu có) phủ lên placeholder danh mục; ảnh stock/lỗi ⇒ placeholder */}
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-fg-subtle"
+                    >
+                      <Icon name={categoryIcon(product.category)} size={44} />
+                      <span className="font-tech text-xs uppercase tracking-wider">
+                        {isVi ? 'Chưa có ảnh' : 'No image yet'}
+                      </span>
+                    </div>
+                    {realProductImageUrl(product.images, product.thumbnailUrl) ? (
+                      <img
+                        src={realProductImageUrl(product.images, product.thumbnailUrl)}
+                        alt={product.name}
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        className="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : null}
 
                     {/* Badge */}
                     {product.badge && (
@@ -1081,15 +1134,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line-subtle">
-                    {displayedProducts.map((product) => (
+                    {visibleProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-surface-muted transition-colors group">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
-                            <img
-                              src={product.thumbnailUrl || product.images?.[0]}
-                              alt={product.name}
-                              className="w-12 h-12 object-cover rounded-md shrink-0"
-                            />
+                            {realProductImageUrl(product.images, product.thumbnailUrl) ? (
+                              <img
+                                src={realProductImageUrl(product.images, product.thumbnailUrl)}
+                                alt={product.name}
+                                loading="lazy"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                className="w-12 h-12 object-cover rounded-md shrink-0"
+                              />
+                            ) : (
+                              <div
+                                aria-hidden="true"
+                                className="w-12 h-12 rounded-md shrink-0 bg-surface-muted text-fg-subtle flex items-center justify-center"
+                              >
+                                <Icon name={categoryIcon(product.category)} size={22} />
+                              </div>
+                            )}
                             <div>
                               <button
                                 type="button"
@@ -1144,6 +1208,29 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </Card>
           )}
 
+          {/* Xem thêm — mặc định 6 sản phẩm (2 hàng × 3 cột) để tránh ngợp thông tin */}
+          {hasMoreProducts ? (
+            <div className="pt-2 flex flex-col items-center gap-2">
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={() => setCatalogLimit((n) => n + CATALOG_PAGE_SIZE)}
+                leadingIcon={<Icon name="expand_more" size={20} />}
+              >
+                {isVi
+                  ? `Xem thêm ${formatNumber(displayedProducts.length - visibleProducts.length)} mẫu CAD`
+                  : `Show ${formatNumber(displayedProducts.length - visibleProducts.length)} more CAD models`}
+              </Button>
+              <button
+                type="button"
+                onClick={() => handleProtectedAction(() => onNavigate('explore'))}
+                className="text-xs text-fg-muted hover:text-primary font-medium cursor-pointer underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              >
+                {isVi ? 'Hoặc xem toàn bộ kho bản vẽ' : 'Or browse the full catalog'}
+              </button>
+            </div>
+          ) : null}
+
           {/* Footer Callout */}
           <Card padding="md" className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <span className="text-xs text-fg-muted">
@@ -1158,6 +1245,39 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span>{isVi ? 'Tải File Của Bạn Lên' : 'Upload Your CAD File'}</span>
             </Button>
           </Card>
+        </div>
+      </section>
+
+      {/* 4.5 Quy trình 4 bước đặt hàng — tăng niềm tin trước CTA */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6 md:px-12 bg-surface">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="text-center space-y-2">
+            <span className="font-tech text-xs uppercase tracking-[0.25em] text-primary font-bold">
+              {isVi ? 'QUY TRÌNH ĐẶT HÀNG' : 'HOW IT WORKS'}
+            </span>
+            <h2 className="fluid-h2 text-fg">
+              {isVi ? 'Từ Bản Vẽ Đến Chi Tiết Hoàn Thiện' : 'From CAD File to Finished Part'}
+            </h2>
+          </div>
+          <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { icon: 'upload_file', titleVi: 'Tải bản vẽ', descVi: 'Tải file STL / STEP / 3MF lên hệ thống.', titleEn: 'Upload CAD', descEn: 'Upload an STL / STEP / 3MF file.' },
+              { icon: 'request_quote', titleVi: 'Phân tích & báo giá', descVi: 'Hệ thống đọc lưới, tính thể tích và báo giá từ chính tệp.', titleEn: 'Analyse & quote', descEn: 'Mesh is read, volume computed, quote built from the file.' },
+              { icon: 'precision_manufacturing', titleVi: 'Chọn xưởng & xác nhận', descVi: 'Chọn vật liệu, xưởng in phù hợp và xác nhận đơn.', titleEn: 'Match & confirm', descEn: 'Pick material and workshop, then confirm the order.' },
+              { icon: 'local_shipping', titleVi: 'Giao nhận & theo dõi', descVi: 'Theo dõi tiến độ sản xuất và nhận chi tiết hoàn thiện.', titleEn: 'Track & receive', descEn: 'Track production progress and receive the finished part.' },
+            ].map((step, i) => (
+              <li key={step.icon} className="bg-canvas border border-line-subtle rounded-lg p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="w-10 h-10 rounded-md bg-primary-tint text-primary flex items-center justify-center">
+                    <Icon name={step.icon} size={20} />
+                  </span>
+                  <span className="font-mono text-2xl font-black text-line tabular-nums">0{i + 1}</span>
+                </div>
+                <h3 className="font-bold text-sm text-fg">{isVi ? step.titleVi : step.titleEn}</h3>
+                <p className="text-xs text-fg-muted leading-relaxed">{isVi ? step.descVi : step.descEn}</p>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
@@ -1210,9 +1330,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button
                 size="lg"
+                variant="accent"
                 onClick={() => onNavigate('quote')}
                 leadingIcon={<Icon name="upload_file" size={20} />}
-                className="w-full sm:w-auto shadow-lg shadow-primary/25"
+                className="w-full sm:w-auto shadow-e3"
               >
                 <span>{isVi ? 'Báo Giá File 3D Của Bạn' : 'Quote Your 3D File'}</span>
               </Button>
@@ -1249,6 +1370,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
       </section>
+
+      {/* Hotline cố định — CHỈ hiện khi số hợp lệ (không bịa/không hiện số placeholder) */}
+      {isDisplayableHotline(activeContent.hotline) ? (
+        <a
+          href={`tel:${activeContent.hotline.replace(/[^\d+]/g, '')}`}
+          className="fixed bottom-24 right-6 z-drawer hidden sm:flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-fg shadow-e3 border border-primary-hover/40 font-sans text-xs font-bold hover:bg-primary-hover transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={isVi ? `Gọi hotline ${activeContent.hotline}` : `Call hotline ${activeContent.hotline}`}
+        >
+          <Icon name="call" size={18} />
+          <span className="tabular-nums">{activeContent.hotline}</span>
+        </a>
+      ) : null}
 
       {/* CAD Quick View 3D Modal */}
       <CadQuickViewModal

@@ -13,29 +13,28 @@
  *
  * SỔ SÁCH TỪNG LUẬT (đo bằng số học WCAG 2.x trên gamma sRGB — xem `ratioOf`/`compositeOver`)
  * ------------------------------------------------------------------------------------------
- * Luật 1 — `text-fg-subtle` (light #64748B · dark #7A8798) trên `bg-line-subtle`
- *          (light #E2E8F0 · dark #1B2434):
- *            light = 3.86:1  ·  dark = 4.26:1   -> CẢ HAI < 4.5 ⇒ VI PHẠM
+ * App light-only: mọi luật chỉ còn một con số light.
+ * Luật 1 — `text-fg-subtle` (#64748B) trên `bg-line-subtle` (#E2E8F0):
+ *            light = 3.86:1   -> < 4.5 ⇒ VI PHẠM
  *          Lý do: `fg-subtle` là màu metadata 12px; trên nền hairline nó tụt dưới sàn 4.5.
- *          Cách sửa: dùng `text-fg-muted` (5.22 light / 6.53 dark).
+ *          Cách sửa: dùng `text-fg-muted` (5.22).
  * Luật 2 — `text-fg-subtle` trên `bg-primary/5` (nền = primary composite 5% trên surface;
  *          composite trong KHÔNG GIAN GAMMA sRGB, KHÔNG phải linear-light — linear-light cho
  *          4.56 = PASS GIẢ):
- *            light #F2F7F8 = 4.40:1  ·  dark #101D29 = 4.67:1  -> light < 4.5 ⇒ VI PHẠM
- * Luật 3 — `text-fg-subtle` trên `bg-warning-tint` (light #FEF6EC sau D-1 · dark #2A2114):
- *            light = 4.44:1  ·  dark = 4.33:1   -> CẢ HAI < 4.5 ⇒ VI PHẠM
+ *            light #F2F7F8 = 4.40:1  -> < 4.5 ⇒ VI PHẠM
+ * Luật 3 — `text-fg-subtle` trên `bg-warning-tint` (#FEF6EC sau D-1):
+ *            light = 4.44:1   -> < 4.5 ⇒ VI PHẠM
  *          Lưu ý: D-1 chỉ làm nhạt `--color-warning-tint` cho `text-warning` (#B45309 → 4.69).
  *          `fg-subtle` (#64748B) NHẸ HƠN `warning`, nên làm nhạt nền chỉ kéo nó từ 4.23 lên
  *          4.44 — vẫn fail. Đây là lý do luật này tồn tại độc lập với D-1.
- * Luật 4 — `text-fg-subtle` trên `bg-surface-muted` (light #F8F9FF · dark #131C2A):
- *            light = 4.53:1  ·  dark = 4.68:1   -> CẢ HAI >= 4.5 ⇒ **KHÔNG PHẢI VI PHẠM**
+ * Luật 4 — `text-fg-subtle` trên `bg-surface-muted` (#F8F9FF):
+ *            light = 4.53:1   -> >= 4.5 ⇒ **KHÔNG PHẢI VI PHẠM**
  *          Vẫn khai báo (in ra ở mức "ĐẠT NHƯNG SÁT NGƯỠNG", kèm file:line) vì biên chỉ 0.03:
  *          ép nó thành lỗi là SAI SỐ HỌC (4.53 >= 4.5) và sẽ báo nhầm ~20 chỗ đang đạt chuẩn.
- * Luật 5 — `text-fg-subtle` trên `bg-positive-tint` (light #F0F9F3 sau D-1b · dark #10241A):
- *            light = 4.43:1  ·  dark = 4.46:1   -> CẢ HAI < 4.5 ⇒ VI PHẠM (0 chỗ đang dùng)
+ * Luật 5 — `text-fg-subtle` trên `bg-positive-tint` (#F0F9F3 sau D-1b):
+ *            light = 4.43:1   -> < 4.5 ⇒ VI PHẠM (0 chỗ đang dùng)
  * Luật 6 — `text-positive` trên `bg-positive-tint`: **ĐÃ SỬA Ở TẦNG TOKEN (D-1b)**
  *            light #15803D trên #E7F3EC = 4.40 (FAIL) -> #F0F9F3 = 4.67 (ĐẠT)
- *            dark  #4ADE80 trên #10241A = 9.35 (ĐẠT, token dark không đổi)
  *          Luật này KHÔNG in từng chỗ (`muteHits`): ~55 chỗ `bg-positive-tint text-positive` nay
  *          đều ĐẠT, in ra chỉ là nhiễu. Giữ luật để phần SỔ SÁCH còn hiệu lực: `--color-positive-tint`
  *          mà bị làm đậm lại ⇒ `token-drift` đỏ ngay.
@@ -45,12 +44,12 @@
  *  - Chỉ soi NỘI DUNG CHUỖI; bỏ hẳn comment (dòng, khối, `{* *}` JSX) — nhờ vậy comment kiểu
  *    "KHÔNG dùng A trên B" không bị tính là vi phạm. `${...}` trong template literal được
  *    quét như CODE riêng (chuỗi bên trong vẫn được soi).
- *  - Modifier (`hover:`, `focus:`, `disabled:`, `dark:`…) được tôn trọng: `hover:bg-line-subtle`
+ *  - Modifier (`hover:`, `focus:`, `disabled:`…) được tôn trọng: `hover:bg-line-subtle`
  *    + `text-fg-subtle` + `hover:text-fg` KHÔNG bị báo, vì ở trạng thái hover chữ đã đổi màu.
  *    Chỉ báo khi `text-fg-subtle` là màu chữ HIỆU DỤNG ở trạng thái mà nền đó bật.
- *  - Alpha (`bg-warning-tint/50`, `text-fg-subtle/70`) được composite trên surface của từng
- *    theme rồi mới tính tỉ lệ; theme xấu nhất quyết định — nên `bg-warning-tint/50` (4.62) ĐẠT
- *    trong khi `bg-warning-tint` đặc (4.44) FAIL.
+ *  - Alpha (`bg-warning-tint/50`, `text-fg-subtle/70`) được composite trên surface light
+ *    rồi mới tính tỉ lệ — nên `bg-warning-tint/50` (4.62) ĐẠT trong khi `bg-warning-tint`
+ *    đặc (4.44) FAIL.
  *  - Đối chiếu `TOKENS`/`RULES.ratios` với `src/index.css`: token đổi giá trị mà sổ sách chưa
  *    cập nhật ⇒ FAIL (`token-drift` / `rule-ratio-drift`) để cổng không "xanh giả" lần nữa.
  *
@@ -119,16 +118,6 @@ const TOKENS = {
     positive: '#15803D',
     surface: '#FFFFFF',
   },
-  dark: {
-    'fg-subtle': '#7A8798',
-    'line-subtle': '#1B2434',
-    'surface-muted': '#131C2A',
-    'warning-tint': '#2A2114',
-    'positive-tint': '#10241A',
-    primary: '#3AB8CE',
-    positive: '#4ADE80',
-    surface: '#0E1520',
-  },
 };
 
 /** LUẬT. `ratios` = số đã đo; script tự tính lại và FAIL nếu lệch quá 0.01. */
@@ -139,8 +128,8 @@ const RULES = [
     bg: 'bg-line-subtle',
     fgToken: 'fg-subtle',
     bgToken: 'line-subtle',
-    ratios: { light: 3.86, dark: 4.26 },
-    remedy: 'dùng `text-fg-muted` (5.22 light / 6.53 dark) cho chữ trên dải hairline',
+    ratios: { light: 3.86 },
+    remedy: 'dùng `text-fg-muted` (5.22) cho chữ trên dải hairline',
   },
   {
     id: 'fg-subtle-on-primary-5',
@@ -149,8 +138,8 @@ const RULES = [
     fgToken: 'fg-subtle',
     bgToken: 'primary',
     bgAlpha: 5,
-    ratios: { light: 4.4, dark: 4.67 },
-    remedy: 'dùng `text-fg-muted` (5.96 light) trên hàng `bg-primary/5`',
+    ratios: { light: 4.4 },
+    remedy: 'dùng `text-fg-muted` (5.96) trên hàng `bg-primary/5`',
   },
   {
     id: 'fg-subtle-on-warning-tint',
@@ -158,7 +147,7 @@ const RULES = [
     bg: 'bg-warning-tint',
     fgToken: 'fg-subtle',
     bgToken: 'warning-tint',
-    ratios: { light: 4.44, dark: 4.33 },
+    ratios: { light: 4.44 },
     remedy: 'dùng `text-fg-muted`, hoặc đổi nền sang `bg-surface-muted` + `text-warning`',
   },
   {
@@ -167,8 +156,8 @@ const RULES = [
     bg: 'bg-surface-muted',
     fgToken: 'fg-subtle',
     bgToken: 'surface-muted',
-    ratios: { light: 4.53, dark: 4.68 },
-    // 4.53/4.68 >= 4.5 ⇒ mọi chỗ dùng luật này in ở mức SÁT NGƯỠNG (không tính RC).
+    ratios: { light: 4.53 },
+    // 4.53 >= 4.5 ⇒ mọi chỗ dùng luật này in ở mức SÁT NGƯỠNG (không tính RC).
     remedy: 'đạt chuẩn nhưng biên chỉ 0.03 — cân nhắc `text-fg-muted` khi sửa vùng này',
   },
   {
@@ -177,7 +166,7 @@ const RULES = [
     bg: 'bg-positive-tint',
     fgToken: 'fg-subtle',
     bgToken: 'positive-tint',
-    ratios: { light: 4.43, dark: 4.46 },
+    ratios: { light: 4.43 },
     remedy: 'dùng `text-fg-muted` trên nền `bg-positive-tint`',
   },
   {
@@ -186,7 +175,7 @@ const RULES = [
     bg: 'bg-positive-tint',
     fgToken: 'positive',
     bgToken: 'positive-tint',
-    ratios: { light: 4.67, dark: 9.35 },
+    ratios: { light: 4.67 },
     // ĐÃ SỬA Ở TẦNG TOKEN (D-1b): #E7F3EC (4.40 FAIL) -> #F0F9F3 (4.67 ĐẠT).
     // `muteHits`: ~55 chỗ đang dùng nay đều ĐẠT -> không in từng chỗ; luật vẫn giữ để phần
     // SỔ SÁCH chặn token bị làm đậm lại (`token-drift` / `rule-ratio-drift`).
@@ -371,8 +360,7 @@ function matchLiteral(rule, literalText) {
       if (bg.variant !== '' && hasOtherTextColor(bg.variant)) continue; // nền đổi thì chữ đổi theo
       if (fg.variant !== '' && fg.variant !== bg.variant && hasOtherTextColor(fg.variant)) continue;
 
-      const variants = `${fg.variant} ${bg.variant}`;
-      const themes = variants.includes('dark') ? ['dark'] : variants.includes('light') ? ['light'] : ['light', 'dark'];
+      const themes = ['light'];
       let worst = Infinity;
       let worstTheme = themes[0];
       for (const theme of themes) {
@@ -425,7 +413,7 @@ for (const file of walk(SRC)) {
           theme: hit.theme,
           min: MIN_TEXT,
           text: lit.text.replace(/\s+/g, ' ').trim().slice(0, 130),
-          why: `chữ \`${rule.fg}\` trên nền \`${rule.bg}\` = ${rule.ratios.light} light / ${rule.ratios.dark} dark (theme xấu nhất: ${hit.theme})`,
+          why: `chữ \`${rule.fg}\` trên nền \`${rule.bg}\` = ${rule.ratios.light}:1 (light)`,
           remedy: rule.remedy,
           nearMiss: Math.round(hit.ratio * 100) / 100 >= MIN_TEXT,
         };
@@ -446,31 +434,23 @@ const pushBookkeeping = (rule, text, why, remedy) =>
 
 try {
   const css = readFileSync(CSS_FILE, 'utf8');
-  const darkAt = css.indexOf('.dark {');
-  const lightPart = darkAt >= 0 ? css.slice(0, darkAt) : css;
-  const darkPart = darkAt >= 0 ? css.slice(darkAt) : '';
-  for (const theme of ['light', 'dark']) {
-    const part = theme === 'light' ? lightPart : darkPart;
-    for (const [name, expected] of Object.entries(TOKENS[theme])) {
-      const m = part.match(new RegExp('--color-' + name + '\\s*:\\s*(#[0-9A-Fa-f]{3,8})'));
-      if (!m) {
-        pushBookkeeping('token-drift', `--color-${name} (${theme})`, `không đọc được --color-${name} trong khối ${theme} của src/index.css — cập nhật TOKENS`, 'đọc lại src/index.css rồi cập nhật TOKENS + RULES');
-        continue;
-      }
-      if (m[1].toUpperCase() !== expected.toUpperCase()) {
-        pushBookkeeping('token-drift', `--color-${name} (${theme}) = ${m[1]}, script ghi ${expected}`, 'token đã đổi nhưng sổ sách của cổng chưa cập nhật → cổng có thể "xanh giả"', 'đo lại tỉ lệ rồi cập nhật TOKENS + RULES.ratios');
-      }
+  for (const [name, expected] of Object.entries(TOKENS.light)) {
+    const m = css.match(new RegExp('--color-' + name + '\\s*:\\s*(#[0-9A-Fa-f]{3,8})'));
+    if (!m) {
+      pushBookkeeping('token-drift', `--color-${name} (light)`, `không đọc được --color-${name} trong src/index.css — cập nhật TOKENS`, 'đọc lại src/index.css rồi cập nhật TOKENS + RULES');
+      continue;
+    }
+    if (m[1].toUpperCase() !== expected.toUpperCase()) {
+      pushBookkeeping('token-drift', `--color-${name} (light) = ${m[1]}, script ghi ${expected}`, 'token đã đổi nhưng sổ sách của cổng chưa cập nhật → cổng có thể "xanh giả"', 'đo lại tỉ lệ rồi cập nhật TOKENS + RULES.ratios');
     }
   }
   for (const rule of RULES) {
-    for (const theme of ['light', 'dark']) {
-      const bgHex = rule.bgAlpha === undefined
-        ? TOKENS[theme][rule.bgToken]
-        : compositeOver(TOKENS[theme][rule.bgToken], rule.bgAlpha, TOKENS[theme].surface);
-      const measured = Math.round(ratioOf(TOKENS[theme][rule.fgToken], bgHex) * 100) / 100;
-      if (Math.abs(measured - rule.ratios[theme]) > 0.01) {
-        pushBookkeeping('rule-ratio-drift', `${rule.id} (${theme}): thật ${measured}, sổ sách ${rule.ratios[theme]}`, 'token đổi giá trị nên tỉ lệ thật khác số đã ghi — luật phải được soát lại', 'cập nhật RULES[].ratios sau khi đo lại');
-      }
+    const bgHex = rule.bgAlpha === undefined
+      ? TOKENS.light[rule.bgToken]
+      : compositeOver(TOKENS.light[rule.bgToken], rule.bgAlpha, TOKENS.light.surface);
+    const measured = Math.round(ratioOf(TOKENS.light[rule.fgToken], bgHex) * 100) / 100;
+    if (Math.abs(measured - rule.ratios.light) > 0.01) {
+      pushBookkeeping('rule-ratio-drift', `${rule.id} (light): thật ${measured}, sổ sách ${rule.ratios.light}`, 'token đổi giá trị nên tỉ lệ thật khác số đã ghi — luật phải được soát lại', 'cập nhật RULES[].ratios sau khi đo lại');
     }
   }
 } catch (err) {

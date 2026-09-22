@@ -30,7 +30,7 @@
 |  |       LOCAL APPLICATION STATE      |             |     WEBGL 3D CAD ENGINE     |   |
 |  |  - Zustand Stores (Cart, UI, MES)  |             |  - Three.js 0.185 Scene     |   |
 |  |  - React Context (Auth, Language)  |             |  - Web Worker CAD Parser    |   |
-|  |  - ThemeProvider (Route Family)    |             |  - OpenCASCADE WASM Kernel  |   |
+|  |  - Theme tokens (light-only)       |             |  - OpenCASCADE WASM Kernel  |   |
 |  +-----------------+------------------+             +--------------+--------------+   |
 |                    |                                               |                  |
 +--------------------|-----------------------------------------------|------------------+
@@ -98,9 +98,8 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │   │   │   └── LanguageContext.tsx      # Bilingual dictionary & dynamic admin claims
 │   │   ├── hooks/                       # Custom React hooks (useInViewport, useSettings)
 │   │   ├── stores/                      # Frontend Zustand stores (useCartStore, useUIStore)
-│   │   ├── theme/                       # Design tokens & ThemeProvider implementation
-│   │   │   ├── tokens.ts                # JavaScript color token reader & observer
-│   │   │   └── ThemeProvider.tsx        # Theme coordinator (light-first default, dark opt-in)
+│   │   ├── theme/                       # Design token reader for JS/WebGL (light-only)
+│   │   │   └── tokens.ts                # JavaScript color token reader (CSS var + light fallback)
 │   │   ├── ui/                          # Design system atomic primitives (AppShell, Button, Icon)
 │   │   └── views/                       # Top-level page views (Home, Explore, PDP, Cart, Admin)
 │   │
@@ -179,11 +178,6 @@ The bootstrap pipeline starts from a lightweight HTML shell, initializes global 
 +--------+---------+
          |
          v
-+------------------+  Resolve stored override (default 'light'); route does not change it;
-| <RouteThemeSync> |  apply/remove 'dark' class on <html> documentElement
-+--------+---------+
-         |
-         v
 +------------------+  Listen to Supabase Auth state (getSession, onAuthStateChange);
 |  <AuthProvider>  |  Resolve DB role via public.user_profiles.role (fail-closed)
 +--------+---------+
@@ -216,7 +210,7 @@ The bootstrap pipeline starts from a lightweight HTML shell, initializes global 
    - `pricing_configs` (B.O.M formulas, slicing parameters, markup rates)
    Crucially, `bootstrapSettings()` is **not awaited at the top level**. The React application renders immediately, displaying skeletal placeholders until cache resolution finishes.
 3. **Provider Tree Composition (`src/App.tsx`)**:
-   `RouteThemeSync` encapsulates `ThemeProvider` inside `<BrowserRouter>` so that route changes detected by `useLocation().pathname` immediately synchronize theme styles without monkey-patching `window.history`.
+   The provider tree is `<BrowserRouter>` → `<AuthProvider>` → `<LanguageProvider>` → `<ScrollToTop>` + `<MainApp>`. There is no theme provider — the app is light-only, so route changes never synchronize a theme.
 
 ---
 
@@ -289,44 +283,29 @@ Wraps `<Routes>` inside `<BrowserRouter>`. Using `resetKey={location.pathname}`,
 
 ## 5. Theme System & Styling Engine
 
-VCUBE implements a light-first theme system using **Tailwind CSS 4** and semantic design tokens defined in `src/index.css` and `src/frontend/theme/tokens.ts`. A dark palette exists as an explicit user opt-in, not as a route family.
+VCUBE is **light-only permanently** — the dark theme was removed in the UI-chrome refactor
+(`docs/tasks/UI-CHROME-REFACTOR-PLAN.md` §2). Styling uses **Tailwind CSS 4** and semantic design
+tokens defined in `src/index.css`; JavaScript/WebGL reads them through
+`src/frontend/theme/tokens.ts`.
 
-### Light-First Theme Model
-1. **Light canvas everywhere (default)**:
-   All routes — storefront (`/`, `/explore`, `/products/:productId`, `/cart`, `/checkout`) **and** the technical consoles (`/quote`, `/admin`, `/lab`, `/designer`) — default to light canvas backgrounds (`#F8FAFC`) with high-contrast dark typography (`#091426`).
-2. **Dark opt-in (user override)**:
-   The deep dark canvas (`#080D16`) is selected only when the user explicitly sets `localStorage['vcube_theme'] = 'dark'` via the theme control. It is never selected by route.
+### Light-only model
 
-### Theme Resolution Logic
+All routes — storefront (`/`, `/explore`, `/products/:productId`, `/cart`, `/checkout`) **and**
+the technical consoles (`/quote`, `/admin`, `/lab`, `/designer`) — render on the light canvas
+(`#F8FAFC`) with high-contrast dark typography (`#091426`). `src/index.css` declares
+`color-scheme: light` on `:root`; there is no `.dark` block, no `@custom-variant dark`, and no
+theme toggle. The `ThemeProvider`, `ThemeMode`, `DARK_ROUTE_PREFIXES`, `resolveThemeMode`,
+`isDarkRoute` and `subscribeTheme` symbols have been deleted, and `App.tsx` no longer wraps
+`<AuthProvider>` in a route-theme sync component.
 
-`DARK_ROUTE_PREFIXES` is intentionally empty (`src/frontend/theme/ThemeProvider.tsx:27`), so `isDarkRoute()` always returns `false` and route no longer influences the theme:
-
-$$\text{ActiveTheme} = \begin{cases} 
-\text{'dark'}, & \text{if } \text{localStorage['vcube\_theme']} = \text{'dark'} \\
-\text{'light'}, & \text{otherwise (default, route-independent)}
-\end{cases}$$
-
-```tsx
-// src/frontend/theme/ThemeProvider.tsx
-export const DARK_ROUTE_PREFIXES: readonly string[] = [] as const;
-
-export function resolveThemeMode(
-  mode: ThemeMode | string | null | undefined, 
-  pathname?: string | null
-): ResolvedTheme {
-  if (mode === 'dark') return 'dark';
-  if (mode === 'light') return 'light';
-  return isDarkRoute(pathname) ? 'dark' : 'light';
-}
-```
+The only dark surface left is the fixed **chrome** tier (`--color-chrome*`, documented in
+`docs/design/tokens.md` §3.1) — a permanently dark sidebar/console surface, not a theme.
 
 ### Dynamic Three.js Styling Bridge
 
 CSS classes cannot be applied directly inside a WebGL canvas. When Three.js draws helper grids, bounding boxes, coordinate axes, and material highlights, it retrieves color values programmatically through `tokens.ts`:
 
-- `readColorToken(name: string)`: Reads computed CSS variables (`getComputedStyle(document.documentElement).getPropertyValue('--color-' + name)`) with fallback to constant tables.
-- `readColorNumber(name: string)`: Converts `#rrggbb` or `rgb()` tokens into integer hex numbers (`0xRRGGBB`) ready for `new THREE.Color(...)`.
-- `subscribeTheme(callback: (isDark: boolean) => void)`: Uses a DOM `MutationObserver` on `document.documentElement` (`class` attribute) to notify Three.js renderers when the user toggles dark mode, instantly rebuilding scene materials without reloading the page.
+- `readColorToken(name: string)`: Reads computed CSS variables (`getComputedStyle(document.documentElement).getPropertyValue('--color-' + name)`) with fallback to the light constant table.
 
 ---
 
@@ -351,7 +330,6 @@ State in VCUBE 3.0 is partitioned into three distinct tiers: Global Client Store
 |  REACT CONTEXTS (Core Session & Localization)                                   |
 |  - AuthContext       : Supabase Auth session, resolveDbRole (fail-closed)       |
 |  - LanguageContext   : Bilingual dictionary, dynamic admin claims resolution    |
-|  - ThemeContext      : Light-first theme + dark opt-in coordination             |
 +---------------------------------------------------------------------------------+
 ```
 

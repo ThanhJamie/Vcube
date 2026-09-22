@@ -399,3 +399,106 @@ Mỗi task: ghi `progress.md` (theo mẫu `.agents/*/`), trả báo cáo gồm *
 | Đổi `error: string\|null` → `error?: string` lệch `null`/`undefined` | Grep toàn bộ phép đọc `.error` của hàm liên quan trước khi đổi type (đã đo 0 chỗ `!== null`, 4 chỗ truthy, 28 literal `error:null`) |
 | `result.ts` import ngược từ service gây vòng | `result.ts` là lá thuần — chỉ KHÔNG import từ service/supabase; service được import từ nó |
 | Cam + trắng fail AA | đã dùng chữ tối `#0F172A` |
+
+---
+
+## 11. W7 — Landing page polish (2026-09-22)
+
+> Đợt riêng cho storefront landing (`HomeView`), độc lập với chrome console ở W1–W5.
+> Bất biến: data-honesty (`check-fabricated`), token-only, `ui/Button`, không dep mới.
+
+| # | Việc | File | Trạng thái |
+|---|---|---|---|
+| L1 | Helper ảnh sản phẩm dùng chung; chặn ảnh stock/placeholder (Unsplash/picsum) | `src/frontend/lib/productImage.ts` | DONE |
+| L2 | Admin dùng lại helper (bỏ bản trùng) | `components/admin/AdminProductsPanel.tsx` | DONE |
+| L3 | Catalog: mặc định **6 sản phẩm** (2 hàng) + nút **"Xem thêm"** + link toàn kho | `views/HomeView.tsx` | DONE |
+| L4 | Thumbnail: placeholder icon theo danh mục khi thiếu ảnh/lỗi (`onError`) | `views/HomeView.tsx` | DONE |
+| L5 | Hero dropzone: dashed đậm hơn, chip "KÉO & THẢ", icon `drag_pan` | `views/HomeView.tsx` | DONE |
+| L6 | Services: active state `bg-primary-tint` + `ring-2`, icon tile nổi hơn | `components/services/ServiceShowcaseSection.tsx` | DONE |
+| L7 | CTA: thêm section **"Quy trình 4 bước đặt hàng"** trước banner | `views/HomeView.tsx` | DONE |
+| L8 | Button variant `accent` (nền sáng chữ tối) cho CTA trên banner tối | `ui/Button.tsx` | DONE |
+| L9 | Widget hotline cố định — CHỈ hiện khi số hợp lệ (không bịa/không placeholder) | `views/HomeView.tsx` | DONE |
+
+**Còn lại — CẦN TÀI NGUYÊN/DỮ LIỆU (không thể bịa):**
+- **Thumbnail thật cho từng sản phẩm**: DB hiện chỉ có 2 URL stock dùng lặp ⇒ đã thay bằng placeholder danh mục.
+  Muốn ảnh thật: admin upload/seed ảnh render thật cho `products.images`.
+- **Mô hình 3D hero "chi tiết hơn"**: `ThreeModelViewer` dùng model procedural theo `modelType`
+  (`gear/drone/box/arch`). Muốn sắc nét kiểu linh kiện thật: cần asset `.glb/.step` thật + loader.
+- **Nút Zalo**: chỉ có trường `hotline` trong `site_content`; muốn Zalo cần cấu hình link/n số riêng.
+
+---
+
+## 12. W8 — Catalog page polish (`/explore`, 2026-09-22)
+
+> Đợt cho trang catalog. Bất biến: data-honesty, token-only, `ui/Button`, không dep mới.
+
+| # | Việc | File | Trạng thái |
+|---|---|---|---|
+| C1 | Thumbnail: dùng `realProductImageUrl` + placeholder icon theo danh mục + nhãn định dạng; `onError` rơi về placeholder | `views/ExploreView.tsx` | DONE |
+| C2 | SEO/OG image + ảnh item giỏ hàng không dùng ảnh stock | `views/ExploreView.tsx` | DONE |
+| C3 | Card tái cấu trúc: **Tim (favorite)** góc phải; tên + sao; thông số 1 dòng; giá (File CAD \| In từ); **1 nút chính "Xem & Tải File" + 1 icon "Đặt In 3D"** | `views/ExploreView.tsx` | DONE |
+| C4 | Bỏ hàng tag rối trong card + gộp thông số | `views/ExploreView.tsx` | DONE |
+| C5 | Sidebar lọc **thu gọn/mở (accordion)** theo nhóm | `views/ExploreView.tsx` (`FilterGroup`) | DONE |
+| C6 | Icon `favorite`/`favorite_border`/`expand_less` vào iconMap + `icon-map.md` | `ui/iconMap.ts`, `docs/design/icon-map.md` | DONE |
+| C7 | CTA cố định **"Báo giá file 3D riêng"** (sticky trong cột kết quả) | `views/ExploreView.tsx` | DONE |
+| C8 | Load-more đã có sẵn (giữ); tìm kiếm nội bộ đã có sẵn | — | ĐÃ CÓ |
+
+**Còn lại — cần tài nguyên:** thumbnail render thật theo từng sản phẩm (như W7). Không bịa ảnh.
+
+---
+
+## 13. W9 — Trang Báo Giá In 3D (`/quote`, 2026-09-22)
+
+| # | Việc | File | Trạng thái |
+|---|---|---|---|
+| Q1 | **Sticky cột báo giá**: `lg:sticky lg:top-20 lg:self-start` cho cột phải | `views/Tool3DView.tsx` | DONE |
+| Q2 | **Tab cột trái** 3 nhóm: `1. Cấu hình in` / `2. Phân tích & QA` / `3. Màu sắc 3MF` (viewport luôn hiển thị) | `views/Tool3DView.tsx` | DONE |
+| Q3 | **CTA nổi bật**: nút "Thêm Vào Giỏ & Đặt Hàng" → nền `accent` (#57DFFE) chữ tối, cao 52px; `rounded-md` | `components/tool3d/QuoteSummaryPanel.tsx` | DONE |
+| Q4 | Thêm nút phụ **"Gửi Yêu Cầu Hỗ Trợ Kỹ Thuật"** → mở chat | `components/tool3d/QuoteSummaryPanel.tsx` | DONE |
+| Q5 | **Upload thu gọn** thành thanh trạng thái (tên tệp + dung lượng + "Đổi tệp khác"); tự thu sau khi nạp tệp | `views/Tool3DView.tsx` | DONE |
+| Q6 | **Lịch sử tệp → accordion** (mặc định đóng, hiện tên tệp hiện tại) | `views/Tool3DView.tsx` | DONE |
+
+**Ghi chú:** PresetPalettePanel (bảng màu 3MF) nay chỉ hiện ở Tab 3 nên không còn chiếm 1/3 chiều dài trang.
+Sub-tabs cũ (Cấu trúc Part / Bảng màu / Tỷ lệ / QA) nằm trong Tab 2.
+
+
+
+---
+
+## 14. W10 — Trang Đơn Hàng (`/orders`, 2026-09-22)
+
+| # | Việc | File | Trạng thái |
+|---|---|---|---|
+| O1 | **Thumbnail**: bỏ ảnh stock (dùng `isFabricatedImage`), thay bằng placeholder icon theo mô hình; `onError` rơi về placeholder | `views/MyOrdersView.tsx` | DONE |
+| O2 | **Header đơn nổi bật**: mã đơn `text-lg/xl` đậm; badge trạng thái `rounded-md`; ngày `formatDateTime`; tổng tiền lớn bên phải | `views/MyOrdersView.tsx` | DONE |
+| O3 | **Status badge màu**: Chờ thanh toán = đỏ (`danger`), Đang gia công = xanh dương (`info`), Đang giao = xanh dương, Hoàn thành = xanh lá | `views/MyOrdersView.tsx` | DONE |
+| O4 | **Phân cấp CTA**: nút chính theo trạng thái (Chờ TT → "Thanh toán ngay" accent; Giao → "Theo dõi hành trình"; Hoàn thành → "In lại"; còn lại → "Xem tiến độ") | `views/MyOrdersView.tsx` | DONE |
+| O5 | **Thao tác phụ gom vào menu "…"** (`<details>`): Xem tiến độ · Hóa đơn VAT · In lại · Kiểm tra/Bảo hành | `views/MyOrdersView.tsx` | DONE |
+| O6 | Vận đơn hiển thị kèm tên đơn vị vận chuyển ở dòng ngày | `views/MyOrdersView.tsx` | DONE |
+| O7 | Icon `more_horiz` (`Ellipsis`) vào iconMap + icon-map.md | `ui/iconMap.ts`, `docs/design/icon-map.md` | DONE |
+
+**Đã có sẵn (giữ):** 7 tab lọc trạng thái, thanh tiến độ 8 nấc, ô tìm kiếm mã đơn/mã vận đơn/tên file.
+**Chưa làm (thiếu dữ liệu/route):** mốc thời gian dự kiến từng bước (không bịa); link tra cứu của ĐVVC (type chỉ có `carrier.name` + `trackingCode`, không có URL).
+---
+
+## 15. W11 — Workspace Xưởng in MES (`/lab`, 2026-09-22)
+
+| # | Việc | File | Trạng thái |
+|---|---|---|---|
+| L1 | **Banner partner_id thu gọn**: ô cảnh báo lớn → thanh banner mỏng (`warning-tint`) + link "Xem cấu hình xưởng"; tự ẩn khi có partner | `views/WorkshopSettingsView.tsx` | DONE |
+| L2 | Banner hồ sơ trùng cũng thu gọn thành 1 dòng | `views/WorkshopSettingsView.tsx` | DONE |
+| L3 | **KPI theo ngữ cảnh tab**: Máy in / Vật liệu / Phụ kiện có bộ 4 thẻ riêng; queue giữ bộ đơn hàng | `views/WorkshopSettingsView.tsx` | DONE |
+| L4 | **Kanban 4 bước** cho Hàng đợi việc + toggle `Danh sách | Kanban` (4 cột: Đơn mới · Chuẩn bị file/Gắn máy · Đang in · Hậu kỳ & Đóng gói) | `views/WorkshopSettingsView.tsx` | DONE |
+| L5 | **Màu trạng thái máy in**: badge xanh lá (Rảnh) / xanh dương (Đang in) / cam (Bảo trì) / đỏ (Tắt) + **quick toggle** "→ Rảnh / → Bảo trì" 1 click | `views/WorkshopSettingsView.tsx` | DONE |
+| L6 | **Tồn kho thấp**: tô nền dòng `warning-tint` (sắp hết) / `danger-tint` (hết hàng); nút "Ghi phiếu" → **"Nhập kho"** | `views/WorkshopSettingsView.tsx` | DONE |
+
+**Đã có sẵn (giữ):** menu Vận hành/Quản trị, KPI cards, bảng máy in/vật liệu/phụ kiện/sổ kho, empty states có mô tả + CTA.
+**Chưa làm:** tiến độ `%` thời gian in còn lại theo từng máy (DB chỉ có `layerProgress` ở tầng đơn, không phải telemetry máy) — không bịa.
+
+**Bổ sung W11 (đợt 2):**
+| # | Việc | Trạng thái |
+|---|---|---|
+| L7 | Thẻ Kanban thêm **máy in được gán** + **hạn giao** (`assignedPrinterId`, `estimatedDelivery`) | DONE |
+| L8 | **Progress bar máy đang in**: khi máy `Busy`, hiển thị `%` lớp của đơn được gán cho máy đó (dữ liệu thật, không bịa) | DONE |
+| L9 | **Empty state bắt mắt**: icon bọc trong ô tint (`bg-primary-tint`/`bg-warning-tint`) cho Phụ kiện/Sổ kho/Máy in/Vật liệu/Hàng đợi | DONE |
+| L10 | **Cấu hình xưởng**: ô "Chưa cấu hình" (điện/nhân công) kèm icon cảnh báo `(!)` + "cần bổ sung để tính giá tự động" | DONE |

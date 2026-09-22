@@ -9,7 +9,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useCartStore } from '../stores/useCartStore';
 import { Icon, Badge, Button, Card, EmptyState, InfoTip, Sheet, Skeleton } from '@frontend/ui';
-import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
+import { EMPTY_VALUE, formatCurrency, formatNumber } from '@frontend/lib/format';
+import { realProductImageUrl } from '@frontend/lib/productImage';
 
 interface ExploreViewProps {
   products: Product[];
@@ -51,7 +52,7 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 
 /** Giá chưa có/chưa cấu hình ⇒ `—`, KHÔNG in "0 đ" như một mức giá thật. */
 const formatVnd = (value: number, locale: string): string =>
-  Number.isFinite(value) && value > 0 ? `${value.toLocaleString(locale)} đ` : EMPTY_VALUE;
+  Number.isFinite(value) && value > 0 ? `${formatNumber(value, { locale })} đ` : EMPTY_VALUE;
 
 /**
  * `rating`/`reviewsCount` là dữ liệu THẬT của DB (cột đã gỡ default ⇒ có thể NULL).
@@ -75,9 +76,38 @@ const licenseLabel = (license?: string | null): string => {
   return value ? value : `${EMPTY_VALUE} (người bán chưa khai báo)`;
 };
 
+/** Icon placeholder theo danh mục khi bản vẽ chưa có ảnh thật. */
+const CATEGORY_ICON: Record<string, string> = Object.fromEntries(
+  CATEGORIES.map((c) => [c.id, c.icon]),
+);
+const categoryIcon = (category?: string): string =>
+  (category && CATEGORY_ICON[category]) || 'view_in_ar';
+
+/** Nhóm lọc thu gọn/mở rộng được (accordion). */
+const FilterGroup: React.FC<{ title: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode }> = ({
+  title,
+  defaultOpen = true,
+  children,
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-line-subtle pb-3 last:border-b-0 last:pb-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-2 py-1 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+      >
+        <span className="text-xs font-mono uppercase tracking-[0.2em] text-fg-subtle font-bold">{title}</span>
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={18} className="text-fg-muted shrink-0" />
+      </button>
+      {open ? <div className="mt-2.5">{children}</div> : null}
+    </div>
+  );
+};
+
 /** Thẻ xương đúng layout thẻ thật (khung ảnh 4:3, 2 dòng tiêu đề, dòng giá, 2 nút). */
-const ProductCardSkeleton: React.FC = () => (
-  <Card padding="none" className="flex flex-col overflow-hidden">
+const ProductCardSkeleton: React.FC = () => (  <Card padding="none" className="flex flex-col overflow-hidden">
     <div className="aspect-[4/3] w-full overflow-hidden">
       <Skeleton variant="rect" rounded="lg" height="100%" className="h-full w-full" />
     </div>
@@ -203,7 +233,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       type: 'digital',
       name: product.name,
       designer: product.designer,
-      image: product.images?.[0] || product.thumbnailUrl || '',
+      image: realProductImageUrl(product.images, product.thumbnailUrl),
       price: product.priceDigital,
       quantity: 1,
       // Data-honesty (P3b): KHONG doan ho giay phep/dinh dang tep khi san pham chua khai.
@@ -371,12 +401,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
    * bản không dùng lại cùng một cây element (tránh trùng `id`/`name` giữa 2 chỗ render).
    */
   const renderFilters = () => (
-    <div className="space-y-6">
-      {/* Category Filter with counts from real products */}
-      <div>
-        <p className="text-xs font-mono uppercase tracking-[0.2em] text-fg-subtle font-bold block mb-2.5">
-          {isVi ? 'Danh Mục Bản Vẽ' : 'CAD Categories'}
-        </p>
+    <div className="space-y-4">
+      <FilterGroup title={isVi ? 'Danh Mục Bản Vẽ' : 'CAD Categories'}>
         <div className="space-y-1">
           <button
             type="button"
@@ -420,20 +446,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             );
           })}
         </div>
-      </div>
+      </FilterGroup>
 
-      {/* Price Filter — chỉ dựng khi kho có giá thật để suy khoảng */}
       {priceRange && (
-        <div>
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-fg-subtle font-bold mb-2 flex items-center gap-1">
-            {isVi ? 'Khoảng Giá In Vật Lý' : 'Physical Price Range'}
-            <InfoTip label={isVi ? 'Dải giá này lấy từ đâu?' : 'Where does this price range come from?'}>
-              {isVi
-                ? 'Dải giá được suy từ trường price_physical của các bản vẽ đang hiển thị. Bản vẽ chưa khai giá sẽ hiện — và không tham gia dải này.'
-                : 'The range is derived from the price_physical field of the models currently shown. Models with no declared price render — and do not take part in the range.'}
-            </InfoTip>
-          </p>
-
+        <FilterGroup title={isVi ? 'Khoảng Giá In Vật Lý' : 'Physical Price Range'}>
           <div className="grid grid-cols-2 gap-1.5 mb-3">
             {PRICE_PRESETS.map((preset) => (
               <button
@@ -479,20 +495,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               <span>{formatCurrency(priceRange.ceiling)}</span>
             </div>
           </div>
-        </div>
+        </FilterGroup>
       )}
 
       {/* Material Filter — lấy từ bảng `materials` thật; rỗng ⇒ ẩn cả nhóm */}
       {materialOptions.length > 0 && (
-        <div>
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-fg-subtle font-bold mb-2 flex items-center gap-1">
-            {isVi ? 'Vật Liệu Hỗ Trợ' : 'Supported Material'}
-            <InfoTip label={isVi ? 'Danh mục vật liệu lấy từ đâu?' : 'Where does the material list come from?'}>
-              {isVi
-                ? 'Danh mục đọc từ bảng materials trong DB. Bảng rỗng thì cả nhóm lọc này ẩn — không dựng danh mục mẫu.'
-                : 'Read from the materials table in the DB. When it is empty the whole group is hidden — no sample list is invented.'}
-            </InfoTip>
-          </p>
+        <FilterGroup title={isVi ? 'Vật Liệu Hỗ Trợ' : 'Supported Material'} defaultOpen={false}>
           <div className="space-y-1">
             <button
               type="button"
@@ -521,11 +529,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               </button>
             ))}
           </div>
-        </div>
+        </FilterGroup>
       )}
 
-      {/* Feature filter */}
-      <div className="pt-3 border-t border-line space-y-2.5">
+      <FilterGroup title={isVi ? 'Tính Năng' : 'Features'} defaultOpen={false}>
         <label className="flex items-center gap-2.5 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -537,7 +544,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             {isVi ? 'Hỗ trợ khắc tên & tùy biến' : 'Custom engraving & resize'}
           </span>
         </label>
-      </div>
+      </FilterGroup>
     </div>
   );
 
@@ -552,7 +559,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           : (catalogProducts.length > 0
             ? `${catalogProducts.length} CAD models on VCUBE — prices, supported materials and file formats read from product data.`
             : 'VCUBE CAD catalogue. No model has been published yet — you can still send your own 3D file for a print quote.')}
-        image={products[0]?.thumbnailUrl || (products[0]?.images && products[0]?.images[0])}
+        image={realProductImageUrl(products[0]?.images, products[0]?.thumbnailUrl)}
         url={typeof window !== 'undefined' ? window.location.href : undefined}
         type="website"
       />
@@ -849,6 +856,24 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               </div>
             </Card>
 
+            {/* CTA cố định — khách đã có file riêng muốn báo giá gia công ngay */}
+            <div className="sticky top-20 z-panel">
+              <Card padding="sm" className="flex items-center justify-between gap-3 border-primary/30 bg-primary-tint">
+                <span className="text-xs text-fg-muted min-w-0 truncate">
+                  {isVi ? 'Đã có file CAD riêng? Báo giá gia công ngay.' : 'Have your own CAD file? Get a print quote now.'}
+                </span>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="shrink-0"
+                  leadingIcon={<Icon name="request_quote" size={16} />}
+                  onClick={goToQuote}
+                >
+                  {isVi ? 'Báo giá file 3D riêng' : 'Quote your 3D file'}
+                </Button>
+              </Card>
+            </div>
+
             {/* Dải cảnh báo đặt TRÊN state switch: lỗi nhưng vẫn còn dữ liệu cũ để xem (R6). */}
             {showWarning && (
               <p
@@ -959,9 +984,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                   {renderedProducts.map((product) => {
                     const isBookmarked = bookmarkedIds.includes(product.id);
-                    const imageUrl = product.thumbnailUrl || product.images?.[0] || '';
-                    const supported = product.supportedMaterials || [];
-                    const materialsLabel = supported.slice(0, 2).join(' · ');
+                    const imageUrl = realProductImageUrl(product.images, product.thumbnailUrl);
                     const rating = ratingOf(product);
 
                     return (
@@ -973,18 +996,25 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                       >
                         {/* Product Image Frame — tỉ lệ cố định 4:3 */}
                         <div className="responsive-aspect-frame">
+                          {/* Placeholder nền: hiện khi chưa có ảnh thật hoặc ảnh lỗi */}
+                          <div
+                            aria-hidden="true"
+                            className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface-muted text-fg-subtle"
+                          >
+                            <Icon name={categoryIcon(product.category)} size={40} />
+                            <span className="font-mono text-xs uppercase tracking-wider">
+                              {product.cadFormat || 'CAD'}
+                            </span>
+                          </div>
                           {imageUrl ? (
                             <img
                               src={imageUrl}
                               alt={product.name}
                               loading="lazy"
-                              className="responsive-img-cover group-hover:scale-105"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              className="responsive-img-cover relative group-hover:scale-105"
                             />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-fg-subtle">
-                              <Icon name="image" size={24} />
-                            </div>
-                          )}
+                          ) : null}
 
                           {/* Badges — chỉ dữ liệu DB trả về */}
                           <div className="absolute top-2 left-2 flex flex-col gap-1 items-start pointer-events-none">
@@ -1027,29 +1057,32 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             variant="secondary"
                             size="sm"
                             className="absolute top-2 right-2 z-sticky shadow-e2"
-                            aria-label={isBookmarked ? (isVi ? 'Bỏ lưu bản vẽ' : 'Remove bookmark') : (isVi ? 'Lưu bản vẽ' : 'Save model')}
+                            aria-label={isBookmarked ? (isVi ? 'Bỏ yêu thích' : 'Remove from favorites') : (isVi ? 'Yêu thích bản vẽ' : 'Add to favorites')}
                             aria-pressed={isBookmarked}
                             onClick={(e) => toggleBookmark(product.id, e)}
-                            leadingIcon={<Icon name={isBookmarked ? 'bookmark' : 'bookmark_border'} size={20} fill={isBookmarked ? 'currentColor' : 'none'} className={isBookmarked ? 'text-warning-strong' : 'text-fg-subtle'} />}
+                            leadingIcon={<Icon name={isBookmarked ? 'favorite' : 'favorite_border'} size={20} fill={isBookmarked ? 'currentColor' : 'none'} className={isBookmarked ? 'text-danger' : 'text-fg-subtle'} />}
                           />
                         </div>
 
-                        {/* Info Section */}
-                        <div className="flex-1 flex flex-col gap-2 p-4">
-                          <div className="flex items-center justify-between gap-2 text-xs">
-                            <span
-                              className="uppercase tracking-wider truncate font-semibold font-mono text-xs text-primary"
-                              title={product.designer ? product.designer : (isVi ? 'Người bán chưa khai báo tác giả' : 'Seller has not declared a designer')}
+                        {/* Info — 4 hàng: tên+rating · thông số · giá · CTA */}
+                        <div className="flex-1 flex flex-col gap-3 p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onSelectProduct(product);
+                                onNavigate('product_detail', { product });
+                              }}
+                              className="font-bold text-sm text-fg hover:text-primary transition-colors cursor-pointer line-clamp-2 leading-snug text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                              title={product.name}
                             >
-                              {product.designer || EMPTY_VALUE}
-                            </span>
+                              {product.name}
+                            </button>
                             {rating ? (
-                              <span className="shrink-0 inline-flex items-center gap-1 font-mono text-xs tabular-nums font-bold text-warning">
+                              <span className="shrink-0 inline-flex items-center gap-1 font-mono text-xs tabular-nums font-bold text-warning-strong">
                                 <Star aria-hidden="true" className="size-3.5 fill-current" />
                                 {rating.value}
-                                <span className="font-normal text-fg-subtle">
-                                  ({rating.count} {isVi ? 'đánh giá' : 'reviews'})
-                                </span>
+                                <span className="font-normal text-fg-subtle">({rating.count})</span>
                               </span>
                             ) : (
                               <span className="shrink-0 text-xs text-fg-subtle">
@@ -1058,75 +1091,35 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             )}
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onSelectProduct(product);
-                              onNavigate('product_detail', { product });
-                            }}
-                            className="font-bold text-sm text-fg hover:text-primary transition-colors cursor-pointer line-clamp-2 leading-snug text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-                             title={product.name}
-                           >
-                             {product.name}
-                           </button>
-
-                           {/* Thông số thật của sản phẩm; thiếu dữ liệu ⇒ không hiện */}
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-fg-muted">
+                          {/* Thông số chính — 1 dòng, thiếu dữ liệu ⇒ không hiện */}
+                          <div className="flex items-center gap-3 text-xs font-mono text-fg-muted min-w-0">
                             {product.specs?.dimensions && (
-                              <span className="inline-flex items-center gap-1">
-                                <Icon name="straighten" size={18} />
+                              <span className="inline-flex items-center gap-1 min-w-0 truncate">
+                                <Icon name="straighten" size={16} />
                                 {product.specs.dimensions}
                               </span>
                             )}
-                            {materialsLabel && (
-                              <span className="inline-flex items-center gap-1">
-                                <Icon name="layers" size={18} />
-                                {materialsLabel}
-                                {supported.length > 2 ? ` +${supported.length - 2}` : ''}
+                            {product.cadFormat && (
+                              <span className="inline-flex items-center gap-1 shrink-0">
+                                <Icon name="category" size={16} />
+                                {product.cadFormat}
                               </span>
                             )}
-                            <span className="inline-flex items-center gap-1">
-                              <Icon name="license" size={18} />
-                              {licenseLabel(product.licenseType)}
-                            </span>
                           </div>
-
-                          {/* Interactive Clickable Tags */}
-                          {(product.tags || []).length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {product.tags.slice(0, 3).map((tg) => (
-                                <button
-                                  key={tg}
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedTag(tg);
-                                  }}
-                                  className={`text-xs font-mono uppercase px-1.5 py-0.5 rounded-sm border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                                    selectedTag === tg
-                                      ? 'bg-primary text-primary-fg border-primary font-bold'
-                                      : 'bg-canvas text-fg-muted border-line hover:border-primary hover:text-fg'
-                                  }`}
-                                >
-                                  #{tg}
-                                </button>
-                              ))}
-                            </div>
-                          )}
 
                           <div className="mt-auto pt-3 border-t border-line-subtle">
                             <div className="flex items-baseline justify-between gap-2 mb-3 font-sans">
                               <div className="min-w-0">
                                 <span className="text-xs text-fg-subtle uppercase tracking-wider block font-medium">
-                                  {isVi ? 'Giá File CAD' : 'CAD License'}
+                                  {isVi ? 'File CAD' : 'CAD file'}
                                 </span>
-                                <span className="font-mono text-xs text-primary font-bold tabular-nums">
+                                <span className="font-mono text-sm text-primary font-bold tabular-nums">
                                   {formatVnd(product.priceDigital, numberLocale)}
                                 </span>
                               </div>
                               <div className="text-right min-w-0">
                                 <span className="text-xs text-fg-subtle uppercase tracking-wider block font-medium">
-                                  {isVi ? 'Giá In từ' : 'Print from'}
+                                  {isVi ? 'In từ' : 'Print from'}
                                 </span>
                                 <span className="font-mono font-bold text-sm text-fg tabular-nums">
                                   {formatVnd(product.pricePhysical, numberLocale)}
@@ -1134,49 +1127,33 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                               </div>
                             </div>
 
+                            {/* CTA: 1 nút chính + 1 icon phụ */}
                             <div className="flex items-center gap-2">
                               <Button
                                 variant="primary"
                                 size="md"
                                 className="flex-1"
                                 leadingIcon={<Icon name="download" size={18} />}
-                                onClick={(e) => handleQuickAddDigital(product, e)}
-                                disabled={!(isNum(product.priceDigital) && product.priceDigital > 0)}
-                                title={isNum(product.priceDigital) && product.priceDigital > 0
-                                  ? (isVi ? 'Thêm File CAD vào giỏ hàng' : 'Add CAD license to cart')
-                                  : (isVi ? 'Người bán không mở bán kênh file số.' : 'The seller does not sell this product as a CAD file.')}
+                                onClick={() => {
+                                  onSelectProduct(product);
+                                  onNavigate('product_detail', { product });
+                                }}
                               >
-                                {isNum(product.priceDigital) && product.priceDigital > 0
-                                  ? (isVi ? 'Tải File CAD' : 'Buy CAD')
-                                  : (isVi ? 'Không bán file số' : 'File not sold')}
+                                {isVi ? 'Xem & Tải File' : 'View & Download'}
                               </Button>
 
                               <Button
+                                iconOnly
                                 variant="secondary"
                                 size="md"
-                                leadingIcon={<Icon name="precision_manufacturing" size={18} />}
+                                aria-label={isVi ? `Đặt in 3D: ${product.name}` : `Print 3D: ${product.name}`}
                                 onClick={(e) => handleOpenPhysicalConfig(product, e)}
                                 disabled={!(isNum(product.pricePhysical) && product.pricePhysical > 0)}
                                 title={isNum(product.pricePhysical) && product.pricePhysical > 0
                                   ? (isVi ? 'Cấu hình đặt in 3D nhanh' : 'Quick 3D print config')
-                                  : (isVi ? 'Người bán không mở bán kênh in vật lý.' : 'The seller does not sell this product as a physical print.')}
-                              >
-                                {isVi ? 'Đặt In 3D' : 'Print 3D'}
-                              </Button>
-
-                              {product.isCustomizable && (
-                                <Button
-                                  iconOnly
-                                  variant="secondary"
-                                  size="md"
-                                  aria-label={isVi ? `Khắc laser / Tùy biến: ${product.name}` : `Custom engraving: ${product.name}`}
-                                  leadingIcon={<Icon name="tune" size={18} />}
-                                  onClick={() => {
-                                    onSelectProduct(product);
-                                    onNavigate('personalize', { product });
-                                  }}
-                                />
-                              )}
+                                  : (isVi ? 'Người bán không mở bán kênh in vật lý.' : 'Not available as a physical print.')}
+                                leadingIcon={<Icon name="precision_manufacturing" size={18} className="text-primary" />}
+                              />
                             </div>
                           </div>
                         </div>
@@ -1238,7 +1215,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                     </thead>
                     <tbody className="divide-y divide-line-subtle">
                       {renderedProducts.map((product) => {
-                        const imageUrl = product.thumbnailUrl || product.images?.[0] || '';
+                        const imageUrl = realProductImageUrl(product.images, product.thumbnailUrl);
                         return (
                           <tr key={product.id} className="hover:bg-canvas transition-colors">
                             <td className="py-3 px-4">
@@ -1248,11 +1225,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                                     src={imageUrl}
                                     alt={product.name}
                                     loading="lazy"
+                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                     className="w-12 h-12 object-cover rounded-md shrink-0"
                                   />
                                 ) : (
                                   <span className="w-12 h-12 rounded-md bg-surface-muted flex items-center justify-center text-fg-subtle shrink-0">
-                                    <Icon name="image" size={18} />
+                                    <Icon name={categoryIcon(product.category)} size={18} />
                                   </span>
                                 )}
                                 <div className="min-w-0">

@@ -74,6 +74,7 @@ node scripts/verify-rls.mjs          # kiểm chứng RLS bằng anon key (--wri
 node scripts/a8-sql-syntax-check.mjs # cú pháp tĩnh 7 file SQL + chặn nối chuỗi với cột "char" (lỗi 42725)
 node scripts/check-icon-names.mjs    # chặn glyph `<Icon name>` không có trong iconMap (fallback im lặng ở production)
 node scripts/check-ui-rules.mjs      # chặn hồi quy design-system: `border-line` trên control, `toLocaleString` thiếu guard, `focus:outline-none` thiếu ring, `animate-*` vô hạn thiếu `motion-reduce:animate-none` (allowlist có budget)
+node scripts/check-error-handling.mjs # chặn nuốt lỗi trong `catch`: R1 empty-catch + R2 false-success-in-catch (cứng, limit 0), R3 warn/error-in-catch (allowlist budget, chỉ được giảm)
 ```
 
 Chi tiết vận hành & khắc phục sự cố: `docs/security/rls-runbook.md`.

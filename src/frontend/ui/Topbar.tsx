@@ -2,7 +2,8 @@
  * Topbar — thanh trên cùng của `AppShell`, cao **56px** (spec: 21-saas-spec.md §3).
  *
  * Hợp đồng:
- * - Slots theo vai trò: `leading` (nút mở điều hướng mobile / nút quay lại), `breadcrumb`,
+ * - Slots theo vai trò: `leading` (nút mở điều hướng mobile / nút quay lại), `brand`
+ *   (logo/khu thương hiệu — chỉ render node, nơi gọi tự ẩn chữ dưới `sm`), `breadcrumb`,
  *   `search` (ô tìm kiếm lệnh — ẩn dưới `md` để không tràn 390px), `actions` (CTA chính),
  *   `avatar` (menu tài khoản).
  * - **Không** lặp lại nav storefront (điều hướng nằm ở `SideNav`).
@@ -15,6 +16,8 @@ import { cn } from './cn';
 
 export interface TopbarProps {
   leading?: ReactNode;
+  /** Logo/khu thương hiệu — render giữa `leading` và `breadcrumb`, không co giãn. */
+  brand?: ReactNode;
   breadcrumb?: ReactNode;
   search?: ReactNode;
   actions?: ReactNode;
@@ -27,6 +30,7 @@ export interface TopbarProps {
 
 export function Topbar({
   leading,
+  brand,
   breadcrumb,
   search,
   actions,
@@ -46,6 +50,8 @@ export function Topbar({
       )}
     >
       {leading ? <div className="flex shrink-0 items-center gap-1">{leading}</div> : null}
+
+      {brand ? <div className="flex shrink-0 items-center gap-2">{brand}</div> : null}
 
       {breadcrumb ? (
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">{breadcrumb}</div>

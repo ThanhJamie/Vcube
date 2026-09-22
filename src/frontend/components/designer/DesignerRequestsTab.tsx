@@ -100,7 +100,11 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
     );
 
     try {
-      await customDesignService.appendMessage(currentRequest.id, newMsg);
+      const res = await customDesignService.appendMessage(currentRequest.id, newMsg);
+      if (!res.success) {
+        onShowToast(`Lỗi khi gửi tin nhắn: ${res.error}`);
+        void fetchRequests();
+      }
     } catch (err: any) {
       console.error('Lỗi khi gửi tin nhắn:', err);
       onShowToast(`Lỗi khi gửi tin nhắn: ${err.message || 'Không xác định'}`);
@@ -149,7 +153,12 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
     );
 
     try {
-      await customDesignService.sendQuote(currentRequest.id, quoteMsg);
+      const res = await customDesignService.sendQuote(currentRequest.id, quoteMsg);
+      if (!res.success) {
+        onShowToast(`Lỗi khi phát hành báo giá: ${res.error}`);
+        void fetchRequests();
+        return;
+      }
       onShowToast(`Đã gửi báo giá ${formatCurrency(quoteAmount)} tới khách hàng ${currentRequest.clientName}!`);
     } catch (err: any) {
       console.error('Lỗi khi gửi báo giá:', err);

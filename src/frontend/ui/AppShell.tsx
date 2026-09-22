@@ -7,6 +7,10 @@
  *   drawer trượt từ trái (dùng `Sheet side="left"` — cùng cơ chế `<dialog>` của `Modal`,
  *   nên có top-layer + focus trap + Esc).
  * - `Topbar` cao **56px**.
+ * - `chrome` (mặc định `false`): console tối — topbar sáng **full-width** nằm TRÊN hàng
+ *   `flex`, sidebar tối bắt đầu dưới topbar (`sticky top-14 h-[calc(100dvh-3.5rem)]`),
+ *   drawer mobile dùng `tone="chrome"`. `chrome={false}` giữ nguyên bố cục cũ 100%
+ *   (topbar nằm trong cột nội dung).
  * - Vùng nội dung `PageHeader` + `Section`, bề rộng `max-w-[1400px]` (dashboard);
  *   `maxWidth="reading"` = `max-w-3xl` cho trang đọc (chi tiết, hoá đơn).
  *
@@ -58,6 +62,12 @@ export interface AppShellProps {
   /** Nút mở drawer mặc định (chỉ hiện dưới `lg`) — truyền `false` để tự làm nút khác. */
   showMobileNavButton?: boolean;
   openNavLabel?: string;
+  /**
+   * `true` = console tối: topbar sáng **full-width** đặt TRƯỚC hàng `flex`, sidebar tối
+   * bắt đầu dưới topbar, drawer mobile `tone="chrome"`. Mặc định `false` giữ nguyên bố
+   * cục cũ (topbar trong cột nội dung, aside cao `h-dvh`) — storefront không đổi.
+   */
+  chrome?: boolean;
   className?: string;
   contentClassName?: string;
 }
@@ -82,6 +92,7 @@ export function AppShell({
   skipLinkLabel = 'Bỏ qua điều hướng',
   showMobileNavButton = true,
   openNavLabel = 'Mở điều hướng',
+  chrome = false,
   className,
   contentClassName,
 }: AppShellProps) {
@@ -123,10 +134,24 @@ export function AppShell({
         {skipLinkLabel}
       </a>
 
+      {/* Chrome: topbar sáng FULL-WIDTH đặt TRƯỚC hàng `flex`, sidebar tối ở dưới. */}
+      {chrome && (topbarNode || mobileTrigger) ? (
+        <div className="sticky top-0 z-header flex flex-col">
+          {mobileTrigger ? (
+            <div className="flex h-14 items-center border-b border-line-subtle bg-surface px-3 sm:px-4 lg:hidden">
+              {mobileTrigger}
+            </div>
+          ) : null}
+          {topbarNode}
+        </div>
+      ) : null}
+
       <div className="flex">
         <aside
           className={cn(
-            'sticky top-0 hidden h-dvh shrink-0 border-r border-line-subtle bg-surface lg:flex lg:flex-col',
+            chrome
+              ? 'sticky top-14 hidden h-[calc(100dvh-3.5rem)] shrink-0 border-r border-chrome-border lg:flex lg:flex-col'
+              : 'sticky top-0 hidden h-dvh shrink-0 border-r border-line-subtle bg-surface lg:flex lg:flex-col',
             collapsed ? 'lg:w-16' : 'lg:w-60',
           )}
         >
@@ -138,6 +163,7 @@ export function AppShell({
           open={mobileOpen}
           onClose={closeNav}
           side="left"
+          tone={chrome ? 'chrome' : 'light'}
           aria-label={navLabel}
           showCloseButton={false}
           panelClassName="lg:hidden"
@@ -146,7 +172,7 @@ export function AppShell({
         </Sheet>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {topbarNode || mobileTrigger ? (
+          {!chrome && (topbarNode || mobileTrigger) ? (
             <div className="sticky top-0 z-header flex flex-col">
               {mobileTrigger ? (
                 <div className="flex h-14 items-center border-b border-line-subtle bg-surface px-3 sm:px-4 lg:hidden">

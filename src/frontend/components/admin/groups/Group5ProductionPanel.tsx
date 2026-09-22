@@ -10,7 +10,7 @@ import {
 import { Order } from '../../../types';
 import { dbService } from '../../../../backend/supabase/database';
 import { useLanguage } from '../../../context/LanguageContext';
-import { EMPTY_VALUE } from '../../../lib/format';
+import { EMPTY_VALUE, formatNumber } from '../../../lib/format';
 import { Button, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
 
 /** Mục menu đang mở panel này (`/admin/queue` hoặc `/admin/orders`) — quyết định tab mặc định. */
@@ -28,7 +28,7 @@ type ProductionTab = 'kanban' | 'dispatcher' | 'fleet';
 
 /** `null`/`undefined`/NaN ⇒ `—` (docs/design/data-honesty.md). KHÔNG bịa `0`. */
 const numOrDash = (v: number | null | undefined, suffix = ''): string =>
-  typeof v === 'number' && Number.isFinite(v) ? `${v.toLocaleString('vi-VN')}${suffix}` : EMPTY_VALUE;
+  typeof v === 'number' && Number.isFinite(v) ? `${formatNumber(v)}${suffix}` : EMPTY_VALUE;
 
 /** Nấc Kanban → `orders.status` (enum THẬT của cột — xem `20260901_baseline_schema.sql`). */
 const STATUS_BY_STAGE: Record<ProductionStageKey, Order['status']> = {

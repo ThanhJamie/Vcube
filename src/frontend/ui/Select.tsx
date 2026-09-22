@@ -8,11 +8,14 @@
  * - `placeholder`: option **rỗng** (`value=''`) để biểu diễn "chưa chọn" và vẫn xoá được.
  * - `options` (mảng) hoặc `children` (`<option>`), hoặc cả hai.
  * - Dùng cùng `Field` để luôn có `<label for>`.
+ * - `tone='chrome'`: xử lý như `Input` (nền `chrome-raised`, chữ `chrome-fg`) + chevron
+ *   `text-chrome-fg-muted`.
  */
 
 import { ChevronDown } from 'lucide-react';
 import type { ComponentPropsWithRef, CSSProperties, ReactNode } from 'react';
 import { cn } from './cn';
+import type { Tone } from './tone';
 
 export type SelectSize = 'sm' | 'md';
 
@@ -30,6 +33,8 @@ export interface SelectProps
   placeholder?: string;
   invalid?: boolean;
   numeric?: boolean;
+  /** Bề mặt render lên: `light` (mặc định) hoặc `chrome` (console tối). */
+  tone?: Tone;
   size?: SelectSize;
   className?: string;
   wrapperClassName?: string;
@@ -37,12 +42,22 @@ export interface SelectProps
   style?: CSSProperties;
 }
 
+/** Tone `light` — giữ NGUYÊN chuỗi class cũ (tone mặc định ⇒ 0 đổi UI). */
 const BASE = [
   'w-full appearance-none rounded-md border bg-surface text-fg',
   'pr-9',
-  'transition-colors duration-150 ease-out',
+  'transition-colors duration-fast ease-out',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
   'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-fg-subtle',
+].join(' ');
+
+/** Tone `chrome` — bộ class riêng, KHÔNG xếp chồng lên BASE (cn() không merge). */
+const BASE_CHROME = [
+  'w-full appearance-none rounded-md border bg-chrome-raised text-chrome-fg',
+  'pr-9',
+  'transition-colors duration-fast ease-out',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chrome-ring',
+  'disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-fg-muted',
 ].join(' ');
 
 const SIZE: Record<SelectSize, string> = {
@@ -55,6 +70,7 @@ export function Select({
   placeholder,
   invalid = false,
   numeric = false,
+  tone = 'light',
   size = 'md',
   className,
   wrapperClassName,
@@ -62,7 +78,11 @@ export function Select({
   style,
   ...rest
 }: SelectProps) {
-  const borderTone = invalid ? 'border-danger' : 'border-line-control';
+  const borderTone = invalid
+    ? 'border-danger'
+    : tone === 'chrome'
+      ? 'border-chrome-border'
+      : 'border-line-control';
 
   return (
     <div className={cn('relative w-full', wrapperClassName)}>
@@ -70,7 +90,13 @@ export function Select({
         {...rest}
         aria-invalid={invalid ? true : rest['aria-invalid']}
         style={style}
-        className={cn(BASE, SIZE[size], borderTone, numeric && 'tabular-nums', className)}
+        className={cn(
+          tone === 'chrome' ? BASE_CHROME : BASE,
+          SIZE[size],
+          borderTone,
+          numeric && 'tabular-nums',
+          className,
+        )}
       >
         {placeholder ? <option value="">{placeholder}</option> : null}
         {options?.map((option) => (
@@ -82,7 +108,10 @@ export function Select({
       </select>
       <ChevronDown
         aria-hidden="true"
-        className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-fg-subtle"
+        className={cn(
+          'pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2',
+          tone === 'chrome' ? 'text-chrome-fg-muted' : 'text-fg-subtle',
+        )}
       />
     </div>
   );

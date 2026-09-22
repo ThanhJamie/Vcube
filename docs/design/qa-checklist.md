@@ -67,21 +67,15 @@ Responsive breakpoints actually used in code: `sm 640`, `md 768`, `lg 1024`, `xl
 | Decimals in EN | Home simulator "print duration" value | Expected EN-friendly `2.4 h`. Baseline: `(grams/35 + 0.8).toFixed(1)` → `2.4`, never localized |
 | Dates | Any `dd/mm/yyyy` (quote validity, review date) | Expected locale-correct date in EN. Baseline: hardcoded / `'vi-VN'` |
 
-### 4. Both themes (once the dark theme for `/quote`, `/admin`, `/lab` lands)
+### 4. Theme — light-only (permanent)
 
-**Baseline today: there is no dark theme at all.** `src/index.css` contains no `.dark` selector, no `prefers-color-scheme` block and no `color-scheme` declaration; views hardcode surface colours (`bg-[#F8FAFC]`, `bg-white`, `text-[#091426]`, `border-[#CBD5E1]`). Treat every row below as a post-dark-theme gate.
-
-| Check | How to verify | Expected |
-| --- | --- | --- |
-| Toggle exists and is reachable | Header → theme control; also check keyboard reachability | Light/dark/system control present, reachable by Tab, with an accessible name |
-| Persistence | Set dark, reload, navigate across routes | Stays dark; no flash of light theme on first paint |
-| System preference | Set OS to dark, no stored override | App follows OS (`prefers-color-scheme`) |
-| No Flash Of Wrong Theme | Throttle to Slow 3G, hard reload in dark | Background never flashes white before hydration |
-| `/quote` dark | `/quote` in dark: slicer card, workspace tabs, validation panel, quote summary, all 4 modals | No white surface, no unreadable text, table borders visible |
-| `/admin` dark | `/admin/overview` → each of the 22 valid sections | Chart/table contrast holds; badges and status pills remain distinguishable |
-| `/lab` dark | Once routed | Same bar as `/admin` |
-| Canvas surrounds | 3D viewport frame in dark | Canvas backdrop, HUD text and overlays stay legible; no hardcoded `bg-[#091426]` clash |
-| Contrast after theming | Re-run the contrast spot checks in `## Accessibility spot checks` in both themes | WCAG AA: ≥4.5:1 body, ≥3:1 large text and UI borders |
+App is **light-only permanently**; the dark theme was removed in the UI-chrome refactor
+(`docs/tasks/UI-CHROME-REFACTOR-PLAN.md` §2). There is no theme toggle, no `.dark` selector, no
+`prefers-color-scheme` block and no `color-scheme: dark` declaration. `src/index.css` declares
+`color-scheme: light` on `:root`. All surfaces are token-driven (`bg-canvas`, `bg-surface`,
+`text-fg`…); report any hardcoded surface colour (`bg-[#F8FAFC]`, `bg-white`, `text-[#091426]`,
+`border-[#CBD5E1]`) as token drift. Contrast spot checks are run on the light theme only
+(see `## Accessibility spot checks`).
 
 ---
 
@@ -615,7 +609,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Lab avatar menu | Sign in as `lab`, open the avatar menu | Its items point at `/lab` (or `/lab/:section`), not into `/admin` |
 | Nav entry | Header/mobile drawer as `lab` | A `MES Hub` nav item appears, is highlighted on `/lab`, and is absent for other roles |
 | Sub-sections | Every `/lab/:section` if the route is parameterised | Deep links resolve, URL ↔ panel state stays in sync, and an unknown section does not silently render another panel (mirror the `/admin/:section` checks) |
-| Dark theme | `/lab` in dark mode | Full coverage — this route is one of the three that must ship the dark theme (see Setup §4) |
+| Theme | `/lab` | Light-only surfaces only — no theme toggle, no dark palette (see §4) |
 | Realtime | Change an order stage in `/admin/queue` in another tab | The lab view updates (or has an explicit refresh) — it shows the same 8-stage MES pipeline as `OrderProgress` |
 | Queue operations | Advance/assign a job from `/lab` | The change is reflected on `/tracking/<id>` and `/orders` for the customer, and the stage labels match `MES_PIPELINE_STAGES` |
 | Destructive guards | Complete/reject/assign actions | Confirmations on anything irreversible (the admin equivalents currently lack them) |
@@ -746,7 +740,7 @@ Execute these end-to-end, in order, in a **fresh browser profile** (or after cle
 | Canvas keyboard path | Tab to a canvas, then try arrows/`+`/`-` | Either it is operable, or it is explicitly removed from the tab order with a described fallback (e.g. a linked image gallery). The gallery mode on `/products/:id` is the natural fallback |
 | **`prefers-reduced-motion`** | Set OS/browser to reduce motion, then visit `/`, `/quote`, `/tracking`, and open a modal | Expected: no smooth route scrolling, no `animate-pulse`/`animate-ping` that pulses indefinitely, no modal zoom, no auto-rotating 3D, and the route change jumps instantly. Baseline: **zero `prefers-reduced-motion` handling in the repo** — `ScrollToTop` smooth-scrolls, `OrderProgress` pulses, the hero/quote canvases auto-rotate. (Note: the modals' `animate-in`/`zoom-in-95` classes are inert today because `tailwindcss-animate` is not installed — once animations are wired up, this check becomes live) |
 | Reduced motion, long-running | With reduce-motion on, leave `/tracking` open for 30 s | No continuously moving indicator draws attention |
-| Body-text contrast | DevTools contrast checker at 1440 and 390, light **and** dark: `#091426` on `#F8FAFC`/white, `#545F73` and `#64748B` on white, footer `#8590A6` on `#091426` | ≥4.5:1 for body text, ≥3:1 for large text (≥18.66 px bold or ≥24 px). Flag anything below |
+| Body-text contrast | DevTools contrast checker at 1440 and 390 (light-only): `#091426` on `#F8FAFC`/white, `#545F73` and `#64748B` on white, footer `#8590A6` on `#091426` | ≥4.5:1 for body text, ≥3:1 for large text (≥18.66 px bold or ≥24 px). Flag anything below |
 | **Muted-text contrast** | Check the specific muted tokens: `#8590A6` (footer links, hints), `#94A3B8`, `#75777D` (search icon/labels), `text-slate-400`, `text-slate-500`, and the quote's `text-[#64748B]` | ≥4.5:1 where it is real content; ≥3:1 only for genuinely decorative text. These tokens are the most likely failures — measure each rather than eyeballing |
 | UI-component contrast | Borders (`#CBD5E1`, `#545F73`), the progress-bar track, focus rings, the cart badge, the disabled COD radio, "out of stock" swatches | ≥3:1 against adjacent colours; every state is distinguishable without relying on colour alone (add icon/text) |
 | Status-colour independence | Toasts, order status pills, the placeholder/error states, the stock badge | Each carries a text or icon cue in addition to colour |
@@ -798,7 +792,7 @@ Copy this block per refactor phase. Attach the evidence and commit it alongside 
 | Environment | WSL2 Ubuntu-24.04 · `npm run dev` · http://localhost:3000 · browser + version |
 | Widths covered | 390 / 768 / 1024 / 1440 / 1920 |
 | Languages covered | VI ☐ EN ☐ |
-| Themes covered | Light ☐ Dark ☐ (dark only once `/quote`, `/admin`, `/lab` ship it) |
+| Themes covered | Light-only (permanent — dark theme removed, see §4) |
 
 ### Results table
 

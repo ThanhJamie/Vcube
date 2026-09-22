@@ -12,6 +12,8 @@
  *   trong control).
  * - Mỗi mục cao ≥44px (`min-h-11`) để đạt đích chạm trên mobile.
  * - Mục có `href` render `<a>`, chỉ có `onClick` render `<button>`.
+ * - `tone='chrome'`: sidebar tối — nav `bg-chrome`, mục active `bg-chrome-active text-chrome-active-fg`
+ *   + vạch trái `bg-chrome-active-fg`, mục thường `text-chrome-fg-muted`, focus `ring-chrome-ring`.
  * - Thu gọn: nhãn ẩn khỏi màn hình nhưng vẫn nằm trong DOM ở dạng `sr-only`? **Không** —
  *   ở chế độ thu gọn mỗi mục được đặt `title` + `aria-label` = nhãn, tránh chồng chữ.
  */
@@ -19,6 +21,7 @@
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Button } from './Button';
 import { cn } from './cn';
+import type { Tone } from './tone';
 import type { ReactNode } from 'react';
 
 export interface SideNavItem {
@@ -56,24 +59,28 @@ export interface SideNavProps {
   collapseLabel?: string;
   expandLabel?: string;
   label?: string;
+  /** Bề mặt render lên: `light` (mặc định) hoặc `chrome` (sidebar console tối). */
+  tone?: Tone;
   className?: string;
 }
 
 const ITEM_BASE = [
   'relative flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-sm',
-  'transition-colors duration-150 ease-out motion-reduce:transition-none',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  'transition-colors duration-fast ease-out motion-reduce:transition-none',
+  'focus-visible:outline-none focus-visible:ring-2',
 ].join(' ');
 
 function ItemNode({
   item,
   active,
   collapsed,
+  tone,
   onSelect,
 }: {
   item: SideNavItem;
   active: boolean;
   collapsed: boolean;
+  tone: Tone;
   onSelect?: (id: string) => void;
 }) {
   const content = (
@@ -81,7 +88,10 @@ function ItemNode({
       {active ? (
         <span
           aria-hidden="true"
-          className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary"
+          className={cn(
+            'absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full',
+            tone === 'chrome' ? 'bg-chrome-active-fg' : 'bg-primary',
+          )}
         />
       ) : null}
 
@@ -94,7 +104,12 @@ function ItemNode({
       {collapsed ? null : <span className="min-w-0 flex-1 truncate">{item.label}</span>}
 
       {!collapsed && item.badge != null ? (
-        <span className="inline-flex shrink-0 items-center rounded-full bg-surface-muted px-2 text-xs font-medium tabular-nums text-fg-muted">
+        <span
+          className={cn(
+            'inline-flex shrink-0 items-center rounded-full px-2 text-xs font-medium tabular-nums',
+            tone === 'chrome' ? 'bg-chrome-raised text-chrome-fg' : 'bg-surface-muted text-fg-muted',
+          )}
+        >
           {item.badge}
         </span>
       ) : null}
@@ -103,8 +118,15 @@ function ItemNode({
 
   const className = cn(
     ITEM_BASE,
+    tone === 'chrome' ? 'focus-visible:ring-chrome-ring' : 'focus-visible:ring-ring',
     collapsed && 'justify-center px-0',
-    active ? 'bg-surface-muted font-medium text-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg',
+    active
+      ? tone === 'chrome'
+        ? 'bg-chrome-active font-medium text-chrome-active-fg'
+        : 'bg-surface-muted font-medium text-fg'
+      : tone === 'chrome'
+        ? 'text-chrome-fg-muted hover:bg-chrome-raised hover:text-chrome-fg'
+        : 'text-fg-muted hover:bg-surface-muted hover:text-fg',
     item.disabled && 'pointer-events-none opacity-50',
   );
 
@@ -156,6 +178,7 @@ export function SideNav({
   collapseLabel = 'Thu gọn điều hướng',
   expandLabel = 'Mở rộng điều hướng',
   label = 'Điều hướng chính',
+  tone = 'light',
   className,
 }: SideNavProps) {
   const resolvedGroups: SideNavGroup[] =
@@ -166,7 +189,11 @@ export function SideNav({
   return (
     <nav
       aria-label={label}
-      className={cn('flex h-full min-h-0 flex-col gap-2 bg-surface', className)}
+      className={cn(
+        'flex h-full min-h-0 flex-col gap-2',
+        tone === 'chrome' ? 'bg-chrome' : 'bg-surface',
+        className,
+      )}
     >
       <div className={cn('flex h-14 shrink-0 items-center gap-3 px-3', collapsed && 'justify-center px-0')}>
         {header}
@@ -176,7 +203,12 @@ export function SideNav({
         {resolvedGroups.map((group, groupIndex) => (
           <div key={group.id ?? groupIndex} className="flex flex-col gap-1">
             {group.label && !collapsed ? (
-              <p className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-fg-subtle">
+              <p
+                className={cn(
+                  'px-3 pb-1 text-xs font-medium uppercase tracking-wide',
+                  tone === 'chrome' ? 'text-chrome-fg-muted' : 'text-fg-subtle',
+                )}
+              >
                 {group.label}
               </p>
             ) : null}
@@ -187,6 +219,7 @@ export function SideNav({
                 item={item}
                 active={item.active ?? item.id === activeId}
                 collapsed={collapsed}
+                tone={tone}
                 onSelect={onSelect}
               />
             ))}
@@ -197,11 +230,18 @@ export function SideNav({
       {footer ? <div className="shrink-0 px-3 pb-3">{footer}</div> : null}
 
       {onCollapsedChange ? (
-        <div className={cn('shrink-0 border-t border-line-subtle p-2', collapsed && 'flex justify-center')}>
+        <div
+          className={cn(
+            'shrink-0 border-t p-2',
+            tone === 'chrome' ? 'border-chrome-border' : 'border-line-subtle',
+            collapsed && 'flex justify-center',
+          )}
+        >
           <Button
             iconOnly
             variant="ghost"
             size="sm"
+            tone={tone}
             aria-label={collapsed ? expandLabel : collapseLabel}
             onClick={() => onCollapsedChange(!collapsed)}
           >

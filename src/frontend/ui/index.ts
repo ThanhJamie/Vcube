@@ -48,4 +48,5 @@ export * from './Skeleton';
 export * from './StatCard';
 export * from './Toolbar';
 export * from './ToastViewport';
+export * from './tone';
 export * from './Topbar';

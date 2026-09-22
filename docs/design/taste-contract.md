@@ -43,7 +43,7 @@ Skill `design-taste-frontend` / `redesign-existing-projects` / `minimalist-ui` c
 | Đổi font sang Geist/Outfit/Satoshi; cấm "Inter" | **Be Vietnam Pro** (subset tiếng Việt) + JetBrains Mono | `src/index.css` `--font-sans/--font-mono` |
 | Đổi icon sang Phosphor/Heroicons; cấm lucide | **lucide + `iconMap`** | `scripts/check-icon-names.mjs`, `docs/design/icon-map.md` |
 | Bịa nội dung/ảnh/picsum/"fake-precise numbers"/testimonial giả | **Cấm** | `scripts/check-fabricated.mjs`, `docs/design/data-honesty.md` |
-| Bắt buộc dual light/dark | **light-first**, dark là opt-in | `DARK_ROUTE_PREFIXES = []`, `AGENTS.md` |
+| Bắt buộc dual light/dark | **light-only vĩnh viễn** (dark theme đã xoá hẳn) | `AGENTS.md`, `docs/tasks/UI-CHROME-REFACTOR-PLAN.md` §2 |
 | Cấm `window.addEventListener('scroll')` | FAB dùng scroll listener **throttle rAF** + IntersectionObserver; đo overlap khi ngừng cuộn | `src/App.tsx` FAB effect |
 | GSAP cho scroll/pin | **`motion` (đã cài)**; không GSAP | `package.json` |
 | Aesthetic warm-monochrome/serif của `minimalist-ui`, double-bezel của `high-end-visual-design` | **KHÔNG cài 2 skill này** | mục 1 |

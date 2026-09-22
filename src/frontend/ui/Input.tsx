@@ -8,10 +8,13 @@
  * - `invalid`: viền `border-danger` + `aria-invalid` (chọn theo biến, không lồng class
  *   xung đột để không phụ thuộc thứ tự CSS).
  * - disabled/readOnly có style phân biệt; vẫn dùng qua `Field` để có `<label for>`.
+ * - `tone='chrome'`: nền `chrome-raised`, chữ `chrome-fg`, viền `chrome-border`, ring
+ *   `chrome-ring` — bộ class riêng, không xếp chồng lên bộ light.
  */
 
 import type { ComponentPropsWithRef, CSSProperties } from 'react';
 import { cn } from './cn';
+import type { Tone } from './tone';
 
 export type InputSize = 'sm' | 'md';
 
@@ -20,6 +23,8 @@ export interface InputProps
   /** Ô số: `tabular-nums` + `inputMode='decimal'` mặc định. */
   numeric?: boolean;
   invalid?: boolean;
+  /** Bề mặt render lên: `light` (mặc định) hoặc `chrome` (console tối). */
+  tone?: Tone;
   size?: InputSize;
   /** Căn nội dung; mặc định theo `numeric` là `left` (đổi sang `right` nếu cần). */
   align?: 'left' | 'right';
@@ -27,13 +32,24 @@ export interface InputProps
   style?: CSSProperties;
 }
 
+/** Tone `light` — giữ NGUYÊN chuỗi class cũ (tone mặc định ⇒ 0 đổi UI). */
 const BASE = [
   'w-full rounded-md border bg-surface text-fg',
   'placeholder:text-fg-subtle',
-  'transition-colors duration-150 ease-out',
+  'transition-colors duration-fast ease-out',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
   'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-fg-subtle',
   'read-only:bg-surface-muted',
+].join(' ');
+
+/** Tone `chrome` — bộ class riêng, KHÔNG xếp chồng lên BASE (cn() không merge). */
+const BASE_CHROME = [
+  'w-full rounded-md border bg-chrome-raised text-chrome-fg',
+  'placeholder:text-chrome-fg-muted',
+  'transition-colors duration-fast ease-out',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chrome-ring',
+  'disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-fg-muted',
+  'read-only:bg-chrome',
 ].join(' ');
 
 const SIZE: Record<InputSize, string> = {
@@ -44,6 +60,7 @@ const SIZE: Record<InputSize, string> = {
 export function Input({
   numeric = false,
   invalid = false,
+  tone = 'light',
   size = 'md',
   align,
   className,
@@ -52,7 +69,11 @@ export function Input({
   style,
   ...rest
 }: InputProps) {
-  const borderTone = invalid ? 'border-danger' : 'border-line-control';
+  const borderTone = invalid
+    ? 'border-danger'
+    : tone === 'chrome'
+      ? 'border-chrome-border'
+      : 'border-line-control';
   const textAlign = align === 'right' ? 'text-right' : align === 'left' ? 'text-left' : undefined;
 
   return (
@@ -62,7 +83,14 @@ export function Input({
       inputMode={inputMode ?? (numeric ? 'decimal' : undefined)}
       aria-invalid={invalid ? true : rest['aria-invalid']}
       style={style}
-      className={cn(BASE, SIZE[size], borderTone, numeric && 'tabular-nums', textAlign, className)}
+      className={cn(
+        tone === 'chrome' ? BASE_CHROME : BASE,
+        SIZE[size],
+        borderTone,
+        numeric && 'tabular-nums',
+        textAlign,
+        className,
+      )}
     />
   );
 }

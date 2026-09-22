@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { MaterialProfile, AccessoryItem } from '../../types';
 import { Icon, InfoTip, DataTable, EmptyState } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
-import { EMPTY_VALUE } from '../../lib/format';
+import { EMPTY_VALUE, formatNumber } from '../../lib/format';
 import { useLanguage } from '../../context/LanguageContext';
 
 /**
@@ -17,7 +17,7 @@ import { useLanguage } from '../../context/LanguageContext';
  * thì bị LOẠI khỏi tổng và bật cờ `…Incomplete` để người đọc biết con số đang thiếu.
  */
 const numText = (v: number | null | undefined, suffix = ''): string =>
-  typeof v === 'number' && Number.isFinite(v) ? `${v.toLocaleString('vi-VN')}${suffix}` : EMPTY_VALUE;
+  typeof v === 'number' && Number.isFinite(v) ? `${formatNumber(v)}${suffix}` : EMPTY_VALUE;
 
 /** Ngưỡng "sắp hết" cho vật liệu (cuộn/bình) — MỘT nơi khai báo (KPI, bộ lọc, từng dòng). */
 const MATERIAL_LOW_STOCK_THRESHOLD = 3;

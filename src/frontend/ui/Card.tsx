@@ -43,7 +43,7 @@ const PADDING: Record<CardPadding, string> = {
 };
 
 const INTERACTIVE =
-  'cursor-pointer transition-shadow duration-150 ease-out hover:shadow-e1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  'cursor-pointer transition-shadow duration-fast ease-out hover:shadow-e1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 export function Card({
   as = 'div',

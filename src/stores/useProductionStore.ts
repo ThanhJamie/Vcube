@@ -289,7 +289,7 @@ const LEGACY_PERSIST_KEY = 'vcube_production_store_v1';
 try {
   localStorage.removeItem(LEGACY_PERSIST_KEY);
 } catch {
-  // Không có localStorage (SSR/test) — không phải lỗi.
+  // ignore: không có localStorage (SSR/test) — không phải lỗi.
 }
 
 /**

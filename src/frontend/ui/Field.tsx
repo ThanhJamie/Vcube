@@ -28,6 +28,7 @@ import { CircleAlert } from 'lucide-react';
 import { useId } from 'react';
 import type { ChangeEvent, FocusEvent, FormEvent, ReactNode } from 'react';
 import { cn } from './cn';
+import type { Tone } from './tone';
 
 /** Props Field bơm vào control qua render prop. */
 export interface FieldControlProps {
@@ -47,6 +48,11 @@ export interface FieldProps {
   label: ReactNode;
   /** Render prop nhận control props; PHẢI spread `{...control}` vào control. */
   children: (control: FieldControlProps) => ReactNode;
+  /**
+   * Bề mặt render lên: `light` (mặc định) hoặc `chrome` (console tối). Field không có
+   * nền — nơi gọi truyền cùng `tone` cho `Input`/`Select` để khớp màu.
+   */
+  tone?: Tone;
   /** Không truyền thì Field tự sinh id bằng `useId()`. */
   id?: string;
   required?: boolean;
@@ -71,6 +77,7 @@ export interface FieldProps {
 export function Field({
   label,
   children,
+  tone = 'light',
   id,
   required = false,
   error,
@@ -112,7 +119,12 @@ export function Field({
     <div className={cn('flex flex-col gap-2', className)}>
       <label
         htmlFor={fieldId}
-        className={cn('text-xs font-medium text-fg-muted', hideLabel && 'sr-only', labelClassName)}
+        className={cn(
+          'text-xs font-medium',
+          tone === 'chrome' ? 'text-chrome-fg-muted' : 'text-fg-muted',
+          hideLabel && 'sr-only',
+          labelClassName,
+        )}
       >
         {label}
         {required ? (
@@ -123,14 +135,28 @@ export function Field({
             <span className="sr-only"> ({requiredLabel})</span>
           </>
         ) : optionalLabel ? (
-          <span className="ml-1 font-normal text-fg-subtle">({optionalLabel})</span>
+          <span
+            className={cn(
+              'ml-1 font-normal',
+              tone === 'chrome' ? 'text-chrome-fg-muted' : 'text-fg-subtle',
+            )}
+          >
+            ({optionalLabel})
+          </span>
         ) : null}
       </label>
 
       {children(control)}
 
       {hint ? (
-        <p id={hintId} className={cn('text-xs text-fg-subtle', hintClassName)}>
+        <p
+          id={hintId}
+          className={cn(
+            'text-xs',
+            tone === 'chrome' ? 'text-chrome-fg-muted' : 'text-fg-subtle',
+            hintClassName,
+          )}
+        >
           {hint}
         </p>
       ) : null}

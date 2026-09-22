@@ -9,6 +9,7 @@ vẫn là `docs/README.md` → `docs/architecture/`, `docs/pages/`, `docs/databa
 | File | Nội dung | Trạng thái |
 |---|---|---|
 | [`UI-CHROME-REFACTOR-PLAN.md`](./UI-CHROME-REFACTOR-PLAN.md) | Refactor chrome console (sidebar tối + topbar sáng), token additive, xoá dark theme, gate chống nuốt lỗi. **Kế hoạch cho subagent** (W1–W6, T#). | READY |
+| [`ADMIN-MES-DATA-REMEDIATION.md`](./ADMIN-MES-DATA-REMEDIATION.md) | Runbook khắc phục audit 20 ảnh Admin & MES: map từng mục → màn admin/trường cần nhập; tách rõ việc CODE đã sửa vs DỮ LIỆU cần nhập. | ACTIVE |
 
 ## Lịch sử (không còn là nguồn sự thật)
 

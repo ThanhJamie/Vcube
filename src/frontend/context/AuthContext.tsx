@@ -421,7 +421,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.removeItem('vcube_active_local_user');
       localStorage.removeItem('vcube_guest_role');
     } catch {
-      /* ignore storage errors */
+      /* ignore: storage errors — chỉ dọn khoá legacy, không ảnh hưởng đăng nhập */
     }
   };
 

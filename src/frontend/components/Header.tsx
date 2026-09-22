@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CartItem, SiteContentConfig, UserRole } from '../types';
-import { useAuth, DEMO_ROLE_SWITCHER_ENABLED } from '../context/AuthContext';
+import { CartItem, SiteContentConfig } from '../types';
+import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserAvatarMenu } from './auth/UserAvatarMenu';
 import { Icon, useBodyScrollLock } from '@frontend/ui';
@@ -14,7 +14,6 @@ interface HeaderProps {
   onOpenSearch?: () => void;
   onOpenAuth?: (mode?: 'signin' | 'signup' | 'account') => void;
   onOpenCartDrawer?: () => void;
-  onShowToast?: (message: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,9 +23,8 @@ export const Header: React.FC<HeaderProps> = ({
   siteContent,
   onOpenAuth,
   onOpenCartDrawer,
-  onShowToast,
 }) => {
-  const { user, profile, role, isLoggedIn, logout, switchDemoRole } = useAuth();
+  const { user, profile, role, isLoggedIn, logout } = useAuth();
   const { language, t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickSearchQuery, setQuickSearchQuery] = useState('');
@@ -136,32 +134,10 @@ export const Header: React.FC<HeaderProps> = ({
     setMobileMenuOpen(false);
   };
 
-  /**
-   * P1: chỉ còn chạy khi bộ đổi góc nhìn KHẢ DỤNG (DEV). Bản phát hành không render
-   * nút này, và nếu hàm ném lỗi thì toast chỉ báo lỗi — KHÔNG báo "đã đổi vai trò".
-   */
-  const handleDemoRoleSwitch = async (nextRole: UserRole) => {
-    try {
-      await switchDemoRole(nextRole);
-      if (onShowToast) {
-        onShowToast(
-          nextRole === 'admin' ? 'Đã đổi: Super Admin' :
-          nextRole === 'designer' ? 'Đã đổi: Designer Pro' :
-          nextRole === 'lab' ? 'Đã đổi: Xưởng MES' : 'Đã đổi: Khách Hàng'
-        );
-      }
-    } catch (err: any) {
-      if (onShowToast) {
-        onShowToast(err?.message || 'Không thể đổi góc nhìn vai trò.');
-      }
-    }
-  };
-
   const searchPlaceholder = t('searchPlaceholder', 'Tìm linh kiện, STL...', 'Search parts, STL...');
 
   return (
     <>
-      {/* Top Site Announcement Banner from Admin Content Config */}
       {siteContent?.announcementActive && siteContent?.announcementText && (
         <div className="bg-surface-inverse text-on-inverse py-1.5 px-4 text-center text-xs font-sans font-medium flex items-center justify-center gap-2 border-b border-line">
           <span className="truncate">{siteContent.announcementText}</span>
@@ -174,9 +150,8 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
 
-      <header className="sticky top-0 z-header bg-surface-muted border-b border-line px-4 sm:px-6 md:px-12 py-3 transition-colors motion-reduce:transition-none">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-6">
-          {/* Zone 1: Brand Title */}
+      <header className="sticky top-0 z-header bg-surface-muted border-b border-line px-4 sm:px-6 md:px-10 py-2.5 transition-colors motion-reduce:transition-none">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4 sm:gap-6">
           <button
             onClick={() => handleNavClick('home')}
             className="flex items-baseline gap-1.5 rounded-sm group shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -198,7 +173,7 @@ export const Header: React.FC<HeaderProps> = ({
           <nav
             ref={navRef}
             aria-label={language === 'vi' ? 'Điều hướng chính' : 'Main navigation'}
-            className="hidden lg:flex flex-1 min-w-0 items-center gap-4 xl:gap-6 font-sans text-xs uppercase tracking-wider font-bold overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="hidden lg:flex flex-1 min-w-0 items-center gap-1 xl:gap-2 font-sans text-xs uppercase tracking-wider font-bold overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {navItems.map((item) => {
               const isActive = currentScreen === item.id;
@@ -207,7 +182,7 @@ export const Header: React.FC<HeaderProps> = ({
                   key={item.id}
                   data-nav-active={isActive ? 'true' : undefined}
                   onClick={() => handleNavClick(item.id)}
-                  className={`pb-1 transition-all whitespace-nowrap shrink-0 border-b-2 flex items-center gap-1.5 touch-target-btn cursor-pointer ${
+                  className={`pb-1 px-2 transition-colors whitespace-nowrap shrink-0 border-b-2 flex items-center gap-1.5 touch-target-btn cursor-pointer ${
                     isActive
                       ? 'border-primary text-primary font-extrabold'
                       : 'border-transparent text-fg-muted hover:text-fg hover:border-line'
@@ -220,7 +195,6 @@ export const Header: React.FC<HeaderProps> = ({
             })}
           </nav>
 
-          {/* Zone 3: Primary Actions */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/*
               Quick Search — desktop ngang (>= lg), ẩn ở mobile/tablet (nằm trong drawer).
@@ -232,15 +206,15 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:flex xl:hidden p-2 text-fg hover:bg-surface rounded-full transition-colors touch-target-btn cursor-pointer"
+              className="lg:flex 2xl:hidden size-10 items-center justify-center text-fg hover:bg-surface rounded-md transition-colors touch-target-btn cursor-pointer"
               aria-label={language === 'vi' ? 'Mở tìm kiếm' : 'Open search'}
             >
-              <Icon name="search" size={24} />
+              <Icon name="search" size={20} />
             </button>
 
-            <div className="relative hidden xl:block shrink-0">
+            <div className="relative hidden 2xl:block shrink-0">
               <form onSubmit={handleSearchSubmit}>
-                <div className="flex items-center bg-surface border border-line-subtle rounded-md px-3 py-1.5 focus-within:border-primary transition-all">
+                <div className="flex items-center bg-surface border border-line-control rounded-md px-3 py-1.5 focus-within:border-primary transition-colors">
                   <Icon name="search" size={18} className="text-fg-subtle mr-1.5" />
                   <input
                     type="text"
@@ -248,13 +222,12 @@ export const Header: React.FC<HeaderProps> = ({
                     placeholder={searchPlaceholder}
                     value={quickSearchQuery}
                     onChange={(e) => setQuickSearchQuery(e.target.value)}
-                    className="bg-transparent text-xs text-fg placeholder-fg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-ring w-64 2xl:w-72 font-sans text-ellipsis"
+                    className="bg-transparent text-xs text-fg placeholder-fg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-ring w-56 2xl:w-64 font-sans text-ellipsis"
                   />
                 </div>
               </form>
             </div>
 
-            {/* Cart Icon & Counter (visible to all visitors) */}
             <button
               onClick={() => {
                 if (onOpenCartDrawer) {
@@ -263,12 +236,12 @@ export const Header: React.FC<HeaderProps> = ({
                   handleNavClick('cart');
                 }
               }}
-              className="relative p-2 text-fg hover:bg-surface rounded-full transition-colors touch-target-btn cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="relative flex size-10 items-center justify-center text-fg hover:bg-surface rounded-md transition-colors touch-target-btn cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={t('cartTitle', 'Giỏ hàng VCUBE', 'VCUBE Cart')}
             >
-              <Icon name="shopping_cart" size={28} />
+              <Icon name="shopping_cart" size={20} />
               {cartItemsCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-primary text-primary-fg text-xs font-tech font-bold rounded-full flex items-center justify-center">
+                <span className="absolute top-1 right-1 min-w-4 h-4 px-0.5 bg-primary text-primary-fg text-xs font-tech font-bold rounded-full flex items-center justify-center">
                   {cartItemsCount}
                 </span>
               )}
@@ -280,38 +253,35 @@ export const Header: React.FC<HeaderProps> = ({
                 <UserAvatarMenu
                   onNavigate={handleNavClick}
                   onOpenCart={onOpenCartDrawer || (() => handleNavClick('cart'))}
-                  onShowToast={onShowToast}
                 />
               </div>
             ) : (
               <div className="hidden lg:flex items-center gap-2">
                 <Link
                   to="/auth/login"
-                  className="px-3.5 py-1.5 text-xs font-bold text-fg hover:bg-surface border border-line-subtle rounded-full transition-all flex items-center gap-1.5 cursor-pointer font-sans"
+                  className="h-9 px-3 text-xs font-bold text-fg hover:bg-surface border border-line-control rounded-md transition-colors inline-flex items-center gap-1.5 cursor-pointer font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <Icon name="login" size={18} />
+                  <Icon name="login" size={16} />
                   <span>{language === 'vi' ? 'Đăng nhập' : 'Sign In'}</span>
                 </Link>
-                {/* CTA chính duy nhất của header */}
                 <Link
                   to="/auth/register"
-                  className="px-3.5 py-1.5 text-xs font-bold text-primary-fg bg-primary hover:bg-primary-hover rounded-full transition-all flex items-center gap-1.5 cursor-pointer shadow-e1 font-sans"
+                  className="h-9 px-3 text-xs font-bold text-primary-fg bg-primary hover:bg-primary-hover rounded-md transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-e1 font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <Icon name="person_add" size={18} />
+                  <Icon name="person_add" size={16} />
                   <span>{language === 'vi' ? 'Đăng ký' : 'Sign Up'}</span>
                 </Link>
               </div>
             )}
 
-            {/* Mobile Hamburger Toggle (< lg: nav + tìm kiếm + tài khoản) */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 text-fg hover:bg-surface rounded-full transition-colors touch-target-btn cursor-pointer"
+              className="lg:hidden flex size-10 items-center justify-center text-fg hover:bg-surface rounded-md transition-colors touch-target-btn cursor-pointer"
               aria-label="Mở menu điều hướng"
               aria-expanded={mobileMenuOpen}
               aria-controls="vcube-mobile-nav"
             >
-              <Icon name="menu" size={28} />
+              <Icon name="menu" size={20} />
             </button>
           </div>
         </div>
@@ -338,7 +308,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-1.5 text-fg hover:bg-surface-muted rounded-full cursor-pointer"
+                className="flex size-9 items-center justify-center text-fg hover:bg-surface-muted rounded-md cursor-pointer"
                 aria-label="Đóng menu"
               >
                 <Icon name="close" size={24} />
@@ -347,7 +317,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Quick Search (mobile/tablet — bản desktop bị ẩn dưới `lg`) */}
             <form onSubmit={handleSearchSubmit}>
-              <div className="flex items-center bg-surface border border-line-subtle rounded-md px-3 py-2 focus-within:border-primary transition-all">
+              <div className="flex items-center bg-surface border border-line-control rounded-md px-3 py-2 focus-within:border-primary transition-colors">
                 <Icon name="search" size={18} className="text-fg-subtle mr-1.5" />
                 <input
                   type="text"
@@ -360,13 +330,12 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </form>
 
-            {/* Nav Items List - visible to all visitors */}
             <nav className="space-y-1">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className={`w-full text-left px-3 py-3 rounded-full text-xs font-sans uppercase tracking-wider font-bold flex items-center justify-between transition-colors cursor-pointer ${
+                  className={`w-full text-left px-3 py-3 rounded-md text-xs font-sans uppercase tracking-wider font-bold flex items-center justify-between transition-colors cursor-pointer ${
                     currentScreen === item.id
                       ? 'bg-primary-tint text-primary'
                       : 'text-fg hover:bg-surface-muted'
@@ -413,30 +382,6 @@ export const Header: React.FC<HeaderProps> = ({
                         </span>
                       </div>
                     </div>
-
-                    {/* Mobile Quick Role Switcher — CHỈ tồn tại ở DEV (P1: bản phát hành không có) */}
-                    {DEMO_ROLE_SWITCHER_ENABLED && (
-                      <div className="pt-2 border-t border-line-subtle">
-                        <span className="text-xs font-tech uppercase font-bold text-fg-subtle block mb-1.5">
-                          {language === 'vi' ? 'Góc nhìn vai trò (Demo Switcher):' : 'Role Perspective (Demo):'}
-                        </span>
-                        <div className="grid grid-cols-4 gap-1">
-                          {(['customer', 'designer', 'lab', 'admin'] as UserRole[]).map((r) => (
-                            <button
-                              key={r}
-                              onClick={() => handleDemoRoleSwitch(r)}
-                              className={`py-1.5 text-xs font-bold rounded-full uppercase tracking-wider transition-all ${
-                                role === r
-                                  ? 'bg-primary text-primary-fg shadow-e0'
-                                  : 'bg-surface text-fg-muted hover:bg-canvas'
-                              }`}
-                            >
-                              {r === 'customer' ? 'Khách' : r === 'designer' ? 'Design' : r === 'lab' ? 'MES' : 'Admin'}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <button
@@ -444,7 +389,7 @@ export const Header: React.FC<HeaderProps> = ({
                       setMobileMenuOpen(false);
                       if (onOpenAuth) onOpenAuth('account');
                     }}
-                    className="w-full py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full text-center block transition-colors cursor-pointer shadow-e1"
+                    className="w-full py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-md text-center block transition-colors cursor-pointer shadow-e1"
                   >
                     {t('switchAccount', 'Tài Khoản & Thông Tin', 'Account & Details')}
                   </button>
@@ -453,7 +398,7 @@ export const Header: React.FC<HeaderProps> = ({
                       setMobileMenuOpen(false);
                       logout();
                     }}
-                    className="w-full py-2.5 bg-danger-tint hover:bg-canvas text-danger text-xs font-bold uppercase rounded-full text-center flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="w-full py-2.5 bg-danger-tint hover:bg-canvas text-danger text-xs font-bold uppercase rounded-md text-center flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Icon name="logout" size={18} />
                     <span>{t('signOut', 'Đăng Xuất Khỏi Thiết Bị', 'Sign Out')}</span>
@@ -464,7 +409,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <Link
                     to="/auth/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="py-2.5 px-3 bg-surface border border-line-subtle hover:bg-canvas text-fg text-xs font-bold uppercase rounded-full text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="py-2.5 px-3 bg-surface border border-line-control hover:bg-canvas text-fg text-xs font-bold uppercase rounded-md text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Icon name="login" size={18} />
                     <span>{language === 'vi' ? 'Đăng nhập' : 'Sign In'}</span>
@@ -472,7 +417,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <Link
                     to="/auth/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="py-2.5 px-3 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-e1"
+                    className="py-2.5 px-3 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-md text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-e1"
                   >
                     <Icon name="person_add" size={18} />
                     <span>{language === 'vi' ? 'Đăng ký' : 'Sign Up'}</span>

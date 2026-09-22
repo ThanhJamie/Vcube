@@ -13,6 +13,7 @@ import { InternalCostBreakdownModal } from './InternalCostBreakdownModal';
 import { MachineComparisonModal } from './MachineComparisonModal';
 import { EmptyState, Icon, InfoTip } from '@frontend/ui';
 import { useAuth } from '../../context/AuthContext';
+import { useUIStore } from '../../stores/useUIStore';
 import { EMPTY_VALUE, formatCurrency, formatNumber, formatWeight } from '../../lib/format';
 
 /**
@@ -21,7 +22,7 @@ import { EMPTY_VALUE, formatCurrency, formatNumber, formatWeight } from '../../l
  * màn hình `/quote`.
  */
 const perGramText = (v: number | null | undefined): string =>
-  typeof v === 'number' && Number.isFinite(v) ? `${v.toLocaleString('vi-VN')} đ/g` : EMPTY_VALUE;
+  typeof v === 'number' && Number.isFinite(v) ? `${formatNumber(v)} đ/g` : EMPTY_VALUE;
 
 /** Số hữu hạn hay không — NULL/NaN ⇒ KHÔNG có giá trị (không đoán hộ). */
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -35,14 +36,14 @@ const TRANSPARENT_THUMBNAIL =
  * Cùng luật với `HomeView.tsx:26-34` / `ProductDetailView.tsx:21-30`: `0` không phải một mức giá.
  */
 const vnd = (v: unknown): string =>
-  isNum(v) && v > 0 ? `${v.toLocaleString('vi-VN')} đ` : EMPTY_VALUE;
+  isNum(v) && v > 0 ? `${formatNumber(v)} đ` : EMPTY_VALUE;
 
 /**
  * Dòng tiền được phép BẰNG 0 THẬT: `vat_percent = 0` là cấu hình hợp lệ (`lib/vat.ts`),
  * nên chỉ chặn khi giá trị KHÔNG phải số hữu hạn — không được biến một số 0 thật thành `—`.
  */
 const vndAllowZero = (v: unknown): string =>
-  isNum(v) ? `${v.toLocaleString('vi-VN')} đ` : EMPTY_VALUE;
+  isNum(v) ? `${formatNumber(v)} đ` : EMPTY_VALUE;
 
 type ProvenanceSource = 'slicer' | 'throughput' | 'volume_estimate';
 
@@ -146,6 +147,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   const [isInternalModalOpen, setIsInternalModalOpen] = useState(false);
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
   const [customOverriddenPrice, setCustomOverriddenPrice] = useState<number | null>(null);
+  const setIsChatOpen = useUIStore((s) => s.setIsChatOpen);
   // A4 (data-honesty): KHÔNG mô phỏng gửi thẩm định rồi báo "đã gửi". Nút chỉ mở ghi chú
   // trung thực rằng hệ thống chưa có kênh gửi hồ sơ tự động (cùng pattern `Tool3DView.tsx`).
   const [manualReviewNoteShown, setManualReviewNoteShown] = useState(false);
@@ -307,7 +309,9 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       color: file.parts.length > 1 ? `${file.parts.length} màu chi tiết` : file.parts[0]?.color || 'Xanh Teal Công Nghiệp',
       colorHex: file.parts[0]?.colorHex || '#00687a',
       dimensions: `${file.dimensions.x.toFixed(1)} x ${file.dimensions.y.toFixed(1)} x ${file.dimensions.z.toFixed(1)} mm`,
-      resolution: `${layerHeight}mm Layer • Infill ${infillDensity}% ${infillPattern} • Giao: ${pkg.completionDate}`
+      resolution: `${layerHeight}mm Layer • Infill ${infillDensity}% ${infillPattern} • Giao: ${pkg.completionDate}`,
+      // Gram ước tính cho 1 cái (từ breakdown) — để đơn hoàn thành tự trừ kho chính xác.
+      weightGrams: isNum(breakdown.totalFilamentGrams) ? breakdown.totalFilamentGrams : null,
     };
   };
 
@@ -404,7 +408,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           </div>
           <div className="text-xs text-positive flex justify-between pt-0.5 font-mono">
             <span>Tiết kiệm đơn này:</span>
-            <strong className="text-positive font-bold">{isNum(volumeDiscount.totalSavings) ? `-${volumeDiscount.totalSavings.toLocaleString('vi-VN')} đ` : EMPTY_VALUE}</strong>
+            <strong className="text-positive font-bold">{isNum(volumeDiscount.totalSavings) ? `-${formatNumber(volumeDiscount.totalSavings)} đ` : EMPTY_VALUE}</strong>
           </div>
         </div>
       ) : (
@@ -732,19 +736,28 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         <button
           type="button"
           onClick={() => onAddToCart(handleBuildCartItem(selectedPackage))}
-          className="w-full py-3.5 bg-primary hover:bg-primary-hover text-primary-fg font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-e1 rounded-full cursor-pointer"
+          className="w-full py-4 bg-accent hover:opacity-90 text-fg font-bold text-sm uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-e3 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Icon name="shopping_cart" size={18} />
-          Thêm Đơn Gia Công Vào Giỏ Hàng
+          <Icon name="shopping_cart" size={20} />
+          Thêm Vào Giỏ &amp; Đặt Hàng
         </button>
 
         <button
           type="button"
           onClick={() => onDirectOrder(handleBuildCartItem(selectedPackage))}
-          className="w-full py-3 bg-surface-inverse hover:bg-surface-inverse text-on-inverse font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 rounded-full cursor-pointer border border-surface-inverse-raised"
+          className="w-full py-3.5 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer border border-surface-inverse-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Icon name="precision_manufacturing" size={18} className="text-accent" />
           Đặt In Ngay (Chuyển Đến Thanh Toán)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsChatOpen(true)}
+          className="w-full py-3 bg-surface border border-line-control hover:bg-surface-muted text-fg font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Icon name="support_agent" size={18} className="text-primary" />
+          Gửi Yêu Cầu Hỗ Trợ Kỹ Thuật
         </button>
       </div>
       )}
@@ -760,7 +773,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           currentPrinter={currentPrinter}
           onApplyOverride={(newPrice, reason) => {
             setCustomOverriddenPrice(newPrice);
-            onShowToast(`Đã áp dụng giá điều chỉnh: ${isNum(newPrice) ? newPrice.toLocaleString('vi-VN') : EMPTY_VALUE} đ (Lý do: ${reason})`);
+            onShowToast(`Đã áp dụng giá điều chỉnh: ${isNum(newPrice) ? formatNumber(newPrice) : EMPTY_VALUE} đ (Lý do: ${reason})`);
           }}
         />
       )}

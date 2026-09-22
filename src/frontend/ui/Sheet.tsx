@@ -14,8 +14,10 @@
  */
 
 import type { ReactNode } from 'react';
+import { cn } from './cn';
 import { Modal } from './Modal';
 import type { ModalSize } from './Modal';
+import type { Tone } from './tone';
 
 export type SheetSide = 'bottom' | 'left' | 'right';
 
@@ -28,6 +30,8 @@ export interface SheetProps {
   children?: ReactNode;
   footer?: ReactNode;
   size?: ModalSize;
+  /** Bề mặt panel: `light` (mặc định) hoặc `chrome` (console tối). */
+  tone?: Tone;
   className?: string;
   panelClassName?: string;
   showCloseButton?: boolean;
@@ -46,6 +50,7 @@ export function Sheet({
   children,
   footer,
   size = 'md',
+  tone = 'light',
   className,
   panelClassName,
   showCloseButton = true,
@@ -60,6 +65,7 @@ export function Sheet({
       onClose={onClose}
       placement={side}
       size={size}
+      tone={tone}
       title={title}
       description={description}
       footer={footer}
@@ -72,7 +78,13 @@ export function Sheet({
       aria-label={ariaLabel}
     >
       {side === 'bottom' ? (
-        <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" />
+        <div
+          aria-hidden="true"
+          className={cn(
+            'mx-auto mb-3 h-1 w-10 rounded-full',
+            tone === 'chrome' ? 'bg-chrome-fg-muted' : 'bg-line',
+          )}
+        />
       ) : null}
       {children}
     </Modal>

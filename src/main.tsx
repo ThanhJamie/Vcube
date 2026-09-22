@@ -56,9 +56,7 @@ void bootstrapSettings()
     console.error('[vcube] bootstrapSettings lỗi:', e);
   });
 
-// ThemeProvider được mount TRONG <BrowserRouter> ở src/App.tsx (component RouteThemeSync)
-// để dùng useLocation() — docs/plans/01-theme-migration.md §5.2.
-// KHÔNG mount lại ở đây để tránh 2 provider chồng nhau.
+// App là light-only: không còn theme provider hay chế độ dark.
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

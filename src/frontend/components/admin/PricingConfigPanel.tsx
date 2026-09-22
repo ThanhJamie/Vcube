@@ -1651,7 +1651,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 ) : (
                   <>
                     Tổng nhân công: <strong>{totalLaborMins} phút</strong> / sản phẩm
-                    {laborCostPerUnit !== null && <> (~{laborCostPerUnit.toLocaleString()} đ)</>}
+                    {laborCostPerUnit !== null && <> (~{formatNumber(laborCostPerUnit)} đ)</>}
                   </>
                 )}
               </div>

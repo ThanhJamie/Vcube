@@ -4,7 +4,7 @@ import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../
 import { PersonalizeModelViewer3D } from '../components/personalize/PersonalizeModelViewer3D';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { Badge, Button, Card, EmptyState, Icon, InfoTip } from '@frontend/ui';
-import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
+import { EMPTY_VALUE, formatCurrency, formatNumber } from '@frontend/lib/format';
 
 interface PersonalizeViewProps {
   product?: Product;
@@ -184,7 +184,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
   const totalCost = unitBasePrice === null ? null : unitBasePrice * quantity;
 
   const money = (value: number | null): string =>
-    value === null || !Number.isFinite(value) ? EMPTY_VALUE : `${Math.round(value).toLocaleString('vi-VN')} đ`;
+    value === null || !Number.isFinite(value) ? EMPTY_VALUE : `${formatNumber(Math.round(value))} đ`;
 
   /** Vật liệu khớp với lựa chọn hiện tại (danh mục thật). Không khớp ⇒ KHÔNG mượn số của bộ mẫu. */
   const matchingMaterial = materialsList.find(
@@ -499,8 +499,8 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                             {density !== null ? `${density} g/cm³` : EMPTY_VALUE}
                           </span>
                           <span className="text-xs font-mono text-fg-muted block tabular-nums">
-                            {perGram !== null ? `${perGram.toLocaleString('vi-VN')} đ/g` : EMPTY_VALUE}
-                            {perKg !== null ? ` • ${perKg.toLocaleString('vi-VN')} đ/kg` : ''}
+                            {perGram !== null ? `${formatNumber(perGram)} đ/g` : EMPTY_VALUE}
+                            {perKg !== null ? ` • ${formatNumber(perKg)} đ/kg` : ''}
                           </span>
                           <span className="text-xs font-mono text-primary block">
                             {mat.recommendedFor || EMPTY_VALUE}

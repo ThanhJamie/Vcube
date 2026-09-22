@@ -24,6 +24,7 @@ import { useEffect, useId, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, RefObject } from 'react';
 import { Button } from './Button';
 import { cn } from './cn';
+import type { Tone } from './tone';
 
 /* -------------------------------------------------------------------------- */
 /* Khoá scroll body — đếm tham chiếu (ref count)                              */
@@ -90,6 +91,8 @@ export interface ModalProps {
   description?: ReactNode;
   size?: ModalSize;
   placement?: ModalPlacement;
+  /** Bề mặt panel: `light` (mặc định) hoặc `chrome` (console tối). */
+  tone?: Tone;
   footer?: ReactNode;
   children?: ReactNode;
   /** Gắn vào chính `<dialog>` (lớp phủ toàn màn hình). */
@@ -130,11 +133,16 @@ const CONTAINER: Record<ModalPlacement, string> = {
 };
 
 const PANEL_BASE = [
-  'relative flex flex-col overflow-hidden bg-surface text-fg shadow-e3',
-  'transition duration-200 ease-out',
+  'relative flex flex-col overflow-hidden shadow-e3',
+  'transition duration-base ease-out',
   'starting:scale-95 starting:opacity-0',
   'motion-reduce:transition-none',
 ].join(' ');
+
+const PANEL_TONE: Record<Tone, string> = {
+  light: 'bg-surface text-fg',
+  chrome: 'bg-chrome text-chrome-fg',
+};
 
 const SIZE_WIDTH: Record<ModalSize, string> = {
   sm: 'max-w-sm',
@@ -161,6 +169,7 @@ export function Modal({
   description,
   size = 'md',
   placement = 'center',
+  tone = 'light',
   footer,
   children,
   className,
@@ -206,7 +215,7 @@ export function Modal({
       try {
         target.focus();
       } catch {
-        /* phần tử đã bị unmount/không focus được — bỏ qua */
+        /* ignore: phần tử đã unmount/không focus được */
       }
     };
 
@@ -308,23 +317,44 @@ export function Modal({
       onPointerDown={handlePointerDown}
       onClick={handlePanelClick}
     >
-      <div ref={panelRef} className={cn(PANEL_BASE, panelClasses(placement, size), panelClassName)}>
+      <div
+        ref={panelRef}
+        className={cn(PANEL_BASE, PANEL_TONE[tone], panelClasses(placement, size), panelClassName)}
+      >
         {hasHeader ? (
-          <div className="flex items-start justify-between gap-4 border-b border-line p-4">
+          <div
+            className={cn(
+              'flex items-start justify-between gap-4 border-b p-4',
+              tone === 'chrome' ? 'border-chrome-border' : 'border-line',
+            )}
+          >
             <div className="flex min-w-0 flex-col gap-1">
               {title ? (
-                <h2 id={titleId} className="text-lg font-semibold text-fg">
+                <h2
+                  id={titleId}
+                  className={cn('text-lg font-semibold', tone === 'chrome' ? 'text-chrome-fg' : 'text-fg')}
+                >
                   {title}
                 </h2>
               ) : null}
               {description ? (
-                <p id={descriptionId} className="text-sm text-fg-muted">
+                <p
+                  id={descriptionId}
+                  className={cn('text-sm', tone === 'chrome' ? 'text-chrome-fg-muted' : 'text-fg-muted')}
+                >
                   {description}
                 </p>
               ) : null}
             </div>
             {showCloseButton ? (
-              <Button iconOnly variant="ghost" size="sm" aria-label={closeLabel} onClick={onClose}>
+              <Button
+                iconOnly
+                variant="ghost"
+                size="sm"
+                tone={tone}
+                aria-label={closeLabel}
+                onClick={onClose}
+              >
                 <X aria-hidden="true" className="size-4" />
               </Button>
             ) : null}
@@ -338,7 +368,12 @@ export function Modal({
         ) : null}
 
         {footer ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line p-4">
+          <div
+            className={cn(
+              'flex flex-wrap items-center justify-end gap-2 border-t p-4',
+              tone === 'chrome' ? 'border-chrome-border' : 'border-line',
+            )}
+          >
             {footer}
           </div>
         ) : null}

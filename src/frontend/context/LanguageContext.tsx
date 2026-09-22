@@ -470,7 +470,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     try {
       localStorage.setItem('vcube_language', 'vi');
     } catch {
-      /* localStorage có thể bị chặn — bỏ qua, state vẫn là `vi`. */
+      /* ignore: localStorage có thể bị chặn — state vẫn là `vi`. */
     }
   };
 

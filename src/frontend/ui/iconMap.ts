@@ -203,8 +203,9 @@ import {
   Wrench,
   X,
   Zap,
-} from 'lucide-react';
-import { createLucideIcon, type IconNode, type LucideIcon } from 'lucide-react';
+  Heart,
+  Ellipsis,
+} from 'lucide-react';import { createLucideIcon, type IconNode, type LucideIcon } from 'lucide-react';
 
 /** Glyph lạ (chưa có trong bảng) → icon này + `console.warn` ở DEV (xem `Icon.tsx`). */
 export const FALLBACK_ICON: LucideIcon = CircleQuestionMark;
@@ -313,6 +314,9 @@ export const iconMap: Record<string, LucideIcon> = {
   'bolt': Zap,
   'bookmark': Bookmark,
   'bookmark_border': Bookmark,
+  'favorite': Heart,
+  'favorite_border': Heart,
+  'more_horiz': Ellipsis,
   'build': Wrench,
   'calculate': Calculator,
   'call': Phone,
@@ -358,6 +362,7 @@ export const iconMap: Record<string, LucideIcon> = {
   'error': CircleAlert,
   'event': Calendar,
   'expand_more': ChevronDown,
+  'expand_less': ChevronUp,
   'explore': Compass,
   'extension': Puzzle,
   'fact_check': ClipboardCheck,

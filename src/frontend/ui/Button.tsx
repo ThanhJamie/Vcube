@@ -15,6 +15,8 @@
  *   `size="sm"` (36px, icon 16px) dành cho toolbar — vùng bấm mobile vẫn ≥44×44 nhờ
  *   `max-md:min-h-12` / `min-h-11 min-w-11` ở nhánh icon-only.
  * - Focus nhìn thấy được: ring 2px `ring-ring` (thay cho việc xoá outline — lỗi cũ).
+ * - `tone='chrome'`: đổi nền/chữ của `secondary`/`ghost` sang token `chrome-*` và ring
+ *   `ring-chrome-ring`; `primary`/`danger`/`danger-ghost` giữ nguyên.
  * - `loading`: khoá nút + spinner + `aria-busy="true"`, chặn double-click.
  * - `iconOnly`: **bắt buộc `aria-label` ở tầng type**; vùng bấm ≥44×44 (≥48×48 dưới `md`).
  * - `type` mặc định `'button'` để không vô tình submit form.
@@ -26,12 +28,15 @@
 import { Loader2 } from 'lucide-react';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { cn } from './cn';
+import type { Tone } from './tone';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost';
+export type ButtonVariant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 type ButtonOwnProps = {
   variant?: ButtonVariant;
+  /** Bề mặt render lên: `light` (mặc định) hoặc `chrome` (console tối). */
+  tone?: Tone;
   size?: ButtonSize;
   loading?: boolean;
   /** Chữ hiện thay `children` khi `loading` (nên truyền để trạng thái không chỉ là spinner). */
@@ -68,27 +73,43 @@ export type ButtonProps =
 const BASE = [
   'inline-flex shrink-0 select-none items-center justify-center gap-2',
   'rounded-md border font-medium whitespace-nowrap',
-  'transition duration-150 ease-out',
+  'transition duration-fast ease-out',
   'active:scale-[0.97] motion-reduce:active:scale-100',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  'focus-visible:outline-none focus-visible:ring-2',
   'disabled:pointer-events-none disabled:opacity-50',
   'aria-busy:cursor-progress',
 ].join(' ');
 
+/** Ring focus theo tone — phát ĐÚNG MỘT class ring cho mỗi nút. */
+const FOCUS_RING: Record<Tone, string> = {
+  light: 'focus-visible:ring-ring',
+  chrome: 'focus-visible:ring-chrome-ring',
+};
+
 const VARIANT: Record<ButtonVariant, string> = {
   primary: 'border-transparent bg-primary text-primary-fg hover:bg-primary-hover',
+  // Nhấn mạnh trên bề mặt TỐI (banner HUD): nền accent sáng + chữ tối, tương phản mạnh.
+  accent: 'border-transparent bg-accent text-fg hover:opacity-90',
   secondary: 'border-line-control bg-surface text-fg hover:bg-surface-muted',
   ghost: 'border-transparent bg-transparent text-fg hover:bg-surface-muted',
   // Nút phá huỷ — chọn ở đây, KHÔNG ghi đè `bg-*`/`text-*` từ `className`.
-  // `text-primary-fg` đổi theo theme nên một cặp class đạt AA ở cả hai:
-  //   light: #FFFFFF trên #B91C1C = 6.47:1 · dark: #07272E trên #F87171 = 5.67:1
-  // (xem `node scripts/check-contrast.mjs`: "fg on danger fill").
+  // `text-primary-fg` = #FFFFFF trên #B91C1C = 6.47:1 (đạt AA; xem
+  // `node scripts/check-contrast.mjs`: "fg on danger fill").
   // Hover dùng `opacity-90` (đúng thông lệ cũ của `ConfirmDialog`) chứ KHÔNG dùng `bg-danger/90`:
   // alpha modifier của token khai trong `@theme` sinh **hex tĩnh** làm fallback ngoài
-  // `@supports (color:color-mix(...))` ⇒ ở dark theme nút sẽ hover bằng màu đỏ của light theme.
+  // `@supports (color:color-mix(...))`.
   danger: 'border-transparent bg-danger text-primary-fg hover:opacity-90',
   'danger-ghost':
     'border-transparent bg-transparent text-danger hover:border-danger hover:bg-surface-muted',
+};
+
+/**
+ * Biến thể CHỈ khác khi ở tone `chrome`. `primary`/`danger`/`danger-ghost` giữ nguyên.
+ * Chọn theo tone (không chồng class): có override thì dùng override, không thì bản light.
+ */
+const VARIANT_CHROME: Partial<Record<ButtonVariant, string>> = {
+  secondary: 'border-chrome-border bg-chrome-raised text-chrome-fg hover:bg-chrome',
+  ghost: 'border-transparent bg-transparent text-chrome-fg hover:bg-chrome-raised',
 };
 
 /** Cao 40px desktop; dưới `md` nâng lên ≥48px (đích chạm tay). */
@@ -110,6 +131,7 @@ const ICON_SIZE: Record<ButtonSize, string> = {
 export function Button(props: ButtonProps) {
   const {
     variant = 'primary',
+    tone = 'light',
     size = 'md',
     loading = false,
     loadingLabel,
@@ -135,7 +157,8 @@ export function Button(props: ButtonProps) {
       aria-busy={loading ? true : undefined}
       className={cn(
         BASE,
-        VARIANT[variant],
+        tone === 'chrome' && VARIANT_CHROME[variant] ? VARIANT_CHROME[variant] : VARIANT[variant],
+        FOCUS_RING[tone],
         iconOnly ? ICON_SIZE[size] : SIZE[size],
         fullWidth && 'w-full',
         className,

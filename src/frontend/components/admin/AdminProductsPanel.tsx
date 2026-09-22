@@ -6,6 +6,7 @@ import { dbService } from '../../../backend/supabase/database';
 import { ConfirmDialog, DataTable, EmptyState, Icon, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';
+import { realProductImageUrl } from '@frontend/lib/productImage';
 
 interface AdminProductsPanelProps {
   products: Product[];
@@ -70,17 +71,6 @@ const parseMoneyInput = (raw: string): number | undefined => {
  * Render thẳng URL đó = vừa hiển thị một tấm ảnh không phải của sản phẩm, vừa gọi ảnh của
  * bên thứ ba (audit /admin/products ghi nhận `net::ERR_BLOCKED_BY_ORB`). Coi như CHƯA CÓ ẢNH.
  */
-const FABRICATED_PLACEHOLDER_IMAGE_URLS = [
-  'https://images.unsplash.com/photo-1581092335397-9583fe92d232',
-  'https://images.unsplash.com/photo-1581092160607-ee22621dd758',
-];
-
-/** URL ảnh THẬT của sản phẩm, hoặc `undefined` khi chưa có ảnh / chỉ có ảnh giữ chỗ bịa. */
-const realProductImageUrl = (images: string[] | undefined): string | undefined => {
-  const first = images?.[0]?.trim();
-  if (!first) return undefined;
-  return FABRICATED_PLACEHOLDER_IMAGE_URLS.some((url) => first.includes(url)) ? undefined : first;
-};
 
 /**
  * Bản nháp khi SỬA sản phẩm: khác `Product` ở chỗ hai trường giá có thể TẠM THỜI TRỐNG

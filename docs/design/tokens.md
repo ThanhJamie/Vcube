@@ -1,24 +1,24 @@
 # VCUBE Design Tokens (spec)
 
 Nguồn sự thật duy nhất cho màu / typography / spacing / radius / elevation / motion.
-Cài đặt: khối `@theme` + `.dark` trong `src/index.css` (xem §9). Kiểm tương phản: `node scripts/check-contrast.mjs`.
-Hướng đã chốt: **dual-theme, giữ brand teal** — storefront light-first, `/quote` + `/admin` + `/lab` + `/designer` dark-first.
+Cài đặt: khối `@theme static` trong `src/index.css` (xem §9). Kiểm tương phản: `node scripts/check-contrast.mjs`.
+Hướng đã chốt: **light-only vĩnh viễn, giữ brand teal** — mọi route dùng nền sáng.
 
 ---
 
 ## 1. Nguyên tắc
 
-1. Tên token theo **vai trò**, không theo màu (`--color-primary`, không `--color-teal`) → đổi theme chỉ đổi giá trị.
+1. Tên token theo **vai trò**, không theo màu (`--color-primary`, không `--color-teal`) → token là hằng số, không còn theme thay đổi.
 2. Không viết hex/`[Npx]` trong component. Mọi giá trị đi qua token.
 3. Không dùng `#000`/`#FFF` tuyệt đối. Không truyền đạt trạng thái chỉ bằng màu.
-4. Phân cấp surface bằng **viền** và **elevation**, không bằng độ sáng (dark surface chỉ lệch 1.04–1.25:1).
+4. Phân cấp surface bằng **viền** và **elevation**, không bằng độ sáng.
 5. Cặp `text`/`background` phải đạt: chữ thường ≥4.5:1, chữ lớn (≥24px hoặc ≥18.5px bold) ≥3:1, viền control & focus ring ≥3:1.
 6. Mọi cột số dùng `font-variant-numeric: tabular-nums`.
 7. Sàn chữ 12px. Không có ngoại lệ "nhãn 9px".
 
 ---
 
-## 2. Màu — light theme (mặc định)
+## 2. Màu — light theme
 
 | Token | Hex | Vai trò | Tương phản đo được |
 |---|---|---|---|
@@ -52,13 +52,13 @@ Luật: **nền tint + chữ `<màu>` đặc** (`bg-warning-tint text-warning`) 
 (`docs/plans/12-ui-refactor-spec.md` §1.3). Mỗi tint phải đủ nhạt để màu đặc tương ứng đạt ≥ 4.5:1 khi làm chữ 12px.
 Đo bằng số học WCAG 2.x trên gamma sRGB; cổng: `node scripts/check-contrast-combos.mjs`.
 
-| Token | Hex (light) | Chữ đặc | Tương phản light | Hex (dark) | Tương phản dark |
-|---|---|---|---|---|---|
-| `--color-primary-tint` | `#E6F0F2` | `--color-primary` | **5.55:1** ✓ | `#10262B` | 6.69:1 ✓ |
-| `--color-positive-tint` | `#F0F9F3` | `--color-positive` | **4.67:1** ✓ (D-1b) | `#10241A` | 9.35:1 ✓ |
-| `--color-warning-tint` | `#FEF6EC` | `--color-warning` | **4.69:1** ✓ (D-1) | `#2A2114` | 9.49:1 ✓ |
-| `--color-danger-tint` | `#FBE9E9` | `--color-danger` | **5.53:1** ✓ | `#2C1618` | 6.15:1 ✓ |
-| `--color-info-tint` | `#E8EDFB` | `--color-info` | **5.72:1** ✓ | `#141F33` | 6.49:1 ✓ |
+| Token | Hex | Chữ đặc | Tương phản |
+|---|---|---|---|
+| `--color-primary-tint` | `#E6F0F2` | `--color-primary` | **5.55:1** ✓ |
+| `--color-positive-tint` | `#F0F9F3` | `--color-positive` | **4.67:1** ✓ (D-1b) |
+| `--color-warning-tint` | `#FEF6EC` | `--color-warning` | **4.69:1** ✓ (D-1) |
+| `--color-danger-tint` | `#FBE9E9` | `--color-danger` | **5.53:1** ✓ |
+| `--color-info-tint` | `#E8EDFB` | `--color-info` | **5.72:1** ✓ |
 
 > **D-1 và D-1b (token đã sửa trong cùng wave):**
 > • `--color-warning-tint` `#FBF0E4` → `#FEF6EC`: `#B45309` chỉ đạt **4.47:1** ⇒ FAIL, mà `bg-warning-tint`
@@ -67,33 +67,55 @@ Luật: **nền tint + chữ `<màu>` đặc** (`bg-warning-tint text-warning`) 
 >   quay lại `bg-warning-tint` đúng quy tắc ở trên.
 > • `--color-positive-tint` `#E7F3EC` → `#F0F9F3`: `#15803D` chỉ đạt **4.40:1** ⇒ FAIL ở ~55 chỗ
 >   `bg-positive-tint text-positive`; sửa token một dòng là đủ, không sửa call site.
-> Tint dark đều đạt (9.35 / 9.49) nên **không đổi giá trị dark**.
-> ⚠️ `--color-fg-subtle` không đạt trên **nền tint/hairline**: `warning-tint` 4.44 (light) / 4.33 (dark) ·
-> `positive-tint` 4.43 (light) / 4.46 (dark) · `bg-primary/5` 4.40 (light) · `line-subtle` 3.86 (light) / 4.26 (dark)
-> ⇒ trên các nền đó dùng `--color-fg-muted` (5.22 light / 6.53 dark trên `line-subtle`).
+> ⚠️ `--color-fg-subtle` không đạt trên **nền tint/hairline**: `warning-tint` 4.44 ·
+> `positive-tint` 4.43 · `bg-primary/5` 4.40 · `line-subtle` 3.86
+> ⇒ trên các nền đó dùng `--color-fg-muted` (5.22 trên `line-subtle`).
 
 ---
 
-## 3. Màu — dark theme (`/quote`, `/admin`, `/lab`, `/designer`)
+## 3. Dark theme — ĐÃ XOÁ
+
+Dark theme đã bị xoá hẳn; app **light-only vĩnh viễn**. Không còn khối `.dark`, `@custom-variant dark`,
+`ThemeProvider`, `ThemeMode` hay `DARK_ROUTE_PREFIXES` trong mã nguồn. Bề mặt tối duy nhất còn lại
+là tier **chrome** (§3.1) — cố định, không phải theme.
+
+---
+
+## 3.1 Chrome — console tối (cố định)
+
+Chrome là **tier màu riêng, cố định**: nền tối dùng cho sidebar/console, **độc lập với nền sáng
+của nội dung**. Nó không phải là theme tối tuỳ chọn — đây là một bề mặt tối luôn tối
+(nguồn: `docs/tasks/UI-CHROME-REFACTOR-PLAN.md` §0.4). Giá trị khoá theo ảnh tham chiếu TechVerse.
 
 | Token | Hex | Vai trò | Tương phản |
 |---|---|---|---|
-| `--color-canvas` | `#080D16` | nền app | `fg` = **16.68:1** |
-| `--color-surface` | `#0E1520` | card, panel | `fg` = **15.70:1** |
-| `--color-surface-muted` | `#131C2A` | panel nổi, hàng xen kẽ | — |
-| `--color-surface-raised` | `#1A2434` | popover, dropdown | — |
-| `--color-line` | `#232F42` | viền trang trí | 1.52:1 (trang trí) |
-| `--color-line-control` | `#4E6490` | viền input/select | **3.10:1** trên surface, **3.29:1** trên canvas ✓ |
-| `--color-fg` | `#E8EEF7` | chữ chính | **15.70:1** ✓ |
-| `--color-fg-muted` | `#9BA9BE` | chữ phụ | **7.68:1** ✓ |
-| `--color-fg-subtle` | `#7A8798` | metadata, placeholder | **5.01:1** ✓ |
-| `--color-primary` | `#3AB8CE` | nút chính, link | **7.78:1** trên surface, **8.27:1** trên canvas ✓ |
-| `--color-primary-hover` | `#57DFFE` | hover | **11.68:1** ✓ |
-| `--color-primary-fg` | `#07272E` | chữ trên nền primary | **6.67:1** ✓ |
-| `--color-accent` | `#57DFFE` | nhấn kỹ thuật | **11.68:1** ✓ |
-| `--color-ring` | `#57DFFE` | focus ring | ✓ |
+| `--color-chrome` | `#0F172A` | nền sidebar | `chrome-fg` = **14.48:1**, `chrome-fg-muted` = **6.96:1** ✓ |
+| `--color-chrome-raised` | `#1E293B` | hover / hàng | `chrome-fg` = **11.87:1**, `chrome-fg-muted` = **5.71:1** ✓ |
+| `--color-chrome-fg` | `#E2E8F0` | chữ | **14.48:1** trên `chrome`, **11.87:1** trên `chrome-raised` ✓ |
+| `--color-chrome-fg-muted` | `#94A3B8` | chữ mờ, nhãn nhóm | **6.96:1** trên `chrome`, **5.71:1** trên `chrome-raised` ✓ |
+| `--color-chrome-border` | `#1E293B` | viền (trùng `chrome-raised`) | trang trí |
+| `--color-chrome-active` | `#FF9736` | accent cam, **CHỈ nav active** | `chrome-ring` trên nền = **6.78–8.27:1** ✓ |
+| `--color-chrome-active-fg` | `#0F172A` | chữ tối trên cam | **8.27:1** trên `chrome-active` ✓ |
+| `--color-chrome-ring` | `#FF9736` | focus ring trên nền tối | **6.78:1** trên `chrome-raised`, **8.27:1** trên `chrome` ✓ |
 
-**Không dùng cho chữ:** `#6E7A8A` (4.20:1 — fail trên `#0E1520`), `#28374D` (chỉ viền trang trí).
+**Cam `#FF9736` chỉ dùng cho nav active trên chrome**, KHÔNG dùng chữ trên nền sáng. Chữ trên cam
+phải là `#0F172A` (8.27:1, AA).
+
+**Điều chỉnh so với plan §0.4:** `chrome-fg-muted` ban đầu chốt `#64748B` nhưng chỉ đạt **3.75:1**
+trên `chrome` và **3.07:1** trên `chrome-raised` ⇒ **FAIL AA cho chữ**; đã đổi sang `#94A3B8`
+(**6.96 / 5.71**). Đây là điều chỉnh so với giá trị ghi trong plan.
+
+**Bảng tổng hợp contrast chrome** (xác nhận bởi `scripts/check-contrast.mjs`, 7 cặp nhãn `CHROME …`):
+
+| Cặp | Tỉ lệ | Sàn | Kết quả |
+|---|---|---|---|
+| `chrome-fg` trên `chrome` | 14.48:1 | 4.5 | PASS |
+| `chrome-fg` trên `chrome-raised` | 11.87:1 | 4.5 | PASS |
+| `chrome-fg-muted` trên `chrome` | 6.96:1 | 4.5 | PASS |
+| `chrome-fg-muted` trên `chrome-raised` | 5.71:1 | 4.5 | PASS |
+| `chrome-active-fg` trên `chrome-active` | 8.27:1 | 4.5 | PASS |
+| `chrome-ring` trên `chrome-border` | 6.78:1 | 3.0 | PASS |
+| `chrome-ring` trên `chrome` | 8.27:1 | 3.0 | PASS |
 
 ---
 
@@ -189,8 +211,6 @@ Modern SaaS, `docs/plans/21-saas-spec.md` §1.1):
 > (SaaS tối giản: bóng chỉ gợi độ nổi, **viền** mới là tín hiệu phân tách). Không bóng cho
 > phần tử trong luồng.
 
-Dark theme: shadow yếu hơn trên nền tối → **thêm viền `--color-line` và tăng 1 bậc surface** thay vì tăng shadow.
-
 **Glass** chỉ được dùng ở **một chỗ**: chrome nổi trên canvas 3D (`backdrop-filter: blur(12px)`, nền `color-mix(in oklab, var(--color-surface-muted) 80%, transparent)`). Phải chuyển sang nền đặc khi `prefers-contrast: more` hoặc `forced-colors: active`.
 
 **Z-index:**
@@ -259,8 +279,6 @@ cho `z-*` + `tabular-nums` (Tailwind v4 không có namespace utility cho z-index
 ```css
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
 @theme {
   --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -328,28 +346,6 @@ cho `z-*` + `tabular-nums` (Tailwind v4 không có namespace utility cho z-index
   --ease-exit: cubic-bezier(0.3, 0, 1, 1);
 }
 
-.dark {
-  --color-canvas: #080D16;
-  --color-surface: #0E1520;
-  --color-surface-muted: #131C2A;
-  --color-surface-raised: #1A2434;
-  --color-line: #232F42;
-  --color-line-subtle: #1B2434;
-  --color-line-control: #4E6490;
-  --color-fg: #E8EEF7;
-  --color-fg-muted: #9BA9BE;
-  --color-fg-subtle: #7A8798;
-  --color-primary: #3AB8CE;
-  --color-primary-hover: #57DFFE;
-  --color-primary-fg: #07272E;
-  --color-accent: #57DFFE;
-  --color-positive: #4ADE80;
-  --color-warning: #FBBF24;
-  --color-danger: #F87171;
-  --color-info: #60A5FA;
-  --color-ring: #57DFFE;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -367,7 +363,7 @@ cho `z-*` + `tabular-nums` (Tailwind v4 không có namespace utility cho z-index
 ```
 npm run lint                        # 0 lỗi
 npm run build                       # thành công
-node scripts/check-contrast.mjs     # exit 0, 25+/30 cặp PASS (5 cặp fail có chủ đích: viền trang trí + màu chữ đã loại)
+node scripts/check-contrast.mjs     # exit 0, 49/60 cặp PASS (11 cặp fail có chủ đích: viền trang trí + màu chữ đã loại)
 node scripts/check-contrast-combos.mjs  # RC=0: không tổ hợp (chữ, nền) nào < 4.5 trong .tsx
 grep -c '\[#' src --include='*.tsx' # 0
 grep -rhoE 'text-\[[0-9]px\]|text-\[1[01]px\]' src --include='*.tsx' | wc -l   # 0

@@ -133,7 +133,7 @@ export function ProgressBar({
         <div
           className={cn(
             'h-full rounded-full',
-            animated && 'transition-[width] duration-200 ease-out motion-reduce:transition-none',
+            animated && 'transition-[width] duration-base ease-out motion-reduce:transition-none',
             isIndeterminate ? 'w-full animate-pulse bg-primary/40 motion-reduce:animate-none' : 'bg-primary',
           )}
           style={isIndeterminate ? undefined : { width: `${percent}%` }}

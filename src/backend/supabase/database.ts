@@ -14,6 +14,8 @@ import {
   rowToAccessory,
   rowToWorkshopPartner,
 } from './mappers';
+// Hợp đồng ghi canonical (discriminated union) — xem src/backend/lib/result.ts.
+import { ok, fail, type WriteResult } from '../lib/result';
 
 /**
  * Quy tắc bán hàng mặc định (một nguồn duy nhất cho phí ship / ngưỡng freeship).
@@ -174,7 +176,7 @@ export const dbService = {
     return (data ?? []).map(rowToProduct);
   },
 
-  async saveProduct(product: Product): Promise<{ success: boolean; error?: string }> {
+  async saveProduct(product: Product): Promise<WriteResult> {
     try {
       const normalizedStatus = (product.status ? product.status.toLowerCase() : 'published');
       const { error } = await supabase.from('products').upsert({
@@ -208,26 +210,26 @@ export const dbService = {
       });
       if (error) {
         console.warn('Supabase saveProduct error:', error.message);
-        return { success: false, error: error.message };
+        return fail(error);
       }
-      return { success: true };
+      return ok();
     } catch (err: any) {
       console.warn('DB error on saveProduct:', err);
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
-  async deleteProduct(productId: string): Promise<{ success: boolean; error?: string }> {
+  async deleteProduct(productId: string): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('products').delete().eq('id', productId);
       if (error) {
         console.warn('Supabase deleteProduct error:', error.message);
-        return { success: false, error: error.message };
+        return fail(error);
       }
-      return { success: true };
+      return ok();
     } catch (err: any) {
       console.warn('DB error on deleteProduct:', err);
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -316,7 +318,7 @@ export const dbService = {
       /** B1b — xưởng nhận đơn (`orders.assigned_workshop_id`). null = chưa giao xưởng. */
       assignedWorkshopId?: string | null;
     }
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<WriteResult> {
     try {
       const customerEmail = order.shippingAddress?.email || '';
       const customerName = order.shippingAddress?.fullName || '';
@@ -341,7 +343,7 @@ export const dbService = {
             userId = authData.user.id;
           }
         } catch {
-          // Guest checkout: không có phiên đăng nhập.
+          // ignore: guest checkout — không có phiên đăng nhập.
         }
       }
 
@@ -377,12 +379,12 @@ export const dbService = {
       });
 
       if (error) {
-        return { success: false, error: `Không lưu được đơn hàng vào Supabase: ${error.message}` };
+        return fail(`Không lưu được đơn hàng vào Supabase: ${error.message}`);
       }
-      return { success: true };
+      return ok();
     } catch (err: any) {
       console.warn('DB error on saveOrder:', err);
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -391,7 +393,7 @@ export const dbService = {
     statusStageIndex: number, 
     status: string, 
     notes?: string
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<WriteResult> {
     try {
       const updateData: Record<string, any> = {
         status,
@@ -415,12 +417,12 @@ export const dbService = {
 
       if (error) {
         console.warn('Supabase updateOrderStatus error:', error.message);
-        return { success: false, error: error.message };
+        return fail(error);
       }
-      return { success: true };
+      return ok();
     } catch (err: any) {
       console.warn('DB error on updateOrderStatus:', err);
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -502,7 +504,7 @@ export const dbService = {
     return (data ?? []).map(rowToUserProfile);
   },
 
-  async saveUser(user: Partial<AppUserProfile> & { uid: string }): Promise<{ success: boolean; error?: string }> {
+  async saveUser(user: Partial<AppUserProfile> & { uid: string }): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('user_profiles').upsert({
         id: user.uid,
@@ -519,14 +521,14 @@ export const dbService = {
         notes: user.notes,
         updated_at: new Date().toISOString(),
       });
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
-  async updateUserKyc(userId: string, kycStatus: 'verified' | 'pending_review' | 'rejected' | 'unverified', notes?: string): Promise<{ success: boolean; error?: string }> {
+  async updateUserKyc(userId: string, kycStatus: 'verified' | 'pending_review' | 'rejected' | 'unverified', notes?: string): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('user_profiles').update({
         kyc_status: kycStatus,
@@ -534,10 +536,10 @@ export const dbService = {
         updated_at: new Date().toISOString(),
       }).eq('id', userId);
 
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -551,7 +553,7 @@ export const dbService = {
     return (data ?? []).map(rowToMaterial);
   },
 
-  async saveMaterial(mat: MaterialProfile): Promise<{ success: boolean; error?: string }> {
+  async saveMaterial(mat: MaterialProfile): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('materials').upsert({
         id: mat.id,
@@ -575,10 +577,10 @@ export const dbService = {
         stock_rolls_count: mat.stockRollsCount,
         updated_at: new Date().toISOString(),
       });
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -592,7 +594,7 @@ export const dbService = {
     return (data ?? []).map(rowToPrinter);
   },
 
-  async savePrinter(printer: PrinterProfile): Promise<{ success: boolean; error?: string }> {
+  async savePrinter(printer: PrinterProfile): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('printer_fleet').upsert({
         id: printer.id,
@@ -614,10 +616,10 @@ export const dbService = {
         status: printer.status,
         updated_at: new Date().toISOString(),
       });
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -651,7 +653,7 @@ export const dbService = {
     throw new Error('Chưa cấu hình công thức giá trong hệ thống (bảng pricing_configs rỗng).');
   },
 
-  async savePricingConfig(config: InkiriCostFormulaConfig): Promise<{ success: boolean; error?: string }> {
+  async savePricingConfig(config: InkiriCostFormulaConfig): Promise<WriteResult> {
     try {
       // KHÔNG ghi localStorage: đây không còn là kênh dữ liệu (App.tsx tự giữ cache
       // riêng của nó). DB là nguồn duy nhất — nếu ghi DB lỗi thì trả lỗi thật bên dưới.
@@ -665,15 +667,16 @@ export const dbService = {
       });
       if (error) {
         // Fallback upsert on legacy table if present
-        await supabase.from('pricing_config').upsert({
+        const legacy = await supabase.from('pricing_config').upsert({
           id: 'default-active-formula',
           config: config,
           updated_at: new Date().toISOString(),
         });
+        if (legacy.error) return fail(error);
       }
-      return { success: true };
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -693,7 +696,7 @@ export const dbService = {
     return { ...rowToSiteContent(data, DEFAULT_SITE_CONTENT), ...readSiteContentExtras(data.settings) };
   },
 
-  async saveSiteContent(content: SiteContentConfig): Promise<{ success: boolean; error?: string }> {
+  async saveSiteContent(content: SiteContentConfig): Promise<WriteResult> {
     try {
       // KHÔNG ghi localStorage (xem savePricingConfig).
       //
@@ -717,10 +720,7 @@ export const dbService = {
       if (readError) {
         // Không đọc được jsonb thì KHÔNG ghi bừa (ghi `{}` lúc này = xoá dữ liệu chưa đọc
         // được). Trả lỗi THẬT để admin biết lần lưu này không thành công.
-        return {
-          success: false,
-          error: `Không đọc được settings hiện tại của site_content: ${readError.message}`,
-        };
+        return fail(`Không đọc được settings hiện tại của site_content: ${readError.message}`);
       }
       const extras = writeSiteContentExtras(content);
       const currentSettings =
@@ -786,10 +786,10 @@ export const dbService = {
         settings: mergedSettings,
         updated_at: new Date().toISOString(),
       });
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -800,7 +800,7 @@ export const dbService = {
     amount: number;
     gateway?: string;
     payload?: any;
-  }): Promise<{ success: boolean; error?: string; alreadyProcessed?: boolean }> {
+  }): Promise<WriteResult<void, { alreadyProcessed?: boolean }>> {
     try {
       const { error } = await supabase.from('payment_transactions').insert({
         id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -816,11 +816,11 @@ export const dbService = {
           // Unique constraint violation on transaction_id
           return { success: true, alreadyProcessed: true };
         }
-        return { success: false, error: error.message };
+        return fail(error);
       }
-      return { success: true };
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -849,7 +849,7 @@ export const dbService = {
     }
   },
 
-  async saveWorkshopPartner(partner: WorkshopPartner): Promise<{ success: boolean; error?: string }> {
+  async saveWorkshopPartner(partner: WorkshopPartner): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('workshop_partners').upsert({
         id: partner.id,
@@ -867,10 +867,10 @@ export const dbService = {
         supported_technologies: partner.supportedTechnologies,
         updated_at: new Date().toISOString(),
       });
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
@@ -888,7 +888,7 @@ export const dbService = {
     return (data ?? []).map(rowToAccessory);
   },
 
-  async saveAccessory(acc: AccessoryItem): Promise<{ success: boolean; error?: string }> {
+  async saveAccessory(acc: AccessoryItem): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('accessories').upsert({
         id: acc.id,
@@ -910,40 +910,40 @@ export const dbService = {
         compatible_with: acc.compatibleWith || [],
         updated_at: new Date().toISOString(),
       });
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
-  async deleteAccessory(id: string): Promise<{ success: boolean; error?: string }> {
+  async deleteAccessory(id: string): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('accessories').delete().eq('id', id);
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
-  async deleteMaterial(id: string): Promise<{ success: boolean; error?: string }> {
+  async deleteMaterial(id: string): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('materials').delete().eq('id', id);
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 
-  async deletePrinter(id: string): Promise<{ success: boolean; error?: string }> {
+  async deletePrinter(id: string): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('printer_fleet').delete().eq('id', id);
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (error) return fail(error);
+      return ok();
     } catch (err: any) {
-      return { success: false, error: err?.message };
+      return fail(err);
     }
   },
 };

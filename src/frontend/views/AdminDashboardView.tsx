@@ -503,24 +503,27 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
   return (
     <AppShell
+      chrome
       collapsed={isNavCollapsed}
       mobileOpen={isMobileNavOpen}
       onMobileOpenChange={setIsMobileNavOpen}
       navLabel={isVi ? 'Điều hướng quản trị' : 'Admin navigation'}
       sidebar={
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="flex h-full min-h-0 flex-col bg-chrome">
           {/* Tìm nhanh mục điều hướng — giữ nguyên tính năng của AdminSidebar cũ. */}
-          <div className="shrink-0 px-2 pt-2">
+          <div className="shrink-0 border-b border-chrome-border px-2 py-2">
             <Field
               id="admin-nav-search"
               label={isVi ? 'Tìm mục điều hướng' : 'Find a section'}
               hideLabel
+              tone="chrome"
             >
               {(control) => (
                 <Input
                   {...control}
                   type="search"
                   size="sm"
+                  tone="chrome"
                   value={navSearch}
                   onChange={(e) => setNavSearch(e.target.value)}
                   placeholder={isVi ? 'Tìm mục (kho, máy in, giá…)' : 'Find a section…'}
@@ -528,7 +531,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               )}
             </Field>
             {navQuery && filteredNavGroups.length === 0 ? (
-              <p className="px-1 pt-2 text-xs text-fg-subtle">
+              <p className="px-1 pt-2 text-xs text-chrome-fg-muted">
                 {isVi ? 'Không có mục nào khớp từ khoá.' : 'No sections matched.'}
               </p>
             ) : null}
@@ -541,25 +544,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             onCollapsedChange={setIsNavCollapsed}
             activeId={activeSection}
             onSelect={(id) => handleSelectSection(id as AdminNavSection)}
-            header={
-              <span className="flex min-w-0 items-center gap-2">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-fg">
-                  <Icon name="deployed_code" size={16} />
-                </span>
-                {isNavCollapsed ? null : (
-                  <span className="flex min-w-0 flex-col leading-tight">
-                    <span className="truncate text-sm font-semibold tracking-tight text-fg">
-                      VCUBE
-                    </span>
-                    <span className="truncate text-xs text-fg-subtle">
-                      {isVi ? 'Hệ điều hành xưởng in' : 'Admin & Production OS'}
-                    </span>
-                  </span>
-                )}
-              </span>
-            }
+            tone="chrome"
             footer={
-              <span className="block truncate px-1 text-center text-xs text-fg-subtle">
+              <span className="block truncate px-1 text-center text-xs text-chrome-fg-muted">
                 {isVi ? 'Bảng quản trị VCUBE' : 'VCUBE admin console'}
               </span>
             }
@@ -581,6 +568,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <Icon name="menu" size={16} />
             </Button>
           }
+          brand={
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-fg">
+                <Icon name="deployed_code" size={16} />
+              </span>
+              <span className="hidden min-w-0 flex-col leading-tight sm:flex">
+                <span className="truncate text-sm font-semibold tracking-tight text-fg">VCUBE</span>
+                <span className="truncate text-xs text-fg-subtle">
+                  {isVi ? 'Hệ điều hành xưởng in' : 'Admin & Production OS'}
+                </span>
+              </span>
+            </span>
+          }
           breadcrumb={
             <span className="truncate text-xs text-fg-muted">
               VCUBE / {currentMeta.group} /{' '}
@@ -590,15 +590,16 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           actions={
             <>
               {activeSection !== 'quote-calc' ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leadingIcon={<Icon name="request_quote" size={16} />}
-                  onClick={() => handleSelectSection('quote-calc')}
-                  className="hidden sm:inline-flex"
-                >
-                  {isVi ? 'Báo giá BOM' : 'Quick quote'}
-                </Button>
+                <span className="hidden sm:inline-flex">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leadingIcon={<Icon name="request_quote" size={16} />}
+                    onClick={() => handleSelectSection('quote-calc')}
+                  >
+                    {isVi ? 'Báo giá BOM' : 'Quick quote'}
+                  </Button>
+                </span>
               ) : null}
               <Button
                 variant="secondary"

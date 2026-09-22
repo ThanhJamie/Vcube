@@ -166,6 +166,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         resolution: item.resolution,
         license: item.licenseType,
         customText: item.customText,
+        weightGrams: item.weightGrams ?? null,
         version: 'v2.1'
       })),
       shippingAddress: {
@@ -223,7 +224,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             origin: { y: 0.6 }
           });
         } catch {
-          // silent fallback
+          // ignore: confetti là hiệu ứng phụ — silent fallback
         }
       }
 

@@ -51,6 +51,13 @@ import {
   type SupabaseRow,
 } from '../supabase/mappers';
 import type { InkiriCostFormulaConfig, SiteContentConfig } from '../../types';
+import { ok, fail, failWith, type WriteResult, type ValidationIssue } from '../lib/result';
+
+/**
+ * Re-export canonical contract để mọi importer cũ (`ValidationIssue`, `WriteResult`)
+ * không phải đổi đường dẫn — định nghĩa DUY NHẤT nằm ở `src/backend/lib/result.ts`.
+ */
+export type { WriteResult, ValidationIssue };
 
 /* ============================================================================
  * 0. Hằng số schema — cột thật của baseline (20260901_baseline_schema.sql)
@@ -98,22 +105,9 @@ export interface SettingsResult<T> {
   error: string | null;
 }
 
-export interface WriteResult<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  /** Lỗi validate (khác lỗi mạng/DB) — UI hiển thị ngay cạnh trường nhập. */
-  issues?: ValidationIssue[];
-}
-
 /* ============================================================================
  * 2. VALIDATE — hàm THUẦN, không phụ thuộc React/DB, dùng lại được ở Edge Function
  * ========================================================================== */
-
-export interface ValidationIssue {
-  field: string;
-  message: string;
-}
 
 export interface ValidationResult {
   valid: boolean;
@@ -785,8 +779,9 @@ export async function writeSettingAudit(input: {
     .select('*')
     .maybeSingle();
 
-  if (error) return { success: false, error: `setting_audit: ${error.message}` };
-  return { success: true, data: data ? rowToAudit(data) : undefined };
+  if (error) return fail(`setting_audit: ${error.message}`);
+  if (!data) return fail(null, 'setting_audit: không đọc lại được hàng vừa ghi.');
+  return ok(rowToAudit(data));
 }
 
 /** Lịch sử thay đổi (chỉ admin đọc được — RLS). */
@@ -814,13 +809,13 @@ export async function getSettingAudit(
 export async function saveAppSettings(patch: Partial<AppSettings>): Promise<WriteResult<AppSettings>> {
   const validation = validatePatch('app_settings', patch as Record<string, unknown>);
   if (!validation.valid) {
-    return { success: false, error: 'Dữ liệu không hợp lệ.', issues: validation.issues };
+    return failWith(validation.issues);
   }
 
   const before = cache.app_settings ?? null;
   const row = appSettingsToRow({ ...patch, updatedBy: patch.updatedBy ?? (await currentUserId()) });
   if (Object.keys(row).length === 0) {
-    return { success: false, error: 'Không có trường nào để lưu.' };
+    return fail(null, 'Không có trường nào để lưu.');
   }
 
   const { data, error } = await supabase
@@ -829,14 +824,15 @@ export async function saveAppSettings(patch: Partial<AppSettings>): Promise<Writ
     .select('*')
     .maybeSingle();
 
-  if (error) return { success: false, error: `app_settings: ${error.message}` };
+  if (error) return fail(`app_settings: ${error.message}`);
+  if (!data) return fail(null, 'app_settings: không đọc lại được hàng vừa ghi.');
 
-  const after = data ? rowToAppSettings(data) : null;
+  const after = rowToAppSettings(data);
   cache.app_settings = after;
 
   await auditPatch('app_settings', before as any, after as any);
   notify();
-  return { success: true, data: after ?? undefined };
+  return ok(after);
 }
 
 /**
@@ -854,7 +850,7 @@ export async function savePricingGlobalSettings(
 
   const validation = validatePatch('pricing_global_settings', domainPatch);
   if (!validation.valid) {
-    return { success: false, error: 'Dữ liệu không hợp lệ.', issues: validation.issues };
+    return failWith(validation.issues);
   }
 
   const row: SupabaseRow = { id: SETTINGS_ROW_IDS.pricing_global_settings };
@@ -873,14 +869,15 @@ export async function savePricingGlobalSettings(
     .select('*')
     .maybeSingle();
 
-  if (error) return { success: false, error: `pricing_global_settings: ${error.message}` };
+  if (error) return fail(`pricing_global_settings: ${error.message}`);
+  if (!data) return fail(null, 'pricing_global_settings: không đọc lại được hàng vừa ghi.');
 
-  const after = data ? rowToPricingGlobalSettings(data) : null;
+  const after = rowToPricingGlobalSettings(data);
   cache.pricing_global_settings = after;
 
   await auditPatch('pricing_global_settings', before as any, after as any);
   notify();
-  return { success: true, data: after ?? undefined };
+  return ok(after);
 }
 
 /**
@@ -894,7 +891,7 @@ export async function saveSiteContent(
 ): Promise<WriteResult<SiteContentConfig>> {
   const validation = validatePatch('site_content', patch as Record<string, unknown>);
   if (!validation.valid) {
-    return { success: false, error: 'Dữ liệu không hợp lệ.', issues: validation.issues };
+    return failWith(validation.issues);
   }
 
   const { row, extras } = siteContentToRow(patch);
@@ -916,17 +913,15 @@ export async function saveSiteContent(
     .select('*')
     .maybeSingle();
 
-  if (error) return { success: false, error: `site_content: ${error.message}` };
+  if (error) return fail(`site_content: ${error.message}`);
+  if (!data) return fail(null, 'site_content: không đọc lại được hàng vừa ghi.');
 
-  let after: SiteContentConfig | null = null;
-  if (data) {
-    after = { ...rowToSiteContent(data, {} as SiteContentConfig), ...siteContentExtras(data.settings) } as SiteContentConfig;
-    cache.site_content = after;
-  }
+  const after = { ...rowToSiteContent(data, {} as SiteContentConfig), ...siteContentExtras(data.settings) } as SiteContentConfig;
+  cache.site_content = after;
 
   await auditPatch('site_content', before as any, after as any);
   notify();
-  return { success: true, data: after ?? undefined };
+  return ok(after);
 }
 
 /**
@@ -941,7 +936,7 @@ export async function savePricingConfig(
   opts: { id?: string; configName?: string; formulaVersion?: string } = {}
 ): Promise<WriteResult<InkiriCostFormulaConfig>> {
   if (!config || typeof config !== 'object') {
-    return { success: false, error: 'Công thức giá không hợp lệ.' };
+    return fail('Công thức giá không hợp lệ.');
   }
   const id = opts.id ?? 'default-active-formula';
   const before = cache.pricing_configs ?? null;
@@ -962,14 +957,15 @@ export async function savePricingConfig(
     .select('*')
     .maybeSingle();
 
-  if (error) return { success: false, error: `pricing_configs: ${error.message}` };
+  if (error) return fail(`pricing_configs: ${error.message}`);
+  if (!data?.config) return fail(null, 'pricing_configs: không đọc lại được hàng vừa ghi.');
 
-  const after = data?.config ? (data.config as InkiriCostFormulaConfig) : null;
+  const after = data.config as InkiriCostFormulaConfig;
   cache.pricing_configs = after;
 
   await auditPatch('pricing_configs', before as any, after as any);
   notify();
-  return { success: true, data: after ?? undefined };
+  return ok(after);
 }
 
 /** Đọc thẳng 1 khoá jsonb (dùng để merge thay vì ghi đè cả cột `settings`). */
@@ -1015,7 +1011,7 @@ export async function saveSettingsPatch(
     case 'site_content':
       return saveSiteContent(patch as Partial<SiteContentConfig>);
     default:
-      return { success: false, error: `saveSettingsPatch chưa hỗ trợ kho ${store} (công thức giá cần quy trình version + preview).` };
+      return fail(`saveSettingsPatch chưa hỗ trợ kho ${store} (công thức giá cần quy trình version + preview).`);
   }
 }
 

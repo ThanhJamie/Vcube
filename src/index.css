@@ -1,9 +1,5 @@
 @import "tailwindcss";
 
-/* Dual theme: `.dark` được gắn trên <html> bởi src/frontend/theme/ThemeProvider.tsx.
-   Route dark-first: /quote, /admin/*, /lab/*, /designer/* (docs/plans/01-theme-migration.md §5.2). */
-@custom-variant dark (&:where(.dark, .dark *));
-
 /* `index.html` không nằm trong tập source tự dò của Tailwind (đã kiểm chứng: build ra
    KHÔNG có .bg-canvas/.text-fg) -> khai báo tường minh để class token trên <body> sinh
    utility thật thay vì bị bỏ qua im lặng. */
@@ -15,8 +11,8 @@
 
 /* ---------------------------------------------------------------------------
    Design tokens — nguồn sự thật: docs/design/tokens.md
-   Tên theo VAI TRÒ (primary, fg, line…), không theo màu: đổi theme chỉ đổi giá trị biến.
-   Đây là giá trị LIGHT (mặc định). Giá trị DARK ở khối `.dark` bên dưới.
+   Tên theo VAI TRÒ (primary, fg, line…), không theo màu: token là hằng số,
+   app light-only nên không có khối dark ghi đè.
    --text-* (thang chữ) ĐÃ khai báo ở Đợt 11A theo docs/plans/21-saas-spec.md §2.2 —
    ghi đè mặc định Tailwind v4 (text-sm 14px -> 13px, text-base 16px -> 14px,
    text-lg 18px -> 16px, text-4xl 36px -> 38px) nên ĐỔI PIXEL TOÀN APP, có chủ đích.
@@ -30,6 +26,16 @@
   /* --- Phông chữ hệ thống (khớp Google Fonts tải tại index.html) --- */
   --font-sans: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* --- Tier-3 · chrome (console tối, cố định — không phụ thuộc theme) --- */
+  --color-chrome:            #0F172A;
+  --color-chrome-raised:     #1E293B;
+  --color-chrome-fg:         #E2E8F0;
+  --color-chrome-fg-muted:   #94A3B8;
+  --color-chrome-border:     #1E293B;
+  --color-chrome-active:     #FF9736;
+  --color-chrome-active-fg:  #0F172A;
+  --color-chrome-ring:       #FF9736;
 
   /* --- Màu: nền & bề mặt --- */
   --color-canvas: #F8FAFC;
@@ -92,6 +98,18 @@
   --radius-xl: 16px;
   --radius-modal: 14px;
   --radius-full: 9999px;
+
+  /* --- Motion: thời lượng & easing (additive) ---
+     Tailwind v4 đọc namespace tên là `--transition-duration-*` (KHÔNG phải `--duration-*`),
+     nên khai đúng tên này mới sinh được utility `duration-*`. Easing: KHÔNG khai lại
+     `--ease-out`/`--ease-in-out` vì giá trị mặc định của Tailwind đang được nhiều nơi dùng;
+     chỉ thêm `--ease-exit` (mới, chưa có consumer cũ). */
+  --transition-duration-instant: 100ms;
+  --transition-duration-fast: 150ms;
+  --transition-duration-base: 200ms;
+  --transition-duration-moderate: 250ms;
+  --transition-duration-slow: 320ms;
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
 
   /* --- Elevation theo vai trò (e0 phẳng + viền) ---
      Chính sách Modern SaaS (21-saas-spec.md §2.4): e0 card trong luồng (KHÔNG bóng) ·
@@ -168,49 +186,12 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Dark theme — giá trị đã kiểm tương phản: docs/plans/01-theme-migration.md §5.1/§5.3
-   Không dùng #000/#FFF tuyệt đối; phân cấp bề mặt bằng viền, không bằng độ sáng.
+   Dark theme đã bị XOÁ HẲN — app light-only vĩnh viễn.
    --------------------------------------------------------------------------- */
-.dark {
-  color-scheme: dark;
-
-  --color-canvas: #080D16;
-  --color-surface: #0E1520;
-  --color-surface-raised: #1A2434;
-  --color-surface-muted: #131C2A;
-  /* Panel "HUD" hoà vào surface ở dark (01-theme-migration.md §5.4). */
-  --color-surface-inverse: #131C2A;
-  --color-surface-inverse-raised: #1A2434;
-  --color-on-inverse: #E8EEF7;
-
-  --color-line: #232F42;
-  --color-line-subtle: #1B2434;
-  --color-line-control: #4E6490;
-
-  --color-fg: #E8EEF7;
-  --color-fg-muted: #9BA9BE;
-  --color-fg-subtle: #7A8798;
-
-  --color-primary: #3AB8CE;
-  --color-primary-hover: #57DFFE;
-  --color-primary-fg: #07272E;
-  --color-accent: #57DFFE;
-  --color-positive: #4ADE80;
-  --color-warning: #FBBF24;
-  --color-warning-strong: #FBBF24;
-  --color-danger: #F87171;
-  --color-info: #60A5FA;
-  --color-ring: #57DFFE;
-
-  --color-primary-tint: #10262B;
-  --color-positive-tint: #10241A;
-  --color-warning-tint: #2A2114;
-  --color-danger-tint: #2C1618;
-  --color-info-tint: #141F33;
-}
 
 @layer base {
   :root {
+    color-scheme: light;
     --font-sans: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     /* Serif THẬT: trước đây trỏ stack sans nên `font-serif` render ra sans (gây nhầm). */
     --font-serif: Georgia, 'Times New Roman', ui-serif, serif;

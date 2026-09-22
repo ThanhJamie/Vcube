@@ -55,6 +55,8 @@ export interface CartItem {
   colorHex?: string;
   dimensions?: string;
   resolution?: string;
+  /** Khối lượng nhựa ước tính cho 1 cái (g) — dùng để tự trừ kho khi đơn hoàn thành. */
+  weightGrams?: number | null;
   customText?: string;
   customFont?: string;
   customFontSize?: number;
@@ -104,6 +106,8 @@ export interface Order {
     license?: string;
     version?: string;
     customText?: string;
+    /** Khối lượng thực của chi tiết (g) — dùng để tự trừ kho khi đơn hoàn thành. Thiếu ⇒ bỏ qua, không bịa. */
+    weightGrams?: number | null;
   }[];
   shippingAddress: {
     fullName: string;

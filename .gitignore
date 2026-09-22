@@ -66,5 +66,6 @@ supabase/.temp/
 
 # Artefact Playwright/agent de lai trong repo (bang chung) — khong commit
 pwtest/
+.playwright-mcp/
 # Nguyên trạng seed (dữ liệu vận hành) — KHÔNG commit
 supabase/backups/

@@ -1,7 +1,7 @@
 import React from 'react';
 import { MachineComparisonItem } from '../../types';
 import { Icon, Modal } from '@frontend/ui';
-import { EMPTY_VALUE } from '../../lib/format';
+import { EMPTY_VALUE, formatNumber } from '../../lib/format';
 
 /** Số hữu hạn hay không — NULL/NaN ⇒ KHÔNG có giá trị (không đoán hộ). */
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -10,7 +10,7 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
  * Tiền VND: thiếu giá trị ⇒ `—`, KHÔNG `NaN đ` và KHÔNG ném.
  */
 const vnd = (v: unknown): string =>
-  isNum(v) && v > 0 ? `${v.toLocaleString('vi-VN')} đ` : EMPTY_VALUE;
+  isNum(v) && v > 0 ? `${formatNumber(v)} đ` : EMPTY_VALUE;
 
 interface MachineComparisonModalProps {
   isOpen: boolean;

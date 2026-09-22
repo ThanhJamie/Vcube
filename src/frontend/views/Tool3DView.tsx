@@ -21,7 +21,7 @@ import { EMPTY_VALUE, formatNumber } from '../lib/format';
  * `.toLocaleString()` trên `null` làm TRẮNG MÀN HÌNH, nên mọi chỗ hiển thị/so sánh phải đi qua
  * hai hàm dưới đây. Thiếu số ⇒ `—`, KHÔNG bịa số và KHÔNG in chữ "null" ra UI. */
 const measuredText = (v: number | null | undefined, suffix = ''): string =>
-  typeof v === 'number' && Number.isFinite(v) ? `${v.toLocaleString('vi-VN')}${suffix}` : EMPTY_VALUE;
+  typeof v === 'number' && Number.isFinite(v) ? `${formatNumber(v)}${suffix}` : EMPTY_VALUE;
 
 /** Khổ bàn in của máy — `null` = chưa đo được CẢ 3 cạnh ⇒ không so sánh, không hiển thị số. */
 const bedOf = (p: PrinterProfile | undefined): { x: number; y: number; z: number } | null =>
@@ -359,6 +359,10 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   const [isStlUnitModalOpen, setIsStlUnitModalOpen] = useState<boolean>(false);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [dragOver, setDragOver] = useState<boolean>(false);
+  // Khung upload thu gọn thành thanh trạng thái sau khi đã có tệp; mở lại khi bấm "Đổi tệp khác".
+  const [uploadExpanded, setUploadExpanded] = useState<boolean>(false);
+  // Lịch sử tệp thu gọn mặc định; chỉ mở khi người dùng cần.
+  const [historyOpen, setHistoryOpen] = useState<boolean>(false);
   // Q2 (MP-01): lỗi đọc tệp của khách — hiển thị trạng thái trung thực, không có tệp thay thế.
   const [parseFailure, setParseFailure] = useState<ParseFailure | null>(null);
   const [manualReviewNoteShown, setManualReviewNoteShown] = useState<boolean>(false);
@@ -385,6 +389,8 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
   // Workspace sub-tab for Left Column (Viewport + Object Tree vs Preset Palettes vs Transforms vs Validation)
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'objects' | 'preset' | 'transforms' | 'validation'>('objects');
+  // Top-level tab cho cột trái: Cấu hình in / Phân tích & QA / Màu sắc 3MF.
+  const [leftTab, setLeftTab] = useState<'basic' | 'analysis' | 'color'>('basic');
 
   // Selected printer & material profiles.
   // A11 GUARD: đội máy in / danh mục vật liệu có thể RỖNG (nguồn thật là bảng DB; fixture đã
@@ -537,6 +543,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         setActiveWorkspaceTab('preset');
       }
       setIsAnalyzing(false);
+      setUploadExpanded(false);
 
       // STL không lưu đơn vị đo trong header ⇒ hỏi khách xác nhận mm/inch trước khi báo giá.
       if (format === 'STL') setIsStlUnitModalOpen(true);
@@ -987,9 +994,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               handleActualFileUpload(e.dataTransfer.files[0]);
             }
           }}
-          className={`border-2 border-dashed p-6 sm:p-8 text-center transition-all bg-surface rounded-lg shadow-e1 ${
-            dragOver ? 'border-primary bg-primary-tint/30' : 'border-line hover:border-primary'
-          }`}
+          className={`border-2 border-dashed transition-all bg-surface rounded-lg shadow-e1 ${
+            uploadExpanded ? 'p-6 sm:p-8 text-center' : 'p-3 sm:p-3.5'
+          } ${dragOver ? 'border-primary bg-primary-tint/30' : 'border-line hover:border-primary'}`}
         >
           {isAnalyzing ? (
             <div className="py-6 space-y-3 font-mono">
@@ -999,7 +1006,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               </p>
               <span className="text-xs text-fg-subtle">WebGL Three.js geometry pipeline in progress</span>
             </div>
-          ) : (
+          ) : uploadExpanded ? (
             <div className="max-w-xl mx-auto space-y-3.5">
               <div className="w-12 h-12 bg-canvas border border-line text-primary flex items-center justify-center mx-auto rounded-md shadow-e1">
                 <Icon name="cloud_upload" size={28} />
@@ -1056,6 +1063,30 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   }}
                 />
               </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 text-left">
+              <span className="w-9 h-9 rounded-md bg-primary-tint text-primary flex items-center justify-center shrink-0">
+                <Icon name="description" size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-fg-subtle uppercase font-mono font-bold">
+                  Tệp đang xử lý
+                </p>
+                <p className="text-sm font-bold text-fg truncate">
+                  {selectedFile.fileName}
+                  <span className="text-fg-subtle font-mono font-normal"> ({selectedFile.fileSize})</span>
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+                leadingIcon={<Icon name="upload_file" size={16} />}
+                onClick={() => setUploadExpanded(true)}
+              >
+                Đổi tệp khác
+              </Button>
             </div>
           )}
         </div>
@@ -1199,7 +1230,29 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               </div>
             </div>
 
-            {/* Slicing Parameters Card */}
+            {/* Left workspace tabs — Cấu hình in · Phân tích/QA · Màu sắc */}
+            <div className="flex items-center gap-1 bg-surface border border-line-subtle rounded-lg p-1 font-mono">
+              {([
+                { id: 'basic', label: '1. Cấu hình in', icon: 'tune' },
+                { id: 'analysis', label: '2. Phân tích & QA', icon: 'fact_check' },
+                { id: 'color', label: '3. Màu sắc 3MF', icon: 'palette' },
+              ] as const).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setLeftTab(tab.id)}
+                  aria-pressed={leftTab === tab.id}
+                  className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    leftTab === tab.id ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:bg-canvas hover:text-fg'
+                  }`}
+                >
+                  <Icon name={tab.icon} size={16} />
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {leftTab === 'basic' && (
             <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1 space-y-4 font-sans">
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <div className="flex items-center gap-2">
@@ -1360,8 +1413,10 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 </div>
               </div>
             </div>
+            )}
 
-            {/* Mesh Validation Report Panel */}
+            {/* Mesh Validation Report Panel / Workspace */}
+            {leftTab === 'analysis' && (
             <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1 space-y-5 font-sans">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
                 <div>
@@ -1709,10 +1764,23 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 )}
               </div>
             </div>
+            )}
+
+            {leftTab === 'color' && (
+              <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1 font-sans">
+                <PresetPalettePanel
+                  slicerPreset={selectedFile.slicerPreset}
+                  parts={selectedFile.parts}
+                  selectedPartId={selectedPartId}
+                  onChangeColor={handleChangePartColor}
+                  format={selectedFile.format}
+                />
+              </div>
+            )}
           </div>
 
           {/* Right Column: Slicer Parameters & Instant Quoting Panel */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-20 lg:self-start">
             {/* Lưới an toàn cấp panel: một throw khi tính/format giá KHÔNG được thay cả trang
                 (sẽ làm mất luôn nút chọn tệp). `resetKey` = tệp đang chọn ⇒ nạp tệp khác tự reset. */}
             <PanelErrorBoundary label="Bảng báo giá" resetKey={selectedFile.id}>
@@ -1747,17 +1815,28 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
           </div>
         </div>
 
-        {/* Uploaded History Files Table */}
-        <div className="bg-surface p-5 sm:p-7 rounded-lg shadow-e1 space-y-4 font-sans">
-          <div className="flex items-center justify-between border-b border-line pb-3">
+        {/* Uploaded History Files — accordion */}
+        <div className="bg-surface p-5 sm:p-7 rounded-lg shadow-e1 font-sans">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((o) => !o)}
+            aria-expanded={historyOpen}
+            className="w-full flex items-center justify-between gap-3 border-b border-line pb-3 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          >
             <h3 className="font-bold text-base text-fg flex items-center gap-2 font-mono">
               <Icon name="folder_open" size={18} className="text-primary" />
-              Lịch Sử Bản Vẽ Tải Lên & Quét Mesh ({files.length} files)
+              Lịch Sử Bản Vẽ Đã Tải Lên ({files.length})
             </h3>
-            <span className="text-xs text-fg-subtle font-mono">S3 Direct Upload Cache</span>
-          </div>
+            <span className="flex items-center gap-2 shrink-0">
+              <span className="hidden sm:inline text-xs text-fg-subtle font-mono truncate max-w-[220px]">
+                {selectedFile.fileName}
+              </span>
+              <Icon name={historyOpen ? 'expand_less' : 'expand_more'} size={18} className="text-fg-muted" />
+            </span>
+          </button>
 
-          <div className="responsive-table-wrapper">
+          {historyOpen && (
+          <div className="responsive-table-wrapper mt-4">
             <table className="text-left text-xs font-sans w-full">
               <thead className="border-b border-line text-fg-subtle text-xs uppercase font-mono tracking-widest bg-canvas">
                 <tr>
@@ -1824,6 +1903,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               </tbody>
             </table>
           </div>
+          )}
         </div>
 
       </div>
