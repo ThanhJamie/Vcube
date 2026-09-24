@@ -3,7 +3,7 @@
 > **Platform**: VCUBE 3.0 Digital Manufacturing & CAD Marketplace  
 > **Database**: Supabase PostgreSQL 15+  
 > **Schema Revision**: 20260901 Baseline + 20261010 Hardening + Phase 3 Studio Extensions  
-> **Total Entities**: 31 Relational Tables + 1 Compatibility View (`pricing_config`) + 49 Indexes (48 + 1 partial unique; 2 GIN) + 7 Core Functions + 5 Triggers (25 instances) + 2 Storage Buckets
+> **Total Entities**: 31 Relational Tables + 1 Compatibility View (`pricing_config`) + 49 Indexes (48 + 1 partial unique; 2 GIN) + 13 Functions (6 helper/security + 7 trigger functions) + 7 Triggers (27 instances) + 2 Storage Buckets
 
 ---
 
@@ -198,6 +198,7 @@ Master manufacturing fleet catalog modeling 3D printer hardware specs and operat
 | `has_enclosure` | `boolean` | YES | `false` | Active/passive enclosed chamber |
 | `has_ams` | `boolean` | YES | `false` | Multi-material automated system flag |
 | `status` | `text` | NO | `'Idle'` | Machine status (`'Idle'`, `'Printing'`, `'Maintenance'`) |
+| `throughput_grams_per_hour` | `numeric` | YES | `NULL` | Admin-declared print throughput (g/h) used to derive print time when the file has no slicer data. `NULL` = not declared (never defaulted) |
 | `created_at` | `timestamptz` | NO | `now()` | Creation timestamp |
 | `updated_at` | `timestamptz` | NO | `now()` | Auto-updated timestamp |
 
@@ -311,7 +312,7 @@ Master order record supporting guest checkout, 8-stage manufacturing tracking, m
 | `shipping_fee` | `numeric` | NO | `0` | Applied shipping cost |
 | `payment_method`| `text` | NO | `'cod'` | Selected gateway (`'vietqr'`, `'vnpay'`, `'cod'`) |
 | `payment_status`| `text` | NO | `'unpaid'` | Payment state (`'unpaid'`, `'paid'`, `'refunded'`) |
-| `secure_access_token` | `text` | NO | None | 32-char cryptographically secure token for guest order tracking |
+| `secure_access_token` | `text` | NO | None | Opaque guest-tracking token (client-generated as `sec_<epoch>_<random>`); the lookup RPC only requires trimmed length $\ge 12$ |
 | `quote_token` | `jsonb` | YES | `NULL` | Snapshot of original instant quote parameters |
 | `items` | `jsonb` | NO | `'[]'::jsonb` | Denormalized array of purchased line items |
 | `shipping_address` | `jsonb` | NO | `'{}'::jsonb` | Structured address `{ street, ward, district, city }` |
@@ -674,7 +675,7 @@ Specific printer units operating within an individual workshop profile.
 | `model` | `text` | YES | `''` | Model |
 | `technology` | `text` | NO | `'FDM'` | Printing technology |
 | `bed_dimensions` | `jsonb` | YES | `NULL` | Usable volume `{ x, y, z }` |
-| `status` | `text` | NO | `'active'` | Machine availability (`'active'`, `'offline'`) |
+| `status` | `text` | NO | `'active'` | Machine availability. DDL default is `'active'`, no CHECK; UI union is `'Free'`, `'Busy'`, `'Maintenance'`, `'Offline'` |
 | `hourly_rate` | `numeric` | YES | `NULL` | Workshop-specific billing rate (VND/hr) |
 | `created_at` | `timestamptz` | NO | `now()` | Creation timestamp |
 | `updated_at` | `timestamptz` | NO | `now()` | Auto-updated timestamp |
@@ -697,7 +698,7 @@ Filament inventory stocked locally at an individual workshop.
 | `current_stock_grams` | `numeric` | NO | `0` | Net remaining weight in grams |
 | `low_stock_threshold_grams`| `numeric` | YES | `NULL` | Replenishment warning threshold |
 | `price_per_kg` | `numeric` | YES | `NULL` | Workshop unit cost |
-| `stock_status` | `text` | NO | `'Tracking'` | State (`'Tracking'`, `'Low'`, `'Out'`) |
+| `stock_status` | `text` | NO | `'Tracking'` | State written by the inventory trigger (`'Tracking'`, `'LowStock'`, `'OutOfStock'`); UI union adds `'NotTracking'`. No CHECK constraint |
 | `created_at` | `timestamptz` | NO | `now()` | Creation timestamp |
 | `updated_at` | `timestamptz` | NO | `now()` | Auto-updated timestamp |
 
@@ -771,6 +772,9 @@ Macroeconomic parameters: national electricity tariffs, benchmark labor rates, c
 - **Constraints**:
   - `check (vat_percent is null or (vat_percent >= 0 and vat_percent <= 20))`
   - `check ((electricity_rate_vnd is null or electricity_rate_vnd >= 0) and (labor_hourly_rate_vnd is null or labor_hourly_rate_vnd >= 0))`
+  - `check (default_workshop_commission_percent is null or (default_workshop_commission_percent >= 0 and default_workshop_commission_percent <= 30))`
+  - `check (marketplace_fee_percent is null or (marketplace_fee_percent >= 0 and marketplace_fee_percent <= 30))`
+  - `check (marketplace_fixed_fee_vnd is null or (marketplace_fixed_fee_vnd >= 0 and marketplace_fixed_fee_vnd <= 10000000))`
 
 | Column | Data Type | Nullable | Default | Description |
 |---|---|---|---|---|
@@ -968,7 +972,7 @@ Custom industrial design commissioning inbox between customers and designers.
 
 ## 5. Database Functions
 
-The database implements 7 core helper and security functions:
+The database implements 6 helper/security functions. The 7 trigger functions they support are documented in §6:
 
 ### 1. `public.current_app_role() RETURNS text`
 - **Characteristics**: `LANGUAGE plpgsql`, `STABLE`, `SECURITY DEFINER`, `SET search_path = public`
@@ -989,15 +993,11 @@ The database implements 7 core helper and security functions:
 
 ### 5. `public.get_order_by_guest_token(p_order_number text, p_token text) RETURNS SETOF public.orders`
 - **Characteristics**: `LANGUAGE plpgsql`, `SECURITY DEFINER`, `SET search_path = public`
-- **Purpose**: Allows anonymous guest customers to look up their specific order progress without granting `SELECT` on `orders` to the `anon` role. Both `order_number` and the 32-character `secure_access_token` must match exactly.
+- **Purpose**: Allows anonymous guest customers to look up their specific order progress without granting `SELECT` on `orders` to the `anon` role. The caller must match `order_number` (or `id`) and the `secure_access_token`, whose trimmed length must be $\ge 12$.
 
 ### 6. `public.fn_recompute_product_review_stats(p_product_id text) RETURNS void`
 - **Characteristics**: `LANGUAGE plpgsql`, `SECURITY DEFINER`, `SET search_path = public`
 - **Purpose**: Recomputes `rating` and `reviews_count` in `public.products` by executing `AVG(rating)` and `COUNT(*)` over published reviews for the given product.
-
-### 7. `public.fn_touch_updated_at() RETURNS trigger`
-- **Characteristics**: `LANGUAGE plpgsql`
-- **Purpose**: Trigger function that sets `NEW.updated_at = now()`.
 
 ---
 
@@ -1041,7 +1041,7 @@ The database implements 7 core helper and security functions:
 #### 5. `trg_sync_material_on_inventory_log`
 - **Target**: `AFTER INSERT ON public.material_inventory_logs`
 - **Function**: `public.fn_sync_material_on_inventory_log()`
-- **Enforcement**: Adjusts `current_stock_grams` in `public.workshop_materials` according to the logged movement (`Import`: $+g$, `Export`: $-g$, `Adjustment`: sets exact stock).
+- **Enforcement**: Adjusts `current_stock_grams` in `public.workshop_materials` only for `Import` ($+g$, also refreshes `price_per_kg`/`stock_status`) and `Export` ($-g$, floored at 0). `Adjustment` is accepted by the `action` CHECK but the trigger does **not** change stock for it.
 
 #### 6. `trg_sync_product_review_stats`
 - **Target**: `AFTER INSERT OR UPDATE OR DELETE ON public.reviews`

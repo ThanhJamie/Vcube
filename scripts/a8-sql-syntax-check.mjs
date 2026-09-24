@@ -13,25 +13,42 @@
  *   6. câu lệnh không kết thúc bằng `;` (chỉ cảnh báo)
  *
  * Dùng: node scripts/a8-sql-syntax-check.mjs [file...]
- *       (mặc định: 3 migration + 2 script SQL + 2 file chẩn đoán trong supabase/)
+ *       (mặc định: TẤT CẢ supabase/migrations/*.sql + supabase/rollback/*.sql
+ *        khám phá trên đĩa, cộng 2 script SQL + 2 file chẩn đoán cố định)
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+/* Các file cố định (script + chẩn đoán) luôn được kiểm. */
 const DEFAULTS = [
-  'supabase/migrations/20260900_rls_helpers.sql',
-  'supabase/migrations/20260901_baseline_schema.sql',
-  'supabase/migrations/20261010_harden_rls.sql',
   'supabase/scripts/bootstrap_admin.sql',
   'supabase/scripts/apply_all_manual.sql',
   'supabase/diagnostics/verify_admin_settings.sql',
   'supabase/diagnostics/audit_schema_truth.sql',
 ];
 
-const files = process.argv.slice(2).length ? process.argv.slice(2) : DEFAULTS;
+/* Khám phá động: mọi migration + rollback .sql trên đĩa, sắp xếp theo tên
+ * để bản ghi mới tự động được phủ mà không phải sửa danh sách cứng. */
+function discoverSqlDir(relDir) {
+  const dir = resolve(root, relDir);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.sql'))
+    .sort()
+    .map((name) => `${relDir}/${name}`);
+}
+
+const DISCOVERED = [
+  ...discoverSqlDir('supabase/migrations'),
+  ...discoverSqlDir('supabase/rollback'),
+];
+
+const files = process.argv.slice(2).length
+  ? process.argv.slice(2)
+  : [...DISCOVERED, ...DEFAULTS];
 let totalProblems = 0;
 
 for (const rel of files) {

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "note": "Danh sách gate tường minh cho `npm run check` (T05). Mỗi entry chạy tuần tự; run-checks.mjs so RC + số vi phạm với docs/tasks/baseline.json. `live:true` = cần mạng/env Supabase (baseline RC có thể khác 0). `advisory:true` = không tính vào RC. `optional:true` = bỏ qua im lặng nếu file script chưa tồn tại.",
+  "gates": [
+    { "id": "lint", "cmd": "npm run lint" },
+    { "id": "build", "cmd": "npm run build" },
+    { "id": "check-contrast-combos", "cmd": "node scripts/check-contrast-combos.mjs --json" },
+    { "id": "check-contrast", "cmd": "node scripts/check-contrast.mjs --json" },
+    { "id": "check-error-handling", "cmd": "node scripts/check-error-handling.mjs --json" },
+    { "id": "check-fabricated", "cmd": "node scripts/check-fabricated.mjs --json" },
+    { "id": "check-icon-names", "cmd": "node scripts/check-icon-names.mjs" },
+    { "id": "check-ui-rules", "cmd": "node scripts/check-ui-rules.mjs --json" },
+    { "id": "check-unitprice-multiplier", "cmd": "node scripts/check-unitprice-multiplier.mjs" },
+    { "id": "a8-sql-syntax-check", "cmd": "node scripts/a8-sql-syntax-check.mjs" },
+    { "id": "lint-rls-migration", "cmd": "node scripts/lint-rls-migration.mjs" },
+    { "id": "lint-rls-sources", "cmd": "node scripts/lint-rls-sources.mjs" },
+    { "id": "test-catalog-sync", "cmd": "npx tsx scripts/test-catalog-sync.ts" },
+    { "id": "verify-rls", "cmd": "node scripts/verify-rls.mjs --json", "live": true },
+    { "id": "inspect-db", "cmd": "node scripts/inspect-db.mjs", "live": true },
+    { "id": "doc-refs", "cmd": "node scripts/check-doc-refs.mjs --warn", "advisory": true, "optional": true }
+  ]
+}

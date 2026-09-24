@@ -1,3 +1,4 @@
+<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
 # VCUBE Design Tokens (spec)
 
 Nguồn sự thật duy nhất cho màu / typography / spacing / radius / elevation / motion.
@@ -24,9 +25,11 @@ Hướng đã chốt: **light-only vĩnh viễn, giữ brand teal** — mọi ro
 |---|---|---|---|
 | `--color-canvas` | `#F8FAFC` | nền trang | nền cho `--color-fg` = **17.61:1** |
 | `--color-surface` | `#FFFFFF` | card, panel, bảng | `fg` = **18.43:1** |
+| `--color-surface-raised` | `#FFFFFF` | bề mặt nổi (light = surface) | như `surface` = **18.43:1** |
 | `--color-surface-muted` | `#F8F9FF` | header, dải xen kẽ | — |
 | `--color-surface-inverse` | `#091426` | panel HUD tối giữa trang light | `accent` trên nó = **11.75:1** |
 | `--color-surface-inverse-raised` | `#1E293B` | panel tối nổi | — |
+| `--color-on-inverse` | `#FFFFFF` | chữ trên `--color-surface-inverse` | **18.43:1** trên `#091426` ✓ |
 | `--color-line` | `#CBD5E1` | viền, đường phân cách (**trang trí**) | 1.42:1 trên canvas — hợp lệ vì không phải viền control |
 | `--color-line-subtle` | `#E2E8F0` | hairline trong bảng | — |
 | `--color-line-control` | `#8590A6` | viền input/select/checkbox | **3.21:1** trên trắng, **3.07:1** trên canvas ✓ |
@@ -62,11 +65,11 @@ Luật: **nền tint + chữ `<màu>` đặc** (`bg-warning-tint text-warning`) 
 
 > **D-1 và D-1b (token đã sửa trong cùng wave):**
 > • `--color-warning-tint` `#FBF0E4` → `#FEF6EC`: `#B45309` chỉ đạt **4.47:1** ⇒ FAIL, mà `bg-warning-tint`
->   được dùng **83 lần / 30 file** (gồm `/admin`, `/checkout`, `/cart`, `/quote`) nên bản vá cục bộ trong
+>   được dùng rộng rãi (gồm `/admin`, `/checkout`, `/cart`, `/quote`) nên bản vá cục bộ trong
 >   `MaterialComparisonMatrix.tsx` không đủ — đổi token mới là sửa gốc; badge HDT trong ma trận vật liệu
 >   quay lại `bg-warning-tint` đúng quy tắc ở trên.
-> • `--color-positive-tint` `#E7F3EC` → `#F0F9F3`: `#15803D` chỉ đạt **4.40:1** ⇒ FAIL ở ~55 chỗ
->   `bg-positive-tint text-positive`; sửa token một dòng là đủ, không sửa call site.
+> • `--color-positive-tint` `#E7F3EC` → `#F0F9F3`: `#15803D` chỉ đạt **4.40:1** ⇒ FAIL ở nhiều
+>   call site `bg-positive-tint text-positive`; sửa token một dòng là đủ, không sửa call site.
 > ⚠️ `--color-fg-subtle` không đạt trên **nền tint/hairline**: `warning-tint` 4.44 ·
 > `positive-tint` 4.43 · `bg-primary/5` 4.40 · `line-subtle` 3.86
 > ⇒ trên các nền đó dùng `--color-fg-muted` (5.22 trên `line-subtle`).
@@ -121,7 +124,7 @@ trên `chrome` và **3.07:1** trên `chrome-raised` ⇒ **FAIL AA cho chữ**; �
 
 ## 4. Typography
 
-Font: **Be Vietnam Pro** (sans, thiết kế cho tiếng Việt — bắt buộc vì dấu tiếng Việt) + **JetBrains Mono** (mã, thông số kỹ thuật, ID). Bỏ `Inter`.
+Font: **Be Vietnam Pro** (sans, thiết kế cho tiếng Việt — bắt buộc vì dấu tiếng Việt) + **JetBrains Mono** (mã, thông số kỹ thuật, ID). `'Inter'` vẫn còn trong fallback stack của `--font-sans` (`src/index.css`) nhưng không được tải qua Google Fonts; Be Vietnam Pro luôn thắng.
 
 **Thang chữ có thật (ĐỔI 2026-09-20 — redesign Modern SaaS, `docs/plans/21-saas-spec.md` §2.2):**
 khai báo thẳng vào namespace `--text-*` của Tailwind v4 trong `src/index.css`, nên
@@ -140,13 +143,15 @@ khai báo thẳng vào namespace `--text-*` của Tailwind v4 trong `src/index.c
 
 Ngoài thang trên (class có sẵn trong `src/index.css`, KHÔNG thêm biến mới):
 `.fluid-hero-heading` / `.fluid-h1` / `.fluid-h2` cho hero responsive, và `.font-mono`
-(13px JetBrains Mono) cho tên file / part ID / G-code.
+cho tên file / part ID / G-code. Lưu ý: `.font-mono` chỉ đặt `font-family` (`--font-mono`)
++ `font-feature-settings` (`"tnum" 1`, `"zero" 1`) — **không** đặt cỡ chữ; muốn 13px phải
+ghép thêm class `text-sm` (khai trong `src/index.css`).
 
 **Số liệu** (bảng, KPI, tiền, tiến độ) dùng `tabular-nums` — `@utility` khai tường minh
 trong `src/index.css` (Tailwind v4 đã có utility lõi cùng tên; bản của dự án thêm
 `font-feature-settings: "tnum" 1`).
 
-Luật: tối đa **2 cỡ chữ trong một card**; nhãn uppercase chỉ dùng cho micro-label và không nhỏ hơn 12px; không dùng `font-serif` (đang là sans stack → gây nhầm).
+Luật: tối đa **2 cỡ chữ trong một card**; nhãn uppercase chỉ dùng cho micro-label và không nhỏ hơn 12px; không dùng `font-serif` (từ 2026-09 `--font-serif` là serif thật — Georgia/Times — không còn trỏ sans, nên dùng sẽ lệch ngôn ngữ sans của app).
 
 ---
 
@@ -189,11 +194,11 @@ Modern SaaS, `docs/plans/21-saas-spec.md` §1.1):
 > ~30 CTA tự viết đang `rounded-full` để khớp pill cũ sẽ **lệch** với `ui/Button` — đưa về
 > `ui/Button` hoặc đổi sang `rounded-md` khi áp từng trang.
 > **Lý do đổi (2026-09-20):** redesign Modern SaaS (`21-saas-spec.md` §0 câu 4 + §1.1) chọn
-> ngôn ngữ SaaS: bán kính nhỏ, mật độ dày vừa, viền nhạt. Đổi ở tầng token nên **1.833 chỗ
-> `rounded-*`** đi theo cùng lúc.
+> ngôn ngữ SaaS: bán kính nhỏ, mật độ dày vừa, viền nhạt. Đổi ở tầng token nên mọi call site
+> `rounded-*` đi theo cùng lúc.
 > **Cập nhật 2026-09-12 (đã bị thay thế):** thang 8/12/20 (+xl 28) theo
 > `docs/plans/11-layout-references.md` §6 — nay thay bằng 6/8/12/16/14.
-> **Bẫy đã xử lý (bài học A19):** 57 chỗ là **ô vuông nhỏ** (`w-7`…`w-12`) dùng `rounded-lg`;
+> **Bẫy đã xử lý (bài học A19):** nhiều chỗ là **ô vuông nhỏ** (`w-7`…`w-12`) dùng `rounded-lg`;
 > với radius lớn chúng thành **hình tròn** (bán kính bị kẹp về nửa cạnh). Thang mới nhỏ hơn nên
 > rủi ro giảm, **nhưng vẫn phải rà**: assert `borderRadius / (min(w,h)/2) < 1` cho mọi phần tử
 > vuông 20–60px (trừ avatar/chấm/pill cố ý).
@@ -211,7 +216,11 @@ Modern SaaS, `docs/plans/21-saas-spec.md` §1.1):
 > (SaaS tối giản: bóng chỉ gợi độ nổi, **viền** mới là tín hiệu phân tách). Không bóng cho
 > phần tử trong luồng.
 
-**Glass** chỉ được dùng ở **một chỗ**: chrome nổi trên canvas 3D (`backdrop-filter: blur(12px)`, nền `color-mix(in oklab, var(--color-surface-muted) 80%, transparent)`). Phải chuyển sang nền đặc khi `prefers-contrast: more` hoặc `forced-colors: active`.
+**Glass:** thực tế `backdrop-blur` xuất hiện ở **13 vị trí trong 8 file** (snapshot 2026-09-24),
+không phải "một chỗ" như bản cũ. Hiện **chưa có** fallback `prefers-contrast: more` /
+`forced-colors: active` trong `src/` (0 media query) → **cần thêm fallback (backlog UI)**: khi hai
+media query đó bật, glass phải chuyển sang nền đặc (`backdrop-filter: none`, nền `--color-surface`).
+Trước mắt giữ nguyên hành vi; ghi nhận là nợ UI, không sửa code ở đây.
 
 **Z-index:**
 
@@ -228,15 +237,20 @@ Modern SaaS, `docs/plans/21-saas-spec.md` §1.1):
 
 ## 7. Motion
 
+> **Tên token thật trong `src/index.css` là namespace `--transition-duration-*`** (không phải
+> `--duration-*`): Tailwind v4 chỉ đọc `--transition-duration-*` để sinh utility `duration-*`.
+> Chỉ `--ease-exit` được khai thêm; `--ease-out`/`--ease-in-out` **không** khai lại (giá trị
+> dưới đây là mặc định sẵn có của Tailwind, nhiều nơi đang dùng).
+
 | Token | Giá trị | Dùng cho |
 |---|---|---|
-| `--duration-instant` | 100ms | phản hồi nhấn, checkbox |
-| `--duration-fast` | 150ms | hover, tooltip, chip |
-| `--duration-base` | 200ms | dropdown, tab, mặc định |
-| `--duration-moderate` | 250ms | sheet, mở rộng disclosure |
-| `--duration-slow` | 320ms | modal |
-| `--ease-out` | `cubic-bezier(0.2, 0, 0, 1)` | xuất hiện |
-| `--ease-in-out` | `cubic-bezier(0.4, 0, 0.2, 1)` | chuyển trạng thái |
+| `--transition-duration-instant` | 100ms | phản hồi nhấn, checkbox |
+| `--transition-duration-fast` | 150ms | hover, tooltip, chip |
+| `--transition-duration-base` | 200ms | dropdown, tab, mặc định |
+| `--transition-duration-moderate` | 250ms | sheet, mở rộng disclosure |
+| `--transition-duration-slow` | 320ms | modal |
+| `--ease-out` (mặc định Tailwind) | `cubic-bezier(0.2, 0, 0, 1)` | xuất hiện |
+| `--ease-in-out` (mặc định Tailwind) | `cubic-bezier(0.4, 0, 0.2, 1)` | chuyển trạng thái |
 | `--ease-exit` | `cubic-bezier(0.3, 0, 1, 1)` | biến mất |
 
 Luật: không animate từ `scale(0)` (bắt đầu ≥0.94); nhấn = `scale(0.97)`; không animate hành động bàn phím hoặc hành động tần suất cao (gõ, cuộn, kéo slider); không auto-rotate 3D quá 5 giây mà không có nút dừng; `@media (prefers-reduced-motion: reduce)` → thay chuyển động bằng opacity, tắt auto-rotate.
@@ -245,9 +259,9 @@ Luật: không animate từ `scale(0)` (bắt đầu ≥0.94); nhấn = `scale(0
 
 ## 8. Component rules (bắt buộc)
 
-**Button:** 5 biến thể — `primary` (nền `--color-primary`, chữ `--color-primary-fg`), `secondary` (nền `--color-surface`, viền `--color-line-control`, chữ `--color-fg`), `ghost` (không nền), `danger`, `danger-ghost`. **Bán kính `--radius-md` = 8px (KHÔNG pill)**. Cao 40px (`size="md"`), 36px (`size="sm"` — toolbar), 48px (`size="lg"`); padding 12–16px; dưới `md` mọi nút ≥48px. Icon-only: `aria-label` bắt buộc, vùng bấm ≥44×44 (đích 48×48 với khoảng cách ≥8px). Icon trong nút **16px** (`size-4`) — xem quy tắc icon.
+**Button:** 6 biến thể — `primary` (nền `--color-primary`, chữ `--color-primary-fg`), `accent` (nền `--color-accent`, chữ `--color-fg`, dùng cho CTA trên bề mặt tối), `secondary` (nền `--color-surface`, viền `--color-line-control`, chữ `--color-fg`), `ghost` (không nền), `danger`, `danger-ghost`. **Bán kính `--radius-md` = 8px (KHÔNG pill)**. Cao 40px (`size="md"`), 36px (`size="sm"` — toolbar), 48px (`size="lg"`); padding 12–16px; dưới `md` mọi nút ≥48px. Icon-only: `aria-label` bắt buộc, vùng bấm ≥44×44 (đích 48×48 với khoảng cách ≥8px). Icon trong nút **16px** (`size-4`) — xem quy tắc icon.
 
-**Field:** `<label for>` luôn tồn tại (hiện `htmlFor` = 0 trong `components/admin`), đánh dấu **cả** field bắt buộc và không bắt buộc, lỗi hiển thị inline + `aria-invalid` + `aria-describedby`, validate khi blur (không khi đang gõ), `autocomplete` + `inputmode` đúng.
+**Field:** `<label for>` luôn tồn tại (tính đến 2026-09-22 `components/admin` có 86 `htmlFor`), đánh dấu **cả** field bắt buộc và không bắt buộc, lỗi hiển thị inline + `aria-invalid` + `aria-describedby`, validate khi blur (không khi đang gõ), `autocomplete` + `inputmode` đúng.
 
 **Card/Panel:** `--radius-lg` (12px), **viền `--color-line-subtle`** + `bg-surface`, `--shadow-e0`
 (không bóng khi nằm trong luồng); `interactive` hover nâng lên `--shadow-e1`; không dùng gradient nền.
@@ -280,14 +294,26 @@ cho `z-*` + `tabular-nums` (Tailwind v4 không có namespace utility cho z-index
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Tier-3 · chrome (console tối, cố định — §3.1) */
+  --color-chrome:            #0F172A;
+  --color-chrome-raised:     #1E293B;
+  --color-chrome-fg:         #E2E8F0;
+  --color-chrome-fg-muted:   #94A3B8;
+  --color-chrome-border:     #1E293B;
+  --color-chrome-active:     #FF9736;
+  --color-chrome-active-fg:  #0F172A;
+  --color-chrome-ring:       #FF9736;
 
   --color-canvas: #F8FAFC;
   --color-surface: #FFFFFF;
+  --color-surface-raised: #FFFFFF;
   --color-surface-muted: #F8F9FF;
   --color-surface-inverse: #091426;
   --color-surface-inverse-raised: #1E293B;
+  --color-on-inverse: #FFFFFF;
   --color-line: #CBD5E1;
   --color-line-subtle: #E2E8F0;
   --color-line-control: #8590A6;
@@ -300,9 +326,17 @@ cho `z-*` + `tabular-nums` (Tailwind v4 không có namespace utility cho z-index
   --color-accent: #57DFFE;
   --color-positive: #15803D;
   --color-warning: #B45309;
+  --color-warning-strong: #D97706;
   --color-danger: #B91C1C;
   --color-info: #1D4ED8;
   --color-ring: #00687A;
+
+  /* Tint §2.1 */
+  --color-primary-tint: #E6F0F2;
+  --color-positive-tint: #F0F9F3;
+  --color-warning-tint: #FEF6EC;
+  --color-danger-tint: #FBE9E9;
+  --color-info-tint: #E8EDFB;
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -337,12 +371,12 @@ cho `z-*` + `tabular-nums` (Tailwind v4 không có namespace utility cho z-index
   --spacing-block: 16px;
   --spacing-label: 4px;
 
-  --duration-fast: 150ms;
-  --duration-base: 200ms;
-  --duration-moderate: 250ms;
-  --duration-slow: 320ms;
-  --ease-out: cubic-bezier(0.2, 0, 0, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-duration-instant: 100ms;
+  --transition-duration-fast: 150ms;
+  --transition-duration-base: 200ms;
+  --transition-duration-moderate: 250ms;
+  --transition-duration-slow: 320ms;
+  /* --ease-out / --ease-in-out KHÔNG khai lại: dùng mặc định Tailwind. */
   --ease-exit: cubic-bezier(0.3, 0, 1, 1);
 }
 
@@ -360,11 +394,12 @@ cho `z-*` + `tabular-nums` (Tailwind v4 không có namespace utility cho z-index
 
 ## 10. Gate
 
+Chạy **một** lệnh (script T05 gom mọi checker qua `scripts/gate-manifest.json`):
+
 ```
-npm run lint                        # 0 lỗi
-npm run build                       # thành công
-node scripts/check-contrast.mjs     # exit 0, 49/60 cặp PASS (11 cặp fail có chủ đích: viền trang trí + màu chữ đã loại)
-node scripts/check-contrast-combos.mjs  # RC=0: không tổ hợp (chữ, nền) nào < 4.5 trong .tsx
-grep -c '\[#' src --include='*.tsx' # 0
-grep -rhoE 'text-\[[0-9]px\]|text-\[1[01]px\]' src --include='*.tsx' | wc -l   # 0
+npm run check
 ```
+
+Không chép tay danh sách gate ở đây nữa — manifest là nguồn sự thật, thêm/bớt checker
+chỉ sửa manifest. Gate tối thiểu cho riêng tokens vẫn nằm trong đó: contrast (`check-contrast.mjs`),
+contrast combos (`check-contrast-combos.mjs`), cấm hex trong `.tsx`.

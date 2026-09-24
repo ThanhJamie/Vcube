@@ -1,7 +1,12 @@
+<!-- doc-meta: status=snapshot; verified=2026-09-24; owner=thanh -->
 # UI/UX Audit & Backlog — 2026-09
 
 > Nguồn: 7 audit agent (E1–E7) theo `docs/design/taste-contract.md`, sau commit `41302c0`.
 > **Cách dùng**: đây là backlog thi công UI/UX. Bất biến repo (data-honesty, token, icon, light-first) luôn thắng skill.
+>
+> **Trạng thái (2026-09-22):** snapshot lịch sử. Phần lớn mục Critical/High đã được xử lý (xem §0 + git
+> `4a7eea5`); nhiều file:line trong §2–§4 đã trôi hoặc file không còn tồn tại. Đối chiếu code trước khi
+> coi một mục là còn nợ.
 
 ## 0. Đã xử lý (cập nhật cuối)
 - **Phase 1**: FAB, ModelViewer3D on-demand, `/quote` (input value, try/finally, money guard + boundary, file picker, STL unit modal), icon glyphs/gate.
@@ -14,7 +19,7 @@
 
 ## Còn lại (refactor lớn — không phải bug)
 - **DataTable**: ĐÃ migrate các bảng dữ liệu admin/designer (`AdminProductsPanel`, `AccessoriesManager`, `WarehouseInventoryPanel` ×2, `Group1WorkshopsPanel` ×2, `Group2DesignersPanel`, `Group3CustomersPanel` ×2, `DesignerModelsManagerTab`, `DesignerPayoutsTab`). CÒN: bảng chỉnh sửa trong `PricingConfigPanel` (form grid — cố ý không dùng DataTable) và bảng catalog storefront (`ExploreView`/`HomeView`).
-- **Modal → `<dialog>`**: ĐÃ migrate `CadQuickViewModal`, `StlUnitConfirmModal`, `InvoiceModal`, `StlVs3mfComparisonModal`, `MachineComparisonModal`, `InternalCostBreakdownModal`, `MyOrdersView` (bảo hành), `AssetLibraryView` (preview). CÒN: các modal create/edit trong admin (`AdminProductsPanel`, `AccessoriesManager`, `Group1`, `Group2`, `Group3`, `Group5`, `PricingConfigPanel`, `UserAvatarMenu`) và `AuthModal`/`PersonalizeModelViewer3D`/`ModelViewer3D` (fullscreen viewer có chủ ý).
+- **Modal → `<dialog>`**: ĐÃ migrate `CadQuickViewModal`, `StlUnitConfirmModal`, `InvoiceModal`, `StlVs3mfComparisonModal`, `MachineComparisonModal`, `InternalCostBreakdownModal`, `MyOrdersView` (bảo hành), `AssetLibraryView` (preview). ĐÃ migrate thêm các modal create/edit admin (`AdminProductsPanel`, `AccessoriesManager`, `Group1`/`Group2`/`Group3`/`Group5`, `PricingConfigPanel`) trong các commit `e937afa`/`85180b5`/`217ba8b`/`7dd870b`. CÒN: `UserAvatarMenu`, `AuthModal`, `PersonalizeModelViewer3D`/`ModelViewer3D` (fullscreen viewer có chủ ý).
 - Storefront: hero fit viewport (restructure thiết kế), `content-visibility` cho list dài, i18n nốt vài chuỗi.
 - `AdminStorefrontPanel`/`AdminSeoPanel`: guard unsaved-changes khi điều hướng.
 - **C5**: verify browser 390/768/1440 (cần Playwright MCP hoặc kiểm thủ công).
@@ -44,22 +49,25 @@ FAB (rAF + overlap khi ngừng cuộn), ModelViewer3D on-demand loop + FPS ref, 
 - **Design-system**: 34 modal tự chế (không `<dialog>`); 5 `window.confirm`; 18 icon-button thiếu `aria-label`; ~40 input dùng `border-line` (1.42:1) làm viền control.
 
 ## 4. Medium (chọn lọc)
+
+> **Số liệu dưới đây là snapshot 2026-09; đã đo lại 2026-09-24.** Nhiều con số đã trôi — xem nhãn `[đo lại 2026-09-24]`. Đối chiếu code trước khi coi là còn nợ.
 - 183 `transition-all` / 45 file; 50 `animate-pulse`, 26 `animate-spin`, 5 `animate-ping` vô hạn.
 - `min-h-screen` ở 16 route (nên `min-h-dvh`); `h-screen` ở sidebar/viewer.
-- 24 overlay `backdrop-blur`; blur trên sticky (`ProductDetailView.tsx:934`, `PersonalizeView.tsx:1049`, `UserAvatarMenu.tsx:149`).
+- ~~24 overlay `backdrop-blur`~~ **[đo lại 2026-09-24: 13 lần / 8 file — `WorkshopOnboardingWizard`, `AdminSeoPanel`, `HorizontalScrollFilter`, `PersonalizeModelViewer3D`, `UnifiedCadToolbar`, `ServiceShowcaseSection`, `ProductDetailView`, `PersonalizeView`]**; blur trên sticky (`ProductDetailView.tsx:934`, `PersonalizeView.tsx:1049`, `UserAvatarMenu.tsx:149`).
 - `text-[10px]/[11px]` dưới sàn 12px (9 chỗ); `tracking-wider` 232×, `uppercase` 530× (eyebrow tràn lan).
-- Hex cứng còn lại: `HomeView.tsx:523,1079`; token đã xoá `#94A3B8` ở `PersonalizeView.tsx:18`.
+- Hex cứng còn lại: `HomeView.tsx:523,1079`; ~~token đã xoá `#94A3B8` ở `PersonalizeView.tsx:18`~~ **[đo lại 2026-09-24: `#94A3B8` nay chỉ còn trong comment ở `PersonalizeView.tsx:19` — raw hex = 0; các hit khác nằm trong `src/index.css` như token/ghi chú lịch sử]**.
 - `ui/Money` 0 consumer; `ui/ConfirmDialog`/`Toolbar`/`Section` 0 consumer; `DataTable` dùng ở 1 view vs 23 `<table>` tự chế.
 - ~~`ThemeProvider.tsx:27` `DARK_ROUTE_PREFIXES=[]` nhưng nhiều console tự style dark → lệch.~~ **ĐÃ XỬ LÝ (W2)**: dark theme xoá hẳn, theme module gỡ; app light-only vĩnh viễn.
 - WebGL `ThreeModelViewer.tsx:330` rAF vô điều kiện + remount khi scroll; auto-rotate JS chưa gate reduced-motion.
 - `key={idx}` 19 chỗ; `useInViewport` không re-observe khi ref đổi.
 
 ## 5. Task 1 — E1 (docs ↔ code) còn lệch
-- `/workshop/settings` là route "ma" trong `docs/README.md:93` + `docs/pages/designer-workshop-portals.md:7,87` (không có trong router).
-- `src/backend/supabase/admin.ts` là file chết (đọc `NEXT_PUBLIC_*`) — cần xoá hoặc tài liệu hoá.
-- `docs/tasks/README.md:5` vẫn gọi `docs/plans/00–07` là "nguồn chuẩn".
+
+> **Đã xử lý (2026-09-22):** `src/backend/supabase/admin.ts` đã xoá; `docs/tasks/README.md` không còn gọi
+> `docs/plans/00–07` là "nguồn chuẩn"; `@supabase/ssr` và `@google/genai` đã gỡ khỏi `package.json`.
+> Còn lại:
+- `/workshop/settings` là route "ma" trong `docs/README.md:93` + `docs/pages/designer-workshop-portals.md:7,87` (không có trong router). *(chưa xác minh lại — nằm ngoài file này)*
 - OCCT WASM ghi "32MB" nhưng thực 7.6MB (`docs/SETUP_RUNBOOK.md`).
-- `@supabase/ssr`, `@google/genai` trong deps nhưng 0 import.
 
 ## 6. Thứ tự thi công đề xuất
 1. **C1 (đã làm 1 phần)**: token/vệ sinh toàn cục — `dvh`, sàn chữ 12px, hex/token xoá, reduced-motion JS, `warning-strong` nhỏ.

@@ -16,14 +16,15 @@ interface AssetLibraryViewProps {
  * Bucket `cad-files` là PRIVATE (policy chỉ cho admin), nên phải đi qua
  * `createSignedUrl` — không thể dùng `getPublicUrl`.
  *
- * GIỚI HẠN ĐÃ BIẾT: hiện `DigitalAsset` không mang `storagePath`, và dữ liệu đơn
- * hàng (`orders.items`) cũng không lưu đường dẫn file. Không có bảng `order_files`
- * thì KHÔNG suy ra được vị trí object trong Storage — vì vậy ở đây KHÔNG bịa
- * đường dẫn và KHÔNG hiện link giả. Trạng thái là "chưa hỗ trợ tải trực tiếp".
+ * GIỚI HẠN ĐÃ BIẾT: bảng `order_files` CÓ trong schema (baseline) nhưng CHƯA
+ * được nối (unwired) — chưa có luồng nào ghi/đọc bảng này. Hiện `DigitalAsset`
+ * không mang `storagePath`, và dữ liệu đơn hàng (`orders.items`) cũng không lưu
+ * đường dẫn file. Vì chưa suy ra được vị trí object trong Storage nên ở đây KHÔNG
+ * bịa đường dẫn và KHÔNG hiện link giả. Trạng thái là "chưa hỗ trợ tải trực tiếp".
  *
- * TODO(order_files): thêm bảng `order_files (order_id, product_id, storage_path,
- * license, created_at)` + policy SELECT cho người mua, map `storage_path` vào
- * `DigitalAsset.storagePath`, rồi hàm dưới sẽ chạy đúng như thiết kế.
+ * TODO(order_files): nối luồng ghi/đọc `order_files (order_id, product_id,
+ * storage_path, license, created_at)` + policy SELECT cho người mua, map
+ * `storage_path` vào `DigitalAsset.storagePath`, rồi hàm dưới sẽ chạy đúng như thiết kế.
  */
 export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
   assets,

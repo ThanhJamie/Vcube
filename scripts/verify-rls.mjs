@@ -152,7 +152,7 @@ function skipIfMissing(label, error) {
 }
 
 async function expectZero(label, table, build, hint) {
-  const { count, error } = await countRows(table, build);
+  const { count, error, status } = await countRows(table, build);
   if (skipIfMissing(label, error)) return;
   if (error) {
     // Lỗi quyền cũng là kết quả an toàn
@@ -169,7 +169,7 @@ async function expectZero(label, table, build, hint) {
 }
 
 async function expectPositive(label, table, build) {
-  const { count, error } = await countRows(table, build);
+  const { count, error, status } = await countRows(table, build);
   if (skipIfMissing(label, error)) return;
   if (error) {
     record(label, 'FAIL', `không đọc được: ${error.message}`);

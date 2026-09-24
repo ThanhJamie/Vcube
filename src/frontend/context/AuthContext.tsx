@@ -24,7 +24,12 @@ interface AuthContextType {
   isLoggedIn: boolean;
   loading: boolean;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
-  signUpWithEmail: (email: string, pass: string, name: string) => Promise<SignUpResult>;
+  signUpWithEmail: (
+    email: string,
+    pass: string,
+    name: string,
+    role?: 'customer' | 'designer'
+  ) => Promise<SignUpResult>;
   signInWithGoogle: () => Promise<void>;
   switchDemoRole: (role: UserRole) => Promise<void>;
   updateUserProfile: (updates: Partial<AppUserProfile>) => Promise<void>;
@@ -226,19 +231,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   /**
-   * Đăng ký tài khoản mới — LUÔN là vai trò `customer`.
+   * Đăng ký tài khoản mới — mặc định vai trò `customer`, có thể chọn `designer`.
    *
-   * P2 (docs/design/data-honesty.md §Auth & trust): trước đây người đăng ký tự chọn
-   * `designer`/`lab` và UI hứa "Đăng ký thành công với quyền DESIGNER!". Lời hứa đó sai:
-   * quyền do `public.user_profiles.role` quyết định, và trigger
-   * `fn_create_profile_for_new_user()` luôn ghi 'customer' — user_metadata KHÔNG cấp quyền.
-   * Bộ chọn vai trò đặc quyền đã bị bỏ khỏi luồng đăng ký.
+   * T58 (self-signup as Designer): người dùng được tự chọn "Khách hàng" hoặc
+   * "Nhà thiết kế" ngay khi đăng ký. Lựa chọn chỉ là GỢI Ý gửi kèm metadata; quyền
+   * thật do trigger `fn_create_profile_for_new_user()` (SQL) quyết định và ghi vào
+   * `public.user_profiles.role`. Guard trong SQL chỉ ánh xạ đúng 'designer' →
+   * 'designer'; mọi giá trị khác (kể cả 'admin') → 'customer'. Vì vậy đường này
+   * KHÔNG bao giờ cấp admin/lab/workshop.
+   *
+   * P2 (docs/design/data-honesty.md §Auth & trust) vẫn giữ: quyền do
+   * `public.user_profiles.role` quyết định, user_metadata KHÔNG cấp quyền. Sau khi có
+   * phiên, `resolveDbRole()` đọc lại role từ DB và ghi đè nếu khác.
    *
    * Trả về `{ hasSession }`: khi dự án bật xác nhận email, `signUp` KHÔNG trả phiên ⇒
    * người dùng chưa đăng nhập, và UI phải nói đúng như vậy.
    */
-  const signUpWithEmail = async (email: string, pass: string, name: string): Promise<SignUpResult> => {
+  const signUpWithEmail = async (
+    email: string,
+    pass: string,
+    name: string,
+    role: 'customer' | 'designer' = 'customer'
+  ): Promise<SignUpResult> => {
     setLoading(true);
+    // Chỉ chấp nhận đúng 'designer'; mọi giá trị khác về 'customer' (fail-closed).
+    const requestedRole: 'customer' | 'designer' = role === 'designer' ? 'designer' : 'customer';
     try {
       if (!isSupabaseConfigured) {
         throw new Error('Hệ thống xác thực chưa được cấu hình. Vui lòng liên hệ quản trị viên.');
@@ -251,7 +268,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           data: {
             display_name: name,
             // Chỉ để hiển thị; quyền thật do public.user_profiles.role (SQL) quyết định.
-            role: 'customer',
+            role: requestedRole,
           },
         },
       });
@@ -265,7 +282,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (data.session && data.user) {
         setSession(data.session);
         setUser(wrapAuthUser(data.user));
-        const userProf = createProfileFromSupabaseUser(data.user, 'customer');
+        const userProf = createProfileFromSupabaseUser(data.user, requestedRole);
         setProfile(userProf);
         await applyDbRole(userProf, setProfile);
         return { hasSession: true };

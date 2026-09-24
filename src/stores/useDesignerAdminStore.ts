@@ -17,11 +17,22 @@ import { supabase } from '../backend/supabase/client';
  *      "KHÔNG CHẠY"), không có trong baseline đang dùng.
  *
  * Vì vậy store này đọc/ghi thẳng bảng, với 2 nguyên tắc:
- *   * ĐỌC `select('*')` (không bao giờ lỗi vì tên cột) rồi map theo cột CÓ THẬT; trường nào
- *     bảng không có ⇒ `null` ⇒ UI hiện '—'. KHÔNG có fixture, KHÔNG localStorage.
+ *   * ĐỌC liệt kê CỘT AN TOÀN (không còn `select('*')` sau khi revoke quyền SELECT bảng) rồi
+ *     map theo cột CÓ THẬT; trường nào bảng không có ⇒ `null` ⇒ UI hiện '—'. KHÔNG fixture,
+ *     KHÔNG localStorage. bank/tax không nằm trong danh sách an toàn nữa.
  *   * GHI chỉ những cột đã thấy trong dòng đọc được (`designerColumns`); thiếu cột ⇒ trả lỗi
  *     nói rõ tên cột, KHÔNG báo thành công giả.
+ *
+ * TODO(T0A-4): payout info (bank_name/bank_account/tax_id) sẽ đọc qua
+ * `admin_get_designer_payout()` sau T0A-4 (RPC soạn ở T0A-3, áp sau khi client này deploy).
  * ========================================================================== */
+
+/**
+ * Cột AN TOÀN của `designer_profiles` — dùng thay `select('*')` để tương thích với migration
+ * T0A-3 (revoke SELECT bảng, grant theo cột). TUYỆT ĐỐI không thêm bank_name/bank_account/tax_id.
+ */
+export const SAFE_DESIGNER_COLUMNS =
+  'id, user_id, display_name, bio, portfolio_url, avatar_url, royalty_percent, verified_status, rating, total_sales, created_at, updated_at';
 
 export interface DesignerRow {
   id: string;
@@ -108,6 +119,8 @@ export const rowToDesignerRow = (d: Record<string, any>): DesignerRow => ({
   bio: strOrNull(d.bio),
   avatarUrl: strOrNull(d.avatar_url),
   portfolioUrl: strOrNull(d.portfolio_url),
+  // bank/tax KHÔNG còn trong `SAFE_DESIGNER_COLUMNS` ⇒ luôn `null` ⇒ UI hiện '—' (không crash).
+  // payout info sẽ đọc qua admin_get_designer_payout() sau T0A-4.
   bankName: strOrNull(d.bank_name),
   bankAccount: strOrNull(d.bank_account),
   taxId: strOrNull(d.tax_id),
@@ -145,7 +158,7 @@ export const useDesignerAdminStore = create<DesignerAdminState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('designer_profiles')
-        .select('*')
+        .select(SAFE_DESIGNER_COLUMNS)
         .order('created_at', { ascending: false });
       if (error) {
         // Lỗi thật: giữ danh sách RỖNG và nói rõ lỗi, KHÔNG hiện SEED như thể có dữ liệu.

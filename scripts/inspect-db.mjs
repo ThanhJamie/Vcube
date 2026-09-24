@@ -68,7 +68,7 @@ const TABLES = [
   { name: 'accessories', sensitive: false },
   { name: 'workshop_partners', sensitive: false },
   { name: 'workshop_profiles', sensitive: false },
-  { name: 'designer_profiles', sensitive: false },
+  { name: 'designer_profiles', sensitive: true },
   // Yeu cau "moi thu chinh duoc trong admin" (docs/plans/09-admin-settings.md).
   // `setting_audit` va `warranty_claims` la du lieu noi bo/PII ⇒ sensitive: true
   // (publishable phai bi RLS chan, secret phai doc duoc).
@@ -91,6 +91,7 @@ const TABLES = [
   { name: 'workshop_machines', sensitive: false },
   { name: 'workshop_materials', sensitive: false },
   { name: 'workshop_accessories', sensitive: false },
+  { name: 'custom_design_requests', sensitive: true },   // chua client_name/messages (PII) ⇒ anon phai bi RLS chan
 ];
 
 console.log(`Project: ${url.replace('https://', '')}`);

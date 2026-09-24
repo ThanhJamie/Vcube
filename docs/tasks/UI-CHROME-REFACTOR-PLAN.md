@@ -1,9 +1,18 @@
+<!-- doc-meta: status=snapshot; verified=2026-09-24; owner=thanh -->
 # UI Chrome Refactor — Kế hoạch thi công (cho subagent)
 
-> **Status**: READY — nguồn sự thật DUY NHẤT cho đợt refactor UI/UX chrome.
+> **Status**: **EXECUTED (2026-09-22, commit `4a7eea5`)** — doc `status=snapshot`; W1–W5 + W7–W11 đã thi công; **W6 backlog còn lại**.
+> Các `file:line`/anchor bên dưới là ảnh chụp tại thời điểm viết (2026-09-22); một số file/symbol đã bị xoá sau khi thi công.
+> Nguồn sự thật DUY NHẤT cho đợt refactor UI/UX chrome.
 > **Base**: `main`. **Ngôn ngữ**: tiếng Việt. **Không commit/push** trừ khi chủ dự án yêu cầu.
 > **Bối cảnh**: thay lớp presentation (chrome) của các console sang **sidebar tối + topbar sáng + content sáng**,
 > token hoá additive, xoá hẳn dark theme, thêm gate chống nuốt lỗi. Giữ nguyên engine/store/Supabase.
+>
+> **Sai lệch thực tế so với kế hoạch (đã ghi ở `docs/design/tokens.md`):**
+> - Motion token khai bằng namespace `--transition-duration-*` (không phải `--duration-*`); chỉ thêm `--ease-exit`.
+> - `--color-chrome-fg-muted` chốt `#94A3B8` (không phải `#64748B` trong §0.4) để đạt AA.
+> - `motion` + `@supabase/ssr` + `@google/genai` **đã gỡ** khỏi `package.json` (T5.3/E1 xong).
+> - `src/backend/lib/result.ts`, `src/frontend/lib/reportError.ts`, `scripts/check-error-handling.mjs` **đã tạo**.
 
 ---
 
@@ -135,8 +144,8 @@ Sau W5 thêm: `node scripts/check-error-handling.mjs`.
 > `useThemeMode` **0 consumer**, **0 class `dark:`** trong `.tsx`, chỉ 2 điểm chạm ngoài module theme.
 
 ### T2.1 · Xoá provider, unwrap App
-- **Files**: `src/frontend/theme/ThemeProvider.tsx` (DELETE), `src/App.tsx`.
-- **Steps**: xoá import `ThemeProvider`; xoá component `RouteThemeSync`; đưa `<AuthProvider>` lên trực tiếp
+- **Files**: `src/frontend/theme/ThemeProvider.tsx` (**đã xoá** — không còn tồn tại; `src/frontend/theme/` chỉ còn `tokens.ts`), `src/App.tsx`.
+- **Steps (đã thực thi)**: xoá import `ThemeProvider`; xoá component `RouteThemeSync`; đưa `<AuthProvider>` lên trực tiếp
   thay wrapper. Giữ `useLocation` (dùng ở `MainApp`).
 - **Acceptance**: app render, không còn `.dark` trên `<html>`.
 

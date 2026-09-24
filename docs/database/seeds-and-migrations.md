@@ -1,16 +1,18 @@
+<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
 # VCUBE Database Seeds, Migrations & Bootstrap Guide
 
 > **Target Platform**: Supabase PostgreSQL 15+  
 > **Active Migration Chain**: 3 Sequenced Files (`supabase/migrations/`)  
 > **Consolidated Executable**: `supabase/scripts/apply_all_manual.sql`  
 > **Admin Provisioning**: `supabase/scripts/bootstrap_admin.sql`  
-> **Catalog Testing & Sync**: `scripts/test-catalog-sync.ts` & Admin Storefront DB Sync
+> **Catalog Testing**: `scripts/test-catalog-sync.ts` (offline mock)  
+> **Demo/Sample Rows**: `scripts/seed-sample-data.mjs` (dry-run · `--apply` · `--remove`)
 
 ---
 
 ## 1. Ordered Migration Sequence
 
-To ensure transactional atomicity and prevent circular dependency locks between schema tables and security policies, migrations must run in the exact sequential order defined below. Each file is an independent transaction wrapped in `BEGIN; ... COMMIT;`.
+To ensure transactional atomicity and prevent circular dependency locks between schema tables and security policies, migrations must run in the exact sequential order defined below. The baseline and hardening files are each wrapped in `BEGIN; ... COMMIT;`; `20260900_rls_helpers.sql` is a plain function-definition script and `bootstrap_admin.sql` is a `DO` block (neither opens an explicit transaction).
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -33,7 +35,9 @@ To ensure transactional atomicity and prevent circular dependency locks between 
 │ 3. supabase/migrations/20261010_harden_rls.sql              │
 │    Purges 73+ legacy / rogue policies                       │
 │    Enables RLS on all 31 tables                             │
-│    Establishes 90 Table Policies + 6 Storage Policies       │
+│    90 allowlisted table policies (88 applied; the 2         │
+│    pricing_config policies are skipped when it is a view)   │
+│    + 6 Storage Policies                                     │
 │    Refreshes 4 privilege/automation triggers (re-creates    │
 │    profile triggers; adds order + workshop lockdowns)       │
 └──────────────────────────────┬──────────────────────────────┘
@@ -79,7 +83,7 @@ To ensure transactional atomicity and prevent circular dependency locks between 
      - `product-images`: Public bucket (10 MB limit) for UI images.
      - `cad-files`: Private bucket (150 MB limit) for STL, STEP, 3MF, and OBJ assets.
   6. **Supabase Realtime**: Registers `products`, `materials`, `printer_fleet`, `site_content`, `pricing_configs`, `orders`, `accessories`, `app_settings`, `pricing_global_settings`, `order_files`, and `custom_design_requests` into `supabase_realtime`.
-  7. **Production Seed Catalog**: Populates initial standard materials, base FDM printer fleet, and default pricing formulas.
+  7. **Minimal Baseline Rows (not a product seed)**: Inserts exactly one singleton row into `site_content` (`id = 'default'`), `pricing_global_settings` (`id = 'global'`), and `app_settings` (`id = 'settings'`, `tax_code` NULL). **No** products, materials, printer fleet, or pricing formulas are seeded here; disposable demo rows come from `scripts/seed-sample-data.mjs`.
 
 ---
 
@@ -88,7 +92,7 @@ To ensure transactional atomicity and prevent circular dependency locks between 
 - **Key Deliverables**:
   1. **Legacy Policy Sweep**: Identifies and drops over 73 historically recorded policy names to avoid permissive policy remnants.
   2. **RLS Activation**: Enables Row Level Security on all 31 tables while safely skipping views (`relkind IN ('r', 'p')`).
-  3. **Establishment of 90 Table Policies**: Exhaustive role-based policies for `anon`, `authenticated`, `customer`, `designer`, `workshop`, and `admin`.
+  3. **Establishment of 90 Allowlisted Table Policies (88 applied)**: Exhaustive role-based policies for `anon`, `authenticated`, `customer`, `designer`, `workshop`, and `admin`. The `v_keep` allowlist names 90 public policies, but the 2 `pricing_config` policies are only created when `pricing_config` is a table; because it is a view here, they are skipped and **88** table policies exist at runtime.
   4. **Establishment of 6 Storage Policies**: Locks down `storage.objects` for both public images and scoped designer/buyer private CAD files.
   5. **Column Lockdown Triggers**:
      - `trg_protect_order_privileged_columns`: Restricts workshop partners from modifying monetary/customer order fields.
@@ -172,31 +176,31 @@ It bundles `20260900_rls_helpers.sql`, `20260901_baseline_schema.sql`, `20261010
 
 ## 5. Seed Catalog & Data Synchronization
 
-### 5.1 Baseline Seeds in `20260901_baseline_schema.sql`
-The baseline migration injects standard manufacturing constants:
-- **Materials**: Standard PLA, PETG, TPU 95A, ABS, Carbon Fiber Nylon (`PA12-CF`), and High-Temp Resin with density, thermal resistance, and base procurement costs.
-- **Printer Fleet**: Industrial and desktop FDM hardware profiles (Bambu Lab X1-Carbon, Creality K1 Max, Prusa MK4) with speed, envelope, and hourly depreciation rates.
-- **Pricing Formulas**: Base configuration for the multidimensional pricing engine ($V \cdot \rho \cdot \text{rate} + T \cdot \text{machine} + \text{labor} + \text{overhead}$).
-- **Storefront Defaults**: Hero banners, physical workshop addresses across Hanoi, Da Nang, and Ho Chi Minh City.
+### 5.1 Baseline Rows in `20260901_baseline_schema.sql`
+The baseline seeds only three singleton rows and nothing else:
+- **`site_content`** (`id = 'default'`) — created with DDL defaults (empty strings / `false`); no hero copy or workshop addresses are populated.
+- **`pricing_global_settings`** (`id = 'global'`) — created with `currency = 'VND'`; `electricity_rate_vnd`, `labor_hourly_rate_vnd`, `vat_percent`, `marketplace_fee_percent`, `marketplace_fixed_fee_vnd`, and `default_workshop_commission_percent` are left `NULL` ("not configured"). The migration additionally normalises any legacy `2850`/`65000`/`8` defaults back to `NULL`.
+- **`app_settings`** (`id = 'settings'`, `tax_code = NULL`, `settings = '{}'`) — deliberately empty until an admin configures it.
+
+There are **no** seeded products, materials, printer fleet, pricing formulas, reviews, or workshop partners. Demo/UI-testing rows are produced separately by `scripts/seed-sample-data.mjs` (dry-run by default; `--apply` to write, `--remove` to undo).
 
 ### 5.2 Automated Catalog Synchronization Tests (`scripts/test-catalog-sync.ts`)
-Run the integration test suite to verify that catalog state transitions and RLS policies behave correctly:
+Run the integration test suite to verify the catalog visibility/transition logic:
 ```bash
 npx tsx scripts/test-catalog-sync.ts
 ```
 
-The test verifies 5 core behaviors:
+This suite runs entirely in memory against `src/data/mockData.ts` and **simulates** the RLS/visibility rules — it does not connect to Supabase, so it does not exercise the real policies (use `scripts/verify-rls.mjs` or `scripts/inspect-db.mjs` for that). It verifies 5 core behaviors:
 1. **Public Visibility & RLS Filtering**: Confirms that non-admin clients only receive products where `status = 'published'` (draft and archived items are omitted).
 2. **Admin Full Visibility**: Confirms that administrative users can view draft, published, and archived items.
 3. **Status Transitions & Live Sync**: Simulates state changes (`draft` $\to$ `published` $\to$ `archived`) and asserts immediate UI catalog response.
 4. **Optimistic UI Rollback**: Simulates a network failure or RLS policy rejection during a write operation, asserting that client-side state correctly rolls back to the previous snapshot.
 5. **CAD Specification Integrity**: Confirms that mechanical and IoT CAD products possess watertight dimensional specifications and non-zero digital file pricing.
 
-### 5.3 Live Admin Database Synchronization
-Administrators can synchronize mock catalog data and local adjustments into live Supabase tables directly from the administrative portal:
-1. Navigate to `/admin` in the browser.
-2. Under the administrative toolbar, click **"Đồng Bộ DB"** (Database Sync).
-3. The platform invokes `adminStorefrontService.syncToDatabase()`:
-   - Performs upserts to `public.products`, `public.materials`, `public.printer_fleet`, `public.site_content`, and `public.app_settings`.
-   - Records an entry in `public.setting_audit` documenting the synchronization event.
-   - Refreshes local Zustand stores (`useAuthStore`, `useCartStore`) with live database records.
+### 5.3 Reading Live Data (no admin "Đồng Bộ DB" button)
+The old `/admin` **"Đồng Bộ DB"** (Database Sync) button and its `adminStorefrontService.syncToDatabase()` no longer exist — `seedService.ts` records that the button in `AdminDashboardView.tsx` was removed (Đợt 7), and there is no `syncToDatabase`/`adminStorefrontService` anywhere in the repo. Current data paths:
+
+- **Read path — unwired (0 call site)**: `seedService.syncFromSupabase()` selects every row from `public.products`, `public.orders`, `public.materials`, `public.printer_fleet`, `public.user_profiles`, `public.accessories`, and `public.workshop_partners`, mapping rows through the single shared `mappers.ts`. It has **no caller** anywhere in `src/` or `scripts/` (dead code until wired). Query errors are thrown, not swallowed.
+- **Fixture seeding is disabled**: `dbService.seedInitialProductsIfEmpty()` returns `false` and writes nothing (data-honesty CI-01); an empty table stays empty and the caller renders an empty state.
+- **Real imports**: admins write each group from `/admin` (products, pricing, materials, …), or via SQL.
+- **Disposable demo data**: `scripts/seed-sample-data.mjs` (dry-run default; `--apply` to write; `--remove` to undo) writes and cleans `[MẪU]`-tagged rows across the catalog, workshop, and order tables.

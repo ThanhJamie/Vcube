@@ -53,6 +53,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // T58 — loại tài khoản tự chọn khi đăng ký: chỉ 'customer' | 'designer'.
+  const [signupRole, setSignupRole] = useState<'customer' | 'designer'>('customer');
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<string | null>(null);
@@ -115,9 +117,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setLoading(true);
     try {
-      // Vai trò KHÔNG do người đăng ký chọn: trigger fn_create_profile_for_new_user()
-      // luôn tạo 'customer' trong public.user_profiles.role (SQL là nơi quyết định quyền).
-      const result = await signUpWithEmail(email, password, fullName);
+      // T58: loại tài khoản người dùng chọn là gợi ý; trigger fn_create_profile_for_new_user()
+      // chỉ ánh xạ đúng 'designer', mọi giá trị khác (kể cả 'admin') về 'customer'.
+      // Quyền thật do public.user_profiles.role (SQL) quyết định.
+      const result = await signUpWithEmail(email, password, fullName, signupRole);
       if (result.hasSession) {
         // Có phiên thật ⇒ mới được nói "đã đăng nhập".
         if (onSuccess) onSuccess('Đăng ký thành công — bạn đã được đăng nhập.');
@@ -639,15 +642,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* ======================================================== */}
           {mode === 'signup' && (
             <form onSubmit={handleSignUpSubmit} className="space-y-4 animate-in fade-in duration-150">
-              {/* Vai trò: nói đúng sự thật — đăng ký luôn là Khách hàng, quyền khác do VCUBE duyệt */}
+              {/* Vai trò: chọn Khách hàng / Nhà thiết kế; quyền cuối cùng do DB quyết định */}
               <div className="p-3.5 rounded-md bg-info-tint flex items-start gap-2.5 text-xs text-info">
                 <Icon name="info" size={18} className="text-info shrink-0 mt-0.5" />
                 <div className="leading-relaxed font-medium space-y-0.5">
-                  <p className="font-bold">Tài khoản mới có vai trò Khách hàng.</p>
+                  <p className="font-bold">Chọn loại tài khoản phù hợp.</p>
                   <p>
-                    Vai trò được đọc từ hồ sơ trên máy chủ (user_profiles.role). Muốn trở thành
-                    Tác giả 3D hoặc Xưởng in, hãy gửi yêu cầu để VCUBE duyệt sau khi đăng nhập.
+                    Khách hàng dùng để mua và đặt in. Nhà thiết kế có thêm hồ sơ tác giả ở trạng
+                    thái chờ VCUBE duyệt. Quyền cuối cùng được đọc từ hồ sơ trên máy chủ
+                    (user_profiles.role).
                   </p>
+                </div>
+              </div>
+
+              {/* T58 — lựa chọn loại tài khoản (chỉ Khách hàng / Nhà thiết kế) */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-fg-muted mb-2">
+                  Loại tài khoản
+                </label>
+                <div className="flex p-1 bg-surface-muted rounded-full text-xs font-sans font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('customer')}
+                    aria-pressed={signupRole === 'customer'}
+                    className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      signupRole === 'customer' ? 'bg-surface text-primary shadow-e1 font-bold' : 'text-fg-subtle hover:text-fg'
+                    }`}
+                  >
+                    <Icon name="person" size={18} />
+                    <span>Khách hàng</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('designer')}
+                    aria-pressed={signupRole === 'designer'}
+                    className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      signupRole === 'designer' ? 'bg-surface text-primary shadow-e1 font-bold' : 'text-fg-subtle hover:text-fg'
+                    }`}
+                  >
+                    <Icon name="design_services" size={18} />
+                    <span>Nhà thiết kế</span>
+                  </button>
                 </div>
               </div>
 

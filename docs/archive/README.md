@@ -1,16 +1,18 @@
+<!-- doc-meta: status=historical; verified=2026-09-24; owner=thanh -->
 # Archive — Historical Documentation
 
 > **Status:** HISTORICAL / SUPERSEDED (archived September 2026)
-> **Canonical source of truth:** [`docs/README.md`](../README.md) → `docs/architecture/`, `docs/pages/`, `docs/database/`, `docs/security/`, `docs/SETUP_RUNBOOK.md`.
+> **Canonical source of truth:** [`docs/README.md`](../README.md) → `docs/architecture/`, `docs/pages/`, `docs/database/`, `docs/security/`, `docs/design/`, `docs/tasks/`, `docs/SETUP_RUNBOOK.md`.
 
 This archive records the previous documentation generations so decisions and
 rationale remain traceable. **Do not treat any figure or instruction in these
 files as current.** In particular, the tables/buckets/policies counts, bundle
 sizes, and execution-phase statuses predate the current code.
 
-Kept in place (not physically moved) because ~36 source files still reference
-these paths in comments and the files cross-link each other. Each file carries a
-SUPERSEDED banner at the top.
+Kept in place (not physically moved) because source files still reference these
+paths in comments and the files cross-link each other. Each file carries a
+SUPERSEDED banner at the top. (Số đo 2026-09-22: **34** file trong `src/` còn nhắc
+`docs/plans`.)
 
 ## Where the current docs live
 
@@ -25,6 +27,7 @@ SUPERSEDED banner at the top.
 | Security / RLS | `docs/security/rls-policies.md`, `rls-runbook.md` |
 | Developer setup | `docs/SETUP_RUNBOOK.md` |
 | Design tokens & honesty rules | `docs/design/tokens.md`, `icon-map.md`, `qa-checklist.md`, `data-honesty.md`, `research-brief.md` |
+| Active task plans | `docs/tasks/README.md`, `DRIFT-TASKS.md`, `DOCS-ISSUES.md` |
 
 ## `docs/plans/` (prior refactor plan, 39 files)
 

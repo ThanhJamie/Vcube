@@ -105,11 +105,13 @@ $$\text{CostPrice} = \text{BaseCost} + C_{\text{failureReserve}}$$
 #### 1. Raw Material Cost ($C_{\text{material}}$)
 Calculates the precise mass of filament or resin consumed, factoring in shell wall perimeters, internal infill density, support waste, bed adhesion structures (brim/raft), and multi-color AMS purge towers:
 
-$$M_{\text{raw}} = \max\left(5, \text{round}\left(V_{\text{model}} \times \rho \times \left(0.22 + \frac{\text{Infill}\%}{100} \times 0.78\right)\right)\right)$$
+Filament grams are first resolved by `src/utils/printEstimate.ts` (`resolveFilamentUsage`) with a strict precedence: **(1)** slicer data embedded in the file (`slicerPreset.totalFilamentGrams`), otherwise **(2)** the volume estimate below (floor of 5 g). When the slicer source is used, the additive support/brim/purge terms are zeroed because the slicer total already includes them; the chosen source is surfaced as `gramsSource` for honest labelling.
 
-$$M_{\text{support}} = \begin{cases} 0, & \text{if supportsMode} = \text{'none'} \\ \text{round}\left(M_{\text{raw}} \times \frac{\text{SupportVolumeRatio}\%}{100}\right), & \text{otherwise} \end{cases}$$
+$$M_{\text{raw}} = \max\left(5, \text{round}\left(V_{\text{model}} \times \rho \times \left(0.22 + \frac{\text{Infill}\%}{100} \times 0.78\right)\right)\right) \quad \text{(volume-estimate path only)}$$
 
-$$M_{\text{purge}} = (N_{\text{extruders}} - 1) \times M_{\text{purgeGramsPerColor}}$$
+$$M_{\text{support}} = \begin{cases} 0, & \text{if supportsMode} = \text{'none' or slicer total is used} \\ \text{round}\left(M_{\text{raw}} \times \frac{\text{SupportVolumeRatio}\%}{100}\right), & \text{otherwise} \end{cases}$$
+
+$$M_{\text{purge}} = \begin{cases} (N_{\text{extruders}} - 1) \times M_{\text{purgeGramsPerColor}}, & \text{if } N_{\text{extruders}} > 1 \text{ and no slicer total} \\ 0, & \text{otherwise} \end{cases}$$
 
 $$M_{\text{total}} = M_{\text{raw}} + M_{\text{support}} + M_{\text{brimRaft}} + M_{\text{purge}}$$
 
@@ -125,7 +127,9 @@ Where:
 #### 2. Electricity & Energy Cost ($C_{\text{electricity}}$)
 Models kilowatt-hour consumption based on print duration and the active machine's thermal heating load:
 
-$$T_{\text{baseHours}} = \max\left(0.6, \frac{V_{\text{model}} \times 3.8}{\text{LayerHeight}_{\text{mm}} \times 100}\right)$$
+Print time is also resolved by `resolveFilamentUsage` with the precedence: **(1)** slicer `estimatedPrintTimeSeconds / 3600`, else **(2)** `totalGrams / printer.throughputGramsPerHour` (when the machine declares a throughput), else **(3)** the volume heuristic below (floor of 0.6 h). Tool-change time is added only when the print time did **not** come from the slicer (the slicer already includes it).
+
+$$T_{\text{baseHours}} = \max\left(0.6, \frac{V_{\text{model}} \times 3.8}{\text{LayerHeight}_{\text{mm}} \times 100}\right) \quad \text{(volume-estimate path only)}$$
 
 $$T_{\text{toolChangeHours}} = \frac{N_{\text{toolChanges}} \times T_{\text{toolChangeMinutes}}}{60}$$
 
@@ -187,10 +191,10 @@ Protects the manufacturing workshop against warping, layer delamination, nozzle 
 $$R_{\text{failure}} = R_{\text{baseReserve}} + R_{\text{lowPrintability}} + R_{\text{multiColor}} + R_{\text{materialExtra}}$$
 
 Where:
-- $R_{\text{baseReserve}}$: Default baseline failure risk (e.g., 8%).
-- $R_{\text{lowPrintability}}$: Surcharge added only when the model has genuine measured defects and `printabilityScore < 80` (e.g., +6%).
-- $R_{\text{multiColor}}$: Surcharge for complex multi-material prints (+4%).
-- $R_{\text{materialExtra}}$: Material-specific risk rate read directly from `MaterialProfile.failureExtraPercent` (e.g., PEEK, Nylon-CF: +6% to +10%).
+- $R_{\text{baseReserve}}$: Default baseline failure risk (e.g., 8% in the reference config).
+- $R_{\text{lowPrintability}}$: Surcharge added only when the model has genuine measured defects and `printabilityScore < 80` (e.g., +6%). It is skipped when any of `isWatertight` / `invertedNormals` / `minWallThickness` is `null` (unmeasured), so an unanalysed mesh cannot trigger a surcharge.
+- $R_{\text{multiColor}}$: Surcharge for complex multi-material prints (configurable; 5% in the reference config).
+- $R_{\text{materialExtra}}$: Material-specific risk rate read directly from `MaterialProfile.failureExtraPercent`; when it is `null`/unset nothing is added (e.g., PEEK, Nylon-CF: +6% to +10% when declared).
 
 $$C_{\text{failureReserve}} = \text{round}(\text{BaseCost} \times R_{\text{failure}})$$
 
@@ -214,6 +218,8 @@ VCUBE implements the **Reverse Variable Fee Formula**:
 ```
 
 ### Mathematical Formulation
+
+Fee rates come from the active `pricing_configs` row (`paymentGatewayFeePercent`, `designerRoyaltyPercent`) plus `pricing_global_settings.marketplace_fee_percent` — the latter is the single source for the platform commission (the legacy `platformCommissionPercent` field in the formula config is no longer read by the engine).
 
 1. **Pre-Fee Target Selling Price**:
    $$\text{PreFeeSellingPrice} = \text{round}\left(\text{CostPrice} \times \left(1 + \frac{\text{TargetMarkup}\%}{100}\right)\right)$$
@@ -255,21 +261,32 @@ if (cfg.volumeDiscounts && cfg.volumeDiscounts.length > 0) {
     const totalOriginal = finalSellingPriceRounded * quantity;
     const totalAfterDiscount = discountedUnitPrice * quantity;
     const totalSavings = totalOriginal - totalAfterDiscount;
+    volumeDiscount = {
+      tierLabel: matchedTier.label,
+      discountPercent: matchedTier.discountPercent,
+      discountedUnitPrice,
+      totalSavings,
+      totalAfterDiscount
+    };
   }
 }
 ```
 
-Standard industrial tiers:
-- **Tier 1 (1–4 units)**: Standard unit price ($0\%$ discount)
-- **Tier 2 (5–19 units)**: Small batch discount ($5\%$ to $10\%$)
-- **Tier 3 (20–49 units)**: Production batch discount ($15\%$ to $20\%$)
-- **Tier 4 ($\ge 50$ units)**: Industrial volume threshold triggering manual workshop scheduling.
+The engine has no built-in tier table — `cfg.volumeDiscounts` comes from the active `pricing_configs` row. The values that /admin pre-fills for review (`INKIRI_REFERENCE_VALUES.formula.volumeDiscounts` in `src/data/mockData.ts`) are reference-only and are not read by the engine until an admin saves them:
+
+- **1–4 units**: 0% (list price)
+- **5–9 units**: −8%
+- **10–24 units**: −15%
+- **25–49 units**: −22%
+- **≥ 50 units**: −30%
 
 ---
 
 ## 5. Technology Pricing Profiles
 
-The pricing engine adapts its cost structure across five primary additive manufacturing technologies:
+The engine contains **no hard-coded technology table**: every material, machine, and rate is read from the `materials`, `printer_fleet`, and `pricing_configs` / `pricing_global_settings` records. The ranges below are illustrative industry context only — they are **not** read from the codebase and must not be treated as shipped defaults.
+
+The five primary additive manufacturing technologies and their typical cost structures are summarised below:
 
 | Parameter | FDM / FFF | SLA / MSLA (Resin) | SLS (Powder Bed) | SLM / DMLS (Metal) | MJF (Multi Jet Fusion) |
 |---|---|---|---|---|---|
@@ -363,7 +380,7 @@ export function computeShippingFee(
 
 In accordance with Vietnamese commercial regulations and VCUBE Data Honesty principles:
 - **Separation of Tax**: Catalog and quoting prices are listed **exclusive of VAT**. VAT is rendered as a distinct line item on quotations and invoices.
-- **Configurable Legal Rate**: Default standard rate is $8\%$ (statutory industrial reduction from $10\%$). The rate is configurable between $0\%$ and $20\%$ in `pricing_global_settings.vat_percent`.
+- **Configurable Legal Rate**: There is **no default rate in code**. `vatRateFromPercent()` reads `pricing_global_settings.vat_percent` and converts it to the fraction used by `computeVat()`; the value is configurable between $0\%$ and $20\%$. `vat_percent = 0` is a real 0% rate, distinct from `null` (unconfigured). The $8\%$ figure is only a reference prefill for /admin (`INKIRI_REFERENCE_VALUES.global.vatPercent`), never an engine fallback.
 - **Taxable Base**:
   $$\text{TaxableAmount} = \max\left(0, \text{Subtotal} + \text{ShippingFee} - \text{AppliedDiscount}\right)$$
   $$\text{VatAmount} = \text{round}\left(\text{TaxableAmount} \times \frac{\text{VatPercent}}{100}\right)$$

@@ -67,7 +67,7 @@ The project follows a modular directory layout segregating frontend UI, backend 
 
 ```
 /home/thanh/home/thanh/project/Vcube/
-├── index.html                           # Single entry HTML with fonts and theme tokens
+├── index.html                           # Single entry HTML with fonts and theme-color meta
 ├── package.json                         # Dependencies (React 19, Three 0.185, Vite 6, Tailwind 4)
 ├── vite.config.ts                       # Vite build configuration & environment defines
 ├── tsconfig.json                        # Strict TypeScript 5.8 settings
@@ -84,6 +84,7 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │   │   │   ├── RoleGuard.tsx            # Route guard for RBAC protected views
 │   │   │   ├── ThreeModelViewer.tsx     # Three.js 3D thumbnail & interactive preview
 │   │   │   ├── CadQuickViewModal.tsx    # Instant CAD inspection & quick-buy modal
+│   │   │   ├── CanvasErrorBoundary.tsx  # Error boundary wrapping WebGL canvases
 │   │   │   ├── RouteErrorBoundary.tsx   # Granular error boundary for route recovery
 │   │   │   ├── admin/                   # Admin ForgeControl management panels
 │   │   │   ├── designer/                # Modular 3D Creator Studio tabs
@@ -95,11 +96,14 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │   │   │       └── UnifiedCadToolbar.tsx# 3D viewport manipulation toolbar
 │   │   ├── context/                     # Shared React Contexts
 │   │   │   ├── AuthContext.tsx          # Supabase Auth session & DB role resolver
-│   │   │   └── LanguageContext.tsx      # Bilingual dictionary & dynamic admin claims
+│   │   │   └── LanguageContext.tsx      # Vietnamese-only locale (bilingual dict retained) + admin claims
 │   │   ├── hooks/                       # Custom React hooks (useInViewport, useSettings)
 │   │   ├── stores/                      # Frontend Zustand stores (useCartStore, useUIStore)
 │   │   ├── theme/                       # Design token reader for JS/WebGL (light-only)
 │   │   │   └── tokens.ts                # JavaScript color token reader (CSS var + light fallback)
+│   │   ├── lib/                         # Framework-agnostic helpers (format, VAT, productImage, reportError)
+│   │   ├── three/                       # Shared Three.js utilities
+│   │   │   └── dispose.ts               # GPU/VRAM disposal protocol for every 3D viewer
 │   │   ├── ui/                          # Design system atomic primitives (AppShell, Button, Icon)
 │   │   └── views/                       # Top-level page views (Home, Explore, PDP, Cart, Admin)
 │   │
@@ -108,12 +112,13 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │   │   │   ├── client.ts                # Initialized Supabase browser client
 │   │   │   ├── database.ts              # Database abstraction service (dbService)
 │   │   │   ├── mappers.ts               # Row-to-Entity transformation mappers
-│   │   │   └── seedService.ts           # Development seed synchronization
+│   │   │   └── seedService.ts           # Supabase health check & read-only table sync (no fixture seeding)
 │   │   └── services/
+│   │       ├── assetService.ts          # Signed URLs for the private `cad-files` storage bucket
 │   │       ├── catalogService.ts        # Product catalog operations
 │   │       ├── customDesignService.ts   # Custom CAD requests & quotes operations
 │   │       ├── orderService.ts          # Order creation, status updates, tracking
-│   │       ├── pricingService.ts        # Wrapper for core pricing engine calculations
+│   │       ├── pricingService.ts        # Compatibility wrapper for core pricing engine calculations
 │   │       ├── settingsService.ts       # Global settings cache & audit logger
 │   │       └── workshopService.ts       # MES, machine fleet & workshop management
 │   │
@@ -125,10 +130,11 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │   │
 │   ├── utils/                           # Computational & Mathematical Utilities
 │   │   ├── meshParser.ts                # Multi-format 3D geometry reader & defect checker
-│   │   └── pricingEngine.ts             # Deterministic B.O.M pricing calculation engine
+│   │   ├── pricingEngine.ts             # Deterministic B.O.M pricing calculation engine
+│   │   └── printEstimate.ts             # Filament-usage / print-time resolver with provenance labels
 │   │
 │   ├── workers/                         # Off-Thread Web Workers
-│   │   └── cadParser.worker.ts          # WebAssembly CAD kernel (STEP/IGES) & binary STL worker
+│   │   └── cadParser.worker.ts          # OpenCASCADE WASM (STEP/IGES) & binary/ASCII STL worker
 │   │
 │   └── types/                           # Global TypeScript Interface Declarations
 │       └── index.ts                     # Core domain contracts (Product, Order, Profile, etc.)
@@ -143,9 +149,14 @@ The project follows a modular directory layout segregating frontend UI, backend 
 ├── scripts/                             # Quality Gate & Static Analysis Scripts
 │   ├── check-unitprice-multiplier.mjs   # Enforces correct semantics of unit price derivation
 │   ├── check-contrast.mjs               # WCAG contrast validation on theme tokens
-│   ├── check-fabricated.mjs            # Detects fraudulent claims in UI strings
+│   ├── check-fabricated.mjs             # Detects fraudulent claims in UI strings
+│   ├── check-icon-names.mjs             # Rejects `<Icon name>` glyphs missing from iconMap
+│   ├── check-ui-rules.mjs               # Blocks design-system regressions (focus rings, motion-reduce…)
+│   ├── check-error-handling.mjs         # Blocks swallowed errors in `catch` blocks
 │   ├── lint-rls-sources.mjs             # Enforces RLS migration guidelines (R1-R7)
 │   ├── lint-rls-migration.mjs           # Verifies allowlist and consistency in hardening SQL
+│   ├── a8-sql-syntax-check.mjs          # Static syntax check of the migration SQL files
+│   ├── inspect-db.mjs                   # Reports DB table visibility (publishable vs secret key)
 │   └── verify-rls.mjs                   # Remote verification of RLS permissions using anon key
 │
 └── docs/                                # Technical & Architectural Documentation
@@ -305,7 +316,7 @@ The only dark surface left is the fixed **chrome** tier (`--color-chrome*`, docu
 
 CSS classes cannot be applied directly inside a WebGL canvas. When Three.js draws helper grids, bounding boxes, coordinate axes, and material highlights, it retrieves color values programmatically through `tokens.ts`:
 
-- `readColorToken(name: string)`: Reads computed CSS variables (`getComputedStyle(document.documentElement).getPropertyValue('--color-' + name)`) with fallback to the light constant table.
+- `readColorToken(name, options?)`: Reads computed CSS variables (`getComputedStyle(document.documentElement).getPropertyValue('--color-' + name)`) with fallback to the `LIGHT_COLOR_TOKENS` constant table.
 
 ---
 
@@ -340,7 +351,7 @@ State in VCUBE 3.0 is partitioned into three distinct tiers: Global Client Store
 
 ### 2. `useUIStore` (`src/frontend/stores/useUIStore.ts`)
 - Coordinates global modals: `isCartDrawerOpen`, `isAuthModalOpen`, `isChatOpen`.
-- Manages the toast notification queue (`toasts`).
+- Manages the toast queue (`toastQueue`; `toasts` is kept as an alias).
 - **Data Honesty Rule on Toasts**: Standard info/success toasts auto-dismiss after 4000ms. Error toasts (`type === 'error'`) **never auto-dismiss**; they persist until the user explicitly acknowledges and closes them.
 
 ### 3. `AuthContext` & Database-Backed Role Resolution (`src/frontend/context/AuthContext.tsx`)
@@ -367,9 +378,9 @@ async function resolveDbRole(userId: string): Promise<UserRole | null> {
 ```
 
 ### 4. `LanguageContext` (`src/frontend/context/LanguageContext.tsx`)
-- Supports Vietnamese (`vi`) and English (`en`).
+- The app is **Vietnamese-only** (A7): `setLanguage()` and `toggleLanguage()` force the locale to `'vi'`, so no code path can switch the UI to English. The bilingual `DICTIONARY` (vi/en) and the `t(key, fallbackVi, fallbackEn)` signature are retained for future use.
 - **Hybrid Data Honesty Implementation**:
-  - **Group A (Factual Claims)**: Manufacturing tolerance, lead times, standard certifications, support hotline. These are never hardcoded; they are read dynamically from `site_content` and `app_settings`. If unconfigured, they return empty strings (`''`) prompting components to hide the field cleanly.
+  - **Group A (Factual Claims)**: Manufacturing tolerance, lead times, standard certifications, support hotline. These are never hardcoded; `configuredClaims()` reads them dynamically from `site_content` and `app_settings`. If unconfigured, they return empty strings (`''`) prompting components to hide the field cleanly.
   - **Group B (Marketing Text)**: Neutral, truthful descriptions without fabricated metrics.
   - **Group C (Non-existent campaigns)**: Empty by default to avoid phantom promotions.
 
@@ -389,14 +400,18 @@ Communication between the frontend SPA and the Supabase backend is handled throu
 |       v                                                                         |
 |   Service Layer                                                                 |
 |   ├── dbService           -> Product catalog, site content, orders, reviews     |
+|   ├── catalogService      -> Synchronous catalog facade (empty until DB is read)|
 |   ├── orderService        -> Order placement, checkout, tracking updates        |
+|   ├── assetService        -> Signed URLs for the private `cad-files` bucket     |
+|   ├── pricingService      -> Sync compatibility wrapper around pricingEngine    |
 |   ├── settingsService     -> In-memory cached settings & admin audit logs       |
 |   ├── workshopService     -> Workshop fleet, machine allocations, KYC verification|
 |   └── customDesignService -> Custom CAD RFQ submissions, quotes, chat           |
 |       |                                                                         |
 |       v                                                                         |
 |   Data Transformation (mappers.ts)                                              |
-|   - rowToProduct, rowToOrder, rowToWorkshop, rowToPrinter, etc.                 |
+|   - rowToProduct, rowToOrder, rowToMaterial, rowToPrinter, rowToAccessory,      |
+|     rowToUserProfile, rowToWorkshopPartner, rowToSiteContent, rowToAppSettings  |
 |   - Sanitizes snake_case DB columns into typed camelCase domain entities         |
 |   - Nullable fields preserved (no synthetic values or fake defaults)            |
 |       |                                                                         |
@@ -414,7 +429,7 @@ Communication between the frontend SPA and the Supabase backend is handled throu
 To ensure catalogs, orders, and configuration remain synchronized across multiple clients and admin sessions, `App.tsx` establishes WebSocket subscriptions over Supabase Realtime channels:
 
 ```typescript
-// Realtime Channel for Catalog Synchronization
+// Realtime Channel for Catalog Synchronization (src/App.tsx)
 const channel = supabase
   .channel('public:products')
   .on(
@@ -422,17 +437,31 @@ const channel = supabase
     { event: '*', schema: 'public', table: 'products' },
     (payload) => {
       if (payload.eventType === 'INSERT') {
-        setProducts((prev) => [rowToProduct(payload.new), ...prev]);
+        productsRevisionRef.current++;
+        setProducts((prev) => {
+          if (prev.some((p) => p.id === payload.new.id)) return prev; // dedupe
+          return [rowToProduct(payload.new), ...prev];               // shared mapper
+        });
       } else if (payload.eventType === 'UPDATE') {
+        productsRevisionRef.current++;
         setProducts((prev) =>
-          prev.map((p) => (p.id === payload.new.id ? { ...p, ...payload.new } : p))
+          prev.map((p) =>
+            p.id === payload.new.id
+              ? { ...p, name: payload.new.name || p.name /* …remaining mapped columns… */ }
+              : p
+          )
         );
       } else if (payload.eventType === 'DELETE') {
-        setProducts((prev) => prev.filter((p) => p.id !== payload.old.id));
+        productsRevisionRef.current++;
+        if (payload.old?.id) {
+          setProducts((prev) => prev.filter((p) => p.id !== payload.old.id));
+        }
       }
     }
   )
   .subscribe();
+
+return () => supabase.removeChannel(channel);
 ```
 
-Similarly, system-wide pricing modifications and announcements update via `subscribeSettings()`, ensuring that any changes made by administrators in ForgeControl immediately propagate to all connected customer tabs.
+Similarly, system-wide pricing modifications and announcements update through a single `vcube:settings` channel opened by `settingsService.subscribeSettings()`, ensuring that any changes made by administrators in ForgeControl immediately propagate to all connected customer tabs.

@@ -913,7 +913,14 @@ export class WorkshopService {
   // ----------------------------------------------------------------------------
   static async getDesignerProfiles(): Promise<DesignerProfile[]> {
     try {
-      const { data, error } = await supabase.from('designer_profiles').select('*').order('created_at', { ascending: false });
+      // Cột AN TOÀN — không dùng select('*') để tương thích migration T0A-3 (grant theo cột).
+      // KHÔNG thêm bank_name/bank_account/tax_id; payout info sẽ đọc qua RPC sau T0A-4.
+      const { data, error } = await supabase
+        .from('designer_profiles')
+        .select(
+          'id, user_id, display_name, bio, portfolio_url, avatar_url, royalty_percent, verified_status, rating, total_sales, created_at, updated_at'
+        )
+        .order('created_at', { ascending: false });
       if (!error && data && data.length > 0) {
         const mapped: DesignerProfile[] = data.map((d: any) => ({
           id: d.id,

@@ -1,3 +1,4 @@
+<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
 # VCUBE 3.0 Master Documentation Portal
 
 > **Nền Tảng Chế Tạo Số & Chợ Bản Vẽ CAD 3D Công Nghiệp**  
@@ -65,32 +66,32 @@ The complete documentation system for VCUBE is organized into five modular domai
 ### 3.1 Pages & Views Specifications (`docs/pages/`)
 Comprehensive specifications covering component props, state machines, user flows, and error handling:
 - [**Storefront & Quoting Engine Spec** (`docs/pages/storefront.md`)](./pages/storefront.md):
-  * `HomeView.tsx` (`/`): Hero CAD dropzone, 3D Chassis WebGL viewer, 4 core services, catalog grid/table, material comparison matrix, Custom Idea RFQ form.
-  * `ExploreView.tsx` (`/explore`): Multi-dimensional filtering, Dual CTA ("Đặt In 3D" vs. "Tải Tệp CAD"), bookmarks, lazy 3D thumbnails via the `useInViewport` hook.
-  * `ProductDetailView.tsx` (`/products/:id`): Dual Persona Buying Box, 360° 3D inspector, material & color configurator, `MaterialTechnicalAdvisory` for high-performance polymers.
+  * `HomeView.tsx` (`/`): Hero CAD dropzone, 3D Chassis WebGL viewer, 4 core services, paginated catalog grid/table, Custom Idea RFQ form.
+  * `ExploreView.tsx` (`/explore`): Multi-dimensional filtering, "Quick 3D Inspect" modal + PDP quick-add CTA, bookmarks, lazy 3D thumbnails via the `useInViewport` hook.
+  * `ProductDetailView.tsx` (`/products/:productId`): Dual Persona Buying Box, 360° 3D inspector, material & color configurator, `MaterialTechnicalAdvisory` for high-performance polymers.
   * `Tool3DView.tsx` (`/quote`): Instant CAD quoting station, STEP/STL/OBJ/3MF parser, GPU Context Loss FSM, automated mesh repair, STL vs. 3MF comparison, instant B.O.M. breakdown.
   * `PersonalizeView.tsx` (`/personalize`): Part personalization, laser engraving text positioning, scaling factor.
   * `LoginView.tsx` & `RegisterView.tsx`: Supabase authentication, role routing, password strength analyzer.
 - [**Customer Checkout & Fulfillment Spec** (`docs/pages/customer-checkout.md`)](./pages/customer-checkout.md):
   * `CartView.tsx` & `CartDrawer.tsx`: Physical parts vs. digital CAD license separation, dynamic shipping fee, free shipping progress threshold, VAT calculation.
-  * `CheckoutView.tsx` (`/checkout`): PII privacy protection, VietQR / VNPAY / COD payment flows, corporate VAT invoice form, NDA confidentiality commitment.
-  * `OrderSuccessView.tsx` (`/order-success/:id`): Post-purchase confirmation, guest access tokens, e-invoice modal trigger.
+  * `CheckoutView.tsx` (`/checkout`): PII privacy protection, VietQR / VNPAY / COD payment methods (VNPAY is recorded as method only, no gateway redirect), corporate VAT invoice form, terms-acknowledgment line.
+  * `OrderSuccessView.tsx` (`/order-success/:orderId`): Post-purchase confirmation, guest access tokens, e-invoice modal trigger.
   * `OrderTrackingView.tsx` (`/tracking`): Security Definer RPC lookup, 8-step MES production pipeline (`OrderProgress.tsx`), layer print telemetry.
-  * `MyOrdersView.tsx` (`/orders`): Order management, CAD download links, reorder workflow, tolerance warranty claim modal (`warrantyModal`).
-  * `AssetLibraryView.tsx` (`/assets`): Personal CAD vault, 3D WebGL preview, secure signed download URLs (`cad-files` private bucket, 60s TTL).
-  * `InvoiceModal.tsx`: Electronic GTGT VAT invoice complying with Vietnamese tax standards.
+  * `MyOrdersView.tsx` (`/orders`): Order management, reorder workflow (`/quote` + `reorderItems`), tolerance warranty claim modal (`warrantyModal`, not yet persisted).
+  * `AssetLibraryView.tsx` (`/assets`): Personal CAD vault with illustrative preview; secure signed download URLs (`cad-files` private bucket, 60s TTL) require `order_files` rows, which are not yet written.
+  * `InvoiceModal.tsx`: In-app VAT (GTGT) invoice document with print stylesheet; not tax-authority signed/e-invoiced.
 - [**ForgeControl Admin Console Spec** (`docs/pages/admin-portal.md`)](./pages/admin-portal.md):
   * `AdminDashboardView.tsx` (`/admin/*`): Dynamic URL section routing, collapsible shell, code-split sub-panels.
   * `Group0OverviewPanel.tsx`: Gross revenue, platform load, machine fleet telemetry.
-  * `Group1WorkshopsPanel.tsx`: Regional workshop directory, partner KYC credential verification, platform printer fleet.
-  * `Group2DesignersPanel.tsx`: Creator directory, model submissions, 70/30 royalty split calculations, payout review.
-  * `Group3CustomersPanel.tsx`: Customer directory, lifetime value (LTV), corporate accounts, B2B NDA contracts.
-  * `Group4PricingEnginePanel.tsx` & `PricingConfigPanel.tsx`: Formula parameters, base material rates, machine hourly operational rates, multiplier calibration.
-  * `Group5ProductionPanel.tsx`: Real-time MES Kanban board, regional dispatcher (Bắc/Trung/Đông), workshop assignment.
-  * CMS & SEO: `AdminProductsPanel.tsx`, `AdminStorefrontPanel.tsx`, `AdminSeoPanel.tsx`, `WarehouseInventoryPanel.tsx` (`/admin/inventory`), and `AccessoriesManager.tsx` (rendered inside `Group4PricingEnginePanel` under the `hardware`/`accessories` tab).
+  * `Group1WorkshopsPanel.tsx`: Regional workshop directory, workshop status/KYC state, platform printer fleet.
+  * `Group2DesignersPanel.tsx`: Creator directory, model submissions, per-designer `royaltyPercent` (default 10), badge tiers.
+  * `Group3CustomersPanel.tsx`: Customer directory, KYC tab, corporate accounts, `customer_profiles.nda_signed` status.
+  * `Group4PricingEnginePanel.tsx` & `PricingConfigPanel.tsx`: Formula parameters, base material rates, machine hourly operational rates, `unit_price_multiplier` derivation factor.
+  * `Group5ProductionPanel.tsx`: Real-time MES Kanban board, regional dispatcher (Bắc/Trung/Nam), workshop assignment.
+  * CMS & SEO: `AdminProductsPanel.tsx`, `AdminStorefrontPanel.tsx`, `AdminSeoPanel.tsx`, `WarehouseInventoryPanel.tsx` (`/admin/inventory`), and `AccessoriesManager.tsx` (rendered inside `Group4PricingEnginePanel` under the `accessories` sub-tab).
 - [**Designer & Workshop Portals Spec** (`docs/pages/designer-workshop-portals.md`)](./pages/designer-workshop-portals.md):
   * `DesignerDashboardView.tsx` (`/designer/:tab`): Modular 5-tab creator studio (`DesignerOverviewTab`, `DesignerModelsManagerTab`, `DesignerUploadWizardTab`, `DesignerRequestsTab`, `DesignerPayoutsTab`).
-  * `WorkshopSettingsView.tsx` (`/lab/:tab` & `/workshop/settings`): Subject-scoped MES operations (`queue`, `machines`, `materials`, `accessories`, `audit_trail`, `preferences`).
+  * `WorkshopSettingsView.tsx` (`/lab/:tab`): Subject-scoped MES operations (`queue`, `machines`, `materials`, `accessories`, `audit_trail`, `preferences`).
   * `WorkshopOnboardingWizard.tsx`: 4-step onboarding wizard for newly registered manufacturing partners.
 
 ### 3.2 System Architecture & Engineering Engines (`docs/architecture/`)
@@ -106,7 +107,8 @@ Comprehensive specifications covering component props, state machines, user flow
 - [**Developer Setup & Deployment Runbook** (`docs/SETUP_RUNBOOK.md`)](./SETUP_RUNBOOK.md): Step-by-step developer onboarding, WSL2 configuration, automated quality gates, build commands, and production deployment instructions.
 
 ### 3.4 Design Specs & Historical Archive
-- [**Design Tokens** (`docs/design/tokens.md`)](../design/tokens.md), [**Icon Map**](../design/icon-map.md), [**QA Checklist**](../design/qa-checklist.md), [**Data Honesty Rules**](../design/data-honesty.md), [**Research Brief**](../design/research-brief.md): design-system and honest-data specifications referenced by the architecture and page docs.
+- [**Design Tokens** (`docs/design/tokens.md`)](./design/tokens.md), [**Icon Map**](./design/icon-map.md), [**QA Checklist**](./design/qa-checklist.md), [**Data Honesty Rules**](./design/data-honesty.md), [**Research Brief**](./design/research-brief.md), [**Taste Contract** (`docs/design/taste-contract.md`)](./design/taste-contract.md), [**UI Audit 2026-09** (`docs/design/ui-audit-2026-09.md`)](./design/ui-audit-2026-09.md): design-system and honest-data specifications referenced by the architecture and page docs.
+- [**Task Area** (`docs/tasks/README.md`)](./tasks/README.md): in-force construction plans. Start with [**Drift Remediation Plan** (`docs/tasks/DRIFT-REMEDIATION-PLAN.md`)](./tasks/DRIFT-REMEDIATION-PLAN.md) — it folds the 125 verified issues into 6 root causes and a 4-phase roadmap. Its executable form is [**Drift Task Board** (`docs/tasks/DRIFT-TASKS.md`)](./tasks/DRIFT-TASKS.md) (small, file-owned tasks for subagents). Detail: [**Docs Issues Register** (`docs/tasks/DOCS-ISSUES.md`)](./tasks/DOCS-ISSUES.md) (verified status) and [**Docs Review & Development Backlog** (`docs/tasks/DOCS-REVIEW-BACKLOG.md`)](./tasks/DOCS-REVIEW-BACKLOG.md) (full evidence + dev backlog).
 - [**Historical Archive** (`docs/archive/README.md`)](./archive/README.md): the superseded `docs/plans/**` refactor plan (39 files, SUPERSEDED banners). Historical reference only — its figures are stale.
 
 ---
@@ -179,23 +181,13 @@ The following diagram illustrates how customer CAD requests flow from initial up
 
 ## 6. Automated Quality Gates
 
-Every code change committed to VCUBE must pass the mandatory automated gates. `AGENTS.md` §"Gate bổ sung" is the authoritative list; the table below mirrors the full local set.
+Every code change committed to VCUBE must pass the mandatory automated gates. Run the aggregated gate runner instead of invoking scripts by hand:
 
-| Gate Script | Execution Command | Purpose & Pass Criteria |
-| :--- | :--- | :--- |
-| **Typecheck** | `npm run lint` (`tsc --noEmit`) | Verifies strict TypeScript compliance with zero type errors |
-| **Build Bundle** | `npm run build` | Verifies Vite production bundling with zero packaging errors |
-| **Data Honesty** | `node scripts/check-fabricated.mjs` | Scans string literals & JSX text for fabricated claims (must report 0 violations) |
-| **WCAG Contrast** | `node scripts/check-contrast.mjs` | Validates declared color-token contrast pairs (exit 0; some pairs are intentionally exempt) |
-| **Contrast Combos** | `node scripts/check-contrast-combos.mjs` | Scans `.tsx` class strings for failing (text, background) combinations |
-| **RLS Sources** | `node scripts/lint-rls-sources.mjs` | Audits all migrations for RLS anti-patterns R1–R7 |
-| **RLS Migration** | `node scripts/lint-rls-migration.mjs` | Checks harden-migration allowlist consistency + R8/R9 |
-| **SQL Syntax** | `node scripts/a8-sql-syntax-check.mjs` | Static syntax check of the 7 SQL files + `char`-column concat guard (error 42725) |
-| **Icon Names** | `node scripts/check-icon-names.mjs` | Blocks `<Icon name>` glyphs missing from `iconMap` (silent fallback in production) |
-| **UI Rules** | `node scripts/check-ui-rules.mjs` | Blocks `border-line` on form controls, unguarded `toLocaleString(`, `focus:outline-none` without a ring, and infinite `animate-*` without `motion-reduce:animate-none` (budgeted allowlist for legacy) |
-| **Pricing Multiplier** | `node scripts/check-unitprice-multiplier.mjs` | Verifies unit price multiplier is used strictly for deriving cost/g |
-| **DB Inspection** | `node scripts/inspect-db.mjs` | Compares row visibility via publishable vs. secret key |
-| **RLS Live Check** | `node scripts/verify-rls.mjs [--writes]` | Verifies live RLS behavior with the anon key |
+```bash
+npm run check
+```
+
+It executes the full manifest (typecheck, build, RLS linters, SQL syntax, data-honesty, contrast, icon, UI-rule and pricing checks, DB inspection, live RLS) and is the single source of truth. `AGENTS.md` §"Gate bổ sung" remains the authoritative human-readable description; do not hand-maintain a gate inventory here.
 
 ---
 

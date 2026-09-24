@@ -1,9 +1,10 @@
+<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
 # VCUBE Developer & Deployment Runbook
 
 > **Platform:** VCUBE 3.0 — Precision 3D Printing & Digital Industrial CAD Marketplace  
 > **Target Audience:** Core Developers, DevOps Engineers, QA Engineers, Contributors  
 > **Supported Environments:** WSL2 (Ubuntu 24.04 LTS), Linux (Ubuntu/Debian/Fedora/Arch), macOS (Darwin ARM64/x64), Windows 10/11 (via WSL2)  
-> **Last Verified:** 2026-09-14  
+> **Last Verified:** 2026-09-23  
 
 ---
 
@@ -51,7 +52,7 @@
 
 ### 1.1 Operating System Recommendations & Architecture
 
-VCUBE is built on high-performance web standards including React 19, Three.js 0.185 (WebGL 2.0), OpenCASCADE WebAssembly (OCCT 32MB WASM binary), and Tailwind CSS 4. The project requires a POSIX-compliant development environment.
+VCUBE is built on high-performance web standards including React 19, Three.js 0.185 (WebGL 2.0), OpenCASCADE WebAssembly (OCCT ~7.6 MB WASM binary at `public/wasm/occt-import-js.wasm`), and Tailwind CSS 4. The project requires a POSIX-compliant development environment.
 
 | Operating System | Tier | Recommendation / Instructions |
 |---|---|---|
@@ -145,16 +146,17 @@ VCUBE relies on key production libraries:
 - `three` & `@types/three` (WebGL 3D engine)
 - `occt-import-js` (OpenCASCADE WebAssembly STEP/IGES parser)
 - `@supabase/supabase-js` (Supabase database, auth, and storage client)
-- `motion` (Framer Motion v12 animation system)
 - `react-router-dom` (v7 client-side SPA routing)
 - `zustand` (Lightweight reactive state stores)
+- `lucide-react` (icon set, surfaced through `src/frontend/ui/iconMap.ts`)
+- `jszip` (ZIP handling in the CAD/asset pipeline)
 
 ### 2.3 Environment Variables (.env) Specification
 
-The application requires an active `.env` file at the root of the repository. Create `.env` based on `.env.example`:
+The application requires an active `.env` file at the root of the repository. The checked-in `.env.example` is the authoritative template (current `VITE_*` names; the legacy `NEXT_PUBLIC_*` / `SUPABASE_SERVICE_ROLE_KEY` names are commented out). The equivalent specification is reproduced below. Copy it into `.env`:
 
 ```bash
-cp .env.example .env
+cp .env.example .env   # then replace its legacy names with the template below
 ```
 
 #### Complete `.env` Specification Template
@@ -168,11 +170,11 @@ cp .env.example .env
 # 1. SUPABASE CLIENT CONFIGURATION (Safe for Client Browser / Public)
 # ------------------------------------------------------------------------------
 # Project URL for Supabase API gateway
-VITE_SUPABASE_URL=https://vcxarjwzbihvurpkcufa.supabase.co
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 
 # Public Publishable Key (sb_publishable_... or standard anon JWT)
 # Safe to expose in client bundle; Row Level Security (RLS) is the security perimeter.
-VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjeGFyand6YmlodnVycGtjdWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyMDI3MTAsImV4cCI6MjA1Njc3ODcxMH0.example_publishable_key
+VITE_SUPABASE_PUBLISHABLE_KEY=<anon-key>
 
 # Application Base URL (Used for Supabase Auth redirect URLs & verification emails)
 VITE_SITE_URL=http://localhost:3000
@@ -183,21 +185,28 @@ VITE_SITE_URL=http://localhost:3000
 # Secret Service Role Key (sb_secret_... or service_role JWT)
 # Bypasses ALL Row Level Security. NEVER expose to Vite define or client bundle!
 # Used strictly by backend scripts (inspect-db.mjs, verify-rls.mjs) and serverless webhooks.
-SUPABASE_SECRET_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjeGFyand6YmlodnVycGtjdWZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MTIwMjcxMCwiZXhwIjoyMDU2Nzc4NzEwfQ.example_secret_key
+SUPABASE_SECRET_KEY=<service-role-key>
 
 # ------------------------------------------------------------------------------
-# 3. AI SERVICES CONFIGURATION
+# 3. OPTIONAL / LEGACY
 # ------------------------------------------------------------------------------
-# Google Gemini API Key for engineering assistant and CAD metadata analysis
+# GEMINI_API_KEY is still plumbed through `define` in vite.config.ts but has NO
+# consumer in `src/` and `@google/genai` is not a dependency. Treat as unused.
 GEMINI_API_KEY=AIzaSyExampleGeminiKeyHere
 
+# APP_URL is a legacy AI Studio variable; the app no longer reads it (see .env.example).
+# Kept only for old checkouts. Example value only.
+APP_URL="MY_APP_URL"
+
 # ------------------------------------------------------------------------------
-# 4. BACKWARD-COMPATIBILITY ALIASES (Legacy Next.js / Supabase SDK bindings)
+# 4. BACKWARD-COMPATIBILITY ALIASES (legacy fallbacks only)
 # ------------------------------------------------------------------------------
-NEXT_PUBLIC_SUPABASE_URL=https://vcxarjwzbihvurpkcufa.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example_anon_key
+# vite.config.ts and the CLI scripts read these ONLY when the VITE_* names above
+# are absent. Prefer the VITE_* keys; keep these solely for old checkouts.
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example_service_role_key
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
 # ------------------------------------------------------------------------------
 # 5. DEV SERVER OPTIMIZATIONS
@@ -212,10 +221,12 @@ DISABLE_HMR=false
 |---|---|---|
 | `VITE_SUPABASE_URL` | Client / Browser | The HTTPS endpoint of your Supabase project (e.g. `https://<ref>.supabase.co`). |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Client / Browser | The public key used for all frontend queries. Must be guarded by Row Level Security (RLS) policies. Begins with `sb_publishable_` or `eyJ...` (anon role). |
-| `VITE_SITE_URL` | Client / Browser | The root domain of the frontend. In local dev: `http://localhost:3000`. In production: your canonical domain (e.g. `https://vcube.vn` or `https://vcube-red.vercel.app`). |
+| `VITE_SITE_URL` | Client / Browser | The root domain of the frontend. In local dev: `http://localhost:3000`. In production: your canonical domain (example domains: `https://vcube.vn` or `https://vcube-red.vercel.app`). |
 | `SUPABASE_SECRET_KEY` | **SERVER ONLY** | High-privilege key that **bypasses all RLS policies**. Used strictly by administrative CLI scripts (`inspect-db.mjs`, `seed-sample-data.mjs`). **Never expose to the client.** |
-| `GEMINI_API_KEY` | Server / Client | API key for Gemini models (`@google/genai`). |
-| `NEXT_PUBLIC_*` | Client / Compatibility | Aliases maintaining compatibility with legacy code paths during the migration to Vite. |
+| `GEMINI_API_KEY` | Client (bundled) | **Legacy/unused.** `vite.config.ts` injects it via `define`, but no `src/` module reads it and `@google/genai` is not a dependency. |
+| `APP_URL` | Client (bundled) | **Legacy/unused AI Studio variable.** The app no longer reads it; kept only for old checkouts. Example value only. |
+| `NEXT_PUBLIC_*` | Client / Compatibility | Legacy aliases, read only as fallbacks by `vite.config.ts` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`) and by CLI scripts when the `VITE_*` names are absent. |
+| `SUPABASE_SERVICE_ROLE_KEY` | **SERVER ONLY** | Legacy alias for `SUPABASE_SECRET_KEY`, read as a fallback by the CLI scripts only. |
 | `DISABLE_HMR` | Dev Server | When set to `true`, disables Vite file watchers and WebSocket HMR to save CPU during automated edits. |
 
 ### 2.4 Critical Security Rules & Secret Isolation
@@ -235,7 +246,7 @@ DISABLE_HMR=false
    `.env` is strictly ignored in `.gitignore`. Never commit `.env` or any file containing `sb_secret_...` or service role JWTs.
 
 3. **Fallback Mode:**
-   If `VITE_SUPABASE_URL` or `VITE_SUPABASE_PUBLISHABLE_KEY` is missing or contains placeholder strings, `src/backend/supabase/client.ts` automatically switches to fallback mode (`isSupabaseConfigured = false`). The UI will render with local mock fixtures (`src/data/mockData.ts`) without crashing.
+   `vite.config.ts` injects the resolved `VITE_*` values into the `process.env.NEXT_PUBLIC_*` globals that `src/backend/supabase/client.ts` reads. If the URL/key are missing or contain the placeholder substrings `your-project-id` / `your-anon-key`, `isSupabaseConfigured` becomes `false` and the client falls back to a dummy endpoint. The UI then renders without crashing; the catalogs in `src/data/mockData.ts` are intentionally empty (`= []`, data-honesty), so screens show empty states rather than fabricated fixtures.
 
 ---
 
@@ -360,21 +371,27 @@ VCUBE utilizes an automated suite of standalone Node.js and TypeScript quality g
 1. **RLS Anti-Patterns:** Client privilege escalation, unauthorized writes, and PII leaks.
 2. **Data Dishonesty:** Fabricated certifications, fake engineering SLAs, or unverified tolerances.
 3. **Financial Calculation Errors:** Accidental multiplication of base customer pricing.
-4. **Accessibility Regressions:** WCAG 2.x AA contrast violations across light and dark tokens.
+4. **Accessibility Regressions:** WCAG 2.x AA contrast violations across the light token set and the fixed dark chrome tier (the app is light-only).
 5. **Database Drift:** Missing tables, broken triggers, or SQL syntax regressions.
 
 ### 5.2 Quality Gates Matrix
+
+> **Canonical gate list:** run `npm run check` (driven by `scripts/gate-manifest.json`). The matrix below is a descriptive snapshot, not an authoritative count; do not rely on hand-listed file counts.
 
 | Script Command | Purpose & Domain | Target Scope | Pass Criteria |
 |---|---|---|---|
 | `npm run lint` | TypeScript Type Safety | All `.ts`, `.tsx` files in `src/` | Exit `0`, 0 compiler errors |
 | `npm run build` | Vite Packaging & Tree-shaking | Complete SPA bundle | Exit `0`, `dist/` created cleanly |
-| `node scripts/lint-rls-sources.mjs` | Migration Security Linter | `supabase/migrations/*.sql` | Exit `0`, 0 R1–R7 anti-patterns |
+| `node scripts/lint-rls-sources.mjs` | Migration Security Linter | `supabase/migrations/*.sql` (+ `supabase/legacy/*.sql` for reference) | Exit `0`, 0 R1–R7 anti-patterns |
 | `node scripts/lint-rls-migration.mjs` | Hardening Policy Consistency | `supabase/migrations/20261010_harden_rls.sql` | Exit `0`, 0 unmatched policies, balanced quotes |
-| `node scripts/check-contrast.mjs` | WCAG 2.x Contrast Validator | Design tokens (Light & Dark) | Exit `0`, 0 unexpected failures |
+| `node scripts/check-contrast.mjs` | WCAG 2.x Contrast Validator | Light tokens + fixed dark chrome tier | Exit `0`, 0 unexpected failures |
+| `node scripts/check-contrast-combos.mjs` | Class-Combination Contrast Gate | Class strings in `src/**/*.tsx` + `src/index.css` token bookkeeping | Exit `0`, 0 failing (fg, bg) class combinations, 0 token/ratio drift |
 | `node scripts/check-fabricated.mjs` | Data Honesty Scanner | String literals & JSX text in `src/` | Exit `0`, 0 fabricated claims |
 | `node scripts/check-unitprice-multiplier.mjs` | Pricing Engine Integrity Gate | Math operators in `src/` | Exit `0`, no pricing multiplication |
-| `node scripts/a8-sql-syntax-check.mjs` | Static SQL Syntax Validator | 7 SQL migrations & diagnostic scripts | Exit `0`, balanced tags, no syntax errors |
+| `node scripts/check-icon-names.mjs` | Icon Glyph Registry Gate | `<Icon name>` + `icon:`/`iconName:`/`glyph:` fields in `src/**` | Exit `0`, every glyph exists in `src/frontend/ui/iconMap.ts` |
+| `node scripts/check-ui-rules.mjs` | Design-System Regression Gate | `src/**/*.ts(x)` | Exit `0`, no violations beyond the (currently empty) allowlist budget |
+| `node scripts/check-error-handling.mjs` | Error-Swallowing Gate | `catch` blocks in `src/**/*.ts(x)` | Exit `0`, 0 empty-catch, 0 false-success, warn-in-catch ≤ budget |
+| `node scripts/a8-sql-syntax-check.mjs` | Static SQL Syntax Validator | Default SQL file set resolved by the script (run via `npm run check`) | Exit `0`, balanced tags, no syntax errors |
 | `npx tsx scripts/test-catalog-sync.ts` | Catalog & RLS Integration Test | Mock DB, state store & RLS logic | Exit `0`, 5/5 test suites passing (100%) |
 | `node scripts/inspect-db.mjs` | DB Schema State Comparison | 31 tables in Supabase | Exit `0`, 31/31 tables verified, 0 exposed |
 | `node scripts/verify-rls.mjs` | Empirical Anon Key Security Probe | Live Supabase endpoint | Exit `0`, 0 sensitive tables readable by anon |
@@ -387,10 +404,10 @@ VCUBE utilizes an automated suite of standalone Node.js and TypeScript quality g
   - `R1`: Policy checking `user_metadata` (client-writable JWT property).
   - `R2`: Hardcoded administrator email addresses in SQL statements.
   - `R3`: Blanket `FOR ALL ... USING (true)` policies permitting public write access.
-  - `R4`: Public read policies `USING (true)` on PII tables (`orders`, `user_profiles`).
+  - `R4`: Any `USING (true)` policy on the PII tables (`orders`, `user_profiles`), plus `SELECT ... USING (true)` on `products` when the policy does not constrain `status` (leaks drafts/archived).
   - `R5`: Insecure `WITH CHECK (true)` on public write tables (`orders`, `kyc_records`, `payment_transactions`, `material_inventory_logs`).
   - `R6`: Unbalanced Postgres dollar-quoting tags (e.g. `$do$`, `$fn$`) that silently truncate scripts.
-  - `R7`: Calls to `public.is_admin()` without helper definition pre-requisites.
+  - `R7`: Uses of `public.is_admin()` when the `*_rls_helpers.sql` file is missing, or when a migration that calls the helper runs before it.
 
 #### 2. `node scripts/lint-rls-migration.mjs`
 - **Objective:** Validates `supabase/migrations/20261010_harden_rls.sql` before execution.
@@ -398,13 +415,14 @@ VCUBE utilizes an automated suite of standalone Node.js and TypeScript quality g
   - Matches every created policy against the Step-9 policy allowlist.
   - Ensures no declared policies are inadvertently dropped by the cleanup sweep.
   - Detects orphan allowlist entries (policies listed but never created).
-  - Resolves array loops (`v_catalog_read`, `v_user_profiles_read`) to test generated policy names.
+  - Resolves array variables/loops (`v_tables`, `v_catalog_read`) to test generated policy names, and enforces `R8` (no `ALTER TABLE`/RLS-enable loop without a `relkind` check, which would hit the `pricing_config` view) and `R9` (no `$p$…$p$` policy body referencing the temporary `_vcube_*` helpers dropped at the end).
 
 #### 3. `node scripts/check-contrast.mjs`
 - **Objective:** Validates design token color pairs against WCAG 2.x AA accessibility ratios (Text $\ge 4.5:1$, Large Text & UI components $\ge 3.0:1$).
 - **Expected Non-Pass Handling:**
-  - 18 decorative pairs (such as `LIGHT decorative border` or `rating as small text`) are formally exempt under WCAG 1.4.11 and documented in `docs/design/tokens.md`.
+  - 11 pairs are marked `expectedFail` and documented in `docs/design/tokens.md`. Only 3 of them are decorative (`LIGHT decorative border`, `LIGHT hairline on card`, `LIGHT separator on card`), exempt under WCAG 1.4.11; the rest are `graphics` (rating glyphs ≥ 18px) or `remove` (colors retired from text roles).
   - The script passes (Exit `0`) when there are **0 unexpected failures**.
+  - `check-contrast-combos.mjs` complements this by scanning actual `className` strings in `.tsx` files, so a regression back to a failing (text, background) combination is caught even though this script only declares the token table.
 
 #### 4. `node scripts/check-fabricated.mjs`
 - **Objective:** Enforces the VCUBE Data Honesty Charter (`docs/design/data-honesty.md`).
@@ -414,14 +432,15 @@ VCUBE utilizes an automated suite of standalone Node.js and TypeScript quality g
 
 #### 5. `node scripts/check-unitprice-multiplier.mjs`
 - **Objective:** Prevents catastrophic financial calculation regressions.
-- **Background:** `unit_price_multiplier` is strictly designed to derive material density and cost-per-gram in `pricingEngine.ts`. It must **never** be multiplied directly against base retail selling prices.
-- **Allowlist:** Only `pricingEngine.ts` and admin forms under `src/frontend/components/admin/` may reference this property.
+- **Background:** `unit_price_multiplier` is a **cost-per-gram derivation factor** (đ/g) used in `src/utils/pricingEngine.ts:70-88` (`resolveMaterialCostPerGram`, `costPerKg / 1000 * unitPriceMultiplier`). It must **never** be multiplied directly against base retail selling prices.
+- **Allowlist:** Only `src/utils/pricingEngine.ts`, its re-export `src/frontend/utils/pricingEngine.ts`, and admin forms under `src/frontend/components/admin/` may reference this property.
 
 #### 6. `node scripts/a8-sql-syntax-check.mjs`
-- **Objective:** Performs static parsing on all SQL scripts without requiring a running Postgres server.
+- **Objective:** Performs static parsing on the default SQL file set resolved by the script (`supabase/migrations/`, `supabase/scripts/`, `supabase/diagnostics/`) without requiring a running Postgres server. The authoritative gate entry point is `npm run check`.
 - **Checks Enforced:**
   - Catches Postgres error `42601` caused by trailing commas before square brackets (`array['a', 'b',]`).
-  - Audits unclosed dollar-quotes, unescaped single quotes, unbalanced parentheses, and missing `commit;` statements.
+  - Catches Postgres error `42725` from concatenating a `"char"` catalog column (e.g. `tgenabled`, `relkind`, `polcmd`) with `||` without a `::text` cast.
+  - Audits unclosed dollar-quotes, unescaped single quotes, unclosed block comments, unbalanced parentheses, and `begin;` without a matching `commit;` (a statement not ending in `;` is a warning only).
 
 #### 7. `npx tsx scripts/test-catalog-sync.ts`
 - **Objective:** Verifies catalog synchronization, state transitions, and RLS behavior in TypeScript.
@@ -439,7 +458,36 @@ VCUBE utilizes an automated suite of standalone Node.js and TypeScript quality g
   - `node scripts/verify-rls.mjs --writes`: Safely tests no-op write rejections.
   - `node scripts/verify-rls.mjs --json`: Formats results for automated pipelines.
 
+#### 9. `node scripts/check-contrast-combos.mjs`
+- **Objective:** Reads `src/**/*.tsx`, extracts class strings (string literals and the static text of template literals), and fails when a single class list contains a measured failing (text, background) token pair.
+- **Checks Enforced:**
+  - Six rules over token pairs (`fg-subtle` on `line-subtle` / `primary/5` / `warning-tint` / `positive-tint`, etc.); modifiers (`hover:`, `focus:`) and alpha variants are honored.
+  - Cross-checks the `TOKENS`/`RULES` bookkeeping against `src/index.css` and fails on `token-drift` / `rule-ratio-drift`.
+- **Exit codes:** `0` clean, `1` violation or bookkeeping drift, `2` tool error.
+
+#### 10. `node scripts/check-icon-names.mjs`
+- **Objective:** Prevents silent `FALLBACK_ICON` rendering when a glyph is missing from `iconMap`.
+- **Checks Enforced:** Reads keys from `export const iconMap` in `src/frontend/ui/iconMap.ts`, then scans `<Icon name=...>` tags (static strings and ternary branches) plus `icon:` / `iconName:` / `glyph:` string fields across `src/**`. Any unknown name fails with `file:line`.
+
+#### 11. `node scripts/check-ui-rules.mjs`
+- **Objective:** Blocks design-system regressions across `src/**`.
+- **Checks Enforced (4 rules):**
+  - `control-border-line`: `border-line` on `<input>`/`<select>`/`<textarea>` (should be `border-line-control`).
+  - `unguarded-tolocale`: `toLocaleString(` without a nearby NaN/validity guard.
+  - `focus-no-ring`: `focus:outline-none` without a ring in the same class list.
+  - `infinite-animation`: `animate-spin|ping|pulse|bounce` without `motion-reduce:animate-none`.
+- **Allowlist:** Per-`file::rule` budgets for known debt; currently empty, so any new violation fails.
+
+#### 12. `node scripts/check-error-handling.mjs`
+- **Objective:** Blocks swallowed errors in `catch` blocks across `src/**`.
+- **Checks Enforced (3 rules):**
+  - `empty-catch` (hard, limit 0): empty/comment-only catch body without an `ignore:` annotation.
+  - `false-success-in-catch` (hard, limit 0): `return true` / `return { success: true }` inside a catch.
+  - `warn-in-catch` (budget): `console.warn/error` inside catch bodies, capped by `WARN_IN_CATCH_BUDGET` and only allowed to decrease.
+
 ### 5.4 Continuous Integration (CI) Recommended Order
+
+The complete, authoritative gate list is `npm run check` (manifest: `scripts/gate-manifest.json`). The hand-written order below is a convenience snapshot; prefer `npm run check` so a newly added gate is never missed.
 
 Run all static gates locally before submitting pull requests:
 
@@ -452,8 +500,12 @@ npm run build
 node scripts/lint-rls-sources.mjs
 node scripts/lint-rls-migration.mjs
 node scripts/check-contrast.mjs
+node scripts/check-contrast-combos.mjs
 node scripts/check-fabricated.mjs
 node scripts/check-unitprice-multiplier.mjs
+node scripts/check-icon-names.mjs
+node scripts/check-ui-rules.mjs
+node scripts/check-error-handling.mjs
 node scripts/a8-sql-syntax-check.mjs
 
 # 3. Integration suite
@@ -466,7 +518,7 @@ npx tsx scripts/test-catalog-sync.ts
 
 ### 6.1 Database Schema & Migration Architecture
 
-VCUBE utilizes a hardened schema comprising 31 relational tables + 1 compatibility view (`pricing_config`), 49 performance indexes, 7 custom stored procedures, 5 trigger definitions (25 instances), and 2 storage buckets (`cad-files`, `product-images`).
+VCUBE utilizes a hardened schema comprising 31 relational tables + 1 compatibility view (`pricing_config`), 49 explicit indexes (48 from the `idx_*` loop + the partial unique `uq_kyc_records_one_pending`; 2 are GIN), 13 permanent functions (6 helper/RPC — `current_app_role`, `is_admin`, `is_admin_or_lab`, `current_workshop_partner_id`, `get_order_by_guest_token`, `fn_recompute_product_review_stats` — plus 7 trigger functions), 7 trigger definitions (27 instances: 21 `trg_touch_updated_at` + 6 others), and 2 storage buckets (`cad-files` 150 MB, `product-images` 10 MB). The hardening migration creates and then drops 2 temporary helpers (`_vcube_make_policy`, `_vcube_has_columns`).
 
 > **Rule:** Never execute files inside `supabase/legacy/`. Those represent obsolete iterations. All database management is restricted to `supabase/migrations/` and `supabase/scripts/`.
 
@@ -477,7 +529,7 @@ When setting up a fresh Supabase project, execute the migration files sequential
 ```
 supabase/migrations/
 ├── 20260900_rls_helpers.sql       # 1. Helper functions: current_app_role() & is_admin()
-├── 20260901_baseline_schema.sql     # 2. 31 tables + 1 view, 49 indexes, 5 triggers, buckets & seeds
+├── 20260901_baseline_schema.sql     # 2. 31 tables + 1 view, 49 indexes, 7 trigger definitions (27 instances), buckets & seeds
 └── 20261010_harden_rls.sql         # 3. 90 table policies (88 applied), 6 storage policies & guards
 ```
 
@@ -490,15 +542,17 @@ supabase/migrations/
 
 2. **Step 2: Baseline Schema (`20260901_baseline_schema.sql`)**
    - Generates all core business tables: `products`, `materials`, `orders`, `order_items`, `user_profiles`, `workshop_profiles`, `designer_profiles`, `pricing_configs`, `custom_design_requests`, and audit logs.
-   - Configures Supabase Realtime publication for `orders`, `products`, and `custom_design_requests`.
-   - Populates initial baseline data (standard materials, default machines, global pricing formulas).
+   - Configures Supabase Realtime publication for 11 tables: `products`, `materials`, `printer_fleet`, `site_content`, `pricing_configs`, `orders`, `accessories`, `app_settings`, `pricing_global_settings`, `order_files`, `custom_design_requests`.
+   - Seeds **only 3 singleton config rows**: `site_content('default')`, `pricing_global_settings('global')`, and `app_settings('settings')`. There are **no** product/material/printer/pricing fixtures — sample data comes from `scripts/seed-sample-data.mjs`.
 
 3. **Step 3: RLS Hardening (`20261010_harden_rls.sql`)**
    - Applies strict Row Level Security to all tables.
    - Cleans up any unmanaged legacy policies.
-   - Creates defensive triggers:
+   - (Re)creates 4 triggers:
      - `trg_protect_profile_privileged_columns`: Prevents non-admin users from escalating their own role or modifying KYC verification status.
+     - `trg_create_profile_for_new_user`: Re-creates the `auth.users` → `user_profiles` provisioning trigger.
      - `trg_protect_order_privileged_columns`: Prevents workshops from tampering with order payment statuses.
+     - `trg_protect_workshop_profile_privileged_columns`: Prevents a workshop owner from changing `partner_id` / `verified_status`.
 
 #### Alternative: Consolidated Single-File Application
 For convenience, you can apply the entire migration stack in one step using the auto-generated bundle:
@@ -621,7 +675,7 @@ Certain Windows text editors and automated tools cannot perform atomic file rena
 
 **Architecture & Implementation:**
 VCUBE parses complex mechanical STEP/IGES files off the main thread inside `src/workers/cadParser.worker.ts` using `occt-import-js`:
-- The 32MB WASM binary is stored at `public/wasm/occt-import-js.wasm`.
+- The ~7.6 MB WASM binary is stored at `public/wasm/occt-import-js.wasm`.
 - The Web Worker is instantiated in `src/utils/meshParser.ts` as an ES Module:
   ```typescript
   const worker = new Worker(
@@ -633,7 +687,7 @@ VCUBE parses complex mechanical STEP/IGES files off the main thread inside `src/
 **Resolutions:**
 
 1. **Local Vite Development:**
-   Vite automatically serves `.wasm` files from `public/` with the correct `application/wasm` header. Ensure `public/wasm/occt-import-js.wasm` exists and is ~32MB in size.
+   Vite automatically serves `.wasm` files from `public/` with the correct `application/wasm` header. Ensure `public/wasm/occt-import-js.wasm` exists and is ~7.6 MB in size.
 
 2. **Production Web Server Configuration (Nginx):**
    Ensure `mime.types` includes WASM:
@@ -692,7 +746,7 @@ API queries return HTTP 403 or Postgres error code `42501`:
 ### 7.6 Hydration & Client-Only Routing in Vite SPA
 
 **Symptom:**
-Navigating to a deep link (e.g. `http://localhost:3000/quote` or `https://vcube.vn/admin/orders`) and pressing F5 returns `404 Not Found`.
+Navigating to a deep link (e.g. `http://localhost:3000/quote` or `https://<your-domain>/admin/orders`; `vcube.vn` is an example domain) and pressing F5 returns `404 Not Found`.
 
 **Architecture:**
 VCUBE is a single-page application (SPA) powered by Vite and `react-router-dom` v7. It has no SSR runtime (Next.js was completely removed). All routing is resolved in the browser.
@@ -743,8 +797,12 @@ npm run preview                                  # Preview production bundle (po
 node scripts/lint-rls-sources.mjs                # Check migration RLS anti-patterns
 node scripts/lint-rls-migration.mjs              # Validate hardening migration consistency
 node scripts/check-contrast.mjs                  # Check WCAG 2.x AA color contrast
+node scripts/check-contrast-combos.mjs           # Catch failing (text, bg) class combos
 node scripts/check-fabricated.mjs                # Ensure data honesty in UI text
 node scripts/check-unitprice-multiplier.mjs      # Audit pricing calculation math
+node scripts/check-icon-names.mjs                # Verify every <Icon name> exists in iconMap
+node scripts/check-ui-rules.mjs                  # Design-system regression gate
+node scripts/check-error-handling.mjs            # Catch swallowed errors in catch blocks
 node scripts/a8-sql-syntax-check.mjs             # Static SQL syntax audit
 npx tsx scripts/test-catalog-sync.ts             # Integration & catalog sync test
 node scripts/inspect-db.mjs                      # Audit Supabase table schema

@@ -2,7 +2,7 @@
 
 > **Security Baseline**: Supabase PostgreSQL 15+  
 > **Enforcement Tier**: Database Kernel Layer (PostgreSQL Row Level Security)  
-> **Policy Count**: 90 Table Policies + 6 Storage Policies (96 Policies Total) across 31 Target Tables + 1 View  
+> **Policy Count**: 90 Table Policies in the hardening allowlist (88 applied on a fresh DB, since the 2 `pricing_config` policies are skipped when it is a VIEW) + 6 Storage Policies across 32 target relations (31 tables + the `pricing_config` view)  
 > **Compliance Target**: Zero Trust, Least Privilege, Vietnam Personal Data Protection Decree 13/2023/NĐ-CP
 
 ---
@@ -124,15 +124,15 @@ The system governs 5 distinct actors:
 
 ## 4. Column-Level Privilege Lockdown Triggers
 
-RLS governs row-level access (which rows a user can see or alter). However, standard SQL `UPDATE` policies allow users to mutate any column in that row unless restricted. VCUBE deploys 3 defensive database triggers to enforce column-level boundaries:
+RLS governs row-level access (which rows a user can see or alter). However, standard SQL `UPDATE` policies allow users to mutate any column in that row unless restricted. VCUBE deploys 3 defensive database triggers to enforce column-level boundaries (`20261010_harden_rls.sql` also creates a fourth trigger, `trg_create_profile_for_new_user`, which auto-provisions profiles and is outside this column-lockdown scope):
 
 ### 4.1 Order Privilege Lockdown (`orders`)
 - **Trigger**: `trg_protect_order_privileged_columns`
 - **Function**: `fn_protect_order_privileged_columns()`
 - **Security Invariant**: When a workshop partner updates an assigned order, they must **only** be able to update production progress indicators:
   - Allowed: `status`, `status_stage_index`, `layer_progress`, `updated_at`.
-  - Blocked: `total_amount`, `shipping_fee`, `payment_status`, `payment_method`, `secure_access_token`, `customer_email`, `customer_phone`, `customer_name`, `items`, `assigned_workshop_id`.
-  - Violation Result: `RAISE EXCEPTION SQLSTATE '42501' USING MESSAGE = 'VCUBE: Workshop partners may only update status, status_stage_index, layer_progress, and updated_at'`.
+  - Blocked: every other column, e.g. `total_amount`, `shipping_fee`, `payment_status`, `payment_method`, `secure_access_token`, `customer_email`, `customer_phone`, `customer_name`, `items`, `assigned_workshop_id`. The trigger enforces this as a **fail-closed allow-list** (`to_jsonb(new) - v_allowed`), so columns added to `orders` later are blocked automatically.
+  - Violation Result: `raise exception ... using errcode = 'insufficient_privilege'` (SQLSTATE `42501`), message `'VCUBE: xưởng in chỉ được đổi status/status_stage_index/layer_progress/updated_at của đơn được giao (bị chặn: <column list>)'`.
 
 ### 4.2 Profile Elevation Prevention (`user_profiles`)
 - **Trigger**: `trg_protect_profile_privileged_columns`
@@ -191,7 +191,7 @@ VCUBE enforces multi-tenant security across its two storage buckets:
 
 ## 6. Complete Inventory of All 90 Table RLS Policies
 
-Below is the exhaustive catalog of all 90 table-level policies defined in `supabase/migrations/20261010_harden_rls.sql` and verified by `scripts/lint-rls-migration.mjs`.
+Below is the exhaustive catalog of all 90 table-level policies in the `v_keep` allowlist of `supabase/migrations/20261010_harden_rls.sql`, checked for parity against the policies the migration actually creates by `scripts/lint-rls-migration.mjs`. On a fresh DB built from `20260901_baseline_schema.sql`, `pricing_config` is a VIEW, so its 2 policies (6.9) are skipped and **88** table policies are applied.
 
 ### 6.1 Products (2 Policies)
 | Policy Name | Cmd | Target Roles | Security Rule (`USING` / `WITH CHECK`) |
@@ -206,7 +206,7 @@ Below is the exhaustive catalog of all 90 table-level policies defined in `supab
 | `vcube_orders_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
 | `vcube_orders_guest_insert` | `INSERT` | `anon`, `authenticated` | `WITH CHECK (secure_access_token is not null AND length(btrim(secure_access_token)) >= 12 AND coalesce(btrim(customer_email), '') <> '' AND items is not null AND (user_id is null OR user_id::text = (select auth.uid())::text))` |
 | `vcube_orders_workshop_read` | `SELECT` | `authenticated` | `USING (assigned_workshop_id is not null AND assigned_workshop_id = public.current_workshop_partner_id())` |
-| `vcube_orders_workshop_update_progress` | `UPDATE` | `authenticated` | `USING (assigned_workshop_id is not null AND assigned_workshop_id = public.current_workshop_partner_id()) WITH CHECK (assigned_workshop_id is not null AND assigned_workshop_id = public.current_workshop_partner_id())` |
+| `vcube_orders_workshop_update_progress` | `UPDATE` | `authenticated` | `USING (assigned_workshop_id is not null AND assigned_workshop_id = public.current_workshop_partner_id()) WITH CHECK (assigned_workshop_id = public.current_workshop_partner_id())` |
 
 ### 6.3 User Profiles (3 Policies)
 | Policy Name | Cmd | Target Roles | Security Rule (`USING` / `WITH CHECK`) |
@@ -236,7 +236,7 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 |---|:---:|---|---|
 | `vcube_workshop_machines_owner_all` | `ALL` | `authenticated` | `USING (public.is_admin() OR EXISTS (select 1 from public.workshop_profiles wp where wp.id = workshop_machines.workshop_id and wp.user_id::text = (select auth.uid())::text))` |
 | `vcube_workshop_materials_owner_all` | `ALL` | `authenticated` | `USING (public.is_admin() OR EXISTS (select 1 from public.workshop_profiles wp where wp.id = workshop_materials.workshop_id and wp.user_id::text = (select auth.uid())::text))` |
-| `vcube_workshop_accessories_owner_all` | `ALL` | `authenticated` | `USING (public.is_admin() OR EXISTS (select 1 from public.workshop_profiles wp where wp.id = workshop_accessories.workshop_id and wp.user_id::text = (select auth.uid())::text))` |
+| `vcube_workshop_accessories_owner_all` | `ALL` | `authenticated` | `USING (public.is_admin() OR (workshop_id is not null AND EXISTS (select 1 from public.workshop_profiles wp where wp.id = workshop_accessories.workshop_id and wp.user_id::text = (select auth.uid())::text)))` |
 
 ### 6.7 Role-Specific Profiles (4 Policies)
 | Policy Name | Cmd | Target Roles | Security Rule |
@@ -256,6 +256,8 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 | `vcube_cost_rules_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin())` |
 
 ### 6.9 Compatibility Pricing View / Fallback Table (2 Policies)
+These 2 policies are created **only if** `public.pricing_config` exists as a table (`relkind = 'r'`). When it is a VIEW — as in `20260901_baseline_schema.sql` — they are skipped and the view is protected by `security_invoker = true` instead.
+
 | Policy Name | Cmd | Target Roles | Security Rule |
 |---|:---:|---|---|
 | `vcube_pricing_config_public_read` | `SELECT` | `anon`, `authenticated` | `USING (true)` |
@@ -307,7 +309,7 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 | `vcube_quotes_owner_insert` | `INSERT` | `authenticated` | `WITH CHECK (user_id::text = (select auth.uid())::text)` |
 | `vcube_quotes_owner_update` | `UPDATE` | `authenticated` | `USING (user_id::text = (select auth.uid())::text) WITH CHECK (user_id::text = (select auth.uid())::text)` |
 | `vcube_quotes_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
-| `vcube_order_items_owner_read` | `SELECT` | `authenticated` | `USING (public.is_admin() OR EXISTS (select 1 from public.orders o where o.id = order_items.order_id and o.user_id::text = (select auth.uid())::text))` |
+| `vcube_order_items_owner_read` | `SELECT` | `authenticated` | `USING (EXISTS (select 1 from public.orders o where o.id = order_items.order_id AND (o.user_id::text = (select auth.uid())::text OR o.customer_email = (select auth.jwt() ->> 'email'))))` |
 | `vcube_order_items_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
 
 ### 6.15 Workshop Commissions & KYC Verification (4 Policies)
@@ -335,28 +337,36 @@ Applies across: `materials`, `printer_fleet`, `accessories`, `workshop_partners`
 VCUBE incorporates a 4-tier automated test harness to verify security assertions prior to any production deployment:
 
 ### 1. Static Source Code Linter (`scripts/lint-rls-sources.mjs`)
-Scans all migration files in `supabase/migrations/` and `supabase/legacy/` for anti-patterns:
-- Flag R1: Permissive `USING (true)` or `WITH CHECK (true)` on non-catalog tables.
-- Flag R2: Direct `user_metadata` references inside SQL policies.
-- Flag R3: Hardcoded email addresses inside policy expressions.
-- Flag R4: Missing `public.is_admin()` helper calls.
+Scans every `supabase/migrations/*.sql` (the chain that runs) and every `supabase/legacy/*.sql` (reference only) for these rules:
+- **R1**: a policy expression references `user_metadata` (client-writable).
+- **R2**: an admin email (`chithanhso10@gmail.com`) is hardcoded in a migration.
+- **R3**: a policy is `FOR ALL ... USING (true)` (everyone can write).
+- **R4**: any policy with `USING (true)` on a PII table (`orders`, `user_profiles`), or a `SELECT ... USING (true)` on `products` that does not constrain `status`.
+- **R5**: `WITH CHECK (true)` on a write table (`orders`, `payment_transactions`, `material_inventory_logs`, `kyc_records`).
+- **R6**: unbalanced dollar-quote tags (silently truncates the script).
+- **R7**: `public.is_admin()` is used but the `*_rls_helpers.sql` file is missing or runs after the file that uses it.
+
+R1–R3/R5 are also applied to `supabase/legacy/` (which never runs, but must stay clean).
 
 ### 2. Migration Integrity Linter (`scripts/lint-rls-migration.mjs`)
 Performs static analysis on `supabase/migrations/20261010_harden_rls.sql`:
 - Verifies dollar-quote balancing (`$do$`, `$fn$`, `$pol$`, `$p$`).
-- Resolves all loops (`foreach t in array v_catalog_read`) to guarantee 100% parity between generated policies and the `v_keep` cleanup allowlist.
+- Resolves all loops (`foreach t in array v_catalog_read`, `v_tables`, …) to guarantee 100% parity between the generated policies and the `v_keep` table-policy allowlist, and between the storage policies and the `v_ok` storage allowlist.
+- Rejects policy expressions that reference `public` tables outside the declared target list, and requires a `begin;`/`commit;` pair wrapping the migration.
 - Verifies rule **R8**: Ensures dynamic `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` checks `relkind` to avoid fatal PostgreSQL error `42809` on views.
 - Verifies rule **R9**: Ensures no policy expression contains references to temporary helper functions (`_vcube_*`) that are dropped at migration completion.
 
 ### 3. Dual-Key Production Verifier (`scripts/verify-rls.mjs`)
-Connects to Supabase with both the anon publishable key and the secret key:
-- Probes every sensitive table (`orders`, `user_profiles`, `payment_transactions`, `material_inventory_logs`, `order_items`, `cost_rules`, `workshop_commission_terms`).
-- Uses the secret key to confirm the table physically exists with records, and asserts that the anon key returns exactly **0 rows**.
-- Asserts that public tables (`products`, `materials`, `printer_fleet`, `pricing_configs`) return positive records.
-- Tests no-op update mutations with `--writes` to ensure anonymous write attempts fail with `42501`.
+Connects to Supabase with the anon publishable key, and — when `SUPABASE_SECRET_KEY` is present — a second secret-key client:
+- Anon-only denials: `orders`, `user_profiles`, `payment_transactions`, `material_inventory_logs`, `cost_rules`, and unpublished `products`.
+- Dual-key denials (secret proves the table exists/returns rows, anon must be blocked): `order_items`, `workshop_commission_terms`, `quotes`, `kyc_records`, `cart_items`, `digital_assets`, non-published `reviews`, and `Pending` `workshop_profiles`.
+- Positive reads the app depends on: published `products`, `materials`, `printer_fleet`, `pricing_configs`.
+- Also probes the `get_order_by_guest_token` RPC with a wrong token and best-effort lists the two storage buckets.
+- With `--writes`, runs a no-op `UPDATE` on one `products` row and requires the anon attempt to be blocked (error **or** 0 rows affected — not necessarily `42501`).
+- Exit code is 1 on any `FAIL` **or** `UNKNOWN`; a null `count` is treated as unverified, never as a pass.
 
 ### 4. Database Inspector (`scripts/inspect-db.mjs`)
-Compares row counts between publishable and secret keys across all tables to catch unmigrated tables or broken postgrest schema caches.
+Compares row counts between the publishable and secret keys across a fixed reference list of relations (including the `pricing_config` view), flags sensitive tables that leak rows (`exit 1` on any leak), and detects unmigrated tables or broken PostgREST schema caches. It also derives the declared schema table count dynamically from `20260901_baseline_schema.sql` and prints which declared tables are not yet in the reference list.
 
 ```bash
 # Execute static security gates:

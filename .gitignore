@@ -19,6 +19,10 @@ coverage/
 .env.development.local
 .env.test.local
 .env.production.local
+# Biến local/staging copy vào worktree (T00) — TUYỆT ĐỐI không commit
+.env.worktree
+.env.worktree.*
+!.env.worktree.example
 *.pem
 *.key
 service-account*.json

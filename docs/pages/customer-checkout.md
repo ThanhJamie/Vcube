@@ -2,7 +2,7 @@
 
 ## 1. Scope & Architecture Overview
 
-This specification details the post-discovery transaction lifecycle of VCUBE: shopping cart state synchronization, multi-step customer checkout, corporate VAT invoice requisition, multi-channel payment flows (VietQR, VNPAY, COD), real-time 8-step MES production tracking, electronic invoice issuance, tolerance warranty claims, and the customer's personal digital CAD asset vault.
+This specification details the post-discovery transaction lifecycle of VCUBE: shopping cart state synchronization, multi-step customer checkout, corporate VAT invoice requisition, multi-channel payment flows (VietQR, VNPAY, COD), real-time 8-step MES production tracking, internal invoice generation, tolerance warranty claim intake, and the customer's personal digital CAD asset vault.
 
 ### Route & Component Inventory
 
@@ -10,12 +10,12 @@ This specification details the post-discovery transaction lifecycle of VCUBE: sh
 | :--- | :--- | :--- | :--- |
 | `/cart` | `CartView.tsx` | Public | Physical vs. Digital separation, dynamic shipping fee calculation, free shipping progress bar, promo code validation, VAT breakdown |
 | `Drawer` | `CartDrawer.tsx` | Public | Slide-over drawer mirroring cart state, real-time quantity mutations, direct checkout gateway |
-| `/checkout` | `CheckoutView.tsx` | Public / Guest / Auth | Multi-step checkout, PII privacy protection, VietQR / VNPAY / COD payment flows, corporate VAT invoice form, NDA commitment |
-| `/order-success/:orderId` | `OrderSuccessView.tsx` | Public (Token / ID) | Order confirmation, guest tracking token display, invoice modal trigger, production dispatch alert |
+| `/checkout` | `CheckoutView.tsx` | Public / Guest / Auth | Multi-step checkout, PII privacy protection, VietQR / VNPAY / COD payment flows, corporate VAT invoice form, terms acknowledgment |
+| `/order-success/:orderId` | `OrderSuccessView.tsx` | Public (resolved from in-memory order list) | Order confirmation, guest tracking token display, invoice modal trigger, production dispatch alert |
 | `/tracking` / `/tracking/:orderId`| `OrderTrackingView.tsx` | Public (RPC Token) | Real-time 8-stage MES pipeline (`OrderProgress.tsx`), layer print telemetry, carrier tracking integration |
-| `/orders` (alias `/my-orders`)| `MyOrdersView.tsx` | Protected (`customer`, `admin`) | Filterable order history, CAD file download links, reorder pipeline, dimensional warranty claim modal |
-| `/assets` (alias `/library`) | `AssetLibraryView.tsx` | Protected (`customer`, `admin`) | Personal CAD vault, 3D WebGL asset preview, secure signed download links (`cad-files` private bucket, 60s TTL) |
-| `Modal` | `InvoiceModal.tsx` | Order Subject / Admin | Printable electronic GTGT invoice, legal seller metadata from `app_settings`, tax audit trail |
+| `/orders` (alias `/my-orders`) | `MyOrdersView.tsx` | Protected (any authenticated user) | Filterable order history, reorder pipeline, dimensional warranty claim modal (not persisted) |
+| `/assets` (alias `/library`) | `AssetLibraryView.tsx` | Protected (any authenticated user) | Personal CAD vault, illustrative 3D block preview, signed download links when `storagePath` exists (`cad-files` private bucket, 60s TTL) |
+| `Modal` | `InvoiceModal.tsx` | Opened from any view for the current order | Printable internal GTGT invoice, legal seller metadata from `app_settings`, no tax-authority signature |
 
 ---
 
@@ -30,18 +30,28 @@ export interface CartItem {
   productId: string;
   type: 'physical' | 'digital';
   name: string;
-  designer?: string;
-  image?: string;
+  designer: string;
+  image: string;
   price: number;
   quantity: number;
   material?: string;
   color?: string;
   colorHex?: string;
+  dimensions?: string;
   resolution?: string;
-  engraving?: string;
-  scale?: number;
-  customizationFee?: number;
+  weightGrams?: number | null;
+  customText?: string;
+  customFont?: string;
+  customFontSize?: number;
+  uploadedLogoName?: string;
+  fileFormat?: string;
   licenseType?: string;
+  selectedAccessories?: {
+    id: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+  }[];
 }
 ```
 
@@ -49,12 +59,12 @@ export interface CartItem {
 The cart strictly segregates items based on their operational fulfillment type:
 1. **Physical Fabrication Items (`type: 'physical'`)**:
    - Represents physical parts manufactured via 3D printing.
-   - Retains parameters: selected material, color finish, layer resolution ($0.12 - 0.28\text{ mm}$), custom engraving text, and scale.
+   - Retains parameters: selected material, color finish, layer resolution, custom engraving text (`customText`), optional accessories, and an estimated resin weight (`weightGrams`).
    - Contributes to shipment weight, standard delivery fees, and the free-shipping threshold calculation.
 2. **Digital CAD Licenses (`type: 'digital'`)**:
-   - Represents non-physical digital assets (STEP, STL, SLDPRT, 3MF).
+   - Represents non-physical digital assets with a declared `fileFormat` and `licenseType`.
    - Incurs zero shipping cost ($0\text{ VND}$).
-   - Grants immediate access to download secure signed files in the Asset Library upon completed payment.
+   - Grants access to download secure signed files in the Asset Library once a storage path exists (currently not yet wired).
 
 ### 2.3 Dynamic Shipping & Free Shipping Threshold
 - **Configuration Source**: Managed via `siteContent.freeShippingThreshold` and `siteContent.standardShippingFee` (falling back to `DEFAULT_SALES_RULES`).
@@ -62,7 +72,7 @@ The cart strictly segregates items based on their operational fulfillment type:
   $$\text{Shipping Fee} = \begin{cases} 0 & \text{if } \text{physicalItems.length} = 0 \\ 0 & \text{if } \text{subtotalPhysical} \ge \text{freeShippingThreshold} \\ \text{standardShippingFee} & \text{otherwise} \end{cases}$$
 - **Visual Progress Bar**: Displays real-time progress toward the free shipping goal:
   $$\text{Progress \%} = \min\left(100, \text{round}\left(\frac{\text{subtotalPhysical}}{\text{freeShippingThreshold}} \times 100\right)\right)$$
-  Renders a dynamic message: *"Thêm [X] đ để được MIỄN PHÍ VẬN CHUYỂN"* or *"Đã đủ điều kiện miễn phí vận chuyển"*.
+  Renders a dynamic message: *"Mua thêm [X] để được MIỄN PHÍ VẬN CHUYỂN toàn quốc!"* or *"Đủ điều kiện MIỄN PHÍ GIAO HÀNG toàn quốc (đơn từ [threshold])!"*.
 
 ### 2.4 Data-Honesty Promo Code Validation
 In accordance with `docs/design/data-honesty.md`:
@@ -95,21 +105,23 @@ In accordance with `docs/design/data-honesty.md`:
                |                          |                          |
                v                          v                          v
       +------------------+       +------------------+       +------------------+
-      |  METHOD 1: VietQR|       |  METHOD 2: VNPAY |       |  METHOD 3: COD   |
-      +--------+---------+       +--------+---------+       +--------+---------+
-               |                          |                          |
-       Dynamic Bank Info          Payment Gateway            Physical parts only
-       from app_settings          Redirect                   Pending payment
-       (Bank, Acc, Legal)         URL generation             status upon creation
+       |  METHOD 1: VietQR|       |  METHOD 2: VNPAY |       |  METHOD 3: COD   |
+       +--------+---------+       +--------+---------+       +--------+---------+
+                |                          |                          |
+        Dynamic Bank Info          Method recorded only       Physical parts only
+        from app_settings          (no gateway redirect)      payment status 'cod'
+        (Bank, Acc, Legal)         status awaiting_payment    upon creation
                |                          |                          |
                +--------------------------+--------------------------+
                                           |
                                           v
                          +---------------------------------+
                          |   OrderService.createOrder()    |
-                         |   - Writes to 'orders'          |
-                         |   - Writes to 'order_items'     |
-                         |   - Generates secure token      |
+                         |   - Upserts one 'orders' row    |
+                         |   - Items stored in orders.items|
+                         |     (jsonb, no order_items)     |
+                         |   - Guest token minted at       |
+                         |     CheckoutView (not in RPC)   |
                          +----------------+----------------+
                                           |
                                           v
@@ -120,30 +132,31 @@ In accordance with `docs/design/data-honesty.md`:
 
 #### A. VietQR Dynamic Bank Transfer
 - **Configuration-Driven**: Bank name, account number, and legal entity name are loaded dynamically from `app_settings` via `settingsService`. Hardcoded bank details are eliminated.
-- **Transfer Syntax**: Prompts the user with a standardized reference format: `VCUBE [ORDER_NUMBER] [PHONE]`.
+- **Transfer Syntax**: Prompts the user with a standardized reference format: `VCUBE [PHONE]` (order number is not embedded). Transfer details are hidden and an explicit "not configured — contact VCUBE" notice is shown when `app_settings` has no bank data.
 
 #### B. VNPAY Online Gateway
-- Prepares an online transaction payload. (Maintained in sample/sandbox mode per system invariants without external third-party PSP dependencies).
+- Records `payment.method = 'VNPAY QR'` only. There is no payment-gateway payload or redirect integration; the order is created with payment status `'awaiting_payment'` until an operator reconciles it.
 
 #### C. COD (Cash on Delivery)
 - Permitted strictly for orders containing physical manufactured parts.
 - Sets initial order payment status to `'cod'`.
 
 ### 3.3 Corporate GTGT Electronic Invoice Requisition
-When the customer checks *"Yêu cầu xuất hóa đơn GTGT cho doanh nghiệp"*, the following mandatory fields are collected:
+When the customer checks *"Yêu cầu xuất hóa đơn điện tử ... cho Doanh nghiệp / Dự án"*, three fields are collected and appended to the order note:
 - **Tên doanh nghiệp / Đơn vị**: Full registered legal corporate name.
-- **Mã số thuế (Tax ID)**: Validated against standard Vietnamese 10-digit or 13-digit format.
-- **Địa chỉ trụ sở**: Legal corporate registered address.
-- **Email nhận hóa đơn**: Email address to receive electronic XML/PDF invoice files.
+- **Mã số thuế (Tax ID)**: Free-text input (no client-side 10/13-digit validation at checkout; tax-code validation lives in the admin settings panel).
+- **Địa chỉ đăng ký kinh doanh**: Legal corporate registered address.
 
-### 3.4 Engineering Confidentiality & NDA Commitment
-Checkout requires explicit acknowledgment of VCUBE's mutual Non-Disclosure Agreement (NDA). All uploaded 3D CAD files, mechanical assemblies, and proprietary specifications are protected under strict commercial confidentiality terms.
+The invoice email is the order's delivery email field ("Email nhận file CAD & hóa đơn VAT") in the shipping section, not a separate VAT field.
+
+### 3.4 Engineering Confidentiality & Terms Acknowledgment
+Checkout displays an acknowledgment line stating that confirming the order accepts VCUBE's fabrication and commercial-copyright terms; all uploaded 3D CAD files and proprietary specifications are covered by those terms. There is no separate NDA checkbox or mutual-NDA signature step in the checkout form.
 
 ### 3.5 Database Transaction Execution
-Order persistence is handled exclusively through `OrderService.createOrder()` (`src/backend/services/orderService.ts`):
-- Creates parent row in `public.orders` with customer ID, shipping address, contact info, total amounts, VAT breakdown, and payment metadata.
-- Inserts child records into `public.order_items` for every individual line item.
-- Generates a cryptographically strong `secure_access_token` stored in `orders.secure_access_token` for unauthenticated guest tracking.
+Order persistence is handled exclusively through `OrderService.createOrder()` (`src/backend/services/orderService.ts`), which delegates to `dbService.saveOrder()`:
+- Upserts a single row in `public.orders` with customer ID, shipping address, contact info, total amounts, VAT breakdown, payment metadata, and `orders.items` (the full line-item array as `jsonb`). There is **no `order_items` table** — line items live inside the order row.
+- The guest `secure_access_token` is minted in `CheckoutView` (`sec_<timestamp>_<random>`) and written to `orders.secure_access_token`; `dbService.saveOrder` only falls back to generating one if the field is missing. It is not a cryptographically strong token.
+- `OrderService.createOrder` itself only generates the final order id (`VCB-...`) and throws if the DB write fails.
 
 ---
 
@@ -153,7 +166,7 @@ Order persistence is handled exclusively through `OrderService.createOrder()` (`
 Displayed immediately following order creation:
 - Displays order number, creation timestamp, and selected payment method instructions.
 - **Guest Order Access Token Badge**: Prominently displays `order.secureAccessToken` with a one-click copy button, instructing guest users to retain the token for status inquiries.
-- Action triggers: "Xem Hóa Đơn Điện Tử" (`onOpenInvoice`), "Theo Dõi Đơn Hàng" (routes to `/tracking/:orderId`), and "Tiếp Tục Mua Sắm".
+- Action triggers: "THEO DÕI TIẾN ĐỘ ĐƠN HÀNG" (only rendered for orders containing physical items; routes to `/tracking/:orderId`) and "Xem / In hoá đơn" (`onOpenInvoice`). Orders with digital items show a "Mở Kho Tệp CAD" button to `/assets` (or a sign-in prompt for guest orders). There is no "continue shopping" button.
 
 ### 4.2 `OrderTrackingView.tsx` (`/tracking` & `/tracking/:orderId`)
 Provides real-time visibility into the manufacturing process for both authenticated users and guest shoppers.
@@ -167,43 +180,49 @@ To prevent enumeration and unauthorized PII leakage:
 #### B. The 8-Step Industrial MES Production Pipeline (`OrderProgress.tsx`)
 The physical production flow is tracked through 8 discrete operational milestones:
 
-| Step | Stage ID | Stage Name (VI) | Technical Description | Verification Criteria |
-| :--- | :--- | :--- | :--- | :--- |
-| 1 | `placed` | Đã nhận đơn | Order validated & payment confirmed | ERP order created, payment verified |
-| 2 | `slicing` | Duyệt file CAD | Slicing & G-Code compilation | Model checked for printability, orientation set |
-| 3 | `nesting` | Xếp bàn in | Build plate layout optimization | Multi-part density packing on print bed |
-| 4 | `heating` | Gia nhiệt máy | Machine preparation & bed leveling | Bed heated to target temp, nozzle purged |
-| 5 | `printing` | Đang in 3D | Active additive manufacturing | Real-time layer progress reporting ($0 - 100\%$) |
-| 6 | `post_cure` | Xử lý bề mặt | Post-processing & curing | Support removal, ultrasonic alcohol wash, UV cure |
-| 7 | `qc_check` | Đo kiểm QC | Metrology & tolerance audit | Caliper/CMM dimensional inspection ($\pm 0.10\text{ mm}$) |
-| 8 | `shipping` | Xuất xưởng giao | Courier dispatch | Carrier tracking code assigned, parcel dispatched |
+| Step | Stage ID | Stage Name (VI) | `OrderProgress` Description (`desc`) |
+| :--- | :--- | :--- | :--- |
+| 1 | `placed` | Đã nhận đơn | Hệ thống xác thực |
+| 2 | `slicing` | Duyệt file CAD | G-Code & Slicing |
+| 3 | `nesting` | Xếp bàn in | Tối ưu layout bàn |
+| 4 | `heating` | Gia nhiệt máy | Cân bàn & đùn phôi |
+| 5 | `printing` | Đang in 3D | Thiêu kết / Đùn sợi (shows live `layerProgress %` when reported) |
+| 6 | `post_cure` | Xử lý bề mặt | Rửa cồn siêu âm & UV |
+| 7 | `qc_check` | Đo kiểm QC | Theo thoả thuận |
+| 8 | `shipping` | Xuất xưởng giao | VCUBE Express |
+
+The stage list is defined in `MES_PIPELINE_STAGES` (`OrderProgress.tsx`). `currentStageIndex` is 0-based (`null` = workshop has reported no stage, so no node is highlighted). No tolerance figure is advertised for the QC stage.
 
 ---
 
 ## 5. `MyOrdersView.tsx` (`/orders`, `/my-orders`) — Customer Order Management
 
 ### 5.1 Overview & Access Guard
-Accessible exclusively to authenticated customers (wrapped in `<ProtectedRoute>`). Direct requests to `/my-orders` are permanently redirected to `/orders`.
+Accessible to any authenticated user (wrapped in `<ProtectedRoute>`, which only checks login — it is not role-scoped). Direct requests to `/my-orders` are permanently redirected to `/orders`.
 
 ### 5.2 Filter Tabs & Search
 - Tabs: Tất cả đơn, Chờ thanh toán (`pending_payment`), Đang in 3D (`printing`/`processing`), Hậu kỳ & QC (`post_processing`/`packaging`), Đang vận chuyển (`shipping`), Đã hoàn thành (`completed`), Đã hủy (`cancelled`).
 - Real-time search across order numbers, item names, materials, and carrier tracking codes.
 
 ### 5.3 Order Actions
-- **Tải File CAD**: Direct download trigger for digital license items in completed or paid orders.
-- **Xem Hóa Đơn GTGT**: Opens `InvoiceModal` with recorded tax and payment details.
-- **Đặt Lại Đơn Này (`handleReorder`)**: Re-loads items directly into `/quote` for repeat production runs.
-- **Khiếu Nại Sai Lệch Dung Sai (`handleOpenWarranty`)**: Launches the dimensional warranty claim modal.
+- **Thanh toán ngay**: For `pending_payment` orders, opens `InvoiceModal`.
+- **Theo dõi hành trình / Xem tiến độ**: Routes to `/tracking` with the order.
+- **In lại đơn này (`handleReorder`)**: Loads items into `/quote` (dispatched as screen `tool_3d` with `reorderItems`).
+- **Hóa đơn VAT**: Opens `InvoiceModal` with recorded tax and payment details.
+- **Kiểm tra / Bảo hành (`handleOpenWarranty`)**: Launches the dimensional warranty claim modal.
+
+There is no direct CAD-file download action in this view (downloads live in `/assets`).
 
 ### 5.4 Tolerance & Quality Warranty Claim Modal (`warrantyModal`)
-Allows clients to file a structured dispute if manufactured parts do not meet engineering specifications:
-- **Issue Classification**:
-  * `tolerance`: Sai lệch kích thước / dung sai vượt ngưỡng cam kết ($\pm 0.10\text{ mm}$).
-  * `surface`: Lỗi bề mặt (bọt khí, tách lớp, cong vênh warp, sọc lớp).
-  * `material`: Sai chủng loại vật liệu yêu cầu.
-  * `strength`: Giòn gãy, không đạt độ bền cơ học dự kiến.
-- **Measured Deviation Input**: Required numeric field capturing the caliper/micrometer reading in millimeters (e.g. `+0.35 mm`).
-- **Detailed Notes**: Description of operational failure or assembly fit issue.
+A `<Modal>` (native `<dialog>`) lets clients record a structured dispute:
+- **Issue Classification** (`select`):
+  * `tolerance`: "Sai lệch kích thước so với bản vẽ (Tolerance Deviation)".
+  * `surface`: "Lỗi bề mặt, tách lớp (Delamination / Layer Separation)".
+  * `material`: "Sai chủng loại vật liệu hoặc màu sắc yêu cầu".
+  * `strength`: "Độ cứng cơ tính không đạt thông số Datasheet".
+- **Measured Deviation Input**: Required free-text caliper measurement (no fixed ±0.10 mm threshold is claimed).
+- **Detailed Notes**: Description of the failure and requested remedy.
+- **Not persisted**: There is no `warranty_claims` table; submitting shows "Chưa gửi được yêu cầu" and asks the customer to contact the workshop directly. No claim id is fabricated.
 
 ---
 
@@ -213,25 +232,23 @@ Allows clients to file a structured dispute if manufactured parts do not meet en
 `AssetLibraryView.tsx` acts as the customer's permanent secure digital repository for all purchased 3D CAD models, digital licenses, and engineering drawings.
 
 ### 6.2 Filter & Search Capabilities
-- Format filters: All, STL, STEP, OBJ, 3MF.
+- Format filters: Tất Cả Định Dạng, STL, 3MF, STEP (no OBJ filter).
 - Instant search by model name and designer attribution.
 
-### 6.3 3D WebGL Inspection
-Customers can inspect any purchased model in 3D before downloading via `ThreeModelViewer.tsx`, verifying geometry, bounding box dimensions, and polygon mesh structure.
+### 6.3 3D Inspection
+Clicking "Xem 3D" opens a `Modal` rendering `ThreeModelViewer.tsx`. The viewer shows an **illustrative primitive block** (`modelType`/gear), explicitly labelled "Xem trước dạng khối minh hoạ — không phải hình học thật của file" — it does not load or measure the real mesh.
 
 ### 6.4 Secure Signed URL Downloads
-- Files are stored in Supabase Storage under the private bucket `cad-files`.
-- Direct public URLs are blocked by storage RLS policies.
-- Clicking "Tải Tệp CAD" calls `supabase.storage.from('cad-files').createSignedUrl(asset.storagePath, 60)`.
-- A temporary signed download URL is generated with a strict 60-second Time-To-Live (TTL).
-- If an asset lacks a confirmed storage path in the database, the UI honestly communicates that the file is not yet available for direct download, rather than generating broken or fabricated links.
+- Files are intended to live in Supabase Storage under the private bucket `cad-files`; direct public URLs are blocked by storage RLS policies.
+- The UI never calls `supabase.storage` directly: `AssetService.createSignedUrl(asset.storagePath)` (`src/backend/services/assetService.ts`) wraps `createSignedUrl` with a strict 60-second TTL (`SIGNED_URL_TTL_SECONDS = 60`).
+- **Current limitation**: `DigitalAsset` carries no `storagePath` and there is no `order_files` table, so no purchased asset currently satisfies the `canDownload` guard. Cards show "Chưa hỗ trợ tải trực tiếp" and the view displays an honest notice instead of generating broken or fabricated links. Once a storage path exists, the same button calls `AssetService.createSignedUrl` and downloads the file.
 
 ---
 
 ## 7. `InvoiceModal.tsx` — Electronic GTGT Invoice Specification
 
 ### 7.1 Compliance & Architecture
-- Follows Vietnamese e-invoice standards (Hóa đơn điện tử theo Thông tư 78/2021/TT-BTC & Nghị định 123/2020/NĐ-CP).
-- **Seller Identity**: Seller corporate name, tax code, registered office, and hotline are resolved dynamically from `app_settings` (`settingsService`).
-- **Data Honesty Invariant (PC-04)**: The invoice prints only amounts and tax percentages recorded on the order at checkout. It never applies client-side ad-hoc calculations that deviate from the database record.
-- **Print Optimization**: Supports high-resolution browser printing via `window.print()` with `@media print` CSS rules hiding navigation chrome and modal backdrops.
+- This is an **internal VCUBE document**, not a tax-authority-issued e-invoice. The modal states that no digital-signature service is integrated, so no e-signature or verification hash is printed ("Hoá đơn điện tử do cơ quan thuế cấp mã sẽ được gửi riêng"). There is no Thông tư 78/Nghị định 123 issuance pipeline in the code.
+- **Seller Identity**: Seller legal name, tax code, invoice address, and hotline are resolved dynamically from `app_settings` (`settingsService`); missing values render `—`.
+- **Data Honesty Invariant (PC-04)**: The invoice prints only amounts and tax percentages recorded on the order at checkout. It never applies client-side ad-hoc calculations that deviate from the database record; if the order recorded no VAT rate, no VAT line is printed.
+- **Print Optimization**: The modal is a native `<dialog>` and printing uses `window.print()`. The global `@media print` rule in `src/index.css` hides `header`, `footer`, `button`, and `.no-print` elements (it does not target modal backdrops specifically).

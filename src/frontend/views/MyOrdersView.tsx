@@ -86,9 +86,10 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
   };
 
   /**
-   * OT-10: biểu mẫu bảo hành CHƯA được nối vào backend (chưa có bảng
-   * `warranty_claims`). Vì vậy không được bịa mã hồ sơ `QC-CLAIM-…` hay hứa
-   * "phản hồi trong 2 giờ". Trạng thái gửi ở đây nói rõ sự thật.
+   * OT-10: bảng `warranty_claims` CÓ trong schema (baseline) nhưng biểu mẫu bảo
+   * hành CHƯA được nối vào backend (unwired) — không có luồng ghi nào. Vì vậy
+   * không được bịa mã hồ sơ `QC-CLAIM-…` hay hứa "phản hồi trong 2 giờ". Trạng
+   * thái gửi ở đây nói rõ sự thật.
    */
   const handleSubmitWarranty = (e: React.FormEvent) => {
     e.preventDefault();

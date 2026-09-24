@@ -1,21 +1,24 @@
+<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
 # AGENTS.md — VCUBE
 
 Marketplace for 3D printing and precise CAD files: WebGL 3D viewer, material configurator, Supabase realtime catalog.
 
 ## Running (the repo lives in WSL2 Ubuntu-24.04)
 
-This repo is `/home/thanh/projects/Vcube` inside WSL and `\\wsl.localhost\Ubuntu-24.04\home\thanh\projects\Vcube` from Windows. Never build with the Windows toolchain.
+The project is developed inside WSL2 (Ubuntu-24.04) and is also reachable from Windows via `\\wsl.localhost\...`. Never build with the Windows toolchain. Run all commands from the repo root:
 
-- Dev: `wsl -d Ubuntu-24.04 --cd /home/thanh/projects/Vcube -- bash -lc "npm run dev"` -> http://localhost:3000
-- Typecheck: `wsl -d Ubuntu-24.04 --cd /home/thanh/projects/Vcube -- bash -lc "npm run lint"`
-- Build: `wsl -d Ubuntu-24.04 --cd /home/thanh/projects/Vcube -- bash -lc "npm run build"`
-- Integration test: `wsl -d Ubuntu-24.04 --cd /home/thanh/projects/Vcube -- bash -lc "npx tsx scripts/test-catalog-sync.ts"`
+- Dev: `npm run dev` -> http://localhost:3000
+- Typecheck: `npm run lint`
+- Build: `npm run build`
+- Integration test: `npx tsx scripts/test-catalog-sync.ts`
+
+From Windows, prefix with `wsl -d Ubuntu-24.04 --cd "$(git rev-parse --show-toplevel)" -- bash -lc "<command>"` (resolve the repo root inside WSL; never hardcode an absolute path).
 
 To keep a dev server alive after the command returns, detach it: `setsid nohup npm run dev >/tmp/vcube-dev.log 2>&1 </dev/null &` (details in the `wsl-project-bridge` skill).
 
 ## Stack
 
-React 19, Vite 6, TypeScript 5.8, Tailwind CSS 4, Zustand 5, react-router-dom 7, Supabase, Three.js 0.185, motion, lucide-react. This is a Vite SPA (`vercel.json` framework=vite): there is no Next.js runtime. The `next` dependency was removed and the dead `src/app/**` Next tree plus `src/backend/supabase/server.ts` and `middleware.ts` are excluded in `tsconfig.json`. Do not add Next.js patterns.
+React 19, Vite 6, TypeScript 5.8, Tailwind CSS 4, Zustand 5, react-router-dom 7, Supabase, Three.js 0.185, lucide-react. This is a Vite SPA (`vercel.json` framework=vite): there is no Next.js runtime. The `next` dependency was removed and the dead Next tree (`src/app/**`, `middleware.ts`) has been deleted; `tsconfig.json` only excludes `node_modules` and `dist`. Do not add Next.js patterns.
 
 ## Layout
 
@@ -54,8 +57,8 @@ Chuỗi migration (chạy theo thứ tự tên file trong `supabase/migrations/`
 | File | Vai trò |
 |---|---|
 | `20260900_rls_helpers.sql` | `current_app_role()` + `is_admin()` |
-| `20260901_baseline_schema.sql` | toàn bộ schema: 31 bảng + 1 view (`pricing_config`), 49 index (48 + 1 unique index một phần cho KYC; 2 GIN), 7 hàm, 5 trigger (25 instance), 2 storage bucket, realtime, seed |
-| `20261010_harden_rls.sql` | toàn bộ policy (**90 policy bảng** + 6 policy storage trên 32 bảng mục tiêu — 88 policy bảng áp dụng thực tế vì 2 policy `pricing_config` bị bỏ qua khi `pricing_config` là view) + 4 trigger: tái tạo 2 trigger profile, chống xưởng sửa cột đặc quyền của `orders`, chống chủ xưởng tự đổi `partner_id`/`verified_status` |
+| `20260901_baseline_schema.sql` | toàn bộ schema: 31 bảng + 1 view (`pricing_config`), 49 index (48 + 1 unique index một phần cho KYC; 2 GIN), 7 hàm + 5 định nghĩa trigger (25 instance), 2 storage bucket, realtime, seed 3 bản ghi cấu hình mặc định (không có fixture sản phẩm/vật liệu/máy). Cộng dồn cả 3 file: **13 hàm thường trực** (6 helper/RPC + 7 hàm trigger), **7 định nghĩa trigger** (27 instance) |
+| `20261010_harden_rls.sql` | toàn bộ policy (**90 policy bảng** + 6 policy storage trên 32 bảng mục tiêu — **88 policy hiệu lực** vì 2 policy `pricing_config` bị bỏ qua khi `pricing_config` là view) + 4 trigger: tái tạo 2 trigger profile, chống xưởng sửa cột đặc quyền của `orders`, chống chủ xưởng tự đổi `partner_id`/`verified_status` |
 
 `supabase/legacy/` chứa 6 migration cũ — **không chạy** (xem README ở đó). Không tạo file migration mới chồng lấn; sửa trực tiếp 3 file trên.
 
@@ -63,21 +66,13 @@ Chuỗi migration (chạy theo thứ tự tên file trong `supabase/migrations/`
 
 ### Gate bổ sung (ngoài lint/build)
 
+Chạy toàn bộ gate (RLS lint, contrast, fabricated, icon, UI rules, error handling, SQL syntax, test tích hợp…) bằng một lệnh:
+
 ```bash
-node scripts/lint-rls-sources.mjs    # chặn anti-pattern RLS trong mọi migration (R1-R7)
-node scripts/lint-rls-migration.mjs  # tính nhất quán file hardening (allowlist, R8, R9)
-node scripts/check-contrast.mjs      # tương phản WCAG của token
-node scripts/check-fabricated.mjs     # chặn TUYÊN BỐ BỊA trong chuỗi hiển thị (chỉ quét string literal + text JSX)
-node scripts/check-unitprice-multiplier.mjs # chặn dùng `unit_price_multiplier` như HỆ SỐ NHÂN GIÁ BÁN (nó là hệ số SUY ĐƠN GIÁ đ/g — pricingEngine.ts:70-88)
-node scripts/inspect-db.mjs          # trạng thái bảng: publishable vs secret
-node scripts/verify-rls.mjs          # kiểm chứng RLS bằng anon key (--writes để thử ghi no-op)
-node scripts/a8-sql-syntax-check.mjs # cú pháp tĩnh 7 file SQL + chặn nối chuỗi với cột "char" (lỗi 42725)
-node scripts/check-icon-names.mjs    # chặn glyph `<Icon name>` không có trong iconMap (fallback im lặng ở production)
-node scripts/check-ui-rules.mjs      # chặn hồi quy design-system: `border-line` trên control, `toLocaleString` thiếu guard, `focus:outline-none` thiếu ring, `animate-*` vô hạn thiếu `motion-reduce:animate-none` (allowlist có budget)
-node scripts/check-error-handling.mjs # chặn nuốt lỗi trong `catch`: R1 empty-catch + R2 false-success-in-catch (cứng, limit 0), R3 warn/error-in-catch (allowlist budget, chỉ được giảm)
+npm run check
 ```
 
-Chi tiết vận hành & khắc phục sự cố: `docs/security/rls-runbook.md`.
+`npm run check` chạy mọi checker qua `scripts/gate-manifest.json` và so với baseline. Chi tiết vận hành & khắc phục sự cố: `docs/security/rls-runbook.md`.
 
 ## Loop Improvement (tự lặp tối ưu web)
 
@@ -94,7 +89,7 @@ Vòng lặp tự cải tiến: **audit → chọn 1 mục nợ ưu tiên → s�
 
 ## Tài liệu — nguồn chuẩn
 
-Điểm vào (canonical): `docs/README.md` → `docs/architecture/`, `docs/pages/`, `docs/database/`, `docs/security/`, `docs/SETUP_RUNBOOK.md`.
+Điểm vào (canonical): `docs/README.md` → `docs/architecture/`, `docs/pages/`, `docs/database/`, `docs/security/`, `docs/tasks/`, `docs/SETUP_RUNBOOK.md`.
 - Runtime & routes: `docs/architecture/system-overview.md`; 3D pipeline: `docs/architecture/3d-cad-pipeline.md`; giá: `docs/architecture/pricing-engine.md`.
 - Spec thiết kế & luật trung thực: `docs/design/tokens.md`, `icon-map.md`, `qa-checklist.md`, `data-honesty.md`, `research-brief.md`.
 
@@ -105,7 +100,7 @@ Bộ kế hoạch refactor cũ `docs/plans/**` **đã archive** (39 file mang ba
 - **RLS: ĐÃ XONG và đã kiểm chứng trên production** — baseline hiện tạo **31 bảng** + 1 view; lần kiểm chứng đầu (21 bảng) vẫn ghi trong `docs/security/rls-runbook.md` §10.6 kèm ghi chú số hiện tại. 0 bảng hở RLS, anon đọc `orders`/`user_profiles` = 0 dòng.
 - **Khoá Supabase: đã sửa** — `client.ts`/`vite.config.ts` không còn hardcode; app dùng `sb_publishable_…`.
 - **Vai trò UI: đã lấy từ DB** (`AuthContext.resolveDbRole`), không còn suy từ email; ghi `user_metadata` chỉ còn ở DEV.
-- **Còn tồn:** (1) rotate `sb_secret_…` (đã lộ trong chat); (2) bật Google OAuth (project đang tắt) hoặc bỏ nút Google + nhánh tạo user giả; (3) seed dữ liệu qua `/admin` -> "Đồng Bộ DB"; (4) khai báo env trên Vercel; (5) 4 lỗi client ở `docs/plans/07-execution-phases.md` Phase 3 (tài liệu đã archive); (6) Phase 1/2/4/5/6/8 theo kế hoạch cũ chưa bắt đầu.
+- **Còn tồn:** (1) rotate `sb_secret_…` (đã lộ trong chat); (2) bật Google OAuth (project đang tắt) hoặc bỏ nút Google + nhánh tạo user giả; (3) seed dữ liệu mẫu bằng `node scripts/seed-sample-data.mjs` (nút "Đồng Bộ DB" cũ không còn tồn tại); (4) khai báo env trên Vercel; (5) 4 lỗi client ở `docs/plans/07-execution-phases.md` Phase 3 (tài liệu đã archive); (6) Phase 1/2/4/5/6/8 theo kế hoạch cũ chưa bắt đầu.
 
 ## Lưu ý công cụ (quan trọng)
 

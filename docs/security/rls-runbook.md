@@ -48,7 +48,7 @@ Kiểm tra trực tiếp project `vcxarjwzbihvurpkcufa` bằng anon key:
 
 | File | Thay đổi |
 |---|---|
-| `20260901_rls_helpers.sql` **(mới)** | Tạo `public.current_app_role()` và `public.is_admin()` **chạy sớm nhất**. Viết bằng plpgsql + bắt `undefined_table` nên chạy được cả khi `user_profiles` chưa tồn tại (fail-closed: trả `'anon'`). |
+| `20260900_rls_helpers.sql` **(mới)** | Tạo `public.current_app_role()` và `public.is_admin()` **chạy sớm nhất**. Viết bằng plpgsql + bắt `undefined_table` nên chạy được cả khi `user_profiles` chưa tồn tại (fail-closed: trả `'anon'`). |
 | `20260904_complete_vcube_schema_and_seeds.sql` | 6 policy `FOR ALL USING (true)` → `TO authenticated USING (public.is_admin()) WITH CHECK (…)`; `orders` bỏ `SELECT USING (true)`; `user_profiles` bỏ `SELECT USING (true)`; `products` chỉ đọc `status IN ('published','Published')`; insert `orders` phải có `secure_access_token` ≥ 12 ký tự. |
 | `20260904_create_products_and_storage.sql` | 6 chuỗi `user_metadata`/email → `public.is_admin()`. |
 | `20260904_secure_rls_and_pricing.sql` | 4 chuỗi → `is_admin()`; insert `orders` phải có token. |
@@ -65,7 +65,7 @@ Kết quả quét: **0 policy dùng `user_metadata`, 0 email hardcode, 0 `FOR AL
 1. Tạo/chuẩn hoá 4 helper: `current_app_role()`, `is_admin()`, `is_admin_or_lab()` (admin hoặc lab)
    và `current_workshop_partner_id()` (partner_id của xưởng đang đăng nhập; `limit 1` vì `workshop_profiles.user_id` không unique).
 2. `DROP` toàn bộ 73 tên policy cũ từng tồn tại trong repo.
-3. **Quét sạch policy lạ** trên 31 bảng mục tiêu không nằm trong allowlist (kể cả policy tạo tay trong Dashboard).
+3. **Quét sạch policy lạ** trên 32 relation mục tiêu (31 bảng + view `pricing_config`) không nằm trong allowlist (kể cả policy tạo tay trong Dashboard).
 4. Tạo 90 policy đúng + 6 policy storage.
 5. Trigger `trg_protect_profile_privileged_columns` — chặn người dùng tự đổi `role`/`kyc_status`/`account_status`/`total_*` của chính mình.
 6. Trigger `trg_create_profile_for_new_user` — tự tạo `user_profiles` (role `customer`) khi có user mới, vì client hiện **không** tạo dòng này.
@@ -151,7 +151,7 @@ Hiện client vẫn lấy vai trò từ `user_metadata` khi dựng profile (`Aut
 | Vào `/admin` nhưng mọi thao tác lưu đều lỗi | Tài khoản chưa có `user_profiles.role='admin'` | Chạy lại `bootstrap_admin.sql`; kiểm bằng `select id,email,role from public.user_profiles;` |
 | Không tạo được đơn ở checkout | Policy `*_guest_insert` yêu cầu `secure_access_token` ≥ 12 ký tự và `items` không null | Kiểm tra payload `dbService.saveOrder` (`database.ts:248-271`) có gửi `secure_access_token` không |
 | Xưởng không sửa được máy/vật liệu của mình | `workshop_profiles.user_id` chưa trỏ tới `auth.uid()` | `update public.workshop_profiles set user_id = '<auth-uid>' where id = '<workshop-id>';` |
-| Người mua không tải được file CAD | Policy `vcube_cad_files_buyer_read` dựa trên `orders.items` chứa tên object | Bảng `orders.items` phải lưu đường dẫn object trong bucket; giải pháp bền vững là bảng `order_files(order_id, object_name)` |
+| Người mua không tải được file CAD | Đường chính xác `vcube_cad_files_order_files_read` cần dòng tương ứng trong `order_files(order_id, storage_path)`; đường dự phòng `vcube_cad_files_buyer_read` cần `orders.items` chứa tên object | Kiểm tra `order_files.storage_path` khớp `storage.objects.name` và `orders.user_id` của người mua; nếu thiếu bảng `order_files` thì đường heuristic theo `orders.items` là tạm thời |
 | Nghi ngờ policy bị xoá nhầm | Bước 9 dọn mọi policy ngoài allowlist | Chạy `rls_audit.sql` mục B/A; nếu thiếu, chạy lại `20261010_harden_rls.sql` (idempotent) |
 | Cần tạm mở lại để cứu dữ liệu | — | **Không** mở `USING (true)`. Dùng `service_role` key trong script server-side (bỏ qua RLS) rồi siết lại |
 | Muốn rollback toàn bộ | — | `git revert` commit SQL là đủ: file hardening chỉ tạo policy, không sửa dữ liệu. Trạng thái cũ (có lỗ hổng) chỉ nên khôi phục trên môi trường test |
@@ -182,10 +182,10 @@ wsl -d Ubuntu-24.04 --cd /home/thanh/projects/Vcube -- bash -lc "npm run lint &&
 2. **`verify-rls.mjs` cần schema tồn tại.** Với project hiện tại (chưa có bảng) script báo `SKIP` kèm cảnh báo, không kết luận sai.
 3. **`head:true` không dùng được để kiểm chứng** — PostgREST trả `204 + count:null + error:null` cho bảng không tồn tại, tức là "thành công rỗng". Script đã chuyển sang `select(...).limit(1)` và coi `count === null` là `UNKNOWN` (exit 1).
 4. **Guest checkout vẫn cho anon INSERT `orders`** (bắt buộc để đặt hàng không cần tài khoản). Đã siết bằng yêu cầu token + items, nhưng cách đúng là tạo đơn qua **Edge Function** để ép `status` và chống spam/rate-limit.
-5. **`cad-files` cho người mua dùng heuristic** trên `orders.items`. Cần bảng `order_files` để chính xác.
+5. **`cad-files` cho người mua**: đường CHÍNH XÁC là bảng `order_files` (policy `vcube_cad_files_order_files_read`). Vẫn còn policy dự phòng `vcube_cad_files_buyer_read` dùng heuristic trên `orders.items` cho các đơn mua trước khi bảng `order_files` tồn tại — heuristic này có thể khớp nhầm tên object, nên đường `order_files` mới là nguồn sự thật.
 6. **Kiểm tra storage trong script là best-effort** (chưa có object nên chỉ xác nhận không liệt kê được).
 7. **Chưa sửa client** (Phase 3): UI vẫn đọc vai trò từ `user_metadata`; DB mới là nguồn quyền.
-8. **Chưa rotate anon key.** Anon JWT vẫn hardcode trong `src/backend/supabase/client.ts:6` và `vite.config.ts:17`, và `.env` còn placeholder. Cần: điền `.env` thật → bỏ literal trong code → rotate key trên Supabase.
+8. **Chưa rotate secret key.** Không còn URL/JWT nào hardcode: `src/backend/supabase/client.ts` đọc `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` do Vite `define` từ `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY`, và `vite.config.ts` **throw** nếu khoá bắt đầu bằng `sb_secret_`. Việc còn lại là rotate khoá `sb_secret_…` (đã từng lộ trong chat) trên Supabase Dashboard.
 
 ---
 
@@ -289,7 +289,7 @@ Sau khi chạy xong file 3 → chạy `bootstrap_admin.sql` → `node scripts/ve
 |---|---|
 | `lint-rls-migration.mjs` **R8** | `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` trên view (lỗi 42809) |
 | `lint-rls-migration.mjs` **R9** | helper tạm bị nhúng vào biểu thức policy ⇒ policy vỡ lúc runtime |
-| `lint-rls-sources.mjs` **R1–R7** | `user_metadata`, email hardcode, `FOR ALL USING (true)`, `WITH CHECK (true)`, dollar-quote lệch, thiếu helper |
+| `lint-rls-sources.mjs` **R1–R7** | `user_metadata` (R1), email hardcode (R2), `FOR ALL USING (true)` (R3), `USING (true)` trên bảng PII (R4), `WITH CHECK (true)` trên bảng ghi (R5), dollar-quote lệch (R6), thiếu/đặt sai thứ tự file helper (R7) |
 
 ### 10.6 KẾT QUẢ SAU KHI CHẠY ĐỦ 3 FILE — đã kiểm chứng (2026-09-12)
 

@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCustomerAdminStore, CustomerRow, isB2b } from '../../../../stores/useCustomerAdminStore';
 import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
+import { designerService } from '../../../../backend/services/designerService';
 import { AppUserProfile } from '../../../../types';
-import { Button, DataTable, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
+import { Button, ConfirmDialog, DataTable, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 
 export type KycStatus = 'verified' | 'pending_review' | 'rejected' | 'unverified';
@@ -215,6 +216,54 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       }),
     [customers, kycByUid]
   );
+
+  /** Hồ sơ đang chờ xác nhận thăng cấp Designer (mở `ConfirmDialog`). */
+  const [customerToPromote, setCustomerToPromote] = useState<CustomerDisplayRow | null>(null);
+  const [isPromoting, setIsPromoting] = useState(false);
+
+  /** Chỉ thăng cấp người dùng đã ghép được `user_profiles` và chưa là designer/admin. */
+  const canPromoteToDesigner = (c: CustomerDisplayRow): boolean =>
+    Boolean(c.user && c.user.role !== 'designer' && c.user.role !== 'admin');
+
+  /** Ghi vai trò `designer` + đồng bộ `designer_profiles`; chỉ báo thành công khi service xác nhận. */
+  const handlePromoteToDesigner = async () => {
+    if (!customerToPromote) return;
+    const target = customerToPromote;
+    const uid = target.user?.uid || target.row.userId;
+    if (!uid) {
+      onShowToast?.(
+        isVi
+          ? 'Không xác định được hồ sơ người dùng để thăng cấp.'
+          : 'Could not resolve the user profile to promote.'
+      );
+      setCustomerToPromote(null);
+      return;
+    }
+    setIsPromoting(true);
+    try {
+      const res = await designerService.promoteUserToDesigner(uid, {
+        displayName: target.name ?? undefined,
+      });
+      if (!res.ok) {
+        onShowToast?.(
+          isVi
+            ? `Cấp quyền Designer thất bại: ${res.error || 'lỗi không xác định'}`
+            : `Failed to promote to Designer: ${res.error || 'unknown error'}`
+        );
+        return;
+      }
+      onShowToast?.(
+        isVi
+          ? `Đã cấp quyền Designer cho ${target.name || target.email || uid}`
+          : `Promoted ${target.name || target.email || uid} to Designer`
+      );
+      setCustomerToPromote(null);
+      await loadCustomers();
+      await loadKycRows();
+    } finally {
+      setIsPromoting(false);
+    }
+  };
 
   const filteredCustomers = useMemo(() => {
     const q = filters.searchQuery.trim().toLowerCase();
@@ -792,6 +841,15 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                       <Icon name="shield" size={16} />
                       {isVi ? 'Hồ Sơ' : 'Info'}
                     </button>
+                    {canPromoteToDesigner(c) && (
+                      <button
+                        onClick={() => setCustomerToPromote(c)}
+                        className="px-3 py-1 bg-accent/20 hover:bg-accent/30 text-primary font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <Icon name="badge" size={16} />
+                        {isVi ? 'Cấp quyền Designer' : 'Promote to Designer'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1139,6 +1197,27 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
           )}
         </div>
       )}
+
+      {/* MODAL: XÁC NHẬN CẤP QUYỀN DESIGNER */}
+      <ConfirmDialog
+        open={customerToPromote !== null}
+        title={isVi ? 'Cấp quyền Designer' : 'Promote to Designer'}
+        description={
+          customerToPromote
+            ? isVi
+              ? `Cấp quyền Designer cho ${customerToPromote.name || customerToPromote.email || 'người dùng này'}? Vai trò trong user_profiles sẽ đổi thành "designer" và hồ sơ designer_profiles sẽ được tạo/cập nhật.`
+              : `Promote ${customerToPromote.name || customerToPromote.email || 'this user'} to Designer? Their user_profiles role becomes "designer" and a designer_profiles row will be created/updated.`
+            : ''
+        }
+        confirmLabel={isVi ? 'Cấp quyền' : 'Promote'}
+        cancelLabel={isVi ? 'Huỷ' : 'Cancel'}
+        loading={isPromoting}
+        onCancel={() => {
+          if (isPromoting) return;
+          setCustomerToPromote(null);
+        }}
+        onConfirm={() => void handlePromoteToDesigner()}
+      />
 
     </div>
   );

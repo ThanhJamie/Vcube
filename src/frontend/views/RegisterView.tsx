@@ -21,6 +21,9 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(true);
+  // T58 — tự chọn loại tài khoản khi đăng ký. Chỉ 'customer' | 'designer'; quyền
+  // thật vẫn do trigger SQL trong public.user_profiles.role quyết định.
+  const [signupRole, setSignupRole] = useState<'customer' | 'designer'>('customer');
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -101,10 +104,15 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
 
     setIsLoading(true);
     try {
-      // Vai trò KHÔNG do người đăng ký chọn: trigger fn_create_profile_for_new_user()
-      // luôn tạo 'customer' trong public.user_profiles.role, và SQL là nơi duy nhất
-      // quyết định quyền. Đăng ký xong chưa chắc đã có phiên (nếu bật xác nhận email).
-      const result = await signUpWithEmail(email.trim(), password, fullName.trim() || email.split('@')[0]);
+      // T58: vai trò do người dùng chọn là GỢI Ý; trigger fn_create_profile_for_new_user()
+      // chỉ ánh xạ đúng 'designer' → 'designer' (mọi giá trị khác, kể cả 'admin', → 'customer').
+      // Quyền thật nằm ở public.user_profiles.role (SQL). Đăng ký xong chưa chắc đã có phiên.
+      const result = await signUpWithEmail(
+        email.trim(),
+        password,
+        fullName.trim() || email.split('@')[0],
+        signupRole
+      );
       if (result.hasSession) {
         setSuccessMessage(
           isVi
@@ -179,22 +187,53 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             </div>
           )}
 
-          {/* Vai trò: nói đúng sự thật — đăng ký luôn là Khách hàng, quyền khác do VCUBE duyệt */}
+          {/* Vai trò: nói đúng sự thật — chọn Khách hàng/Nhà thiết kế, quyền cuối do DB */}
           <div className="mb-6 p-3.5 rounded-md bg-info-tint flex items-start gap-2.5 text-xs text-info">
             <Icon name="info" size={18} className="text-info shrink-0 mt-0.5" />
             <div className="leading-relaxed font-medium space-y-0.5">
               <p className="font-bold">
-                {isVi ? 'Tài khoản mới có vai trò Khách hàng.' : 'New accounts start as Customer.'}
+                {isVi ? 'Chọn loại tài khoản phù hợp.' : 'Choose the account type that fits.'}
               </p>
               <p>
                 {isVi
-                  ? 'Vai trò được đọc từ hồ sơ trên máy chủ (user_profiles.role). Muốn trở thành Tác giả 3D hoặc Xưởng in, hãy gửi yêu cầu để VCUBE duyệt sau khi đăng nhập.'
-                  : 'Your role is read from the server-side profile (user_profiles.role). To become a 3D Creator or Print Lab, request verification after signing in.'}
+                  ? 'Khách hàng dùng để mua và đặt in. Nhà thiết kế có thêm hồ sơ tác giả ở trạng thái chờ VCUBE duyệt để đăng bán mẫu 3D. Quyền cuối cùng được đọc từ hồ sơ trên máy chủ (user_profiles.role).'
+                  : 'Customers buy and order prints. Designers also get a creator profile in Pending state for VCUBE to review before selling 3D models. The final role is read from the server-side profile (user_profiles.role).'}
               </p>
             </div>
           </div>
 
           <form onSubmit={handleRegister} className="space-y-5 text-xs font-sans">
+            {/* T58 — lựa chọn loại tài khoản (chỉ Khách hàng / Nhà thiết kế) */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-fg-muted block mb-2">
+                {isVi ? 'Loại tài khoản *' : 'Account type *'}
+              </label>
+              <div className="flex p-1 bg-surface-muted rounded-full text-xs font-sans font-bold">
+                <button
+                  type="button"
+                  onClick={() => setSignupRole('customer')}
+                  aria-pressed={signupRole === 'customer'}
+                  className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    signupRole === 'customer' ? 'bg-surface text-primary shadow-e1 font-bold' : 'text-fg-subtle hover:text-fg'
+                  }`}
+                >
+                  <Icon name="person" size={18} />
+                  <span>{isVi ? 'Khách hàng' : 'Customer'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSignupRole('designer')}
+                  aria-pressed={signupRole === 'designer'}
+                  className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    signupRole === 'designer' ? 'bg-surface text-primary shadow-e1 font-bold' : 'text-fg-subtle hover:text-fg'
+                  }`}
+                >
+                  <Icon name="design_services" size={18} />
+                  <span>{isVi ? 'Nhà thiết kế' : 'Designer'}</span>
+                </button>
+              </div>
+            </div>
+
             {/* 2-Column: Full Name and Email */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>

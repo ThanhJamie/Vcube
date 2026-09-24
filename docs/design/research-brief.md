@@ -3,6 +3,10 @@
 Bản ghi nghiên cứu dùng làm căn cứ cho `docs/plans/05-feature-roadmap.md` và `docs/design/tokens.md`.
 **Quy ước:** mọi khẳng định kèm link nguồn; suy luận ghi `ASSUMPTION:`; phần "số liệu cấm dùng" ở §7 liệt kê các con số **không có nguồn gốc** và không được xuất hiện trong tài liệu bán hàng.
 
+> **Lưu ý (2026-09-22):** `docs/plans/**` đã bị archive (mang banner SUPERSEDED — xem `docs/archive/README.md`);
+> các tham chiếu `docs/plans/05-feature-roadmap.md` (§ mở đầu) và `docs/plans/06-supabase-vercel.md` (§6) là
+> historical, không còn là nguồn sự thật. Bản thân brief này là **ảnh chụp nghiên cứu 2025–2026**, không tự cập nhật.
+
 ---
 
 ## 1. Teardown đối thủ (trạng thái 2025–2026)

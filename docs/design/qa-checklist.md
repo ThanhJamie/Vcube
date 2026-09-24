@@ -1,8 +1,11 @@
+<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
 # VCUBE — Manual QA Checklist (post-refactor phase gate)
 
-**Purpose.** The repo has **zero automated tests** (`npm run lint` is `tsc --noEmit`, there is no test runner). This file is the manual gate that must be walked after **every** UI/UX + feature refactor phase. A human or a browser-automation agent executes it and attaches results using the template in [`## Reporting`](#reporting).
+**Purpose.** The repo has **no unit-test runner** (`npm run lint` is `tsc --noEmit`); the only automated test is the integration script `scripts/test-catalog-sync.ts` (`npx tsx scripts/test-catalog-sync.ts`). This file is the manual gate that must be walked after **every** UI/UX + feature refactor phase. A human or a browser-automation agent executes it and attaches results using the template in [`## Reporting`](#reporting).
 
-**Route source of truth:** `src/App.tsx` (route table at L813–1124, navigation adapter at L507–641). If a route is added, removed or renamed there, this file must be updated in the same change.
+**Route source of truth:** `src/App.tsx` (route table `<Routes>`; screen mapping `getCurrentScreenFromPath()`; `CHROMELESS_SCREENS`). If a route is added, removed or renamed there, this file must be updated in the same change.
+
+> **Line numbers trong file này là ảnh chụp 2026-09**, số dòng sẽ trôi theo mỗi lần sửa. Khi lệch, `grep` theo tên symbol (`getCurrentScreenFromPath`, tên component) để định vị lại — đừng tin số dòng tuyệt đối.
 
 **How to use it**
 
@@ -31,8 +34,8 @@ Open **http://localhost:3000**.
 | Check | How to verify | Expected |
 | --- | --- | --- |
 | Dev server reachable | `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000` from WSL | `200` |
-| Supabase env present | Confirm `.env` has `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL` (values are inlined by `vite.config.ts`, which also has hardcoded fallbacks) | App boots, catalog loads or falls back to mock data without a fatal error |
-| Migration applied | Supabase SQL editor: `products` table + `product-images` / `cad-files` buckets exist (`supabase/migrations/20260904_create_products_and_storage.sql`) | `/explore` shows DB rows; realtime channel subscribes without errors |
+| Supabase env present | Confirm `.env` has `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` (tên cũ `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` vẫn được đọc dự phòng). `vite.config.ts` KHÔNG hardcode giá trị — thiếu biến thì cảnh báo và app chạy bằng mock/localStorage | App boots, catalog loads or falls back to mock data without a fatal error |
+| Migration applied | Supabase SQL editor: chạy chuỗi `supabase/migrations/20260900_rls_helpers.sql` → `20260901_baseline_schema.sql` → `20261010_harden_rls.sql`; kiểm `products` table + `product-images` / `cad-files` buckets. (`20260904_create_products_and_storage.sql` là migration **legacy** ở `supabase/legacy/` — KHÔNG chạy.) | `/explore` shows DB rows; realtime channel subscribes without errors |
 | Baseline storage reset | DevTools → Application → Local Storage → clear all `vcube_*` keys, then hard reload | Clean first-run state (default catalog, VI language, empty cart) |
 | Detached server (optional) | `setsid nohup npm run dev >/tmp/vcube-dev.log 2>&1 </dev/null &` | Server survives the launching command returning |
 
@@ -50,22 +53,19 @@ Emulate each width in DevTools device mode (do **not** just resize the window) a
 
 Responsive breakpoints actually used in code: `sm 640`, `md 768`, `lg 1024`, `xl 1280`. Fixed container: `max-w-[1440px]` (`src/App.tsx`).
 
-### 3. Both languages (VI / EN)
+### 3. Language — Vietnamese only (permanent)
 
-- The switcher is in the header, in zone 3 (`src/frontend/components/Header.tsx` L129–160): `🇻🇳 VIE` / `🇺🇸 ENG`, wrapped in `role="group" aria-label="Language selector"`. It also exists inside the mobile drawer (L258–288).
-- Preference persists in `localStorage['vcube_language']`; default is `vi` (`src/frontend/context/LanguageContext.tsx` L381–389).
-- There are **two** string systems: the `DICTIONARY` in `LanguageContext.tsx` (via `t('key', fallbackVi, fallbackEn)`) and inline `isVi ? '…' : '…'` ternaries. Hardcoded-only Vietnamese strings are the single largest i18n defect class in this repo.
-- **Rule for QA:** for every route, flip VI→EN and confirm *zero* Vietnamese text remains visible, and that no English string appears while in VI. Language must survive a reload and a route change.
+The app ships **Vietnamese only**. `LanguageContext` is hard-wired to `'vi'`: `setLanguage()` and `toggleLanguage()` both set `vi` regardless of argument (`src/frontend/context/LanguageContext.tsx`), and the header has **no** language switcher. There is no supported EN mode; do not test for one.
+
+- **Rule for QA:** every route must render in Vietnamese. A visible English string is leftover copy (tracked as U9), not a language mode.
+- The `DICTIONARY`/`t('key', fallbackVi, fallbackEn)` machinery and inline `isVi ? …` ternaries still exist in code, but with `vi` forced the EN branch is unreachable. Treat any doc that promises a language toggle as stale.
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
-| Toggle flips immediately | On `/`, click `ENG` | All header/nav/footer strings flip with no reload |
-| Persistence | Reload the page | EN is still active |
-| Deep-route persistence | Switch to EN, then navigate `/products/<id>` → `/quote` → `/cart` | EN everywhere |
-| No mixed copy | On each page, scan for Vietnamese while in EN | Zero VI strings (baseline: `/quote`, `/personalize`, `/tracking`, `/orders`, `/assets`, `/order-success`, the invoice and checkout forms, the Chat FAB modal, `OrderProgress` and `PageSkeleton` are Vietnamese-only) |
-| Currency not localized | In EN mode read any price | Expected: `1,250,000 ₫` or `1,250,000 VND`. Baseline: `toLocaleString('vi-VN') + ' đ'` in nearly every view, `₫` in `InvoiceModal` — inconsistent |
-| Decimals in EN | Home simulator "print duration" value | Expected EN-friendly `2.4 h`. Baseline: `(grams/35 + 0.8).toFixed(1)` → `2.4`, never localized |
-| Dates | Any `dd/mm/yyyy` (quote validity, review date) | Expected locale-correct date in EN. Baseline: hardcoded / `'vi-VN'` |
+| Vietnamese throughout | On each route, scan the visible copy | Vietnamese copy only; no English leakage. Baseline: some views still carry hardcoded English (`aria-label="Clear search"`, `Share`, `aria-label="Close CAD inspector"`) |
+| Currency formatting | Read any price | Consistent symbol, grouping and decimals: `1,250,000 ₫` or `1,250,000 đ`. Baseline: `toLocaleString('vi-VN') + ' đ'` in nearly every view vs `₫` in `InvoiceModal` — inconsistent |
+| Decimals | Home simulator "print duration" value | `(grams/35 + 0.8).toFixed(1)` → `2.4`; confirm the number is correct and readable |
+| Dates | Any date (quote validity, review date) | Locale-correct Vietnamese date. Baseline: hardcoded / `'vi-VN'` |
 
 ### 4. Theme — light-only (permanent)
 
@@ -86,16 +86,15 @@ Sources: `src/App.tsx` (header wiring, FAB, toasts, footer), `src/frontend/compo
 | Check | How to verify | Expected |
 | --- | --- | --- |
 | Desktop nav renders | 1440px on `/` | Nav shows `Marketplace`/`Khám Phá`, `3D Quoting`/`Báo Giá In 3D`; when signed in adds `Orders`; designer/admin add `Designer Studio` `CREATOR` badge; admin adds `Admin Console` `FORGE` badge (`Header.tsx` L36–54) |
-| Active-route highlight | Click each nav item | Exactly one item shows the `#00687A` underline/colour; uses `currentScreen` from `getCurrentScreenFromPath()` (`App.tsx` L486–504) — verify `/tool-3d` highlights `3D Quoting`, `/my-orders` highlights `Orders`, `/library` highlights assets |
+| Active-route highlight | Click each nav item | Exactly one item shows the `#00687A` underline/colour; uses `currentScreen` from `getCurrentScreenFromPath()` (`App.tsx`) — verify `/tool-3d` highlights `3D Quoting`, `/my-orders` highlights `Orders`, `/library` highlights assets |
 | Hamburger only below `md` | At 390 and 768 | Visible at 390; **not** rendered at ≥768 (the `md:hidden` toggle). No duplicate nav at 768 |
-| Hamburger accessible name | Inspect the toggle button (`Header.tsx` L225–231) | Has an accessible name. Baseline: `aria-label="Mở menu điều hướng"` is **hardcoded Vietnamese in both languages** |
+| Hamburger accessible name | Inspect the toggle button (`Header.tsx` L225–231) | Has an accessible name. Baseline: `aria-label="Mở menu điều hướng"` is **hardcoded Vietnamese** (not sourced from `t()`) |
 | **Hamburger `aria-expanded`** | Inspect the toggle while the drawer is closed and open | Expected: `aria-expanded="false"` → `"true"`, plus `aria-controls` pointing at the drawer's id. **Baseline: neither attribute exists anywhere in the codebase** (grep for `aria-expanded`/`aria-controls` in `src/frontend` returns zero hits) — blocking a11y gap |
 | Mobile drawer opens/closes | 390px: open via hamburger, close via the ✕, via the backdrop, then via a nav item | Drawer closes in all four ways; body scroll is locked while open; the page behind is not scrollable |
-| Mobile drawer contents | 390px, signed out then signed in | Signed out: language block + nav + Sign In/Sign Up. Signed in: user card, role badge, 4-button demo role switcher, Account, Sign Out (`Header.tsx` L310–416) |
+| Mobile drawer contents | 390px, signed out then signed in | Signed out: nav + Sign In/Sign Up. Signed in: user card, role badge, 4-button demo role switcher, Account, Sign Out (`Header.tsx` L310–416) |
 | Drawer Escape | Open the drawer, press `Esc` | Expected: `Esc` closes it. Baseline: backdrop click and ✕ work, but there is **no** Escape handler |
 | Announcement bar | Force it on: `/admin/storefront` → toggle announcement, or set `vcube_site_content` with `announcementActive: true, announcementText: "…"` | Dark bar above the header on every route; CTA `Báo giá ngay →` / `Get Quote →` routes to `/quote` when signed in, `/auth/login` when signed out |
 | Announcement bar responsive | 390px with a long announcement text | Text truncates (`truncate`) instead of wrapping/pushing the header; the CTA is intentionally hidden below `sm` — confirm the bar still communicates enough to act |
-| Language switcher | See `## Setup` §3 | Flips, persists, never causes a layout shift or route change |
 | Header search (desktop) | At ≥1024 type `gear` and press Enter | Navigates to `/explore?search=gear`; results filtered. Empty input + Enter does nothing (no navigation, no toast) |
 | Header search width | At 1024 and 1440 | Input is `w-44` at 1024 and `w-60` at ≥1280; it must not squeeze the nav or overflow the header |
 | Header search (mobile) | At 390 | Search field is hidden (`hidden lg:block`) — confirm the mobile route to search is discoverable (drawer or the `/explore` search box) |
@@ -115,27 +114,25 @@ Sources: `src/App.tsx` (header wiring, FAB, toasts, footer), `src/frontend/compo
 | Support FAB | Any route, bottom-right | `VCUBE Engineer 24/7` pill visible; has an accessible name (`liveSupportAria`); label text is hidden below `sm` but the button stays square and tappable |
 | Support FAB → chat | Click it | Chat panel opens. Verify it can be closed by `Esc` and by clicking the backdrop, and that it exposes `role="dialog"`/`aria-modal`. Baseline: the close ✕ has `aria-label="Đóng trò chuyện"` but there is **no** Escape handler and **no** backdrop click-to-close |
 | Chat is honest | Send a message in the chat | Reply arrives after ~1 s. Confirm the UI does not imply a real human/backend is answering (it is a hardcoded `setTimeout` string, `ChatSupportModal.tsx` L31–40) |
-| Chat i18n | Switch to EN and open the chat | Expected: EN copy. Baseline: 100% Vietnamese (header, quick-reply chips, input placeholder `Nhập câu hỏi kỹ thuật...`, `Gửi`) |
 | Footer links | Scroll to the footer on `/` | All four `Dịch Vụ & Mua Hàng` / `Customer Store` links resolve: `/explore`, `/quote`, `/cart`, `/orders` |
-| Footer admin column | Signed in as admin vs customer | The admin-only `Administration` column appears only for `role === 'admin'` (`App.tsx` L1272) |
+| Footer admin column | Signed in as admin vs customer | The admin-only `Administration` column appears only for `role === 'admin'` (`App.tsx` footer conditional) |
 | Footer dynamic content | Change contact info in `/admin/storefront` | `hanoiWorkshopAddress`, `hcmWorkshopAddress`, `hotline`, `contactEmail` update in the footer |
 | Footer responsive | 390 → 768 → 1440 | 1 → 2 → 4 columns; no overflow from the long address strings |
 | Toast appears | Remove a cart line | Toast slides in bottom-left within ~200 ms |
-| Toast severity colours | Trigger each severity: error (admin save failure / Supabase error), warning (`Đã lưu cục bộ nhưng lỗi đồng bộ Supabase.`), success (admin product save), info (cart item removed) | Four visually distinct variants per `App.tsx` L1146–1154: error `#1C0A0A`/red border + `error` icon; warning `#1C1608`/amber + `warning`; success `#091426`/emerald + `check_circle`; info `#091426`/cyan + `info`. Colour must not be the only differentiator (icon + text differ) |
-| Toast undo | Remove a physical cart line, click the undo action | Item is restored to the cart with its original quantity/specs (`App.tsx` L656–664). Verify undo is offered **only** where an undo exists |
-| Toast undo label i18n | Same, in EN mode | Expected: `Undo`. Baseline: **hardcoded `Hoàn tác`** in `App.tsx` L1174 and as the store default (`useUIStore.ts` L47) — a real VI leak in EN mode |
+| Toast severity colours | Trigger each severity: error (admin save failure / Supabase error), warning (`Đã lưu cục bộ nhưng lỗi đồng bộ Supabase.`), success (admin product save), info (cart item removed) | Four visually distinct variants per the `showToast()` type→colour map in `App.tsx`: error `#1C0A0A`/red border + `error` icon; warning `#1C1608`/amber + `warning`; success `#091426`/emerald + `check_circle`; info `#091426`/cyan + `info`. Colour must not be the only differentiator (icon + text differ) |
+| Toast undo | Remove a physical cart line, click the undo action | Item is restored to the cart with its original quantity/specs (toast `undoAction` in `App.tsx`). Verify undo is offered **only** where an undo exists |
 | Toast close button | Inspect the ✕ on any toast | Has an accessible name. Baseline: `aria-label="Đóng thông báo"` hardcoded VI |
 | **Toast screen-reader announcement** | With a screen reader (VoiceOver/NVDA) active, trigger a toast | Expected: announced politely as a status message (`role="status"` / `aria-live="polite"`; `assertive` for errors), and not repeated on every re-render. **Baseline: the toast container has no `role` and no `aria-live`** (zero `aria-live` in the whole frontend) — blocking |
 | Toast lifecycle | Trigger 3 toasts quickly, then 6 | All appear stacked; only 5 are retained (queue is `slice(-4)` + new); each auto-dismisses after exactly 4000 ms; manual close works |
 | Toast does not block | Toast visible over the support FAB / footer | Toasts are click-through except for their own controls (`pointer-events-none` wrapper) |
-| **Scroll on route change** | Scroll to the footer, then click a nav link | Expected: the new route opens at scroll top (`ScrollToTop.tsx` watches `pathname` + `search`), and the jump is *instant* when the user prefers reduced motion. Baseline: `behavior: 'smooth'` is hardcoded in `ScrollToTop.tsx` L11 **and** again in `handleNavigate` (`App.tsx` L508) — a double smooth-scroll that ignores `prefers-reduced-motion` |
+| **Scroll on route change** | Scroll to the footer, then click a nav link | Expected: the new route opens at scroll top (`ScrollToTop.tsx` watches `pathname` + `search`), and the jump is *instant* when the user prefers reduced motion. Both `ScrollToTop.tsx` and `handleNavigate` (`App.tsx`) request `behavior: 'smooth'`, but the global `@media (prefers-reduced-motion: reduce)` block (`src/index.css`) forces `scroll-behavior: auto !important` for reduced-motion users. Verify the reduced-motion path jumps instantly |
 | Scroll on query-only change | On `/explore` with a filter, change `?category=` | Scroll resets to top (because `search` is in the dependency array) — confirm this is still desired and does not fight in-page scrolling |
 | Deep-link cold load | Paste `/products/<id>`, `/quote`, `/admin/overview` into a new tab | Each route renders on first paint with header, footer and correct nav highlight |
 | **404** | Visit `/this-route-does-not-exist`, `/quote/xyz`, `/admin/overview/extra` | Expected: `NotFoundView` — `ERROR 404 • ROUTE NOT FOUND`, `Page Not Found`, `Return Home` → `/`, `Marketplace` → `/explore` (`src/frontend/components/NotFoundView.tsx`) |
 | 404 for nested paths | `/orders/abc`, `/assets/x`, `/designer/a/b` | Fall through to `*` → 404 (they match no route pattern) |
 | 404 for unknown section | `/admin/not-a-section` | Expected: 404 or a normalised URL. Baseline: `/admin/:section` matches, `AdminDashboardView` silently falls back to `overview` while the URL still reads `/admin/not-a-section` (`AdminDashboardView.tsx` L123–125) — URL and content disagree |
 | 404 styling parity | 404 at 390 and 1920 | Card centred, no overflow, buttons stack at 390 (`flex-col sm:flex-row`) |
-| Legacy redirects | Visit `/tool-3d`, `/my-orders`, `/library`, `/login`, `/register`, `/creator`, `/creator/anything` | All redirect `replace` to `/quote`, `/orders`, `/assets`, `/auth/login`, `/auth/register`, `/designer` (`App.tsx` L898, 985, 1000, 1047–1048, 1118, 1120). Confirm Back does not bounce into the redirect |
+| Legacy redirects | Visit `/tool-3d`, `/my-orders`, `/library`, `/login`, `/register`, `/creator`, `/creator/anything` | All redirect `replace` to `/quote`, `/orders`, `/assets`, `/auth/login`, `/auth/register`, `/designer` (legacy-redirect entries in `<Routes>`, `App.tsx`). Confirm Back does not bounce into the redirect |
 | Suspense fallback | Throttle to Slow 3G and open `/quote` (lazy), `/admin`, `/designer` | `PageSkeleton` shows `VCUBE-SYSTEM-INITIALIZING` with a pulsing viewport placeholder; it must not cause a layout shift when the real view replaces it. Baseline: skeleton copy is Vietnamese-only (`PageSkeleton.tsx` L9–10) |
 | Scroll-to-top affordance | Long page (`/explore`), scroll down | Confirm whether a back-to-top control is expected; the FAB stack (support bottom-right, toasts bottom-left) must not overlap it at any of the five widths |
 
@@ -157,7 +154,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | **U6** | Tap target ≥48 px at 390 | DevTools device mode 390px; measure each interactive element (Computed → box) | Every tappable control ≥48×48 px (or has ≥48 px of un-tappable spacing). Note: the repo's own token is `--touch-target-min: 44px` with `.touch-target-btn` applied only below 768 px (`index.css` L16, L194–202) — so 44 px is the *current* bar and **48 px is the refactor bar**. Flag every 44 px control |
 | **U7** | No horizontal overflow at 390 | At 390px, `document.documentElement.scrollWidth <= 390`, and visually scroll to the right edge | No page-level horizontal scrollbar. Usual suspects: the `HorizontalScrollFilter` pill rows, the 7-column tech tables, `.responsive-table-wrapper` (`min-width: 600px`), admin 7–8-column tables, the Group5 kanban board, and `InvoiceModal`'s 6-column table (no `overflow-x-auto` inside an `overflow-hidden` wrapper) |
 | **U8** | No layout shift | Reload with a DevTools Performance recording (or watch the CLS badge) | CLS ≈ 0. Images have reserved space; fonts do not reflow the header; lazy views match the skeleton's height |
-| **U9** | Correct VI and EN strings | Flip the header switcher on this route | Zero leakage in either direction. Watch for hardcoded VI (the whole `/personalize` page, `OrderProgress`, `/tracking`, invoice, checkout form, `CanvasErrorBoundary`, `PageSkeleton`) and hardcoded EN (`aria-label="Clear search"`, `Share`, `aria-label="Close CAD inspector"`) |
+| **U9** | Vietnamese-only copy | Read every string on the page | Vietnamese copy only — no English leakage. Watch for hardcoded EN (`aria-label="Clear search"`, `Share`, `aria-label="Close CAD inspector"`) and for stale `isVi ? … : …` branches that never render |
 | **U10** | Price / currency formatting | Read every monetary value on the page | Consistent symbol, grouping and decimals; no `NaN`, `undefined`, `Infinity` or `0 đ` for a selection. Baseline: `toLocaleString('vi-VN') + ' đ'` vs `₫` mix; prices are recomputed independently in `CartView`, `CheckoutView`, `CartDrawer`, `InvoiceModal` and `OrderSuccessView` — cross-check them against each other |
 | **U11** | Console errors | Open the DevTools Console (preserve log), navigate to and interact with the page | Zero errors. Warnings must be explainable. Known-benign noise to ignore: `ResizeObserver loop …` (suppressed in `src/main.tsx` L7–43). Everything else is a defect |
 
@@ -173,8 +170,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Hero CAD dropzone | Drag an `.stl` over the hero, then drop it | Drop state (`Thả tệp CAD vào đây để phân tích tức thì!`) appears on `dragenter`/`dragover`, clears on `dragleave`, and the file navigates to `/quote` with `state.uploadedFile` |
 | Hero dropzone by click | Click the dropzone | File picker opens with `accept=".stl,.3mf,.step,.stp,.obj"` |
 | Hero dropzone keyboard | `Tab` to the dropzone, press `Enter`/`Space` | Expected: the picker opens. Baseline: it is a `<div>` with `onClick` — **not focusable** (U4 blocker) |
-| Dropzone i18n | EN mode | Expected: EN drop copy. Baseline: hardcoded VI |
-| Hero 3D switcher | Click `Bánh Răng` / `Khung Drone` / `Vỏ Hộp IoT` (Gear/Drone/IoT Case) | Model swaps in the WebGL canvas with no console error; previous geometry is disposed. Baseline: buttons are hardcoded VI |
+| Hero 3D switcher | Click `Bánh Răng` / `Khung Drone` / `Vỏ Hộp IoT` (Gear/Drone/IoT Case) | Model swaps in the WebGL canvas with no console error; previous geometry is disposed |
 | Hero 3D interaction | Drag on the canvas; scroll-wheel over it | Rotates and zooms; the page does not scroll while the cursor is over the canvas (`wheel` + `preventDefault`) — verify this is not hostile on touch |
 | Catalog search | Type `gear` in the catalog search | List filters live; the clear button (title `Xóa tìm kiếm`) restores the full list |
 | Category pills | Scroll the category row; click a pill | Row scrolls via the chevrons and via touch; the selected category filters the grid; the pill row scrolls horizontally **without** overflowing the page (U7) |
@@ -186,7 +182,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Physical order path | Click `Đặt In` / `Order` | `/products/<id>` |
 | Customizer shortcut | On a customizable product click the `tune` button | Expected: `/personalize/<id>`. Baseline bug: `handleSelectProductAction` ignores its target-screen argument and always navigates to `product_detail` |
 | Empty state | Search a nonsense string | `Không tìm thấy linh kiện CAD phù hợp` / `No CAD parts match your criteria` + a reset button that clears all filters |
-| Calculator | Change material, part size, infill slider (15–100, step 5) | Weight / duration / price update live, are internally consistent, and format correctly in both languages |
+| Calculator | Change material, part size, infill slider (15–100, step 5) | Weight / duration / price update live, are internally consistent, and format correctly |
 | Calculator CTA | Click `Tải File STL Lên Để Báo Giá Chi Tiết →` | `/quote` |
 | Material comparison matrix | Click each of the 5 category tabs; click a row; click `Báo Giá` | Filtering and row highlight work; `Báo Giá` goes to `/quote?material=<id>` and the quote applies that material with a confirming toast |
 | Taxonomy cards | Click a category card | Sets the catalog filter and scrolls to the catalog |
@@ -194,7 +190,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Catalog parity with `/explore` | Compare the product sets | Expected: the same catalog. Baseline: `/explore` hides non-`published` items for non-admins and hides `pricePhysical > 600000`, while `/` does not — the same tag yields different counts |
 | `U1–U11` universal | Run the master matrix on `/` | All pass; record page-specific failures (U4 hover-only dropzone/overlays, U5 icon buttons, U7 pill rows + 7-column table, U9 hardcoded VI) |
 
-### `/explore` → `src/frontend/views/ExploreView.tsx` (wrapped by `ExploreRoute`, `src/App.tsx` L78–106)
+### `/explore` → `src/frontend/views/ExploreView.tsx` (wrapped by `ExploreRoute`, `src/App.tsx`)
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
@@ -216,7 +212,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Table view | Switch to the list view at 390px | The table scrolls inside its wrapper; the page itself does not overflow (U7); table headers are localized (baseline: hardcoded VI) |
 | `U1–U11` | Master matrix | Record failures (U2/U3 no loading-error state, U4 tray ✕ + hover overlay, U9 large untranslated blocks) |
 
-### `/products/:productId` → `src/frontend/views/ProductDetailView.tsx` (wrapped by `ProductDetailRoute`, `src/App.tsx` L108–159)
+### `/products/:productId` → `src/frontend/views/ProductDetailView.tsx` (wrapped by `ProductDetailRoute`, `src/App.tsx`)
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
@@ -241,9 +237,9 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Related products | Click a related card, then `Xem tất cả` | Related card → `/products/<id>`; `Xem tất cả` → `/explore`. Baseline: related cards are `<div>`s, not keyboard-focusable (U4) |
 | 3D touch | At 390px, try to rotate the model by dragging, and try to scroll the page starting on the canvas | Expected: touch orbit works and the page can still scroll past the canvas. Baseline: the viewer sets `touchAction='none'` but has **no touch handlers** — mobile cannot rotate and the page cannot scroll over the canvas. Blocking |
 | WebGL failure | Force a WebGL context failure (or disable WebGL) and reload | A graceful fallback. Baseline: no try/catch or error boundary around `ThreeModelViewer` — a throw in `useEffect` blanks the page |
-| `U1–U11` | Master matrix | Record failures (U5 many `title`-only buttons, U9 hardcoded VI in EN mode, U10 price vs SEO JSON-LD mismatch) |
+| `U1–U11` | Master matrix | Record failures (U5 many `title`-only buttons, U9 English leakage, U10 price vs SEO JSON-LD mismatch) |
 
-### `/personalize` (no id) → `src/frontend/views/PersonalizeView.tsx` (wrapped by `PersonalizeRoute`, `src/App.tsx` L161–182)
+### `/personalize` (no id) → `src/frontend/views/PersonalizeView.tsx` (wrapped by `PersonalizeRoute`, `src/App.tsx`)
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
@@ -272,13 +268,13 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Check | How to verify | Expected |
 | --- | --- | --- |
 | Valid id | `/personalize/<id>` for a customizable product | That product is configured from the start; SKU/name/badge match |
-| **Invalid id** | `/personalize/garbage-id` | Expected: a not-found state (mirror `ProductDetailRoute`). Baseline bug: `App.tsx` L170 falls back to `products[0]` and then to an inline mock — the user silently configures the **wrong product**, and the "Add to cart" line carries that wrong product's name and price. Blocking |
+| **Invalid id** | `/personalize/garbage-id` | Expected: a not-found state (mirror `ProductDetailRoute`). Baseline bug: `PersonalizeRoute` in `App.tsx` falls back to `products[0]` and then to an inline mock — the user silently configures the **wrong product**, and the "Add to cart" line carries that wrong product's name and price. Blocking |
 | Non-customizable product | `/personalize/<id-of-a-non-customizable-product>` | Either a clear "not customizable" message or a sensible default; never a silent substitution |
 | Deep-link + Back | Open `/personalize/<id>`, configure, press browser Back | Returns to the previous route; no crash and no console error |
 | Id ↔ payload mismatch | Open `/personalize/<idA>` and confirm the cart line name/SKU | The cart payload must reference `idA`, not `products[0]` |
 | `U1–U11` | Master matrix | Same as `/personalize` |
 
-### `/quote` → `src/frontend/views/Tool3DView.tsx` (legacy `/tool-3d` → `Navigate to="/quote" replace`, `src/App.tsx` L898)
+### `/quote` → `src/frontend/views/Tool3DView.tsx` (legacy `/tool-3d` → `Navigate to="/quote" replace` in `src/App.tsx`)
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
@@ -288,8 +284,8 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | File upload (drag) | Drop a file on the outer dropzone, then on the canvas itself | Both targets accept the drop; the drop overlay appears and clears |
 | Accepted formats | Try `.stl`, `.3mf`, `.step`, `.stp`, `.obj`, `.iges` | Each either parses correctly or reports honestly which formats are unsupported. Baseline: **STEP/STP/IGES are never parsed** — every one silently yields the same parametric proxy solid (`{92,72,34}`, name `…[B-Rep Solid CAD]`) and reports success |
 | Size-limit honesty | Read the badge `(Tối đa 150MB)`, then upload a 200 MB file | Expected: rejected with a clear message. Baseline: the 150 MB cap is display text only — no size validation exists |
-| **Corrupt file (critical)** | Create a text file named `broken.stl` (garbage bytes) and upload it | Expected: an honest parse error — "could not read this file", no price, no model, no success toast. **Baseline: it fabricates a model.** `Tool3DView.tsx` L314–371 catches the failure, logs `generating fail-safe CAD model`, then builds a hardcoded recovery file (85×55×30 mm, 42.5 cm³, 14,200 triangles, `isWatertight: true`, `printabilityScore: 92`, fake SHA-256) and toasts `Đã tự động khởi tạo mô hình CAD phôi an toàn cho <file>`. Separately `meshParser.ts` swallows `STLLoader` errors and substitutes `BoxGeometry(85, 32, 60)` with a **success** toast, `Watertight 100%` and score 94 |
-| Fabricated hashes | Inspect the reported SHA-256 after any upload | Expected: the real file hash, or no hash. Baseline: a hardcoded constant `c7d8e9f0…` is reported for every file, including the fabricated recovery model |
+| **Corrupt file** | Create a text file named `broken.stl` (garbage bytes) and upload it | An honest parse error — "could not read this file", no price, no model, no success toast. **Đã sửa (MP-01):** `Tool3DView` renders the `ParseFailurePanel` (`role="alert"`) and toasts `Không đọc được tệp … — hệ thống không tạo số liệu thay thế.`; no file/measurement/hash is added. `meshParser.ts` now throws `MeshParseError` instead of substituting `BoxGeometry(85, 32, 60)`. Verify no fabricated dimensions/volume/triangle count/hash appear |
+| Fabricated hashes | Inspect the reported SHA-256 after any upload | The real file hash, or `—`. **Đã sửa (MP-11):** `computeSha256()` in `Tool3DView.tsx` hashes the actual bytes via `crypto.subtle`; when unavailable it returns `undefined` (UI shows `—`) instead of a hardcoded constant |
 | Empty state | Remove/replace the seeded sample files | Expected: a real "no file loaded, upload one" state. Baseline: files are seeded from `SAMPLE_ANALYSIS_FILES` with no removal path, so the empty state is unreachable and a shorter mock array would crash on mount |
 | Workspace tabs | Click `1. Cấu Trúc Part`, `2. Bảng Màu 3MF`, `3. Tỷ Lệ & Tọa Độ`, `4. Chi Tiết QA` | Each panel renders; the active tab is distinguishable; state survives tab switching |
 | Object tree | Toggle part visibility, change a per-part colour, set `Đầu đùn: Tool T1–T4`, change `Bàn:` and per-part material | The canvas updates; selections are labelled; icon-only controls have accessible names (baseline: `title` only) |
@@ -327,7 +323,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Promo codes | Apply `VCUBE10` (−10%), then `TECH3D` (flat −20,000 ₫) | Discount line appears and the total decreases by exactly that amount |
 | Invalid promo | Apply `NOPE` | `Mã ưu đãi không hợp lệ. Vui lòng kiểm tra lại.` / `Invalid promo code. Please check again.` and the previous discount must be **cleared** (baseline: an invalid code after a valid one keeps the old discount while showing an error — misleading) |
 | Empty promo | Click `Áp dụng` with an empty field | Expected: a validation message. Baseline: returns silently |
-| **Promo → checkout (critical)** | Apply `VCUBE10` on `/cart`, then click `TIẾN HÀNH THANH TOÁN` | Expected: the discount is visible on `/checkout` and reduces the total. **Baseline: it is always lost** — `appliedDiscount` lives in `CartView`'s local `useState`, `onNavigate('checkout')` passes no payload, and `App.handleNavigate` only calls `setAppliedDiscount` when `payload.appliedDiscount !== undefined` (`App.tsx` L585). The store field is unreachable in practice, and the discount also resets on any cart unmount |
+| **Promo → checkout (critical)** | Apply `VCUBE10` on `/cart`, then click `TIẾN HÀNH THANH TOÁN` | Expected: the discount is visible on `/checkout` and reduces the total. **Baseline: it is always lost** — `appliedDiscount` lives in `CartView`'s local `useState`, `onNavigate('checkout')` passes no payload, and `App.handleNavigate` only calls `setAppliedDiscount` when `payload.appliedDiscount !== undefined` (`handleNavigate` in `App.tsx`). The store field is unreachable in practice, and the discount also resets on any cart unmount |
 | Shipping threshold | Cross the 300,000 ₫ physical subtotal in both directions | Shipping goes `30.000 đ` → `MIỄN PHÍ` with a visual free-ship cue, and the total is consistent with `/checkout` |
 | Threshold consistency | Change the free-ship threshold in `/admin/storefront`, then compare `/cart`, the drawer and `/checkout` | All three agree. Baseline: `CartView` and `CartDrawer` hardcode 300,000/30,000 while `CheckoutView` reads `siteContent` |
 | Totals math | Recompute subtotal + shipping − discount by hand | Exact match; no rounding drift; no negative total (`Math.max(0, …)`) |
@@ -353,7 +349,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | VAT invoice | Tick `Yêu cầu xuất hóa đơn điện tử VAT (8%)` | The three company fields appear. Clearing them and submitting must be **blocked** — baseline bug: all three are labelled `*` but none is `required`, so an empty company/tax id submits; only name + tax id reach `shippingAddress.note` and the registered address is discarded |
 | VAT math | Compare the VAT line with the order summary and the invoice | Expected: one consistent VAT figure. Baseline: `order.payment.tax = 0` while labels claim "VAT included", and `InvoiceModal` then adds 8% on top — the success page and the invoice can disagree |
 | Order summary | Compare the sidebar list and totals with `/cart`, the drawer and the summary bar | Identical subtotal, shipping, discount and total — including the promo (see the `/cart` critical row) |
-| Re-quote honesty | Change a cart price via admin (or use a stale tab), then reload `/checkout` | Expected: prices are re-validated before the order is created. Baseline: cart line prices are client-trusted; `pricingEngineService`/`quoteVerifier` are not called at checkout |
+| Re-quote honesty | Change a cart price via admin (or use a stale tab), then reload `/checkout` | Expected: prices are re-validated before the order is created. Baseline: cart line prices are client-trusted; `pricingEngineService` is not called at checkout (`quoteVerifier` đã bị xoá khỏi repo) |
 | Submit (loading) | Click submit | Button disables and reads `ĐANG KHỞI TẠO ĐƠN HÀNG...` with a spinner for ~900 ms, then success |
 | **Double submit** | During the 900 ms window, press `Enter` in a text field, then click submit again | Expected: exactly one order. Baseline bug: `isProcessing` disables the button but is not checked at the top of `handleCompleteOrder`, and `Enter` in any input re-fires `onSubmit` → duplicate orders and duplicate digital assets |
 | Error state | Go offline and submit | Expected: an error message with a retry and no order created. Baseline: no error path at all — the order is built client-side in a `setTimeout` with no API call |
@@ -361,7 +357,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Order created | After submit | Confetti, cart cleared, digital items added to `/assets`, and `/order-success/<orderId>` |
 | `U1–U11` | Master matrix | Record failures (U2 no empty guard, U3 no error path, U5 no labels on `-`/`+`, U9 mostly Vietnamese-only form, U10 cross-surface total mismatch) |
 
-### `/order-success` → `src/frontend/views/OrderSuccessView.tsx` (wrapped by `OrderSuccessRoute`, `src/App.tsx` L184–200)
+### `/order-success` → `src/frontend/views/OrderSuccessView.tsx` (wrapped by `OrderSuccessRoute`, `src/App.tsx`)
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
@@ -373,10 +369,9 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Track order | Click `THEO DÕI CAMERA XƯỞNG IN 3D` (physical orders only) | `/tracking/<orderId>` for the same order |
 | Asset library CTA | Click `Mở Kho Tệp CAD` | `/assets`, and purchased digital items are present |
 | Invoice | Click `Xuất Hóa Đơn VAT (PDF)` | `InvoiceModal` opens with the correct order; the printed output does not clip (baseline: a 6-column table with no `overflow-x-auto` inside an `overflow-hidden` wrapper) |
-| Invoice math | Compare the invoice subtotal/VAT/total with the success page | Expected: identical. Baseline: the invoice recomputes from `subtotalPhysical || total`, drops the digital subtotal, the discount and shipping, and adds 8% VAT; it also prints `✓ ĐÃ THANH TOÁN` even for an unpaid COD order and a hardcoded SHA-256 string |
+| Invoice math | Compare the invoice subtotal/VAT/total with the success page | Expected: identical. **Đã sửa (PC-04):** `InvoiceModal` reads the recorded amounts from the order (`p.subtotalDigital`, `p.subtotalPhysical`, `p.discount`, `p.shippingFee`, `p.tax` with `p.vatRate`) instead of recomputing; it no longer adds a hardcoded 8% VAT or a fabricated hash, and the paid/COD/unpaid badge is conditional |
 | Print | Click `In Hóa Đơn` | A clean one-page print with no UI chrome (baseline: `window.print()` with no print CSS) |
-| i18n | Flip to EN | Expected: EN. Baseline: this view is Vietnamese-only |
-| `U1–U11` | Master matrix | Record failures (U2/U3 no empty/error state, U9 Vietnamese-only, U10 invoice vs page totals) |
+| `U1–U11` | Master matrix | Record failures (U2/U3 no empty/error state, U9 leftover English copy, U10 invoice vs page totals) |
 
 ### `/order-success/:orderId` → same view
 
@@ -388,7 +383,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Id casing/whitespace | `/order-success/ ORD-2026-8801` | Normalized or not-found; never a crash |
 | `U1–U11` | Master matrix | As above |
 
-### `/tracking` → `src/frontend/views/OrderTrackingView.tsx` (wrapped by `OrderTrackingRoute`, `src/App.tsx` L202–220) — **public route**
+### `/tracking` → `src/frontend/views/OrderTrackingView.tsx` (wrapped by `OrderTrackingRoute`, `src/App.tsx`) — **public route**
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
@@ -407,8 +402,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Live telemetry honesty | Read the machine/temperature/layer cards | Expected: real data or an explicit "no live data" state. Baseline: `Máy In Khí Động Học #08`, `220°C/60°C/250 mm/s`, `Lớp cắt: 384 / 600`, `84.5g`, `±0.05mm`, `ISO 9001`, `Live Telemetry` are hardcoded for every order, including orders that do not exist |
 | Support + invoice | Click `Kỹ Sư Trực Ca` and `Hóa Đơn PDF` | Chat opens; the invoice modal opens for the currently displayed order |
 | Warranty report | Click `Báo cáo sai số lắp ghép (Kích hoạt bảo hành) →` | Expected: a real submission with confirmation. Baseline: sets local state only — no backend, and it reports success unconditionally |
-| Reduced motion | With `prefers-reduced-motion: reduce`, open a printing order | Expected: no pulsing/spinning. Baseline: `animate-pulse`/`animate-ping` run unguarded, and the referenced `animate-spin-slow` class is **defined nowhere**, so those machine icons never actually spin |
-| i18n | Flip to EN | Expected: EN. Baseline: this view never calls `useLanguage()` — it is Vietnamese-only |
+| Reduced motion | With `prefers-reduced-motion: reduce`, open a printing order | Expected: no pulsing/spinning. Handled by the global `@media (prefers-reduced-motion: reduce)` block (`src/index.css`, disables animation/transition); verify the pulsing machine indicator stops. The referenced `animate-spin-slow` class is **defined nowhere** and no longer used |
 | 390px overflow | At 390px, check the telemetry strip and the stage grid | No page overflow; the `lg:w-96` strip stacks cleanly |
 | `U1–U11` | Master matrix | Record failures (U3 no loading/error for the async lookup, U5/U6, U7 strip at ~360, U9 Vietnamese-only) |
 
@@ -416,7 +410,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
-| **Bad id (critical)** | Open `/tracking/this-does-not-exist` in a fresh incognito window, signed out | Expected: an explicit not-found state with a route to the lookup form — and **never** another order. **Baseline: it renders a full order.** `OrderTrackingRoute` resolves `orders.find(o => o.id === orderId) || activeOrder || orders[0]` (`App.tsx` L210), `activeOrder` is seeded with `MOCK_ORDERS[0]`, and the view itself falls back to `initialOrder || MOCK_ORDERS[0]` (`OrderTrackingView.tsx` L23). The rendered order exposes recipient name, phone, address, a VNPAY payment line and a carrier tracking code. Blocking |
+| **Bad id (critical)** | Open `/tracking/this-does-not-exist` in a fresh incognito window, signed out | Expected: an explicit not-found state with a route to the lookup form — and **never** another order. **Baseline: it renders a full order.** `OrderTrackingRoute` resolves `orders.find(o => o.id === orderId) || activeOrder || orders[0]` (in `App.tsx`), `activeOrder` is seeded with `MOCK_ORDERS[0]`, and the view itself falls back to `initialOrder || MOCK_ORDERS[0]` (`OrderTrackingView.tsx` L23). The rendered order exposes recipient name, phone, address, a VNPAY payment line and a carrier tracking code. Blocking |
 | Foreign id | Open another customer's real order id while signed out | Not-found. No PII leak of any field |
 | Truncated / mixed-case id | `/tracking/ord-892`, `/tracking/ORD-8924` | Not-found or a normalized match — never a silent fallback to a different order |
 | Injection-shaped id | `/tracking/' OR 1=1--` | Not-found, no console error. Related baseline risk: the guest lookup interpolates the identifier **unescaped** into a PostgREST `.or()` filter (`database.ts` `getOrderByToken`) — malformed filters or filter injection. Escaping/parameterization must be verified in the same phase |
@@ -445,8 +439,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Warranty modal a11y | Inspect the modal | `role="dialog"`/`aria-modal`, focus trap, `Esc` close, focus return; the close ✕ needs a name (baseline: **neither** `aria-label` nor `title`) |
 | Reorder | Click `In Lại` | Shows `Đang Chuyển...` then `/quote` with the previous items. Verify the 1.2 s timer is cleaned up on unmount and that double-clicking cannot fire twice |
 | Many orders | Seed 30+ orders | Expected: acceptable responsiveness (pagination or virtualization). Baseline: everything renders at once |
-| i18n | Flip to EN | Expected: EN. Baseline: Vietnamese-only |
-| `U1–U11` | Master matrix | Record failures (U3 no error state, U5 tabs/search/warranty ✕, U7 tab row, U9 Vietnamese-only) |
+| `U1–U11` | Master matrix | Record failures (U3 no error state, U5 tabs/search/warranty ✕, U7 tab row, U9 leftover English copy) |
 
 ### `/assets` → `src/frontend/views/AssetLibraryView.tsx` (wrapped in `ProtectedRoute`; `/library` → `/assets`)
 
@@ -465,8 +458,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Ownership claim | Read the header copy `Tất cả các file 3D … đã sở hữu bản quyền` | The claim must be true of the rendered data, or the copy must change |
 | Update badge | Find an asset with `hasUpdate` | Expected: a changelog or an update action behind `Update v2`. Baseline: badge only |
 | Go to quote | Click `Báo Giá Gia Công` | `/quote` |
-| i18n | Flip to EN | Expected: EN (baseline: Vietnamese-only) |
-| `U1–U11` | Master matrix | Record failures (U2 no empty state, U3 no error state, U9 Vietnamese-only, U10 download counter) |
+| `U1–U11` | Master matrix | Record failures (U2 no empty state, U3 no error state, U9 leftover English copy, U10 download counter) |
 
 ### `/designer` → `src/frontend/views/DesignerDashboardView.tsx` (RoleGuard `designer` | `admin`)
 
@@ -490,13 +482,13 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Payouts | `Quyết Toán Tiền Mặt`: read the balance, click `Yêu Cầu Rút Tiền Về Ngân Hàng`, enter an amount, `Xác Nhận Rút` | Expected: a pending request that survives a reload. Baseline: the transaction is instantly `COMPLETED`, the balance is reduced in local state only, and **a reload restores the old balance**; `Number(amount) || 10000000` silently substitutes a default for an invalid amount |
 | "Mine" filter | Use the `mine` author filter as different designers | Correct filtering. Baseline: it string-matches designer names containing `'bạn'|'thắng'|'alexei'` — brittle and wrong for real data |
 | 390px | 390px: tab strip, 7-column models table, 5-column payouts table, the requests 3-column layout, the `max-w-2xl` modals | Tables scroll inside `.responsive-table-wrapper`; the requests layout must degrade to a single column (baseline: ~700 px tall 3-column layout, with the Project Brief only behind an info toggle); modals must fit |
-| `U1–U11` | Master matrix | Record failures (U5 icon-only controls, U7 wide tables, U9 mixed VI/EN copy, U10 hardcoded KPIs; U3 no error state for save/publish failures) |
+| `U1–U11` | Master matrix | Record failures (U5 icon-only controls, U7 wide tables, U9 leftover English copy, U10 hardcoded KPIs; U3 no error state for save/publish failures) |
 
 ### `/designer/:tab` → same view
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
-| **Tab param respected (blocking)** | Open `/designer/payouts` and `/designer/models` | Expected: the matching tab is active on first paint, and the URL stays in sync when the tab changes. **Baseline: the `:tab` segment is ignored** — `DesignerDashboardView` never calls `useParams`, so `/designer/payouts` renders the **overview** tab while the URL claims otherwise, and clicking tabs never updates the URL |
+| **Tab param respected** | Open `/designer/payouts` and `/designer/models` | The matching tab is active on first paint, and the URL stays in sync when the tab changes. **Đã sửa:** `DesignerDashboardView` reads `:tab` via `useParams` and `setActiveTab` calls `navigate('/designer/<tab>')`, so `/designer/payouts` activates the payouts tab |
 | Unknown tab | `/designer/not-a-tab` | Falls back to overview **and** normalizes the URL, or shows a not-found. Baseline: falls back silently with a misleading URL |
 | Deep link + refresh | Open `/designer/wizard` directly, then F5 | Lands on the wizard both times |
 | Guard interaction | Open `/designer/payouts` as a customer | The 403 card (not an empty tab) |
@@ -509,7 +501,7 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Signed out | Open `/admin` signed out | `/auth/login` (and, once fixed, return here after login) |
 | Non-admin | Open `/admin` as designer/customer | The 403 card; `Chuyển Vai Trò (Demo)` opens the role picker |
 | Weak-role honesty | Note that demo logins can grant admin client-side (`DEMO_ACCOUNTS` in `AuthContext`; `vcube_active_local_user` rehydrates without a Supabase session) | QA must verify this against a **production build** with real Supabase auth: client-trusted RBAC must not be the only gate for admin data |
-| **Valid section slugs** | Open each of the 22 valid `:section` values directly | All valid: `overview`, `group0-overview`, `workshops`, `partners`, `machines`, `designers`, `users`, `customers`, `pricing`, `pricing-engine`, `pricing-setup`, `cost-rules`, `materials`, `hardware`, `quote-calc`, `queue`, `orders`, `inventory`, `products`, `storefront`, `seo`, `settings` (`AdminDashboardView.tsx` L113–121) |
+| **Valid section slugs** | Open each of the 22 valid `:section` values directly | All valid: `overview`, `group0-overview`, `workshops`, `partners`, `machines`, `designers`, `users`, `customers`, `pricing`, `pricing-engine`, `pricing-setup`, `cost-rules`, `materials`, `hardware`, `quote-calc`, `queue`, `orders`, `inventory`, `products`, `storefront`, `seo`, `settings` (`AdminDashboardView.tsx` L121–129) |
 | Sidebar completeness | Compare the 16 sidebar entries with the 22 valid slugs | Expected: every valid section is reachable from the UI. Baseline: `group0-overview`, `workshops`, `customers`, `pricing-engine`, `pricing-setup`, `cost-rules` are **URL-only** with no sidebar entry — reachable only by typing the URL |
 | Default section | Open `/admin` | `overview` panel + breadcrumb `GROUP 0: TỔNG QUAN ĐIỀU HÀNH` / `Bảng Điều Khiển Trung Tâm` |
 | Sidebar navigation | Click every sidebar entry (`overview`, `partners`, `machines`, `designers`, `users`, `pricing`, `materials`, `hardware`, `quote-calc`, `queue`, `orders`, `inventory`, `products`, `storefront`, `seo`, `settings`) | Each renders its panel and updates the URL to `/admin/<section>`. Sidebar labels (VI): `Tổng Quan Điều Hành`, `Mạng Lưới Xưởng In MES`, `Đội Máy In 3D (Fleet)`, `Nhà Thiết Kế & Bản Quyền`, `Khách Hàng & Hồ Sơ KYC`, `Công Thức Giá Inkiri v3.4`, `Danh Mục Nhựa & Resin`, `Phụ Kiện, Ốc Cấy & Nam Châm`, `Báo Giá Dự Toán BOM`, `Hàng Đợi & Kanban 8 Nấc`, `Đơn Hàng & Điều Phối Hub`, `Kho Vật Liệu & Vị Trí Kệ`, `Sản Phẩm & Catalog 3D`, `Landing Page & CMS`, `Quản Trị SEO & Metadata`, `Cài Đặt Xưởng & Cloud` |
@@ -524,13 +516,13 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Printer fleet | `/admin/machines`: toggle `Free`/`Busy`, toggle `Maintenance`, add a machine | Toggles persist. **Baseline: no confirmation on any status toggle** |
 | Materials stock | `/admin/materials`: press `−500g` / `+1000g` inline | Stock changes and the low-stock badge updates. **Baseline: no confirmation, and no lower-bound guard at 0** |
 | Designers (Group2) | `/admin/designers`: tier/status filters; edit tier + royalty cap; withdrawal approve/transfer/reject with a tx ref; analytics | Each works and persists. **Baseline: withdrawal approve/transfer/reject have no confirmation** — a money action with no guard |
-| Users (Group3) | `/admin/users`: role tabs (all/customer/designer/lab/admin), KYC/status filters, lock/unlock, role change, KYC approve/reject, `Đồng Bộ DB` | Each works. **Baseline: NDA approve and RFQ quote have no confirmation; `Đồng Bộ DB` (`seedService.seedAllToSupabase`) rewrites all `vcube_*` localStorage keys *and* Supabase — treat it as destructive and confirm the intent before running it in QA** |
+| Users (Group3) | `/admin/users`: role tabs (all/customer/designer/lab/admin), KYC/status filters, lock/unlock, role change, KYC approve/reject | Each works. **Baseline: NDA approve and RFQ quote have no confirmation.** `[đã gỡ]` Nút `Đồng Bộ DB` (`seedService.seedAllToSupabase`) không còn trong admin — seed/remove mẫu bằng `node scripts/seed-sample-data.mjs` |
 | Pricing formula | In `1. Công Thức Tính Giá`: add/remove volume-discount tiers, run the BOM simulator (weight/hours/qty/markup), press `Reset` | Tier add/remove (`✕` has `title="Xóa mốc"`) works; the simulator's output matches the formula; `Reset` asks `window.confirm` (`Khôi phục công thức tính giá về thông số chuẩn ban đầu của Inkiri?`) |
 | Materials/printers CRUD | In sub-tabs 2 and 3: add, edit, delete | Delete asks `window.confirm` (`Xóa vật liệu "<name>"?` / `Xóa máy in "<name>"?`); a min-1 guard toasts instead of deleting the last item; saving shows `Lưu Vật Liệu` / `Lưu Máy In` and `Đã Lưu Cấu Hình` |
 | Quote → effect | Change a pricing coefficient, reload `/quote`, re-run a quote | The price changes by the expected amount (this is the end-to-end check that admin pricing is wired to the quote engine) |
 | Queue/Orders/Inventory (Group5) | `/admin/queue`: advance and regress a card through the 8 stages, `Xác Nhận Điều Phối Đơn Này`, open the job drawer and save notes, `Reset` mock data, search + region filter | Stage moves persist and are reflected on `/tracking/<id>`/`/orders`; the job notes save (`Lưu Ghi Chú`). **Baseline: advance/regress/dispatch/reset have no confirmation despite `Xác Nhận Xong & Chuyển Nấc` wording** |
 | Products panel | `/admin/products`: search + category + readiness filters (`ready_to_print` / `missing_profile` / `cad_review_needed`), inline status select, `Edit`, `Thêm Sản Phẩm Mới`, delete | Filters work; status changes persist with a toast; edit saves; delete asks `Bạn có chắc chắn muốn xóa sản phẩm "<name>"?`. Baseline: `prod.pricePhysical.toLocaleString()` is unguarded — a malformed stored row would crash the table |
-| Product delete rollback | Delete while offline | Error toast + the product is restored (`App.tsx` L739–758) |
+| Product delete rollback | Delete while offline | Error toast + the product is restored (`handleDeleteProduct` in `App.tsx`) |
 | Storefront CMS | `/admin/storefront`: tabs `hero` / `announcement` / `workflow` / `estimator` / `facilities`; change announcement text+active, hero copy, shipping fee, free-ship threshold, addresses, hotline, email; `Lưu Thay Đổi Ngay` | Each change is visible on `/` (announcement bar, hero, footer) and on `/cart` + `/checkout` (fees). Confirm the Cart/Drawer/Checkout threshold divergence described above is resolved |
 | SEO panel | `/admin/seo`: tabs `meta` / `serp` / `social` / `schema`, desktop+mobile preview, robots-index toggle, `Lưu Cấu Hình SEO` | Saves with `Đã Lưu SEO`; the corresponding public page's meta output reflects it (inspect the DOM — this is an SPA) |
 | Settings panel | `/admin/settings`: 3 text inputs + 2 checkboxes + `Lưu Cài Đặt` | Save confirms with a toast. **Baseline: nothing is persisted** — the toast is the only effect; verify this is fixed |
@@ -538,11 +530,11 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Toast type loss | Trigger a success and an error toast from admin | Expected: correct severity colours. Baseline: `AdminDashboardView`'s `onShowToast` is typed `(message: string) => void` and **drops the type**, so admin errors render as generic info toasts |
 | Empty data | Point Supabase at an empty project / clear `vcube_*` | Panels render zero-states, not `NaN`, `undefined` or blank charts. Baseline: several figures are hardcoded (`1.842`, `529`, `99.2%`, `Lead time avg: 24h`) and divisions are guarded (`>0 ? … : 0`, `/ (n || 1)`), so verify which numbers are real |
 | Status casing clash | Set a product's status here (`published`/`draft`/`archived`) and inspect it in `/designer` | Expected: one canonical set of values. Baseline: the designer writes `Published`/`Draft`/`Under Review` to the same field, so the two surfaces disagree |
-| Dead panels (cleanup) | Confirm which panel components are actually mounted | Baseline orphans never imported anywhere in `src`: `AdminOrdersPanel`, `AdminProductionQueuePanel`, `AdminMachinesPanel`, `AdminMaterialsPanel`, `AdminPartnersPanel`, `AdminUsersPanel`, `AdminCostRulesPanel`, `AdminOverviewPanel` — they still contain `window.confirm` calls. Deleting them is a safe refactor win, but do not lose the confirmations when merging behaviour into the `groups/*` panels |
+| Dead panels (cleanup) | `ls src/frontend/components/admin` and confirm no orphan panel remains | Các panel rời `AdminProductionQueuePanel`, `AdminMachinesPanel`, `AdminMaterialsPanel`, `AdminPartnersPanel`, `AdminUsersPanel`, `AdminCostRulesPanel`, `AdminOverviewPanel` **đã được xoá khỏi `src`** (chức năng gộp vào `admin/groups/*`). Kiểm không còn file mồ côi và các `window.confirm` cũ đã chuyển sang `ConfirmDialog` |
 | Destructive-action audit | Every delete/toggle/save in admin | Consistent confirmation + undo/rollback. Baseline: `window.confirm` exists only for product delete, material delete, printer delete, formula reset and accessory delete; everything else (workshop approve/suspend, machine status, inline stock ±, withdrawals, NDA/RFQ, kanban advance/regress/dispatch/reset, publish toggles, storefront/SEO/settings saves) is unconfirmed |
-| localStorage blast radius | Before running any admin destructive action, note the keys a QA run mutates | `vcube_products`, `vcube_orders`, `vcube_materials`, `vcube_printers`, `vcube_pricing_config`, `vcube_accessories`, `vcube_workshop_partners`, `vcube_site_content`, `vcube_app_users`, `vcube_last_cloud_sync`, `vcube_cart_store`, `vcube_language`, `vcube_active_local_user`, `vcube_guest_role`. `Đồng Bộ DB` overwrites all of them plus Supabase — snapshot first |
-| 390px | 390px across every admin section | The sidebar becomes a fixed drawer with a mobile toggle + backdrop; 7–8 column tables (`AdminOrdersPanel`, `AdminProductsPanel`, `WarehouseInventoryPanel`, `AccessoriesManager`) scroll inside their wrappers; the Group5 kanban is a wide horizontal board; the page itself must not overflow (U7) |
-| `U1–U11` | Master matrix | Record failures (U1 lazy `Suspense` skeleton, U5 `title`-only row actions, U7 wide tables, U9 mixed VI/EN) |
+| localStorage blast radius | Before running any admin destructive action, note the keys a QA run mutates | `vcube_products`, `vcube_orders`, `vcube_materials`, `vcube_printers`, `vcube_pricing_config`, `vcube_accessories`, `vcube_workshop_partners`, `vcube_site_content`, `vcube_app_users`, `vcube_last_cloud_sync`, `vcube_cart_store`, `vcube_language`, `vcube_active_local_user`, `vcube_guest_role`. `[đã gỡ]` `Đồng Bộ DB` (nếu còn ở bản cũ) ghi đè tất cả cùng Supabase — snapshot trước; hiện dùng `scripts/seed-sample-data.mjs` |
+| 390px | 390px across every admin section | The sidebar becomes a fixed drawer with a mobile toggle + backdrop; 7–8 column tables (`Group5ProductionPanel`, `AdminProductsPanel`, `WarehouseInventoryPanel`, `AccessoriesManager`) scroll inside their wrappers; the Group5 kanban is a wide horizontal board; the page itself must not overflow (U7) |
+| `U1–U11` | Master matrix | Record failures (U1 lazy `Suspense` skeleton, U5 `title`-only row actions, U7 wide tables, U9 leftover English copy) |
 
 ### `/admin/:section` → same view
 
@@ -575,7 +567,6 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Success | Sign in with a valid account | Redirect to the intended destination, or `/` |
 | **Login redirect (critical)** | See critical flow (h) | A protected destination must survive the login round trip via `?redirectTo=` |
 | Register link | Click the register link | `/auth/register` |
-| i18n | Flip to EN | Expected: EN including error and helper text (baseline: mixed) |
 | `U1–U11` | Master matrix | Record failures (U4/U5 password toggle, U3 raw provider errors, U6 the eye button) |
 
 ### `/auth/register` → `src/frontend/views/RegisterView.tsx` (`/register` → redirect)
@@ -598,17 +589,17 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Redirect param | Open `/auth/register?redirectTo=/assets` | Expected: honoured. Baseline: the register view ignores `redirectTo` entirely and always goes to `/` |
 | `U1–U11` | Master matrix | Record failures (U4/U5 password toggles, U9 mixed copy) |
 
-### `/lab` (planned — MES Hub workspace) → **not yet routed**
+### `/lab` → MES Hub workspace (routed)
 
-`/lab` does not exist in `src/App.tsx`; today it falls through to `*` → `NotFoundView`. The `lab` role exists (`UserAvatarMenu.tsx` links a lab user to `/admin/queue` and `/admin/machines`, the mobile drawer labels it `MES Hub`, and `Header.tsx` has a `lab` role badge), so the role currently has **no home route**.
+`/lab` and `/lab/:tab` are routed (`src/App.tsx` — `<Route path="/lab">` / `<Route path="/lab/:tab">`, element `labRouteElement` → `LabRoute` inside `RoleGuard`, shell `LabDashboardShell`). `LabRoute` shows `WorkshopOnboardingWizard` when the signed-in user has no `workshop_profiles` row (or `verified_status='Pending'`), otherwise the `WorkshopSettingsView` dashboard. The `lab` role also has a header nav entry (`Header.tsx`, label `Xưởng in` / `Print Lab`).
 
-| Check | How to verify | Expected (once `/lab` lands) |
+| Check | How to verify | Expected |
 | --- | --- | --- |
-| Route exists | Visit `/lab` | The MES Hub workspace renders — no longer a 404 |
-| Role guard | `/lab` as `lab`, `admin`, then `customer`/signed out | `lab` and `admin` admitted; others get the 403 card; signed out → `/auth/login` **with** a working return redirect |
-| Lab avatar menu | Sign in as `lab`, open the avatar menu | Its items point at `/lab` (or `/lab/:section`), not into `/admin` |
-| Nav entry | Header/mobile drawer as `lab` | A `MES Hub` nav item appears, is highlighted on `/lab`, and is absent for other roles |
-| Sub-sections | Every `/lab/:section` if the route is parameterised | Deep links resolve, URL ↔ panel state stays in sync, and an unknown section does not silently render another panel (mirror the `/admin/:section` checks) |
+| Route exists | Visit `/lab` | The MES Hub workspace renders — onboarding wizard or workshop dashboard, not a 404 |
+| Role guard | `/lab` as `lab`/`workshop`/`admin`, then `customer`/signed out | `lab`, `workshop` and `admin` admitted; others get the 403 card; signed out → `/auth/login?redirectTo=/lab` |
+| Lab avatar menu | Sign in as `lab`, open the avatar menu | Its items point at `/lab`, not into `/admin` (baseline: `UserAvatarMenu.tsx` links `/admin/queue` and `/admin/machines`) |
+| Nav entry | Header/mobile drawer as `lab` | The `Xưởng in` (`Print Lab`) nav item appears, is highlighted on `/lab`, and is absent for other roles |
+| Sub-sections | Each `/lab/:tab` (`LAB_NAV` ids) | Deep links resolve, URL ↔ panel state stays in sync, and an unknown tab falls back to `queue` without silently rendering another panel (mirror the `/admin/:section` checks) |
 | Theme | `/lab` | Light-only surfaces only — no theme toggle, no dark palette (see §4) |
 | Realtime | Change an order stage in `/admin/queue` in another tab | The lab view updates (or has an explicit refresh) — it shows the same 8-stage MES pipeline as `OrderProgress` |
 | Queue operations | Advance/assign a job from `/lab` | The change is reflected on `/tracking/<id>` and `/orders` for the customer, and the stage labels match `MES_PIPELINE_STAGES` |
@@ -625,7 +616,6 @@ Run **U1–U11** on every route below. Each per-page table ends with a row that 
 | Nested paths | `/orders/abc`, `/products/a/b`, `/admin/x/y` | All reach 404 (they match no route) |
 | Not for known routes | `/quote`, `/cart`, `/auth/login` | Never 404 |
 | Header/footer present | Inspect the 404 | Full shell present; nav highlight does not falsely mark a section (`getCurrentScreenFromPath` returns `home` for unknown paths — verify this is intended) |
-| i18n | Flip to EN | Both languages render (this view **is** bilingual — a good reference for the others) |
 | Responsive | 390 / 768 / 1440 / 1920 | Centred card, buttons stack at 390, no overflow |
 | Consequence check | For every route in `src/App.tsx`, load it directly and confirm it does **not** render the 404 | A silent fall-through here is how route regressions hide |
 | `U1–U11` | Master matrix | Record failures |
@@ -676,7 +666,7 @@ Execute these end-to-end, in order, in a **fresh browser profile** (or after cle
 3. Also upload a valid `.step`/`.stp` and note what is reported.
 4. **Pass conditions:** an explicit parse error naming the file; no model in the viewport; no price and no add-to-cart; no success toast; no invented dimensions/volume/triangle count/hash. The offer is to retry or to contact support — nothing is fabricated.
 5. Then confirm the reported SHA-256 (if shown) matches the real file hash.
-6. **This flow currently FAILS hard.** The catch block fabricates a `[Phục hồi]` model (85×55×30 mm, 42.5 cm³, 14,200 triangles, `isWatertight: true`, score 92, fake SHA-256) and toasts `Đã tự động khởi tạo mô hình CAD phôi an toàn cho <file>`; `meshParser` separately substitutes a `BoxGeometry(85, 32, 60)` for an unparseable STL and reports `Watertight 100%` / score 94; and every `.step/.stp/.iges` silently becomes the same proxy solid. A customer can be quoted a price for a model that does not exist. Treat as a release blocker.
+6. **Fabrication part resolved (MP-01/MP-11):** the `Tool3DView` catch block no longer builds a `[Phục hồi]` model, `meshParser` throws `MeshParseError` instead of substituting `BoxGeometry(85, 32, 60)`, and the reported SHA-256 is the real file hash. Remaining caveat: every `.step/.stp/.iges` still becomes the same parametric proxy solid (see the `/quote` table). Re-verify the pass conditions above in the browser.
 
 ### (e) Changing the printer inside `/quote` must not lose the model
 
@@ -709,7 +699,7 @@ Execute these end-to-end, in order, in a **fresh browser profile** (or after cle
 7. Go to `/checkout` and complete the order.
 8. **Pass conditions on `/order-success`:** the digital file is listed, and `Mở Kho Tệp CAD` → `/assets` contains it with its licence, version and purchase date (baseline: the licence is never rendered in the library).
 9. On `/assets`, attempt the download. **Pass conditions:** a real file downloads, the download counter increments, the licence terms are shown, and a user who did not purchase the asset cannot download it.
-10. Cross-check the digital price in the cart against `product.priceDigital` and against the page's displayed price (baseline: `ProductDetailView` mixes `isVi ? 'vi-VN' : 'en-US'` with hardcoded `'vi-VN'`).
+10. Cross-check the digital price in the cart against `product.priceDigital` and against the page's displayed price (baseline: price formatting is not centralized — `ProductDetailView` hardcodes `'vi-VN'` while other views use `toLocaleString('vi-VN')`).
 
 ### (h) Login redirect preserves the intended destination
 
@@ -727,8 +717,7 @@ Execute these end-to-end, in order, in a **fresh browser profile** (or after cle
 
 | Check | How to verify | Expected |
 | --- | --- | --- |
-| Header tab order | On `/`, press `Tab` repeatedly from the address bar | Order: brand → desktop nav items left-to-right → language group → search → cart → account/sign-in → hamburger (mobile only). No skipped or trapped region; the sticky header does not hide the focused element |
-| Language group | Tab into the switcher | Both buttons reachable; the active one is announced as pressed/selected (baseline: `role="group"` + `aria-label` exist, but the active state is colour-only) |
+| Header tab order | On `/`, press `Tab` repeatedly from the address bar | Order: brand → desktop nav items left-to-right → search → cart → account/sign-in → hamburger (mobile only). No skipped or trapped region; the sticky header does not hide the focused element |
 | Header focus ring | Tab through the header | Every control shows a visible focus indicator with ≥3:1 contrast against its background. Baseline: `focus-visible:outline-none` is used on the brand, cart and search without a replacement ring in some cases — audit each |
 | One modal tab order | Open the cart drawer, then the auth modal, then the quote's `Giá Vốn Xưởng` modal | Focus moves into the modal on open, cycles within it, and the background is inert to Tab |
 | **Focus trap** | Open each modal and press `Tab` 15+ times | Focus never escapes to the page behind. **Baseline: no modal in the app traps focus** (`AuthModal`, `CartDrawer`, `ChatSupportModal`, `CadQuickViewModal`, the four `tool3d` portals, the warranty modal and the asset preview all fail this) |
@@ -738,7 +727,7 @@ Execute these end-to-end, in order, in a **fresh browser profile** (or after cle
 | Focus restoration | Close a modal opened by a button deep in a page | Focus returns to that trigger (baseline: focus is lost to `<body>`) |
 | **Canvas alternative text** | Run a screen reader on `/`, `/products/:id`, `/quote`, `/personalize`, `/assets` preview | Each WebGL canvas has an accessible name/description (e.g. `role="img"` + `aria-label="Interactive 3D view of <model>, use arrow keys to rotate"`), plus a documented keyboard alternative for rotate/zoom. Baseline: **no canvas anywhere has an accessible name** (zero `role="img"`/canvas `aria-label`s) and orbit is mouse/touch-only — the 3D product is invisible and unusable to AT/keyboard users |
 | Canvas keyboard path | Tab to a canvas, then try arrows/`+`/`-` | Either it is operable, or it is explicitly removed from the tab order with a described fallback (e.g. a linked image gallery). The gallery mode on `/products/:id` is the natural fallback |
-| **`prefers-reduced-motion`** | Set OS/browser to reduce motion, then visit `/`, `/quote`, `/tracking`, and open a modal | Expected: no smooth route scrolling, no `animate-pulse`/`animate-ping` that pulses indefinitely, no modal zoom, no auto-rotating 3D, and the route change jumps instantly. Baseline: **zero `prefers-reduced-motion` handling in the repo** — `ScrollToTop` smooth-scrolls, `OrderProgress` pulses, the hero/quote canvases auto-rotate. (Note: the modals' `animate-in`/`zoom-in-95` classes are inert today because `tailwindcss-animate` is not installed — once animations are wired up, this check becomes live) |
+| **`prefers-reduced-motion`** | Set OS/browser to reduce motion, then visit `/`, `/quote`, `/tracking`, and open a modal | Expected: no smooth route scrolling, no `animate-pulse`/`animate-ping` that pulses indefinitely, no modal zoom, no auto-rotating 3D, and the route change jumps instantly. Handled: `src/index.css` has a global `@media (prefers-reduced-motion: reduce)` block (disables animation/transition/scroll-behavior), `ScrollToTop` and the 3D viewers check `matchMedia`, and many components use `motion-reduce:animate-none`. Verify each surface and report any remaining unguarded animation. (Note: the modals' `animate-in`/`zoom-in-95` classes are inert today because `tailwindcss-animate` is not installed — once animations are wired up, this check becomes live) |
 | Reduced motion, long-running | With reduce-motion on, leave `/tracking` open for 30 s | No continuously moving indicator draws attention |
 | Body-text contrast | DevTools contrast checker at 1440 and 390 (light-only): `#091426` on `#F8FAFC`/white, `#545F73` and `#64748B` on white, footer `#8590A6` on `#091426` | ≥4.5:1 for body text, ≥3:1 for large text (≥18.66 px bold or ≥24 px). Flag anything below |
 | **Muted-text contrast** | Check the specific muted tokens: `#8590A6` (footer links, hints), `#94A3B8`, `#75777D` (search icon/labels), `text-slate-400`, `text-slate-500`, and the quote's `text-[#64748B]` | ≥4.5:1 where it is real content; ≥3:1 only for genuinely decorative text. These tokens are the most likely failures — measure each rather than eyeballing |
@@ -749,7 +738,7 @@ Execute these end-to-end, in order, in a **fresh browser profile** (or after cle
 | Error announcement | Submit an invalid form | Errors are announced and tied to their fields (`aria-describedby` + `aria-invalid`) and focus moves to the first invalid field |
 | Icon-button audit | Accessibility-tree pass over the header, drawer, `/quote` toolbar, cart steppers, filter chips, modal ✕s | Every icon-only control has an accessible name and is ≥48 px (U6). `title` alone is not sufficient. Baseline: the overwhelming majority use `title` only or nothing |
 | Live regions | Trigger a toast, an order-status change and a cart update with a screen reader | Each is announced once, politely (or assertively for errors). Baseline: no live regions exist |
-| Language attribute | Inspect `<html lang>` | Matches the active language (`vi`/`en`) and updates when the switcher is used |
+| Language attribute | Inspect `<html lang>` | `lang="vi"` on every route; it must not change (the app has no language switcher — see §3) |
 | Zoom / reflow | Browser zoom 200% at 1280 and 400% at 390 | No loss of content or function; no two-dimensional scrolling for a single column of text |
 | Touch-target audit | 390px: measure the hamburger, cart, avatar, qty steppers, filter chips, tab strips, modal ✕s, footer links | ≥48×48 px (see the 44 px baseline note in the universal matrix) |
 | Skip link / landmarks | Load any page, press `Tab` once | Expected: a skip-to-content link and `<header>`/`<nav>`/`<main>`/`<footer>` landmarks with the main region focusable. Baseline: `<main>` exists in `App.tsx` but there is **no** skip link — verify landmarks are present and labelled |
@@ -791,7 +780,7 @@ Copy this block per refactor phase. Attach the evidence and commit it alongside 
 | Date | |
 | Environment | WSL2 Ubuntu-24.04 · `npm run dev` · http://localhost:3000 · browser + version |
 | Widths covered | 390 / 768 / 1024 / 1440 / 1920 |
-| Languages covered | VI ☐ EN ☐ |
+| Languages covered | Vietnamese only (app has no language switcher — see §3) |
 | Themes covered | Light-only (permanent — dark theme removed, see §4) |
 
 ### Results table
@@ -810,7 +799,7 @@ Copy this block per refactor phase. Attach the evidence and commit it alongside 
 
 | Rule | Detail |
 | --- | --- |
-| Every route visited | All routes in `src/App.tsx` plus `*`, at all five widths, in at least one language |
+| Every route visited | All routes in `src/App.tsx` plus `*`, at all five widths, in Vietnamese |
 | Every row answered | No blank results. `BLOCKED` requires a stated reason |
 | Console gate | Zero unexplained console errors on every route |
 | Critical flows | All eight in `## Critical flow walkthroughs` executed; any FAIL is a release blocker |

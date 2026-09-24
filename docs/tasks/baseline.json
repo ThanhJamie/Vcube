@@ -1,0 +1,94 @@
+{
+  "date": "2026-09-24",
+  "note": "Baseline T00 — mỗi gate chạy một lần trên main @ 4a7eea5. `violations` là số vi phạm/đối tượng làm gate đỏ (0 = xanh). `rc` là exit code thật. Gate `live` cần mạng/env Supabase; ghi nguyên trạng.",
+  "gates": {
+    "lint": {
+      "cmd": "npm run lint",
+      "rc": 0,
+      "violations": 0
+    },
+    "build": {
+      "cmd": "npm run build",
+      "rc": 0,
+      "violations": 0
+    },
+    "check-contrast-combos": {
+      "cmd": "node scripts/check-contrast-combos.mjs --json",
+      "rc": 0,
+      "violations": 0
+    },
+    "check-contrast": {
+      "cmd": "node scripts/check-contrast.mjs --json",
+      "rc": 0,
+      "violations": 0,
+      "note": "0 cặp FAIL ngoài mong đợi (các cặp expectedFail được phép non-pass)."
+    },
+    "check-doc-refs": {
+      "cmd": "node scripts/check-doc-refs.mjs --warn",
+      "rc": 0,
+      "violations": 151,
+      "advisory": true,
+      "note": "Advisory (T30): mặc định --warn không chặn gate; 151 path chết (deadLinks=0). Với --strict RC=1. File này xuất hiện đồng thời lúc T00 chạy — đo trên bản hiện có."
+    },
+    "check-error-handling": {
+      "cmd": "node scripts/check-error-handling.mjs --json",
+      "rc": 0,
+      "violations": 0,
+      "note": "R3 warn-in-catch hiện 53/53 budget (không vượt trần; chỉ được giảm)."
+    },
+    "check-fabricated": {
+      "cmd": "node scripts/check-fabricated.mjs --json",
+      "rc": 0,
+      "violations": 0
+    },
+    "check-icon-names": {
+      "cmd": "node scripts/check-icon-names.mjs",
+      "rc": 0,
+      "violations": 0
+    },
+    "check-ui-rules": {
+      "cmd": "node scripts/check-ui-rules.mjs --json",
+      "rc": 0,
+      "violations": 0
+    },
+    "check-unitprice-multiplier": {
+      "cmd": "node scripts/check-unitprice-multiplier.mjs",
+      "rc": 0,
+      "violations": 0
+    },
+    "a8-sql-syntax-check": {
+      "cmd": "node scripts/a8-sql-syntax-check.mjs",
+      "rc": 0,
+      "violations": 0
+    },
+    "lint-rls-migration": {
+      "cmd": "node scripts/lint-rls-migration.mjs",
+      "rc": 0,
+      "violations": 0
+    },
+    "lint-rls-sources": {
+      "cmd": "node scripts/lint-rls-sources.mjs",
+      "rc": 0,
+      "violations": 0
+    },
+    "test-catalog-sync": {
+      "cmd": "npx tsx scripts/test-catalog-sync.ts",
+      "rc": 0,
+      "violations": 0
+    },
+    "verify-rls": {
+      "cmd": "node scripts/verify-rls.mjs --json",
+      "rc": 1,
+      "violations": 0,
+      "live": true,
+      "note": "RC=1 do UNKNOWN: 4 mục (secret key không đọc được order_items/cart_items/digital_assets/custom_design_requests → 42501). fail=0, pass=17. Đây là baseline thật, không phải hồi quy của T00."
+    },
+    "inspect-db": {
+      "cmd": "node scripts/inspect-db.mjs",
+      "rc": 1,
+      "violations": 1,
+      "live": true,
+      "note": "1 bảng hở RLS: designer_profiles (publishable đọc 2 dòng) — đúng lỗ hổng SEC-01 mà T0A xử lý. 32/32 mục danh sách đối chiếu tồn tại."
+    }
+  }
+}

@@ -1,8 +1,19 @@
+<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
 # VCUBE icon migration map (Material Symbols -> lucide-react)
 
-Scope: every `<span className="material-symbols-outlined">` in `src/**/*.tsx` - **213** distinct glyph names across **696** render sites in **69** files. Target: `lucide-react@0.546.0` (already a dependency).
+> **STATUS: COMPLETED / HISTORICAL (2026-09).** Migration đã xong trong commit
+> `4a7eea5`. `src/frontend/ui/iconMap.ts` là **nguồn sự thật runtime** (hiện **224 glyph**;
+> `scripts/check-icon-names.mjs` kiểm tự động). Không còn `material-symbols-outlined`
+> trong `src/` hay `index.html`. Các bảng "Scope"/"How to use"/"Files by usage"/"Delete in
+> the same change" dưới đây là **kế hoạch gốc lúc viết** (số liệu 2026-09), giữ để tra cứu
+> lịch sử, KHÔNG phải việc cần làm lại. Riêng bảng mapping và bảng state-pairs vẫn phải
+> khớp `iconMap.ts` — thêm glyph mới phải sửa cả hai nơi. **Lưu ý:** quy tắc "sửa 2 nơi" này
+> **không** được gate tự động kiểm (`check-icon-names.mjs` chỉ soi `iconMap.ts`, không đọc doc)
+> — phải tự nhớ khi thêm glyph.
 
-Every lucide name below was checked against the real exports in `node_modules/lucide-react/dist/lucide-react.d.ts`. 0.546.0 has **dropped the legacy aliases**, so only these canonical names work: `CheckCircle`, `AlertTriangle`, `AlertCircle`, `XCircle`, `PlusCircle`, `Filter`, `HelpCircle`, `Home`, `UploadCloud`, `FileEdit`, `Wand2`, `BarChart3`, `KanbanSquare`, `PieChart`, `Verified`, `CheckSquare`, `Storefront` are **not** exported any more.
+Scope gốc: every `<span className="material-symbols-outlined">` in `src/**/*.tsx` - **213** distinct glyph names across **696** render sites in **69** files. Target: `lucide-react@0.546.0` (already a dependency).
+
+Every lucide name below was checked against the real exports in `node_modules/lucide-react/dist/lucide-react.d.ts`. 0.546.0 has **dropped the legacy aliases** — these are **not** exported any more: `CheckCircle`, `AlertTriangle`, `AlertCircle`, `XCircle`, `PlusCircle`, `Filter`, `HelpCircle`, `Home`, `UploadCloud`, `FileEdit`, `Wand2`, `BarChart3`, `KanbanSquare`, `PieChart`, `Verified`, `CheckSquare`, `Storefront`.
 
 ## How to use
 
@@ -26,7 +37,7 @@ import { CircleCheck } from 'lucide-react';
 
 | class in current code | px | lucide |
 | --- | ---: | --- |
-| `text-xs` | 14 | `size={14}` |
+| `text-xs` | 12 | `size={12}` |
 | `text-sm` | 16 | `size={16}` |
 | `text-base` | 18 | `size={18}` |
 | `text-lg` | 20 | `size={20}` |
@@ -48,9 +59,9 @@ import { CircleCheck } from 'lucide-react';
 | `sm:text-xl` | 24 at >=640px | omit `size` and use `<X className="size-5 sm:size-6" />` - CSS width/height beats the svg attributes |
 | (no size class) | 24 | `size={24}` (`src/index.css` set 24px on the old class) |
 
-**Caveat - today those `text-*` sizes are inert.** `.material-symbols-outlined { font-size: 24px }` sits at top level in `src/index.css` (line 260) while Tailwind utilities live in `@layer utilities`; unlayered rules win, so every Material icon currently paints at 24px whatever `text-*` class it carries. Switching to `<Icon size={n} />` makes the sizes real, so most icons will shrink - migrate file by file and eyeball each screen.
+**Caveat (áp dụng lúc migration, nay đã hết).** `.material-symbols-outlined { font-size: 24px }` từng nằm ở top level `src/index.css` nên mọi icon Material luôn vẽ 24px bất kể `text-*`; sau migration sang `<Icon size={n} />` cỡ icon là thật nên phần lớn icon nhỏ lại — vì vậy đã migrate từng file và rà từng màn (đã xong).
 
-Also set `strokeWidth={1.5}` (closest to the old `'wght' 300`, avoids lucide's default 2 looking heavier) - ideally in one local `Icon` wrapper that also fixes `aria-hidden`.
+Also set `strokeWidth` — default is **2** (lucide's default, `src/frontend/ui/Icon.tsx`), so do not override it unless a screen truly needs thinner strokes. The shared local `Icon` wrapper also fixes `aria-hidden` / `label`.
 
 ### aria rules
 
@@ -68,7 +79,7 @@ Also set `strokeWidth={1.5}` (closest to the old `'wght' 300`, avoids lucide's d
   bảng gốc — đã bổ sung. `help` map sang `CircleQuestionMark` (lucide 0.546 **không** export `CircleHelp`).
 - **5** are `NO-EQUIVALENT` and need a composed or inline-SVG solution (last section).
 - Every icon value is covered: sites with nested ternaries fan out to 2-4 branches each, and 12 sites resolve through data-driven `.icon` lists (3-16 candidates each).
-- Dead code: 2 of the 69 files - `src/app/auth/login/page.tsx` and `src/app/auth/register/page.tsx` - are in the `src/app/**` Next tree already excluded by `tsconfig.json` (line 46); 17 sites. Delete the tree or migrate it last.
+- Dead code (historical): cây Next.js cũ đã bị **xoá hẳn** khỏi repo (không còn trong `tsconfig.json`) — 17 site lịch sử, không cần xử lý gì thêm.
 - Delete in the same change: `index.html` line 11 (the `Material+Symbols+Outlined` `<link>`) and `src/index.css` lines 260-279 (`.material-symbols-outlined` and `.material-symbols-outlined.fill`).
 
 ## Mapping table
@@ -307,11 +318,13 @@ Added to `src/frontend/ui/iconMap.ts` so they resolve instead of rendering `FALL
 | `flight` | `Plane` | `HomeView.tsx` chassis selector |
 | `grid_3x3` | `Grid3x3` | `ServiceShowcaseSection.tsx` wireframe toggle |
 | `lightbulb` | `Lightbulb` | `HomeView.tsx` |
-| `360` (retargeted) | `RotateCw` | auto-rotate toggles in `ModelViewer3D.tsx`, `UnifiedCadToolbar.tsx` |
+
+> `360` **không** thuộc bảng này — nó là glyph gốc Material Symbols, đã có ở bảng mapping chính
+> (`360` → `RotateCw`, cho auto-rotate toggles ở `ModelViewer3D.tsx`/`UnifiedCadToolbar.tsx`).
 
 ## Files by usage
 
-Top 25 by render-site count - migrate in this order.
+Top 24 by render-site count - migrate in this order. (Site #25 cũ thuộc cây Next.js đã xoá.)
 
 | # | file | icon usages |
 | ---: | --- | ---: |
@@ -339,7 +352,11 @@ Top 25 by render-site count - migrate in this order.
 | 22 | `src/frontend/components/admin/AccessoriesManager.tsx` | 11 |
 | 23 | `src/frontend/components/Header.tsx` | 11 |
 | 24 | `src/frontend/components/tool3d/InstantQuoteWidget.tsx` | 11 |
-| 25 | `src/app/auth/register/page.tsx` | 11 |
+
+> **Đã xoá từ sau migration (đừng grep theo các path này):** `src/frontend/components/admin/AdminOverviewPanel.tsx`,
+> `src/frontend/components/admin/AdminUsersPanel.tsx`, `src/frontend/components/tool3d/InstantQuoteWidget.tsx` — đã gỡ.
+> Cây Next.js cũ cũng đã xoá hẳn khỏi repo. Hai panel admin nay ở
+> `admin/groups/Group0OverviewPanel.tsx` và `admin/groups/Group3CustomersPanel.tsx`.
 
 Files that look light by site count but carry **data-driven icon lists** - these `.icon` string fields must become component references (`icon: Factory`), not names, and be rendered as `<item.icon size={18} aria-hidden />`:
 
@@ -373,11 +390,11 @@ These are two Material names for one control; in lucide use **one component plus
 
 | pair | lucide | how to express the state |
 | --- | --- | --- |
-| `bookmark` / `bookmark_border` | `Bookmark` | `fill={isBookmarked ? 'currentColor' : 'none'}`. The old code passed the class `fill-1`, which is defined nowhere (`src/index.css` defines `.material-symbols-outlined.fill`), so the bookmarked fill never rendered - the migration is the fix. |
+| `bookmark` / `bookmark_border` | `Bookmark` | `fill={isBookmarked ? 'currentColor' : 'none'}`. The old code passed the class `fill-1`, which is defined nowhere (the former Material Symbols `fill` modifier was deleted from `src/index.css` in this migration), so the bookmarked fill never rendered - the migration is the fix. |
 | `check_box` / `check_box_outline_blank` | `SquareCheck` / `Square` | Keep the two-component toggle, or render `Square` and nest a conditional `<Check/>`. |
 | `visibility` / `visibility_off` | `Eye` / `EyeOff` | Two components, as today. |
 | `fullscreen` / `fullscreen_exit` | `Maximize` / `Minimize` | Two components, as today. |
 | `arrow_drop_down` / `arrow_drop_up` | `ChevronDown` / `ChevronUp` | Two components; or collapse into one `ChevronDown` with `className="rotate-180"`. |
 | `hourglass_top` / `hourglass_empty` | `Hourglass` | One glyph; mark the running state with colour plus `animate-pulse`, not a second icon. |
-| `progress_activity` / `360` | `LoaderCircle` | One glyph plus `animate-spin` - both are spinners in the current code. |
+| `progress_activity` | `LoaderCircle` | One glyph plus `animate-spin`. (`360` is **not** a spinner here - it is the auto-rotate toggle mapped to `RotateCw`, see the main table and the note above.) |
 | `chevron_left` / `chevron_right` | `ChevronLeft` / `ChevronRight` | Two components; collapse to one with `rotate-180` for the sidebar collapse toggle. |
