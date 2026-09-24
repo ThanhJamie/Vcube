@@ -1,13 +1,21 @@
 #!/usr/bin/env node
 /**
- * A8 — SINH LẠI `supabase/scripts/apply_all_manual.sql` từ 4 file gốc.
+ * A8 — SINH LẠI `supabase/scripts/apply_all_manual.sql` từ các file gốc.
  *
  * File gộp là bản nối NGUYÊN VĂN (không sửa 1 ký tự SQL) của:
  *   PHẦN 1 — supabase/migrations/20260900_rls_helpers.sql
  *   PHẦN 2 — supabase/migrations/20260901_baseline_schema.sql
  *   PHẦN 3 — supabase/migrations/20261010_harden_rls.sql
- *   PHẦN 4 — supabase/scripts/bootstrap_admin.sql
- *   PHẦN 5 — kiểm chứng sau khi chạy (chỉ đọc, sinh từ script này)
+ *   PHẦN 4 — supabase/migrations/20261011090000_sec01_designer_payout_hotfix.sql
+ *   PHẦN 5 — supabase/migrations/20261011100000_signup_role_designer.sql
+ *   PHẦN 6 — supabase/migrations/20261011110000_designer_profile_column_guard.sql
+ *   PHẦN 7 — supabase/migrations/20261012090000_sec02_open_requests.sql
+ *   PHẦN 8 — supabase/migrations/20261012100000_check_constraints.sql
+ *   PHẦN 9 — supabase/migrations/20261012130000_orders_broadcast.sql
+ *   PHẦN 10 — supabase/scripts/bootstrap_admin.sql
+ *   PHẦN 11 — kiểm chứng sau khi chạy (chỉ đọc, sinh từ script này)
+ *
+ * (Số phần được suy động từ PARTS; thêm migration W2 vào PARTS là đủ.)
  *
  * Vì sao cần script: sau khi sửa baseline (thêm `alter table` idempotent cho bảng đã
  * tồn tại), bản gộp cũ KHÔNG còn khớp nguồn sự thật. Chủ dự án dán file gộp ⇒ file
@@ -21,6 +29,27 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const R = (p) => readFileSync(resolve(root, p), 'utf8');
+
+/* Chuẩn hoá literal email admin còn sót trong COMMENT của rls_helpers.sql (đoạn mô tả
+ * anti-pattern đã gỡ). File gộp phải sạch literal này (acceptance T24:
+ * `grep -c "chithanhso10" supabase/scripts/*.sql` = 0) nhưng KHÔNG được sửa file
+ * migration gốc (không nằm trong OWNED). Chỉ ảnh hưởng nội dung COMMENT — không đổi
+ * 1 ký tự SQL nào. */
+const HARDCODED_ADMIN_EMAIL = 'chithanhso10@gmail.com';
+const sanitizeEmbed = (sql) => sql.split(HARDCODED_ADMIN_EMAIL).join('<email admin cũ đã gỡ>');
+
+/* Các migration W2 (20261011HHMMSS + 20261012HHMMSS) — gom vào bản gộp, chạy SAU
+ * 20261010_harden_rls.sql, theo ĐÚNG thứ tự tên file. SEC-02 chạy sau harden để gỡ nhánh
+ * `designer_id is null` mà harden cũ từng tạo (xem 20261012090000_sec02_open_requests.sql). */
+const NEW_MIGRATION_FILES = [
+  'supabase/migrations/20261011090000_sec01_designer_payout_hotfix.sql',
+  'supabase/migrations/20261011100000_signup_role_designer.sql',
+  'supabase/migrations/20261011110000_designer_profile_column_guard.sql',
+  'supabase/migrations/20261012090000_sec02_open_requests.sql',
+  'supabase/migrations/20261012100000_check_constraints.sql',
+  'supabase/migrations/20261012130000_orders_broadcast.sql',
+];
+const NEW_MIGRATIONS_SRC = NEW_MIGRATION_FILES.map(R).join('\n');
 
 /* ------------------------------------------------------- số kỳ vọng (tính động)
  * KHÔNG hardcode số bảng / số policy. Bản trước hardcode "25 bảng" và "61 policy";
@@ -84,22 +113,67 @@ const PARTS = [
   },
   {
     n: 4,
+    title: 'supabase/migrations/20261011090000_sec01_designer_payout_hotfix.sql',
+    note: 'SEC-01 HOTFIX — thu hẹp SELECT designer_profiles xuống danh sách cột an toàn; đọc 3 cột nhận tiền qua 2 RPC security definer.',
+    file: 'supabase/migrations/20261011090000_sec01_designer_payout_hotfix.sql',
+  },
+  {
+    n: 5,
+    title: 'supabase/migrations/20261011100000_signup_role_designer.sql',
+    note: 'T58 — đăng ký tự phục vụ vai trò designer với guard ĐÓNG (không bao giờ cấp admin); trigger tạo profile tự động.',
+    file: 'supabase/migrations/20261011100000_signup_role_designer.sql',
+  },
+  {
+    n: 6,
+    title: 'supabase/migrations/20261011110000_designer_profile_column_guard.sql',
+    note: 'SEC-02 — trigger chặn chủ hồ sơ thiết kế tự nâng quyền (royalty_percent / verified_status / total_sales).',
+    file: 'supabase/migrations/20261011110000_designer_profile_column_guard.sql',
+  },
+  {
+    n: 7,
+    title: 'supabase/migrations/20261012090000_sec02_open_requests.sql',
+    note: 'SEC-02 — chợ yêu cầu CAD mở: view definer chỉ phơi cột brief + RPC claim nguyên tử; GỠ nhánh `designer_id is null` khỏi policy designer.',
+    file: 'supabase/migrations/20261012090000_sec02_open_requests.sql',
+  },
+  {
+    n: 8,
+    title: 'supabase/migrations/20261012100000_check_constraints.sql',
+    note: 'DB-03/DB-04 — CHECK enum-like cho orders.payment_status + kyc_records.status (NOT VALID; VALIDATE do người vận hành).',
+    file: 'supabase/migrations/20261012100000_check_constraints.sql',
+  },
+  {
+    n: 9,
+    title: 'supabase/migrations/20261012130000_orders_broadcast.sql',
+    note: 'T35 — trigger phát realtime tối thiểu {id,status} lên kênh riêng tư orders:admin + policy realtime.messages chỉ admin.',
+    file: 'supabase/migrations/20261012130000_orders_broadcast.sql',
+  },
+  {
+    n: 10,
     title: 'supabase/scripts/bootstrap_admin.sql',
-    note: 'CẤP QUYỀN ADMIN — SỬA `v_email` thành email thật trước khi chạy, nếu không script sẽ raise exception.',
+    note: 'CẤP QUYỀN ADMIN — SỬA `v_email` (sentinel CHANGE_ME@example.com) thành email thật trước khi chạy, nếu không script sẽ raise exception.',
     file: 'supabase/scripts/bootstrap_admin.sql',
   },
 ];
 
+/* Số phần sinh động từ PARTS — tránh hardcode "/4" như bản trước khi thêm migration W2. */
+const PARTS_TOTAL = PARTS.length;
+const MIGRATION_PART_COUNT = PARTS.filter((p) => p.file.startsWith('supabase/migrations/')).length;
+const BOOTSTRAP_PART_N = PARTS.find((p) => /bootstrap_admin/.test(p.file))?.n ?? PARTS_TOTAL;
+const VERIFY_PART_N = PARTS_TOTAL + 1;
+const SOURCE_LIST = PARTS.map((p) => `--   ${p.file}`).join('\n');
+
 const HEADER = `-- ##############################################################################
 -- VCUBE — FILE GỘP ĐỂ DÁN 1 LẦN VÀO SUPABASE SQL EDITOR
 -- ##############################################################################
--- ĐÂY KHÔNG PHẢI MIGRATION. Đây chỉ là bản gộp tiện dụng của 3 file migration +
+-- ĐÂY KHÔNG PHẢI MIGRATION. Đây chỉ là bản gộp tiện dụng của ${MIGRATION_PART_COUNT} file migration +
 -- script cấp quyền admin, sinh tự động từ đúng nội dung gốc (không sửa 1 ký tự SQL).
 -- Nguồn sự thật vẫn là:
---   supabase/migrations/20260900_rls_helpers.sql
---   supabase/migrations/20260901_baseline_schema.sql
---   supabase/migrations/20261010_harden_rls.sql
---   supabase/scripts/bootstrap_admin.sql
+${SOURCE_LIST}
+--
+-- ⚠️⚠️ FREEZE ĐANG BẬT (T0A-4 → T23): TUYỆT ĐỐI KHÔNG dán file này lên prod.
+--   Bản gộp CÓ nhúng 20261010_harden_rls.sql, vốn cấp lại quyền SELECT toàn bảng và có
+--   thể hoàn tác hotfix SEC-01 đã áp. File này chỉ là BUILD ARTIFACT để tham chiếu/khôi
+--   phục môi trường local-staging. Sau khi T23 gỡ FREEZE mới cân nhắc dùng lại.
 --
 -- SINH LẠI BẰNG:  node scripts/gen-apply-all.mjs
 -- ⚠️ Sửa tay file này là sai — sửa file gốc rồi sinh lại.
@@ -120,19 +194,19 @@ const HEADER = `-- #############################################################
 --     trị admin đã nhập thật.
 --
 -- SAU KHI CHẠY, kiểm chứng bằng 3 cách:
---   a) Xem kết quả PHẦN 5 ngay dưới đáy file này (chỉ đọc, in ra PASS/FAIL từng mục).
+--   a) Xem kết quả PHẦN ${VERIFY_PART_N} ngay dưới đáy file này (chỉ đọc, in ra PASS/FAIL từng mục).
 --   b) Trong SQL Editor: chạy supabase/diagnostics/verify_admin_settings.sql
 --   c) Trong repo:  node scripts/inspect-db.mjs   (phải đủ ${inspectDbCount}/${inspectDbCount} mục trong
 --                   DANH SÁCH ĐỐI CHIẾU của chính script đó; hiện phủ ${tableCount} bảng khai báo
 --                   trong 20260901_baseline_schema.sql, cộng view pricing_config)
 --                   node scripts/verify-rls.mjs   (0 FAIL)
 --
--- THỨ TỰ BẮT BUỘC: phần 1 -> 2 -> 3. Phần 4 chạy sau cùng và tùy chọn (phải sửa email).
+-- THỨ TỰ BẮT BUỘC: phần 1 -> ${MIGRATION_PART_COUNT}. Phần ${BOOTSTRAP_PART_N} chạy sau cùng và tùy chọn (phải sửa email).
 -- ##############################################################################
 `;
 
 const VERIFY = `-- ##############################################################################
--- PHẦN 5 — KIỂM CHỨNG SAU KHI CHẠY (chỉ đọc, không thay đổi gì)
+-- PHẦN ${VERIFY_PART_N} — KIỂM CHỨNG SAU KHI CHẠY (chỉ đọc, không thay đổi gì)
 -- ##############################################################################
 -- Mỗi truy vấn in ra cột \`ket_qua\` = 'OK' hoặc 'THIEU'/'SAI'. Không có dòng 'SAI'/'THIEU'
 -- nghĩa là migration đã áp đủ. Script này CHỈ ĐỌC: chỉ select trên catalog + đếm.
@@ -262,10 +336,12 @@ const EXPECTED_TRIGGERS = [
   'trg_protect_order_privileged_columns',
   'trg_protect_workshop_profile_privileged_columns',
   'trg_protect_profile_privileged_columns',
+  'trg_protect_designer_profile_privileged_columns',
   'trg_create_profile_for_new_user',
   'trg_touch_updated_at',
   'trg_sync_product_review_stats',
   'trg_sync_material_on_inventory_log',
+  'trg_orders_broadcast',
 ];
 const EXPECTED_STORAGE = [
   'vcube_product_images_public_read',
@@ -275,6 +351,16 @@ const EXPECTED_STORAGE = [
   'vcube_cad_files_order_files_read',
   'vcube_cad_files_digital_owner_rw',
 ];
+/* W2 (20261012*) — vật thể mới do SEC-02 / check_constraints / orders_broadcast tạo. */
+const EXPECTED_REALTIME_POLICIES = ['orders_admin_realtime'];
+const EXPECTED_CONSTRAINTS = [
+  'orders_payment_status_chk',
+  'kyc_records_status_chk',
+  'orders_status_chk',
+  'orders_status_stage_index_range_chk',
+];
+const EXPECTED_FUNCTIONS = ['claim_design_request', 'orders_broadcast_status'];
+const EXPECTED_VIEWS = ['open_design_requests'];
 
 const W8_VERIFY = `
 -- 5.14 — Policy của Đợt 10/Đợt 25 phải có đủ (xưởng in · workshop_profiles · quotes/kyc · order_items)
@@ -299,6 +385,7 @@ select t.expected as trigger, case when tg.tgname is not null then 'OK' else 'TH
   from (values ('trg_protect_order_privileged_columns'),
                ('trg_protect_workshop_profile_privileged_columns'),
                ('trg_protect_profile_privileged_columns'),
+               ('trg_protect_designer_profile_privileged_columns'),
                ('trg_create_profile_for_new_user'),
                ('trg_touch_updated_at'),
                ('trg_sync_product_review_stats'),
@@ -408,20 +495,89 @@ select t.tbl || '.' || t.col as cot_con_default_bia
     on c.table_schema = 'public' and c.table_name = t.tbl and c.column_name = t.col
  where c.column_default is not null
  order by 1;
+
+-- 5.23 — W2 / SEC-01: anon + authenticated KHÔNG đọc được cột nhận tiền của designer
+select 'anon/authenticated KHONG doc duoc bank_account' as muc,
+       case when not has_column_privilege('anon','public.designer_profiles','bank_account','select')
+             and not has_column_privilege('authenticated','public.designer_profiles','bank_account','select')
+            then 'OK' else 'SAI — con doc duoc bank_account' end as ket_qua;
+
+-- 5.24 — W2 / SEC-02: trigger chặn designer tự nâng quyền phải tồn tại
+select 'trg_protect_designer_profile_privileged_columns' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_trigger
+ where tgname = 'trg_protect_designer_profile_privileged_columns' and not tgisinternal;
+
+-- 5.25 — W2 / T58: hàm tạo profile tự động + hàm guard cột designer phải tồn tại
+select t.expected as ham,
+       case when p.proname is not null then 'OK' else 'THIEU' end as ket_qua
+  from (values ('fn_create_profile_for_new_user'),
+               ('fn_protect_designer_profile_privileged_columns')) as t(expected)
+  left join pg_proc p on p.proname = t.expected and p.pronamespace = 'public'::regnamespace
+ order by t.expected;
 `;
 
-const VERIFY_ALL = VERIFY + W8_VERIFY;
+const W2B_VERIFY = `
+-- 5.26 — W2 / SEC-02: view chợ mở phải tồn tại (definer view, cột brief không nhạy cảm)
+select 'view public.open_design_requests' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_views where schemaname = 'public' and viewname = 'open_design_requests';
+
+-- 5.27 — W2 / SEC-02: RPC nhận việc nguyên tử phải tồn tại
+select 'function claim_design_request' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = 'claim_design_request';
+
+-- 5.28 — W2 / T22b: 4 CHECK enum-like phải tồn tại (orders + kyc_records)
+select t.expected as constraint_mong_doi,
+       case when c.conname is not null then 'OK' else 'THIEU' end as ket_qua
+  from (values ('orders_payment_status_chk'),
+               ('kyc_records_status_chk'),
+               ('orders_status_chk'),
+               ('orders_status_stage_index_range_chk')) as t(expected)
+  left join pg_constraint c
+         on c.conname = t.expected
+        and c.conrelid in ('public.orders'::regclass, 'public.kyc_records'::regclass)
+ order by t.expected;
+
+-- 5.29 — W2 / T35: trigger phát trạng thái đơn + hàm phát realtime phải tồn tại
+select 'trg_orders_broadcast' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_trigger where tgname = 'trg_orders_broadcast' and not tgisinternal;
+select 'function orders_broadcast_status' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = 'orders_broadcast_status';
+
+-- 5.30 — W2 / T35: policy realtime.messages chỉ admin đọc topic orders:admin
+select 'policy realtime.messages orders_admin_realtime' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_policies
+ where schemaname = 'realtime' and tablename = 'messages'
+   and policyname = 'orders_admin_realtime';
+`;
+
+const VERIFY_ALL = VERIFY + W8_VERIFY + W2B_VERIFY;
 
 /* TỰ KIỂM TRƯỚC KHI GHI (chạy trước writeFileSync ⇒ danh sách lệch thì KHÔNG ghi gì). */
 {
-  const haystack = BASELINE_SRC + '\n' + HARDEN_SRC;
+  const haystack = BASELINE_SRC + '\n' + HARDEN_SRC + '\n' + NEW_MIGRATIONS_SRC;
   const hasPolicy = (n) => haystack.includes("'" + n + "'");
   const hasTrigger = (n) => new RegExp('\\b' + n + '\\b').test(haystack);
   const hasStoragePolicy = (n) => new RegExp('create policy\\s+' + n + '\\s+on\\s+storage\\.objects').test(haystack);
+  const hasRealtimePolicy = (n) => new RegExp('create policy\\s+' + n + '\\s+on\\s+realtime\\.messages').test(haystack);
+  const hasConstraint = (n) => new RegExp('\\b' + n + '\\b').test(haystack);
+  const hasFunction = (n) => new RegExp('create\\s+(or\\s+replace\\s+)?function\\s+public\\.' + n + '\\b').test(haystack);
+  const hasView = (n) => new RegExp('create\\s+view\\s+(public\\.)?' + n + '\\b').test(haystack);
   const missing = []
     .concat(EXPECTED_POLICIES.filter((n) => !hasPolicy(n)).map((n) => 'policy: ' + n))
     .concat(EXPECTED_TRIGGERS.filter((n) => !hasTrigger(n)).map((n) => 'trigger: ' + n))
-    .concat(EXPECTED_STORAGE.filter((n) => !hasStoragePolicy(n)).map((n) => 'storage policy: ' + n));
+    .concat(EXPECTED_STORAGE.filter((n) => !hasStoragePolicy(n)).map((n) => 'storage policy: ' + n))
+    .concat(EXPECTED_REALTIME_POLICIES.filter((n) => !hasRealtimePolicy(n)).map((n) => 'realtime policy: ' + n))
+    .concat(EXPECTED_CONSTRAINTS.filter((n) => !hasConstraint(n)).map((n) => 'constraint: ' + n))
+    .concat(EXPECTED_FUNCTIONS.filter((n) => !hasFunction(n)).map((n) => 'function: ' + n))
+    .concat(EXPECTED_VIEWS.filter((n) => !hasView(n)).map((n) => 'view: ' + n));
   if (missing.length) {
     console.log('FAIL — danh sách kỳ vọng của PHẦN 5 KHÔNG khớp file migration:');
     for (const m of missing) console.log('  - không tìm thấy ' + m);
@@ -429,41 +585,41 @@ const VERIFY_ALL = VERIFY + W8_VERIFY;
     console.log('  ⇒ KHÔNG ghi đè file gộp.');
     process.exit(1);
   }
-  console.log(`Tự kiểm PHẦN 5: ${EXPECTED_POLICIES.length} policy + ${EXPECTED_TRIGGERS.length} trigger + ${EXPECTED_STORAGE.length} policy storage — khớp file migration.`);
+  console.log(`Tự kiểm PHẦN ${VERIFY_PART_N}: ${EXPECTED_POLICIES.length} policy + ${EXPECTED_TRIGGERS.length} trigger + ${EXPECTED_STORAGE.length} policy storage + ${EXPECTED_REALTIME_POLICIES.length} policy realtime + ${EXPECTED_CONSTRAINTS.length} constraint + ${EXPECTED_FUNCTIONS.length} function + ${EXPECTED_VIEWS.length} view — khớp file migration.`);
 }
 
 let out = HEADER;
 for (const p of PARTS) {
   out += `
 -- ##############################################################################
--- PHẦN ${p.n}/4 — ${p.title}
+-- PHẦN ${p.n}/${PARTS_TOTAL} — ${p.title}
 -- ${p.note}
 -- ##############################################################################
 
 `;
-  out += R(p.file);
+  out += sanitizeEmbed(R(p.file));
   if (!out.endsWith('\n')) out += '\n';
 }
 out += '\n' + VERIFY_ALL;
 
 writeFileSync(resolve(root, 'supabase/scripts/apply_all_manual.sql'), out, 'utf8');
 
-// Tự kiểm: nội dung 4 file gốc phải xuất hiện NGUYÊN VĂN
+// Tự kiểm: nội dung các file gốc phải xuất hiện NGUYÊN VĂN (sau khi chuẩn hoá comment)
 let problems = [];
 for (const p of PARTS) {
-  const body = R(p.file);
+  const body = sanitizeEmbed(R(p.file));
   if (!out.includes(body)) problems.push(`PHẦN ${p.n} KHÔNG nguyên văn: ${p.file}`);
 }
 const lines = out.split('\n').length - (out.endsWith('\n') ? 1 : 0);
 const verifyQueries = (VERIFY_ALL.match(/^select/gim) ?? []).length;
 console.log(`Đã sinh supabase/scripts/apply_all_manual.sql — ${lines} dòng, ${out.length} ký tự.`);
 console.log('Các phần:');
-for (const p of PARTS) console.log(`  PHẦN ${p.n}/4 — ${p.title}`);
-console.log(`  PHẦN 5   — kiểm chứng (${verifyQueries} truy vấn chỉ đọc, có kiểm policy/trigger)`);
+for (const p of PARTS) console.log(`  PHẦN ${p.n}/${PARTS_TOTAL} — ${p.title}`);
+console.log(`  PHẦN ${VERIFY_PART_N}   — kiểm chứng (${verifyQueries} truy vấn chỉ đọc, có kiểm policy/trigger)`);
 console.log(`Số kỳ vọng (tính động từ file gốc): ${tableCount} bảng · ${publicPolicyCount} policy bảng · ${storagePolicyCount} policy storage`);
 if (problems.length) {
   console.log('\nFAIL:');
   for (const x of problems) console.log('  - ' + x);
   process.exit(1);
 }
-console.log('\nPASS — cả 4 file gốc xuất hiện nguyên văn trong file gộp.');
+console.log(`\nPASS — cả ${PARTS_TOTAL} file gốc xuất hiện nguyên văn trong file gộp.`);

@@ -26,42 +26,111 @@ function saveLocalRequest(req: CustomDesignRequest): void {
   }
 }
 
+/** Kết quả bảng yêu cầu của designer: danh sách + id thuộc chợ mở (chưa nhận). */
+export interface DesignerRequestBoard {
+  requests: CustomDesignRequest[];
+  openRequestIds: string[];
+}
+
+/** Nhãn trung tính cho yêu cầu chợ mở — view không phơi danh tính khách (không bịa tên). */
+const OPEN_POOL_LABEL = 'Khách hàng ẩn danh';
+
+/**
+ * Tải bảng yêu cầu của designer:
+ *   · hàng được gán cho mình / của mình đọc trực tiếp từ bảng (RLS siết theo uid);
+ *   · chợ mở (`designer_id is null`) đọc qua view cột-không-nhạy-cảm `open_design_requests` —
+ *     RLS bảng gốc nay KHÔNG còn cho designer thấy hàng chưa nhận.
+ */
+async function loadRequestBoard(designerId?: string): Promise<DesignerRequestBoard> {
+  const localRequests = getLocalRequests();
+
+  if (!isSupabaseConfigured) {
+    return { requests: localRequests, openRequestIds: [] };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('custom_design_requests')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('[customDesignService] Lỗi tải yêu cầu thiết kế CAD:', error);
+      return { requests: localRequests, openRequestIds: [] };
+    }
+
+    const assigned = (data ?? []).map(rowToCustomDesignRequest);
+
+    let open: CustomDesignRequest[] = [];
+    if (designerId) {
+      const { data: openRows, error: openError } = await supabase
+        .from('open_design_requests')
+        .select('id, title, budget, deadline, service_type, status, target_specs, created_at, updated_at')
+        .order('updated_at', { ascending: false });
+
+      if (openError) {
+        console.warn('[customDesignService] Không tải được chợ yêu cầu mở:', openError);
+      } else {
+        open = (openRows ?? []).map((row) => ({
+          ...rowToCustomDesignRequest(row),
+          clientName: OPEN_POOL_LABEL,
+        }));
+      }
+    }
+
+    const assignedIds = new Set(assigned.map((r) => r.id));
+    const openOnly = open.filter((r) => !assignedIds.has(r.id));
+
+    const dbIds = new Set([...assignedIds, ...openOnly.map((r) => r.id)]);
+    const unsyncedLocals = localRequests.filter((r) => !dbIds.has(r.id));
+
+    return {
+      requests: [...unsyncedLocals, ...assigned, ...openOnly],
+      openRequestIds: openOnly.map((r) => r.id),
+    };
+  } catch (err) {
+    console.error('[customDesignService] Exception khi tải yêu cầu:', err);
+    return { requests: localRequests, openRequestIds: [] };
+  }
+}
+
 export const customDesignService = {
   /**
-   * Tải danh sách yêu cầu thiết kế CAD tùy chỉnh từ Supabase.
-   * Nếu có `designerId`, lọc các yêu cầu được gán cho designer này hoặc chưa gán ai.
-   * Khi offline/demo, tự động đọc từ local mock store.
+   * Tải danh sách yêu cầu thiết kế CAD tùy chỉnh từ Supabase (gồm cả chợ mở nếu có
+   * `designerId`). Khi offline/demo, tự động đọc từ local mock store.
    */
   async getRequests(designerId?: string): Promise<CustomDesignRequest[]> {
-    const localRequests = getLocalRequests();
+    const board = await loadRequestBoard(designerId);
+    return board.requests;
+  },
 
+  /**
+   * Tải bảng yêu cầu kèm danh sách id thuộc chợ mở để UI biết yêu cầu nào cần "Nhận việc".
+   */
+  async getRequestBoard(designerId?: string): Promise<DesignerRequestBoard> {
+    return loadRequestBoard(designerId);
+  },
+
+  /**
+   * Nhận một yêu cầu CAD chưa gán cho mình qua RPC nguyên tử `claim_design_request`.
+   * Trả `fail` khi yêu cầu đã có người nhận (RPC trả NULL) — KHÔNG báo thành công giả.
+   */
+  async claimRequest(id: string): Promise<WriteResult> {
     if (!isSupabaseConfigured) {
-      return localRequests;
+      return fail('Supabase chưa cấu hình — không thể nhận yêu cầu.');
     }
 
     try {
-      let query = supabase
-        .from('custom_design_requests')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (designerId) {
-        query = query.or(`designer_id.eq.${designerId},designer_id.is.null`);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await supabase.rpc('claim_design_request', { p_id: id });
       if (error) {
-        console.error('[customDesignService] Lỗi tải yêu cầu thiết kế CAD:', error);
-        return localRequests;
+        return fail(error.message, 'Nhận yêu cầu thất bại.');
       }
-
-      const dbRequests = (data ?? []).map(rowToCustomDesignRequest);
-      const dbIds = new Set(dbRequests.map((r) => r.id));
-      const unsyncedLocals = localRequests.filter((r) => !dbIds.has(r.id));
-      return [...unsyncedLocals, ...dbRequests];
+      if (!data) {
+        return fail('Yêu cầu đã được người khác nhận.', 'Yêu cầu đã có người nhận.');
+      }
+      return ok();
     } catch (err) {
-      console.error('[customDesignService] Exception khi tải yêu cầu:', err);
-      return localRequests;
+      return fail(err, 'Nhận yêu cầu thất bại.');
     }
   },
 
@@ -296,6 +365,11 @@ export const customDesignService = {
 
   /**
    * Đăng ký lắng nghe thay đổi thời gian thực (Supabase Realtime) trên bảng `custom_design_requests`.
+   *
+   * ⚠️ SEC-02 / T21: chợ mở đọc qua VIEW `open_design_requests` — view KHÔNG phải nguồn
+   * `postgres_changes`. Sau khi gỡ policy `designer_id is null`, kênh này chỉ còn phát
+   * các hàng đã gán cho chính designer (RLS realtime lọc theo uid). Muốn thấy yêu cầu
+   * mới vào chợ cần polling ngắn hoặc `realtime.send` — thuộc task riêng.
    */
   subscribe(callback: (payload: any) => void): () => void {
     if (!isSupabaseConfigured) {

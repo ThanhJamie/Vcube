@@ -1,13 +1,24 @@
 -- ##############################################################################
 -- VCUBE — FILE GỘP ĐỂ DÁN 1 LẦN VÀO SUPABASE SQL EDITOR
 -- ##############################################################################
--- ĐÂY KHÔNG PHẢI MIGRATION. Đây chỉ là bản gộp tiện dụng của 3 file migration +
+-- ĐÂY KHÔNG PHẢI MIGRATION. Đây chỉ là bản gộp tiện dụng của 9 file migration +
 -- script cấp quyền admin, sinh tự động từ đúng nội dung gốc (không sửa 1 ký tự SQL).
 -- Nguồn sự thật vẫn là:
 --   supabase/migrations/20260900_rls_helpers.sql
 --   supabase/migrations/20260901_baseline_schema.sql
 --   supabase/migrations/20261010_harden_rls.sql
+--   supabase/migrations/20261011090000_sec01_designer_payout_hotfix.sql
+--   supabase/migrations/20261011100000_signup_role_designer.sql
+--   supabase/migrations/20261011110000_designer_profile_column_guard.sql
+--   supabase/migrations/20261012090000_sec02_open_requests.sql
+--   supabase/migrations/20261012100000_check_constraints.sql
+--   supabase/migrations/20261012130000_orders_broadcast.sql
 --   supabase/scripts/bootstrap_admin.sql
+--
+-- ⚠️⚠️ FREEZE ĐANG BẬT (T0A-4 → T23): TUYỆT ĐỐI KHÔNG dán file này lên prod.
+--   Bản gộp CÓ nhúng 20261010_harden_rls.sql, vốn cấp lại quyền SELECT toàn bảng và có
+--   thể hoàn tác hotfix SEC-01 đã áp. File này chỉ là BUILD ARTIFACT để tham chiếu/khôi
+--   phục môi trường local-staging. Sau khi T23 gỡ FREEZE mới cân nhắc dùng lại.
 --
 -- SINH LẠI BẰNG:  node scripts/gen-apply-all.mjs
 -- ⚠️ Sửa tay file này là sai — sửa file gốc rồi sinh lại.
@@ -28,18 +39,18 @@
 --     trị admin đã nhập thật.
 --
 -- SAU KHI CHẠY, kiểm chứng bằng 3 cách:
---   a) Xem kết quả PHẦN 5 ngay dưới đáy file này (chỉ đọc, in ra PASS/FAIL từng mục).
+--   a) Xem kết quả PHẦN 11 ngay dưới đáy file này (chỉ đọc, in ra PASS/FAIL từng mục).
 --   b) Trong SQL Editor: chạy supabase/diagnostics/verify_admin_settings.sql
---   c) Trong repo:  node scripts/inspect-db.mjs   (phải đủ 31/31 mục trong
+--   c) Trong repo:  node scripts/inspect-db.mjs   (phải đủ 32/32 mục trong
 --                   DANH SÁCH ĐỐI CHIẾU của chính script đó; hiện phủ 31 bảng khai báo
 --                   trong 20260901_baseline_schema.sql, cộng view pricing_config)
 --                   node scripts/verify-rls.mjs   (0 FAIL)
 --
--- THỨ TỰ BẮT BUỘC: phần 1 -> 2 -> 3. Phần 4 chạy sau cùng và tùy chọn (phải sửa email).
+-- THỨ TỰ BẮT BUỘC: phần 1 -> 9. Phần 10 chạy sau cùng và tùy chọn (phải sửa email).
 -- ##############################################################################
 
 -- ##############################################################################
--- PHẦN 1/4 — supabase/migrations/20260900_rls_helpers.sql
+-- PHẦN 1/10 — supabase/migrations/20260900_rls_helpers.sql
 -- RLS HELPERS — bắt buộc chạy TRƯỚC. Định nghĩa public.current_app_role() + public.is_admin() + public.is_admin_or_lab().
 -- ##############################################################################
 
@@ -50,7 +61,7 @@
 -- public.is_admin() thay cho:
 --   * (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'   ← CLIENT TỰ SỬA ĐƯỢC
 --   * (auth.jwt() -> 'app_metadata'  ->> 'role') = 'admin'
---   * email hardcode 'chithanhso10@gmail.com'
+--   * email hardcode '<email admin cũ đã gỡ>'
 --
 -- Viết bằng plpgsql để KHÔNG bị validate tham chiếu bảng lúc tạo — nhờ vậy file này
 -- chạy được cả khi public.user_profiles chưa tồn tại. Khi bảng chưa có, hàm trả
@@ -99,7 +110,7 @@ comment on function public.current_app_role() is
   'VCUBE: vai tro that cua nguoi goi (public.user_profiles.role). Khong dung user_metadata.';
 
 -- ##############################################################################
--- PHẦN 2/4 — supabase/migrations/20260901_baseline_schema.sql
+-- PHẦN 2/10 — supabase/migrations/20260901_baseline_schema.sql
 -- BASELINE SCHEMA — bảng, cột, index, ràng buộc, hàm, trigger, bucket, seed. Có cả `alter table` idempotent cho bảng ĐÃ TỒN TẠI.
 -- ##############################################################################
 
@@ -1959,7 +1970,7 @@ commit;
 -- ==============================================================================
 
 -- ##############################################################################
--- PHẦN 3/4 — supabase/migrations/20261010_harden_rls.sql
+-- PHẦN 3/10 — supabase/migrations/20261010_harden_rls.sql
 -- HARDEN RLS — toàn bộ policy (90 policy bảng + 6 policy storage). Tự dọn policy cũ/lạ.
 -- ##############################################################################
 
@@ -2697,10 +2708,11 @@ begin
 
   -- ---------- 5.4l custom_design_requests (Đợt 30 — Studio Designer) ----------
   -- Yêu cầu CAD tuỳ chỉnh. Khách hàng đọc/nộp/sửa yêu cầu của mình.
-  -- Designer CHỈ đọc/ghi yêu cầu ĐƯỢC GÁN cho mình (designer_id = auth.uid()) hoặc còn TRỐNG
-  -- (designer_id is null — chợ mở để nhận việc); admin toàn quyền. KHÔNG dùng
-  -- `current_app_role() in ('designer','admin')` vì như vậy MỌI designer đọc được yêu cầu của
-  -- designer khác (rò dữ liệu khách hàng).
+  -- Designer CHỈ đọc/ghi yêu cầu ĐƯỢC GÁN cho mình (designer_id = auth.uid()); admin toàn quyền.
+  -- KHÔNG dùng `current_app_role() in ('designer','admin')` vì như vậy MỌI designer đọc được
+  -- yêu cầu của designer khác (rò dữ liệu khách hàng). Yêu cầu CHƯA GÁN (chợ mở) KHÔNG được
+  -- phơi bằng policy SELECT ở đây — nếu phơi, mọi authenticated đọc được PII. Chợ mở đi qua
+  -- view `public.open_design_requests` do SEC-02 (`20261012090000_sec02_open_requests.sql`) tạo.
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_customer_select', 'select', array['authenticated'],
     'customer_id::text = (select auth.uid())::text', null);
@@ -2713,11 +2725,11 @@ begin
     'customer_id::text = (select auth.uid())::text');
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_designer_select', 'select', array['authenticated'],
-    $p$public.is_admin() or designer_id::text = (select auth.uid())::text or designer_id is null$p$, null);
+    $p$public.is_admin() or designer_id::text = (select auth.uid())::text$p$, null);
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_designer_update', 'update', array['authenticated'],
-    $p$public.is_admin() or designer_id::text = (select auth.uid())::text or designer_id is null$p$,
-    $p$public.is_admin() or designer_id::text = (select auth.uid())::text or designer_id is null$p$);
+    $p$public.is_admin() or designer_id::text = (select auth.uid())::text$p$,
+    $p$public.is_admin() or designer_id::text = (select auth.uid())::text$p$);
   perform public._vcube_make_policy(
     'custom_design_requests', 'vcube_custom_design_requests_admin_all', 'all', array['authenticated'],
     'public.is_admin()', 'public.is_admin()');
@@ -3327,8 +3339,610 @@ commit;
 
 
 -- ##############################################################################
--- PHẦN 4/4 — supabase/scripts/bootstrap_admin.sql
--- CẤP QUYỀN ADMIN — SỬA `v_email` thành email thật trước khi chạy, nếu không script sẽ raise exception.
+-- PHẦN 4/10 — supabase/migrations/20261011090000_sec01_designer_payout_hotfix.sql
+-- SEC-01 HOTFIX — thu hẹp SELECT designer_profiles xuống danh sách cột an toàn; đọc 3 cột nhận tiền qua 2 RPC security definer.
+-- ##############################################################################
+
+-- SEC-01 hotfix (T0A-3): designer_profiles đang lộ bank_name/bank_account/tax_id
+-- vì bảng bị `select('*')` ở client. Thu hẹp quyền SELECT cho anon/authenticated
+-- xuống danh sách cột an toàn; đọc 3 cột nhạy cảm qua 2 RPC security definer.
+-- UPDATE/INSERT giữ nguyên (chưa đụng); designer vẫn ghi được bank_* trực tiếp cho tới T20.
+begin;
+revoke select on public.designer_profiles from anon, authenticated;
+grant  select (id, user_id, display_name, bio, portfolio_url, avatar_url, royalty_percent, verified_status, rating, total_sales, created_at, updated_at) on public.designer_profiles to anon, authenticated;
+-- UPDATE/INSERT giữ nguyên (chưa đụng); designer vẫn ghi được bank_* trực tiếp cho tới T20.
+
+create or replace function public.get_my_payout_info()
+returns table(bank_name text, bank_account text, tax_id text)
+language sql stable security definer set search_path = public, pg_temp as $$
+  select p.bank_name, p.bank_account, p.tax_id
+  from public.designer_profiles p
+  where p.user_id = (select auth.uid())
+$$;
+revoke all on function public.get_my_payout_info() from public, anon;
+grant execute on function public.get_my_payout_info() to authenticated;
+
+create or replace function public.admin_get_designer_payout(p_designer_id uuid)
+returns table(bank_name text, bank_account text, tax_id text)
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+begin
+  if public.current_app_role() <> 'admin' then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+  return query select p.bank_name, p.bank_account, p.tax_id
+               from public.designer_profiles p where p.id = p_designer_id;
+end $$;
+revoke all on function public.admin_get_designer_payout(uuid) from public, anon;
+grant execute on function public.admin_get_designer_payout(uuid) to authenticated;
+commit;
+
+-- ##############################################################################
+-- PHẦN 5/10 — supabase/migrations/20261011100000_signup_role_designer.sql
+-- T58 — đăng ký tự phục vụ vai trò designer với guard ĐÓNG (không bao giờ cấp admin); trigger tạo profile tự động.
+-- ##############################################################################
+
+-- T58 — Đăng ký tự phục vụ vai trò "Nhà thiết kế" (designer).
+--
+-- BỐI CẢNH: trigger fn_create_profile_for_new_user() (định nghĩa lại ở
+-- 20261010_harden_rls.sql mục 6b) luôn ghi user_profiles.role = 'customer' và
+-- KHÔNG tạo designer_profiles. Vì vậy muốn có designer phải nhờ admin can thiệp tay.
+--
+-- MỤC TIÊU: cho phép người dùng tự chọn 'designer' ngay khi đăng ký, nhưng GIỮ
+-- NGUYÊN nguyên tắc "quyền do DB quyết định": metadata do client gửi lên chỉ được
+-- ánh xạ qua một guard ĐÓNG, và KHÔNG BAO GIỜ cấp 'admin'.
+--
+-- ⚠️ GUARD LEO THANG (dòng v_role bên dưới): chỉ 'designer' mới ánh xạ thành
+-- 'designer'; MỌI giá trị khác — kể cả 'admin', 'lab', 'workshop' hay rác — đều
+-- rơi về 'customer'. Không có nhánh nào chạm tới 'admin'.
+--
+-- Hồ sơ designer mới luôn verified_status = 'Pending' để admin duyệt sau
+-- (VCUBE chưa xác minh danh tính ở bước đăng ký).
+--
+-- KHÔNG đụng fn_protect_profile_privileged_columns — hàm bảo vệ cột đặc quyền
+-- vẫn nguyên vẹn.
+begin;
+
+create or replace function public.fn_create_profile_for_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_role text;
+  v_name text;
+begin
+  -- Guard ĐÓNG: chỉ đúng 'designer' là designer; tất cả còn lại (admin, lab,
+  -- workshop, null, rác…) → customer. Không tin bất kỳ giá trị nào khác.
+  v_role := case
+              when new.raw_user_meta_data->>'role' = 'designer' then 'designer'
+              else 'customer'
+            end;
+
+  v_name := coalesce(
+    new.raw_user_meta_data->>'full_name',
+    split_part(coalesce(new.email, 'user'), '@', 1)
+  );
+
+  begin
+    insert into public.user_profiles (id, email, display_name, role)
+    values (new.id, coalesce(new.email, ''), v_name, v_role)
+    on conflict (id) do nothing;
+  exception when others then
+    null;  -- không được chặn việc tạo tài khoản vì lỗi profile
+  end;
+
+  -- Chỉ tạo hồ sơ designer khi và chỉ khi vai trò đã được guard xác nhận.
+  -- Bọc try/catch riêng để thiếu bảng/tài nguyên cũng không chặn đăng ký.
+  if v_role = 'designer' then
+    begin
+      insert into public.designer_profiles (user_id, display_name, verified_status)
+      values (new.id, v_name, 'Pending')
+      on conflict do nothing;
+    exception when others then
+      null;
+    end;
+  end if;
+
+  return new;
+end
+$fn$;
+
+-- Tái tạo trigger trên auth.users y như harden migration: bọc exception để môi
+-- trường thiếu quyền không làm hỏng cả file (khi đó chạy bootstrap_admin.sql).
+do $do$
+begin
+  execute 'drop trigger if exists trg_create_profile_for_new_user on auth.users';
+  execute 'create trigger trg_create_profile_for_new_user
+             after insert on auth.users
+             for each row execute function public.fn_create_profile_for_new_user()';
+  raise notice 'OK    trigger tạo profile tự động trên auth.users';
+exception when others then
+  raise warning 'Không tạo được trigger trên auth.users (%): hãy chạy bootstrap_admin.sql cho từng tài khoản', sqlerrm;
+end
+$do$;
+
+commit;
+
+-- ##############################################################################
+-- PHẦN 6/10 — supabase/migrations/20261011110000_designer_profile_column_guard.sql
+-- SEC-02 — trigger chặn chủ hồ sơ thiết kế tự nâng quyền (royalty_percent / verified_status / total_sales).
+-- ##############################################################################
+
+-- SEC-02 — Chặn nhà thiết kế tự nâng quyền qua UPDATE trên designer_profiles.
+--
+-- LỖ HỔNG: policy `vcube_designer_profiles_owner_all` (20261010_harden_rls.sql:479-484)
+-- cho chủ sở hữu UPDATE MỌI CỘT của hàng mình. Bảng lại đọc công khai
+-- (`vcube_designer_profiles_public_read`) và T58 cho phép tự đăng ký designer
+-- (20261011100000_signup_role_designer.sql) ⇒ một designer tự đăng ký có thể:
+--     update public.designer_profiles
+--        set royalty_percent = 100, verified_status = 'Verified', total_sales = 1e9
+--      where user_id = (select auth.uid());
+-- ⇒ tự nâng tỷ lệ chia hoa hồng, tự xác minh hồ sơ, tự thổi doanh số.
+--
+-- VÌ SAO TRIGGER: RLS là mức DÒNG, không phải mức CỘT — policy không giới hạn được
+-- cột. Phải chặn ở tầng trigger, cùng khuôn `fn_protect_profile_privileged_columns`
+-- (20261010_harden_rls.sql mục 6).
+--
+-- CƠ CHẾ: ALLOW-LIST, fail-closed y như `fn_protect_order_privileged_columns` (mục 6c).
+-- So `to_jsonb(new) - v_allowed` với `to_jsonb(old) - v_allowed`; cột thêm vào bảng
+-- sau này TỰ ĐỘNG thuộc nhóm bị chặn cho tới khi được thêm tường minh vào danh sách.
+--
+-- CHỈ `before update`: vector đã báo là UPDATE hàng của chính mình. Đường INSERT do
+-- RLS owner_all + T58 kiểm soát (verified_status luôn 'Pending'); thêm `before insert`
+-- sẽ cần nhánh TG_OP mà không tăng bảo vệ cho lỗ hổng này.
+begin;
+
+create or replace function public.fn_protect_designer_profile_privileged_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  -- Cột chủ hồ sơ được phép sửa. `bank_*` / `tax_id` còn ở bảng này cho tới khi T20
+  -- tách chúng ra — chủ hồ sơ được tự cập nhật thông tin nhận tiền của mình.
+  v_allowed text[] := array[
+    'display_name','bio','portfolio_url','avatar_url',
+    'bank_name','bank_account','tax_id','updated_at'
+  ];
+  v_uid     uuid;
+  v_new     jsonb;
+  v_old     jsonb;
+  v_changed text;
+begin
+  -- Admin (public.is_admin() = public.current_app_role() = 'admin') bypass — đây là
+  -- đường duyệt hồ sơ / gán royalty_percent / xác minh.
+  if public.is_admin() then
+    return new;
+  end if;
+
+  v_uid := (select auth.uid());
+
+  -- auth.uid() NULL khi gọi bằng secret key / SQL Editor / service_role ⇒ đi qua, để
+  -- không chặn nhầm đường quản trị hợp lệ (cùng lý do như mục 6d).
+  if v_uid is null then
+    return new;
+  end if;
+
+  -- Chỉ áp cho CHÍNH chủ hàng; người khác để RLS quyết định.
+  if old.user_id is distinct from v_uid then
+    return new;
+  end if;
+
+  v_new := to_jsonb(new) - v_allowed;
+  v_old := to_jsonb(old) - v_allowed;
+
+  if v_new is distinct from v_old then
+    select string_agg(k, ', ' order by k)
+      into v_changed
+      from jsonb_object_keys(v_new) k
+     where v_new -> k is distinct from v_old -> k;
+
+    raise exception 'VCUBE: chủ hồ sơ thiết kế chỉ được đổi display_name/bio/portfolio_url/avatar_url/bank_name/bank_account/tax_id/updated_at (bị chặn: %)',
+      coalesce(v_changed, '?')
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  return new;
+end
+$fn$;
+
+do $do$
+begin
+  if to_regclass('public.designer_profiles') is not null then
+    execute 'drop trigger if exists trg_protect_designer_profile_privileged_columns on public.designer_profiles';
+    execute 'create trigger trg_protect_designer_profile_privileged_columns
+               before update on public.designer_profiles
+               for each row execute function public.fn_protect_designer_profile_privileged_columns()';
+    raise notice 'OK    trigger chống chủ hồ sơ thiết kế tự đổi cột đặc quyền trên public.designer_profiles';
+  else
+    raise warning 'Bỏ qua trigger designer_profiles: bảng không tồn tại';
+  end if;
+end
+$do$;
+
+commit;
+
+-- ##############################################################################
+-- PHẦN 7/10 — supabase/migrations/20261012090000_sec02_open_requests.sql
+-- SEC-02 — chợ yêu cầu CAD mở: view definer chỉ phơi cột brief + RPC claim nguyên tử; GỠ nhánh `designer_id is null` khỏi policy designer.
+-- ##############################################################################
+
+-- ==============================================================================
+-- SEC-02 — Chợ yêu cầu CAD mở: view chỉ phơi cột không nhạy cảm + RPC nhận việc.
+-- ==============================================================================
+-- LỖ HỔNG
+--   Hai policy designer của `custom_design_requests` (20261010_harden_rls.sql phần 5.4l)
+--   chứa nhánh `designer_id is null` áp cho MỌI authenticated:
+--       create policy ... for select to authenticated
+--         using (public.is_admin() or designer_id = auth.uid() or designer_id is null)
+--   ⇒ bất kỳ user đã đăng nhập đọc/nghi được yêu cầu CHƯA GÁN của khách hàng khác,
+--     lộ client_name / messages / reference_files (PII + nội dung hội thoại).
+--
+-- CÁCH SỬA
+--   1. View `public.open_design_requests` (security definer — KHÔNG security_invoker)
+--      chỉ phơi cột brief không nhạy cảm, và CHỈ cho role designer/admin. Việc "view
+--      bỏ qua RLS" ở đây là CHỦ Ý, nhưng bị chặn bởi:
+--        · WHERE designer_id is null
+--        · danh sách cột an toàn (không client_name/messages/reference_files/customer_id)
+--        · target_specs được dựng lại chỉ với material/infill/nozzle — bỏ phone/email/
+--          company nhúng bên trong target_specs (createRequest ghi chúng vào đây).
+--   2. RPC `public.claim_design_request(p_id text)` security definer: UPDATE nguyên tử
+--      (`where id = p_id and designer_id is null returning id`) — hai designer gọi
+--      cùng lúc thì Postgres khoá hàng, chỉ một UPDATE trúng, người còn lại nhận NULL.
+--   3. Gỡ nhánh `designer_id is null` khỏi 2 policy designer select/update.
+--
+-- ⚠️ id là `text` (không phải uuid) theo baseline `custom_design_requests.id`.
+--
+-- ⚠️ REALTIME (đã biết, KHÔNG mở rộng phạm vi): view KHÔNG phải nguồn
+--   `postgres_changes`. Kênh `public:custom_design_requests` chạy theo RLS select của
+--   người đăng ký, nên sau khi gỡ nhánh `designer_id is null`, designer sẽ KHÔNG còn
+--   nhận sự kiện realtime cho hàng chưa nhận. Cần polling ngắn hoặc `realtime.send`
+--   trong task riêng — xem báo cáo T21.
+-- ==============================================================================
+
+begin;
+
+-- ---------- 1. View chợ mở (cột không nhạy cảm, chỉ designer/admin) ----------
+drop view if exists public.open_design_requests;
+
+create view public.open_design_requests
+with (security_invoker = false) as
+select
+  r.id,
+  r.title,
+  r.budget,
+  r.deadline,
+  r.service_type,
+  r.status,
+  r.created_at,
+  r.updated_at,
+  jsonb_build_object(
+    'material', coalesce(r.target_specs->>'material', ''),
+    'infill',   coalesce(r.target_specs->>'infill', ''),
+    'nozzle',   coalesce(r.target_specs->>'nozzle', '')
+  ) as target_specs
+from public.custom_design_requests r
+where r.designer_id is null
+  and public.current_app_role() in ('designer', 'admin');
+
+comment on view public.open_design_requests is
+  'Chợ yêu cầu CAD chưa gán: chỉ phơi cột brief không nhạy cảm cho designer/admin.';
+
+revoke all on public.open_design_requests from public, anon;
+grant select on public.open_design_requests to authenticated;
+
+-- ---------- 2. RPC nhận việc nguyên tử ----------
+create or replace function public.claim_design_request(p_id text)
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+declare
+  v_uid uuid := (select auth.uid());
+  v_id  text;
+begin
+  -- Chỉ designer/admin được nhận việc; khách hàng thường không thể tự gán mình.
+  if v_uid is null
+     or public.current_app_role() not in ('designer', 'admin') then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+
+  update public.custom_design_requests
+     set designer_id = v_uid
+   where id = p_id
+     and designer_id is null
+  returning id into v_id;
+
+  return v_id;  -- NULL nếu đã bị người khác nhận (hoặc id không tồn tại)
+end
+$fn$;
+
+revoke all on function public.claim_design_request(text) from public, anon;
+grant execute on function public.claim_design_request(text) to authenticated;
+
+-- ---------- 3. Gỡ nhánh `designer_id is null` khỏi policy designer ----------
+-- Giữ đúng tên policy cũ để không nhân bản; nội dung còn lại y như harden 5.4l.
+drop policy if exists vcube_custom_design_requests_designer_select on public.custom_design_requests;
+create policy vcube_custom_design_requests_designer_select
+  on public.custom_design_requests
+  for select
+  to authenticated
+  using (public.is_admin() or designer_id::text = (select auth.uid())::text);
+
+drop policy if exists vcube_custom_design_requests_designer_update on public.custom_design_requests;
+create policy vcube_custom_design_requests_designer_update
+  on public.custom_design_requests
+  for update
+  to authenticated
+  using (public.is_admin() or designer_id::text = (select auth.uid())::text)
+  with check (public.is_admin() or designer_id::text = (select auth.uid())::text);
+
+commit;
+
+-- ##############################################################################
+-- PHẦN 8/10 — supabase/migrations/20261012100000_check_constraints.sql
+-- DB-03/DB-04 — CHECK enum-like cho orders.payment_status + kyc_records.status (NOT VALID; VALIDATE do người vận hành).
+-- ##############################################################################
+
+-- DB-03 / DB-04 / NEW-02 (T22b, quyết định D11) — CHECK cho các cột enum-like.
+--
+-- Chiến lược D11: `NOT VALID` → người vận hành audit dữ liệu thật → dọn → `VALIDATE`.
+-- `add constraint ... not valid` KHÔNG quét bảng hiện có (không khoá lâu, không đỏ vì dữ
+-- liệu cũ) nhưng VẪN thi hành cho mọi INSERT/UPDATE mới ⇒ không có cửa sổ dữ liệu bẩn mới.
+--
+-- Trạng thái thực tế (đã rà 2026-09-24, KHÁC giả định "4 cột đều trống"): 2/4 cột ĐÃ có
+-- CHECK từ baseline §3c (20260901_baseline_schema.sql):
+--   * `orders.status`             → `orders_status_chk`                     (dòng 802-810)
+--   * `orders.status_stage_index` → `orders_status_stage_index_range_chk`    (dòng 777-784)
+-- Để KHÔNG trùng tên và KHÔNG tạo 2 ràng buộc cùng nghĩa, hai cột này được thêm có GUARD
+-- `if not exists` (no-op trên DB đã chạy baseline; chỉ thêm thật trên DB khuyết baseline).
+-- Hai cột còn lại THIẾU CHECK và được thêm thật ở đây:
+--   * `orders.payment_status`     → `orders_payment_status_chk`   (MỚI)
+--   * `kyc_records.status`        → `kyc_records_status_chk`       (MỚI)
+--
+-- Tập giá trị cho phép = HỢP(default DB, union code). Từng khối nêu nguồn file:line.
+begin;
+
+-- 1. orders.payment_status — MỚI.
+--    Union code: `OrderPaymentStatus` = src/types/index.ts:79
+--      'awaiting_payment' | 'paid' | 'cod' | 'cancelled' | 'unpaid'.
+--    Đường ghi thực tế:
+--      * CheckoutView.tsx:141-142 → 'cod' | 'awaiting_payment' (đơn mới KHÔNG tự nhận 'paid').
+--      * database.ts:369          → 'paid' | 'unpaid' (fallback).
+--      * default DB 'unpaid'      (baseline 20260901, khối `orders`).
+--    ⚠️ docs/database/schema.md:75 ghi 'pending'/'failed'/'refunded' — ĐÓ LÀ DRIFT: không giá
+--    trị nào trong 3 nguồn trên. T11 (`schema-notes.md`) ghi lại chênh lệch 3 chiều này.
+alter table public.orders add constraint orders_payment_status_chk
+  check (payment_status in ('awaiting_payment','paid','cod','cancelled','unpaid')) not valid;
+
+-- 2. kyc_records.status — MỚI.
+--    Union code:
+--      * database.ts:531 updateUserKyc — 'verified' | 'pending_review' | 'rejected' | 'unverified'
+--      * Group3CustomersPanel.tsx:10 KycStatus — 'verified' | 'pending_review' | 'rejected' | 'unverified'
+--      * types/index.ts:832 kycStatus — 'unverified' | 'pending' | 'verified' | 'rejected'
+--      * docs/database/schema.md:77 liệt kê cùng tập cho `kyc_records.status`.
+--    default DB 'pending' (baseline 20260901, khối `kyc_records`) — đã nằm trong tập.
+--    'pending_review' BẮT BUỘC có: admin UI gộp 'pending' → 'pending_review'
+--    (Group3CustomersPanel.tsx:35). Seed-sample-data.mjs:673 ghi 'pending'.
+alter table public.kyc_records add constraint kyc_records_status_chk
+  check (status in ('pending','pending_review','verified','rejected','unverified')) not valid;
+
+-- 3. orders.status — ĐÃ CÓ `orders_status_chk` (baseline §3c). Guard chỉ để idempotent.
+--    Union code: `Order['status']` = src/types/index.ts:86 (đúng 8 giá trị).
+do $do$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'orders_status_chk'
+       and conrelid = 'public.orders'::regclass
+  ) then
+    alter table public.orders add constraint orders_status_chk
+      check (status in ('pending_payment','processing','printing','post_processing',
+                        'packaging','shipping','completed','cancelled')) not valid;
+    raise notice 'T22b: đã thêm orders_status_chk (DB chưa chạy baseline §3c)';
+  else
+    raise notice 'T22b: bỏ qua orders_status_chk — ràng buộc đã tồn tại';
+  end if;
+end
+$do$;
+
+-- 4. orders.status_stage_index — ĐÃ CÓ `orders_status_stage_index_range_chk` (baseline §3c).
+--    Guard theo CẢ HAI tên để không tạo ràng buộc trùng nghĩa.
+--    Nguồn 0..7: MES_PIPELINE_STAGES = src/frontend/components/OrderProgress.tsx:13-21
+--    (ĐÚNG 8 nấc, step 1..8), useProductionStore.ts cùng 8 khoá, types/index.ts:88 "0 to 7".
+do $do$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname in ('orders_status_stage_index_range_chk','orders_status_stage_index_chk')
+       and conrelid = 'public.orders'::regclass
+  ) then
+    alter table public.orders add constraint orders_status_stage_index_chk
+      check (status_stage_index >= 0 and status_stage_index <= 7) not valid;
+    raise notice 'T22b: đã thêm orders_status_stage_index_chk (DB chưa chạy baseline §3c)';
+  else
+    raise notice 'T22b: bỏ qua status_stage_index — ràng buộc đã tồn tại';
+  end if;
+end
+$do$;
+
+commit;
+
+-- ============================================================================
+-- BƯỚC NGƯỜI VẬN HÀNH — CHẠY SAU (KHÔNG thuộc transaction trên)
+-- ============================================================================
+-- D11: sau `add ... not valid`, ràng buộc chỉ áp cho dòng MỚI. Trước khi `VALIDATE`
+-- (quét toàn bảng và áp cho dòng CŨ) PHẢI audit + dọn dữ liệu. Chạy từng khối trong
+-- SQL Editor với vai trò postgres.
+--
+-- (a) AUDIT — đếm giá trị thật đang có:
+--   select payment_status, count(*) from public.orders      group by 1 order by 2 desc;
+--   select status,         count(*) from public.kyc_records group by 1 order by 2 desc;
+--   select status,         count(*) from public.orders      group by 1 order by 2 desc;
+--   select status_stage_index, count(*) from public.orders  group by 1 order by 2 desc;
+--
+-- (b) TÌM DÒNG VI PHẠM (dòng cũ mà constraint mới sẽ từ chối):
+--   select id, payment_status from public.orders
+--    where payment_status not in ('awaiting_payment','paid','cod','cancelled','unpaid');
+--   select id, status from public.kyc_records
+--    where status not in ('pending','pending_review','verified','rejected','unverified');
+--   select id, status from public.orders
+--    where status not in ('pending_payment','processing','printing','post_processing',
+--                         'packaging','shipping','completed','cancelled');
+--   select id, status_stage_index from public.orders
+--    where status_stage_index < 0 or status_stage_index > 7;
+--
+-- (c) DỌN — ánh xạ từng giá trị lạ về giá trị hợp lệ gần nghĩa nhất (KHÔNG bịa).
+--     Ví dụ (SỬA theo kết quả audit thật, đây chỉ là mẫu):
+--   -- update public.orders set payment_status = 'unpaid'
+--   --  where payment_status not in ('awaiting_payment','paid','cod','cancelled','unpaid');
+--   -- update public.kyc_records set status = 'pending'
+--   --  where status not in ('pending','pending_review','verified','rejected','unverified');
+--     Nếu audit cho thấy một giá trị HỢP LỆ bị thiếu trong tập (ví dụ dữ liệu cũ dùng
+--     'refunded'), thì mở rộng tập: `drop constraint` rồi `add constraint ... not valid`
+--     với tập mới, rồi mới validate — KHÔNG xoá dữ liệu thật để chiều constraint.
+--     Ghi kết quả audit/chênh lệch vào báo cáo T11 `docs/database/schema-notes.md`.
+--
+-- (d) VALIDATE — sau khi (b) trả 0 dòng cho mọi cột:
+--   alter table public.orders      validate constraint orders_payment_status_chk;
+--   alter table public.kyc_records validate constraint kyc_records_status_chk;
+--   -- Hai ràng buộc dưới đã validated trên DB chạy baseline §3c; lệnh là no-op an toàn:
+--   alter table public.orders      validate constraint orders_status_chk;
+--   alter table public.orders      validate constraint orders_status_stage_index_range_chk;
+--
+-- (e) KIỂM CHỨNG — tất cả phải `convalidated = true`:
+--   select conname, convalidated from pg_constraint
+--    where conrelid in ('public.orders'::regclass, 'public.kyc_records'::regclass)
+--      and contype = 'c'
+--    order by conname;
+
+-- ##############################################################################
+-- PHẦN 9/10 — supabase/migrations/20261012130000_orders_broadcast.sql
+-- T35 — trigger phát realtime tối thiểu {id,status} lên kênh riêng tư orders:admin + policy realtime.messages chỉ admin.
+-- ##############################################################################
+
+-- T35-mig — Realtime cập nhật trạng thái đơn hàng cho ADMIN (quyết định D6).
+--
+-- MỤC TIÊU: khi `public.orders.status` đổi (INSERT hoặc UPDATE OF status), phát một
+-- sự kiện realtime TỐI THIỂU `{id, status}` tới kênh RIÊNG TƯ `orders:admin`.
+--
+-- ⚠️ KHÔNG dùng `realtime.broadcast_changes`: hàm đó gửi cả `new`/`old` = TOÀN BỘ hàng,
+-- trong đó có `secure_access_token` (token truy cập đơn của khách) và PII (tên, SĐT,
+-- địa chỉ). Chỉ `realtime.send` với payload tự chọn mới tránh được rò rỉ này.
+--
+-- ⚠️ PREFLIGHT — PHẢI KIỂM TRÊN PROJECT TRƯỚC KHI ÁP (SQL Editor, vai trò postgres):
+--     select p.proname, pg_get_function_identity_arguments(p.oid) as args
+--       from pg_proc p
+--       join pg_namespace n on n.oid = p.pronamespace
+--      where n.nspname = 'realtime' and p.proname = 'send';
+--   Kỳ vọng: đúng một hàm `send(payload jsonb, event text, topic text, private boolean)`.
+--   Nếu KHÔNG có (project chưa bật Supabase Realtime Authorization / phiên bản cũ),
+--   DỪNG LẠI — trigger sẽ lỗi lúc runtime mỗi lần ghi `orders`.
+--   Kiểm thêm bảng + hàm mà policy dựa vào (policy là cổng chặn thật):
+--     select to_regclass('realtime.messages');   -- phải khác NULL
+--     select p.proname from pg_proc p
+--       join pg_namespace n on n.oid = p.pronamespace
+--      where n.nspname = 'realtime' and p.proname = 'topic';
+--
+-- GHI CHÚ BẢO MẬT: policy trên `realtime.messages` chỉ cho `authenticated` SELECT
+-- topic `orders:admin` khi `public.current_app_role() = 'admin'` (vai trò đọc từ DB,
+-- không dùng user_metadata). Payload đã được tối giản từ trước nên kể cả lộ topic
+-- cũng không lộ `secure_access_token`/PII.
+--
+-- DRAFT: file này do subagent soạn, CHƯA áp lên production. H áp theo §1.4 của
+-- docs/tasks/DRIFT-TASKS.md (backup + SQL Editor + post-check).
+begin;
+
+-- ==============================================================================
+-- 1. HÀM TRIGGER — phát `{id, status}` lên kênh riêng tư `orders:admin`
+-- ==============================================================================
+-- `security definer` + `search_path` gồm `realtime` để gọi được `realtime.send`
+-- dù hàm bị giới hạn quyền cho role thường.
+create or replace function public.orders_broadcast_status()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, realtime, pg_temp
+as $fn$
+declare
+  v_should_send boolean;
+begin
+  -- Dùng CASE (không dùng OR) để ĐẢM BẢO không đọc `old` khi INSERT: ở trigger
+  -- INSERT, `old` chưa được gán; thứ tự ước lượng của AND/OR không được Postgres
+  -- bảo đảm, còn CASE chỉ ước lượng nhánh được chọn.
+  v_should_send := case
+                     when tg_op = 'INSERT' then true
+                     else new.status is distinct from old.status
+                   end;
+
+  if v_should_send then
+    perform realtime.send(
+      jsonb_build_object('id', new.id, 'status', new.status),
+      'order_status',
+      'orders:admin',
+      true
+    );
+  end if;
+
+  return new;
+end
+$fn$;
+
+-- ==============================================================================
+-- 2. TRIGGER — AFTER INSERT OR UPDATE OF status
+-- ==============================================================================
+do $do$
+begin
+  if to_regclass('public.orders') is not null then
+    execute 'drop trigger if exists trg_orders_broadcast on public.orders';
+    execute 'create trigger trg_orders_broadcast
+               after insert or update of status on public.orders
+               for each row execute function public.orders_broadcast_status()';
+    raise notice 'OK    trigger phát trạng thái đơn lên orders:admin';
+  else
+    raise warning 'Bỏ qua trigger realtime: public.orders không tồn tại';
+  end if;
+end
+$do$;
+
+-- ==============================================================================
+-- 3. POLICY TRÊN realtime.messages — chỉ admin đọc được topic `orders:admin`
+-- ==============================================================================
+-- Postgres KHÔNG có `create policy if not exists` ⇒ kiểm `pg_policies` trước.
+do $do$
+begin
+  if to_regclass('realtime.messages') is null then
+    raise warning 'Bỏ qua policy realtime.messages: bảng không tồn tại (Realtime Authorization chưa bật?)';
+  elsif not exists (
+    select 1
+      from pg_policies
+     where schemaname = 'realtime'
+       and tablename  = 'messages'
+       and policyname = 'orders_admin_realtime'
+  ) then
+    create policy orders_admin_realtime
+      on realtime.messages
+      for select
+      to authenticated
+      using (
+        realtime.topic() = 'orders:admin'
+        and public.current_app_role() = 'admin'
+      );
+    raise notice 'OK    policy realtime.messages: orders:admin chỉ admin';
+  else
+    raise notice 'SKIP  policy orders_admin_realtime đã tồn tại';
+  end if;
+end
+$do$;
+
+commit;
+
+-- ##############################################################################
+-- PHẦN 10/10 — supabase/scripts/bootstrap_admin.sql
+-- CẤP QUYỀN ADMIN — SỬA `v_email` (sentinel CHANGE_ME@example.com) thành email thật trước khi chạy, nếu không script sẽ raise exception.
 -- ##############################################################################
 
 -- ==============================================================================
@@ -3340,9 +3954,9 @@ commit;
 -- không ai ghi được dữ liệu (kể cả trang /admin).
 --
 -- CÁCH DÙNG
---   1. `v_email` đã đặt sẵn = email admin của dự án. Đổi nếu cấp admin cho người khác.
---      Guard dùng sentinel '__CHANGE_ME__' (KHÔNG chứa '@') nên tìm-thay-thế theo email
---      sẽ KHÔNG phá được guard — bài học từ lần replace hỏng.
+--   1. `v_email` đang là sentinel 'CHANGE_ME@example.com'. Sửa thành email admin THẬT
+--      của bạn trước khi chạy — nếu còn nguyên sentinel, script raise exception và
+--      KHÔNG đổi gì (an toàn cho cả khi dán nhầm). Không hardcode email dự án ở đây.
 --   2. Chạy trong Supabase SQL Editor.
 --   3. Kiểm chứng: node scripts/verify-rls.mjs  và mở /admin sau khi đăng nhập lại.
 --
@@ -3351,14 +3965,14 @@ commit;
 
 do $do$
 declare
-  v_email     text := 'chithanhso10@gmail.com';   -- ← SỬA DÒNG NÀY
+  v_email     text := 'CHANGE_ME@example.com';   -- ← SỬA DÒNG NÀY
   v_uid       uuid;
   v_id_type   text;
   v_has_dname boolean;
   v_sql       text;
 begin
-  if lower(v_email) = '__change_me__' then
-    raise exception 'Hãy sửa v_email thành email thật của bạn trước khi chạy.';
+  if v_email = 'CHANGE_ME@example.com' then
+    raise exception 'Sửa v_email trước khi chạy';
   end if;
 
   select u.id into v_uid
@@ -3430,7 +4044,7 @@ select id, email, role, kyc_status
 --  where lower(email) = lower('email-can-thu-hoi@example.com');
 
 -- ##############################################################################
--- PHẦN 5 — KIỂM CHỨNG SAU KHI CHẠY (chỉ đọc, không thay đổi gì)
+-- PHẦN 11 — KIỂM CHỨNG SAU KHI CHẠY (chỉ đọc, không thay đổi gì)
 -- ##############################################################################
 -- Mỗi truy vấn in ra cột `ket_qua` = 'OK' hoặc 'THIEU'/'SAI'. Không có dòng 'SAI'/'THIEU'
 -- nghĩa là migration đã áp đủ. Script này CHỈ ĐỌC: chỉ select trên catalog + đếm.
@@ -3554,6 +4168,7 @@ select t.expected as trigger, case when tg.tgname is not null then 'OK' else 'TH
   from (values ('trg_protect_order_privileged_columns'),
                ('trg_protect_workshop_profile_privileged_columns'),
                ('trg_protect_profile_privileged_columns'),
+               ('trg_protect_designer_profile_privileged_columns'),
                ('trg_create_profile_for_new_user'),
                ('trg_touch_updated_at'),
                ('trg_sync_product_review_stats'),
@@ -3663,3 +4278,62 @@ select t.tbl || '.' || t.col as cot_con_default_bia
     on c.table_schema = 'public' and c.table_name = t.tbl and c.column_name = t.col
  where c.column_default is not null
  order by 1;
+
+-- 5.23 — W2 / SEC-01: anon + authenticated KHÔNG đọc được cột nhận tiền của designer
+select 'anon/authenticated KHONG doc duoc bank_account' as muc,
+       case when not has_column_privilege('anon','public.designer_profiles','bank_account','select')
+             and not has_column_privilege('authenticated','public.designer_profiles','bank_account','select')
+            then 'OK' else 'SAI — con doc duoc bank_account' end as ket_qua;
+
+-- 5.24 — W2 / SEC-02: trigger chặn designer tự nâng quyền phải tồn tại
+select 'trg_protect_designer_profile_privileged_columns' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_trigger
+ where tgname = 'trg_protect_designer_profile_privileged_columns' and not tgisinternal;
+
+-- 5.25 — W2 / T58: hàm tạo profile tự động + hàm guard cột designer phải tồn tại
+select t.expected as ham,
+       case when p.proname is not null then 'OK' else 'THIEU' end as ket_qua
+  from (values ('fn_create_profile_for_new_user'),
+               ('fn_protect_designer_profile_privileged_columns')) as t(expected)
+  left join pg_proc p on p.proname = t.expected and p.pronamespace = 'public'::regnamespace
+ order by t.expected;
+
+-- 5.26 — W2 / SEC-02: view chợ mở phải tồn tại (definer view, cột brief không nhạy cảm)
+select 'view public.open_design_requests' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_views where schemaname = 'public' and viewname = 'open_design_requests';
+
+-- 5.27 — W2 / SEC-02: RPC nhận việc nguyên tử phải tồn tại
+select 'function claim_design_request' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = 'claim_design_request';
+
+-- 5.28 — W2 / T22b: 4 CHECK enum-like phải tồn tại (orders + kyc_records)
+select t.expected as constraint_mong_doi,
+       case when c.conname is not null then 'OK' else 'THIEU' end as ket_qua
+  from (values ('orders_payment_status_chk'),
+               ('kyc_records_status_chk'),
+               ('orders_status_chk'),
+               ('orders_status_stage_index_range_chk')) as t(expected)
+  left join pg_constraint c
+         on c.conname = t.expected
+        and c.conrelid in ('public.orders'::regclass, 'public.kyc_records'::regclass)
+ order by t.expected;
+
+-- 5.29 — W2 / T35: trigger phát trạng thái đơn + hàm phát realtime phải tồn tại
+select 'trg_orders_broadcast' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_trigger where tgname = 'trg_orders_broadcast' and not tgisinternal;
+select 'function orders_broadcast_status' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = 'orders_broadcast_status';
+
+-- 5.30 — W2 / T35: policy realtime.messages chỉ admin đọc topic orders:admin
+select 'policy realtime.messages orders_admin_realtime' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_policies
+ where schemaname = 'realtime' and tablename = 'messages'
+   and policyname = 'orders_admin_realtime';

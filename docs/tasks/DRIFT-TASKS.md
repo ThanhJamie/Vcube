@@ -106,7 +106,7 @@ Rollback: <cách>
 |---|---|---|---|
 | D1 | Trình quản lý gói | **npm** (`packageManager`), xoá `bun.lock` | T00/T38 |
 | D2 | SEC-07 (ma trận quyền Designer/Workshop) | **Docs theo migration** (code là sự thật); thêm policy ở W6 (T49) nếu muốn | T13 |
-| D3 | Storage scheme | **Chờ T25a** rồi chốt `orders/<order_id>/…` hoặc `cad/<uid\|guest_session>/<uuid>/…` | T25/T40 |
+| D3 | Storage scheme | **CHỐT (2026-09-24): `cad/<uid\|guest_session>/<uuid>/<file>`** — T25a xác nhận không có upload nào đang active (`uploadCadFile` dead code); `orders/<order_id>/…` bất khả thi vì upload xảy ra trước khi có order; gắn `order_files` khi tạo đơn (T40) | T25/T40 |
 | D4 | Pipeline custom-design (PAGE-11) | **Rút docs còn bước `quoted`**; UI đầy đủ ở W6 (T50) | T17 |
 | D5 | Hàm chia doanh thu (ARCH-01/02) | **Giữ hàm; doc mô tả đúng code + "chưa nối (0 caller)"** | T48 |
 | D6 | Realtime `orders` | **Có**, qua `realtime.send` private channel `orders:admin` chỉ `{id,status}` | T35-mig/T35 |
@@ -942,3 +942,17 @@ Các claim kỹ thuật trong board đã được rà trực tiếp. Kết quả
 - **Migration nháp chờ `H` áp (đúng thứ tự timestamp):** `20261011090000` (SEC-01) → `20261011100000` (signup role) → `20261011110000` (column guard). `scripts/gen-apply-all.mjs` (T24) phải thêm 3 file trước khi regenerate `apply_all_manual.sql`.
 - **`.env` (P1, `H`):** thiếu `VITE_*` + `SUPABASE_SECRET_KEY`; `SUPABASE_SERVICE_ROLE_KEY` hiện là anon ⇒ script server chạy sai quyền.
 - **Gate:** `npm run check --baseline` RC=0; `a8` RC=0; không tệ hơn baseline.
+
+### C.3 W2 batch 1 (2026-09-24)
+
+- **T21 DONE (draft)** — SEC-02: view `open_design_requests` (chỉ cột an toàn) + RPC `claim_design_request(p_id text)` atomic + gỡ nhánh `designer_id is null` khỏi policy designer; `customDesignService.ts` + `DesignerRequestsTab.tsx` dùng view/RPC. Lưu ý realtime pool chưa nhận (view không hỗ trợ `postgres_changes`).
+- **T22b DONE (draft)** — phát hiện `orders.status` + `status_stage_index` **đã có CHECK** từ baseline; migration chỉ thêm `orders_payment_status_chk` + `kyc_records_status_chk` (NOT VALID → audit → VALIDATE).
+- **T24 DONE** — `bootstrap_admin.sql` bỏ email hardcode (sentinel `CHANGE_ME@example.com`); `lint-rls-sources` quét thêm `supabase/scripts/`; generator + `apply_all_manual.sql` regenerate.
+- **T35-mig DONE (draft)** — broadcast `orders:admin` chỉ `{id,status}` (không `broadcast_changes`); cần **preflight** `realtime.send` trên project.
+- **T25a DONE** — verdict D3 ở trên.
+- **T23 DONE** — `verify-rls.mjs` thêm 9 probe SEC-01/02 (hiện `29 PASS · 0 FAIL · 1 SKIP`; SKIP view chưa áp); lint **R9** chặn `grant select on designer_profiles to anon` không kèm cột.
+- **Vá durability (review finding)** — gỡ `designer_id is null` khỏi **source** `20261010_harden_rls.sql` (chỉ ảnh hưởng rebuild tương lai, không đổi prod); lint **R8** chặn `designer_id is null` trong policy + **W1** cảnh báo definer view; generator gồm 3 migration W2 mới.
+- **Bundle áp:** `docs/runbooks/w2-2026-09-24.sql` (SEC-02 → CHECK → broadcast; a8 PASS).
+- **Review chéo:** 4 hạng mục PASS-WITH-NITS; durability là finding chính (đã vá).
+- **Remaining W2:** **T20** (tách `designer_payout_info` — cần cập nhật `seed-sample-data.mjs` + cổng H trước khi drop cột) và **T25** (storage scheme `cad/<uid|guest>/<uuid>/…` + hardening `uploadCadFile`).
+- **Thứ tự áp cho `H`:** áp `20261012090000` (SEC-02) → **deploy client T21 ngay** (view phải tồn tại) → áp `20261012100000`, `20261012130000` (preflight realtime) → chạy `verify-rls.mjs` + probe.

@@ -205,6 +205,100 @@ await expectPositive('anon đọc materials', 'materials', null);
 await expectPositive('anon đọc printer_fleet', 'printer_fleet', null);
 await expectPositive('anon đọc pricing_configs', 'pricing_configs', null);
 
+/* ------------------------------------------------------------------ 2b. SEC-01 / SEC-02 (T23)
+ * Kiểm chứng CHỐNG TÁI DIỄN: các lỗ hổng đã đóng (SEC-01 designer payout, SEC-02 chợ CAD)
+ * KHÔNG được mở lại một cách âm thầm. Dò bằng `?select=<cột>` đúng như client thật — lỗi
+ * quyền CỘT (bank_*) khác hẳn lỗi quyền DÒNG, nên phép đếm `select('id')` thông thường sẽ
+ * bỏ sót. Không bao giờ in giá trị bản ghi, chỉ đọc/đếm TÊN CỘT.
+ */
+const SENSITIVE_DESIGNER_COLS = ['bank_name', 'bank_account', 'tax_id'];
+const PERMISSION_ERR_RE = /42501|permission denied|PGRST301|JWT|401|403/i;
+const MISSING_COL_ERR_RE = /42703|column .*does not exist|Could not find the '[^']+' column/i;
+
+async function probeColumns(client, table, columns) {
+  const { count, data, error, status } = await client
+    .from(table)
+    .select(columns, { count: 'exact' })
+    .limit(1);
+  return { count, data, error, status };
+}
+
+/** Anon KHÔNG được đọc `columns` của `table` (SEC-01/SEC-02). An toàn khi: lỗi quyền,
+ *  cột không còn tồn tại (T20 đã tách), hoặc 0 dòng. Dùng khoá secret để xác nhận bảng
+ *  CÓ THẬT, tránh nhầm "bảng chưa áp migration" với "được bảo vệ". */
+async function expectColumnsBlocked(label, table, columns, hint) {
+  if (supabaseSecret) {
+    const s = await probeColumns(supabaseSecret, table, '*');
+    if (skipIfMissing(label, s.error)) return;
+  }
+  const p = await probeColumns(supabase, table, columns);
+  if (skipIfMissing(label, p.error)) return;
+  if (p.error) {
+    const code = `${p.error.code || ''} ${p.error.message || ''}`;
+    if (PERMISSION_ERR_RE.test(code) || MISSING_COL_ERR_RE.test(code)) {
+      record(label, 'PASS', `bị chặn: ${p.error.code || p.status}`.trim());
+    } else {
+      record(label, 'UNKNOWN', `lỗi không xác định: ${p.error.code || ''} ${p.error.message}`.trim());
+    }
+    return;
+  }
+  if (p.count === null || p.count === undefined) {
+    record(label, 'UNKNOWN', 'count null — coi như CHƯA kiểm chứng');
+  } else if (p.count === 0) {
+    record(label, 'PASS', '0 dòng');
+  } else {
+    record(label, 'FAIL', `${nf(p.count)} dòng đọc được — ${hint}`);
+  }
+}
+
+/** App CẦN đọc được `columns` này (storefront); lỗi quyền ⇒ siết quá tay, hồi quy. */
+async function expectColumnsReadable(label, table, columns) {
+  const p = await probeColumns(supabase, table, columns);
+  if (skipIfMissing(label, p.error)) return;
+  if (p.error) {
+    record(label, 'FAIL', `không đọc được: ${p.error.code || ''} ${p.error.message}`.trim());
+    return;
+  }
+  record(label, 'PASS', `${nf(p.count ?? 0)} dòng`);
+}
+
+/** `select=*` trên designer_profiles: bị chặn, hoặc (sau khi T20 tách cột) trả dữ liệu
+ *  KHÔNG còn cột nhạy cảm. Chỉ kiểm tra TÊN CỘT, không bao giờ chạm giá trị. */
+async function expectDesignerSelectStar() {
+  const label = 'SEC-01: anon designer_profiles ?select=*';
+  const p = await probeColumns(supabase, 'designer_profiles', '*');
+  if (skipIfMissing(label, p.error)) return;
+  if (p.error) {
+    record(label, 'PASS', `bị chặn: ${p.error.code || p.status}`.trim());
+    return;
+  }
+  if (p.data?.length) {
+    const leaked = SENSITIVE_DESIGNER_COLS.filter((c) => c in p.data[0]);
+    if (leaked.length) record(label, 'FAIL', `đọc được cột nhạy cảm: ${leaked.join(', ')}`);
+    else record(label, 'PASS', 'không còn cột nhạy cảm (bank_*/tax_id đã tách)');
+    return;
+  }
+  record(label, 'PASS', '0 dòng');
+}
+
+await expectDesignerSelectStar();
+await expectColumnsBlocked('SEC-01: anon designer_profiles.bank_name', 'designer_profiles', 'bank_name',
+  'rò tên ngân hàng của nhà thiết kế');
+await expectColumnsBlocked('SEC-01: anon designer_profiles.bank_account', 'designer_profiles', 'bank_account',
+  'rò số tài khoản nhận tiền của nhà thiết kế');
+await expectColumnsBlocked('SEC-01: anon designer_profiles.tax_id', 'designer_profiles', 'tax_id',
+  'rò mã số thuế của nhà thiết kế');
+await expectColumnsReadable('SEC-01: anon designer_profiles cột an toàn', 'designer_profiles', 'id,display_name');
+
+await expectColumnsBlocked('SEC-02: anon custom_design_requests ?select=*', 'custom_design_requests', '*',
+  'lộ PII/hội thoại của yêu cầu CAD chưa gán');
+await expectColumnsBlocked('SEC-02: anon cdr.client_name', 'custom_design_requests', 'client_name',
+  'lộ tên khách của yêu cầu chưa gán');
+await expectColumnsBlocked('SEC-02: anon cdr.messages', 'custom_design_requests', 'messages',
+  'lộ nội dung hội thoại của yêu cầu chưa gán');
+await expectColumnsBlocked('SEC-02: anon open_design_requests (view)', 'open_design_requests', '*',
+  'chợ mở đọc được bằng khách vãng lai');
+
 /* ------------------------------------------------------------------ 3. RPC tra cứu đơn */
 try {
   const { data, error } = await supabase.rpc('get_order_by_guest_token', {

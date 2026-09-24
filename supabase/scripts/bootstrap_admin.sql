@@ -7,9 +7,9 @@
 -- không ai ghi được dữ liệu (kể cả trang /admin).
 --
 -- CÁCH DÙNG
---   1. `v_email` đã đặt sẵn = email admin của dự án. Đổi nếu cấp admin cho người khác.
---      Guard dùng sentinel '__CHANGE_ME__' (KHÔNG chứa '@') nên tìm-thay-thế theo email
---      sẽ KHÔNG phá được guard — bài học từ lần replace hỏng.
+--   1. `v_email` đang là sentinel 'CHANGE_ME@example.com'. Sửa thành email admin THẬT
+--      của bạn trước khi chạy — nếu còn nguyên sentinel, script raise exception và
+--      KHÔNG đổi gì (an toàn cho cả khi dán nhầm). Không hardcode email dự án ở đây.
 --   2. Chạy trong Supabase SQL Editor.
 --   3. Kiểm chứng: node scripts/verify-rls.mjs  và mở /admin sau khi đăng nhập lại.
 --
@@ -18,14 +18,14 @@
 
 do $do$
 declare
-  v_email     text := 'chithanhso10@gmail.com';   -- ← SỬA DÒNG NÀY
+  v_email     text := 'CHANGE_ME@example.com';   -- ← SỬA DÒNG NÀY
   v_uid       uuid;
   v_id_type   text;
   v_has_dname boolean;
   v_sql       text;
 begin
-  if lower(v_email) = '__change_me__' then
-    raise exception 'Hãy sửa v_email thành email thật của bạn trước khi chạy.';
+  if v_email = 'CHANGE_ME@example.com' then
+    raise exception 'Sửa v_email trước khi chạy';
   end if;
 
   select u.id into v_uid

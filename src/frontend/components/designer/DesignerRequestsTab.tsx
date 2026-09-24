@@ -3,6 +3,7 @@ import { CustomDesignRequest, CustomDesignMessage } from '../../../types';
 import { customDesignService } from '../../../backend/services/customDesignService';
 import { Icon } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';
+import { reportError } from '@frontend/lib/reportError';
 
 export interface DesignerRequestsTabProps {
   currentDesignerName: string;
@@ -19,6 +20,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
   selectedRequestId,
 }) => {
   const [requests, setRequests] = useState<CustomDesignRequest[]>([]);
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReqId, setSelectedReqId] = useState<string>(selectedRequestId || '');
   const [chatInput, setChatInput] = useState('');
@@ -39,12 +41,13 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
 
   const fetchRequests = useCallback(async () => {
     try {
-      const data = await customDesignService.getRequests(currentDesignerId);
-      setRequests(data);
-      if (data.length > 0) {
+      const board = await customDesignService.getRequestBoard(currentDesignerId);
+      setRequests(board.requests);
+      setOpenIds(new Set(board.openRequestIds));
+      if (board.requests.length > 0) {
         setSelectedReqId((prev) => {
-          if (prev && data.some((r) => r.id === prev)) return prev;
-          return data[0].id;
+          if (prev && board.requests.some((r) => r.id === prev)) return prev;
+          return board.requests[0].id;
         });
       }
     } catch (err) {
@@ -66,6 +69,31 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
   }, [fetchRequests]);
 
   const currentRequest = requests.find((r) => r.id === selectedReqId) || requests[0] || null;
+  const isCurrentOpen = currentRequest ? openIds.has(currentRequest.id) : false;
+
+  const displayClientName = (req: CustomDesignRequest) =>
+    req.clientName.trim() || 'Khách hàng ẩn danh';
+
+  const handleClaimRequest = async () => {
+    if (!currentRequest || isSending) return;
+    setIsSending(true);
+    try {
+      const res = await customDesignService.claimRequest(currentRequest.id);
+      if (!res.success) {
+        onShowToast(`Không nhận được yêu cầu: ${res.error}`);
+        void fetchRequests();
+        return;
+      }
+      onShowToast(`Đã nhận yêu cầu "${currentRequest.title}".`);
+      await fetchRequests();
+    } catch (err: any) {
+      reportError('DesignerRequestsTab.claimRequest', err);
+      onShowToast(`Lỗi khi nhận yêu cầu: ${err?.message || 'Không xác định'}`);
+      void fetchRequests();
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const handleSendChatMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,7 +187,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
         void fetchRequests();
         return;
       }
-      onShowToast(`Đã gửi báo giá ${formatCurrency(quoteAmount)} tới khách hàng ${currentRequest.clientName}!`);
+      onShowToast(`Đã gửi báo giá ${formatCurrency(quoteAmount)} tới khách hàng ${displayClientName(currentRequest)}!`);
     } catch (err: any) {
       console.error('Lỗi khi gửi báo giá:', err);
       onShowToast(`Lỗi khi phát hành báo giá: ${err.message || 'Không xác định'}`);
@@ -217,11 +245,17 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-0.5">
-                  <span className="font-bold text-xs text-fg truncate">{req.clientName}</span>
+                  <span className="font-bold text-xs text-fg truncate">{displayClientName(req)}</span>
                   <span className="text-xs font-tech text-fg-muted">{req.time}</span>
                 </div>
                 <p className="text-xs font-semibold text-primary truncate">{req.title}</p>
-                <p className="text-xs text-fg-muted truncate">{req.previewMessage}</p>
+                <p className="text-xs text-fg-muted truncate">
+                  {openIds.has(req.id) ? (
+                    <span className="text-primary font-bold">Yêu cầu mở · Nhận việc</span>
+                  ) : (
+                    req.previewMessage
+                  )}
+                </p>
               </div>
             </button>
           ))}
@@ -238,7 +272,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
                 {currentRequest.clientInitials}
               </div>
               <div>
-                <h4 className="font-bold text-xs text-fg">{currentRequest.clientName}</h4>
+                <h4 className="font-bold text-xs text-fg">{displayClientName(currentRequest)}</h4>
                 <p className="text-xs text-primary font-tech">
                   Dự án: {currentRequest.title}
                 </p>
@@ -246,23 +280,36 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              <input
-                type="number"
-                inputMode="numeric"
-                value={quoteAmountInput}
-                onChange={(e) => setQuoteAmountInput(e.target.value)}
-                placeholder="Số tiền (VND)"
-                aria-label="Số tiền báo giá (VND)"
-                className="hidden sm:block w-32 bg-surface border border-line-control px-2.5 py-1.5 text-xs font-tech rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring text-fg"
-              />
-              <button
-                onClick={handleSendQuoteInChat}
-                disabled={isSending}
-                className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full flex items-center gap-1 touch-target-btn disabled:opacity-50"
-              >
-                <Icon name="request_quote" size={18} />
-                Gửi Báo Giá CAD
-              </button>
+              {isCurrentOpen ? (
+                <button
+                  onClick={handleClaimRequest}
+                  disabled={isSending}
+                  className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full flex items-center gap-1 touch-target-btn disabled:opacity-50"
+                >
+                  <Icon name="handshake" size={18} />
+                  Nhận Việc
+                </button>
+              ) : (
+                <>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={quoteAmountInput}
+                    onChange={(e) => setQuoteAmountInput(e.target.value)}
+                    placeholder="Số tiền (VND)"
+                    aria-label="Số tiền báo giá (VND)"
+                    className="hidden sm:block w-32 bg-surface border border-line-control px-2.5 py-1.5 text-xs font-tech rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring text-fg"
+                  />
+                  <button
+                    onClick={handleSendQuoteInChat}
+                    disabled={isSending}
+                    className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full flex items-center gap-1 touch-target-btn disabled:opacity-50"
+                  >
+                    <Icon name="request_quote" size={18} />
+                    Gửi Báo Giá CAD
+                  </button>
+                </>
+              )}
               <button
                 aria-label="Thông tin dự án"
                 onClick={() => setShowProjectBriefMobile(!showProjectBriefMobile)}
@@ -275,7 +322,15 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
 
           {/* Chat Messages Body */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface-muted">
-            {currentRequest.messages.map((msg) => (
+            {isCurrentOpen ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-fg-muted text-xs gap-2">
+                <Icon name="lock" size={32} className="opacity-40" />
+                <p className="max-w-xs">
+                  Hội thoại và thông tin khách hàng chỉ hiển thị sau khi bạn nhận việc.
+                </p>
+              </div>
+            ) : (
+              currentRequest.messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex flex-col ${msg.sender === 'designer' ? 'items-end' : 'items-start'}`}
@@ -314,29 +369,31 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
                 </div>
                 <span className="text-xs font-tech text-fg-subtle mt-1 px-1">{msg.time}</span>
               </div>
-            ))}
+            )))}
           </div>
 
-          {/* Chat Input */}
-          <form
-            onSubmit={handleSendChatMessage}
-            className="p-3 border-t border-line bg-surface flex items-center gap-2"
-          >
-            <input
-              type="text"
-              placeholder="Trao đổi kỹ thuật, dung sai, vật liệu..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              className="flex-1 bg-canvas border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            <button
-              type="submit"
-              disabled={isSending}
-              className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full transition-colors touch-target-btn disabled:opacity-50"
+          {/* Chat Input — chỉ cho yêu cầu đã nhận; yêu cầu mở phải nhận việc trước. */}
+          {!isCurrentOpen && (
+            <form
+              onSubmit={handleSendChatMessage}
+              className="p-3 border-t border-line bg-surface flex items-center gap-2"
             >
-              Gửi
-            </button>
-          </form>
+              <input
+                type="text"
+                placeholder="Trao đổi kỹ thuật, dung sai, vật liệu..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                className="flex-1 bg-canvas border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <button
+                type="submit"
+                disabled={isSending}
+                className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full transition-colors touch-target-btn disabled:opacity-50"
+              >
+                Gửi
+              </button>
+            </form>
+          )}
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center p-8 text-center text-fg-muted text-xs">
