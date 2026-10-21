@@ -183,8 +183,9 @@ graph eager. Đây là tín hiệu P1 về hiệu năng, không phải lỗi UI.
 | `DesignerDashboardView` | 173 | 2 | 0 | 1 | + 2.018 LOC tab |
 | **Tổng view** | **14.330** | — | **401** | **74** | `App.tsx` thêm **2.152** LOC / 19 `useState` / 10 `useEffect` |
 
-Toàn repo: **1.179 nhánh `isVi ? … : …`** trong `.tsx` — tất cả là **dead EN** vì `LanguageContext` đã
-khoá `vi` (`handoff/design-foundation.md §9.1`). Đây là nợ code, không phải nợ UI.
+Toàn repo: **1.179 nhánh `isVi ? … : …`** trong `.tsx` (cách đếm: ternary `isVi ?`; nếu đếm mọi lần
+xuất hiện `isVi` thì **1.467**) — tất cả là **dead EN** vì `LanguageContext` đã khoá `vi`
+(`handoff/design-foundation.md §9.1`). Đây là nợ code, không phải nợ UI.
 
 ### 3.3 · Logic lặp (cùng một luật hiện nhiều bản)
 
