@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Star, Minus } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { MATERIALS_CATALOG } from '../../data/mockData';
-import { ThreeModelViewer } from '../components/ThreeModelViewer';
+import { ThreeModelViewer } from '../components/LazyThreeModelViewer';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { MaterialTechnicalAdvisory } from '../components/material/MaterialTechnicalAdvisory';
 import { SEOHead } from '../components/SEOHead';

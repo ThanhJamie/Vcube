@@ -17,7 +17,7 @@ const MODEL_TYPE_LABEL: Record<string, string> = {
   arch: 'Vòm',
 };
 
-interface ThreeModelViewerProps {
+export interface ThreeModelViewerProps {
   modelType?: 'gear' | 'box' | 'drone' | 'arch' | 'vase' | string;
   color?: string;
   wireframe?: boolean;

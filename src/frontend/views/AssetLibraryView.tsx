@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DigitalAsset } from '../types';
-import { ThreeModelViewer } from '../components/ThreeModelViewer';
+import { ThreeModelViewer } from '../components/LazyThreeModelViewer';
 import { AssetService, SIGNED_URL_TTL_SECONDS } from '../../backend/services/assetService';
 import { Icon, Button, Card, Modal, Field, Input, Select, EmptyState } from '@frontend/ui';
 

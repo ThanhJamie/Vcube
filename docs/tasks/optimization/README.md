@@ -21,8 +21,8 @@
 |---|---|---|
 | 0 | Checkpoint & baseline | **✅ DONE** — commit `4d4a5d1` + `aaff7c4`, baseline lint/build xanh, initial gzip ~466KB |
 | 1 | Dead code an toàn | **✅ DONE** — −552 LOC backend, −~700 LOC UI, −357 LOC test chết, −132 KB lock/artifact, −2 dep; lint/build/7 gate xanh |
-| 5 | Bundle & dependency | ⬅️ **KẾ TIẾP** |
-| 2 | Một ngôn ngữ (i18n) | ⏳ sau Phase 5 |
+| 5 | Bundle & dependency | **✅ DONE** — initial critical gzip **464.251 → 285.807 (−38,44%)**; three-vendor rời initial (async); 9 route lazy; `confetti` rời entry; lint/build/10 gate xanh; QA verdict **GO** (`handoff/phase5-bundle.md`) |
+| 2 | Một ngôn ngữ (i18n) | ⬅️ **KẾ TIẾP** |
 | 3 | Hợp nhất data/state | ⏳ |
 | 4 | Tách god-file | ⏳ |
 | 6 | Docs-as-code & test | ⏳ |

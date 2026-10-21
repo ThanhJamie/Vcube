@@ -47,7 +47,7 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
   `check-icon-names` PASS 206 glyph. Handoff: `handoff/phase1-{backend,ui,repo}.md`.
 - **Gate (đã đạt):** lint/build/10 gate; `rg` 0 hit các symbol đã xoá; bundle không tăng.
 
-### Phase 2 — Một ngôn ngữ, xoá nhánh i18n chết (3–4 ngày) — ⏭️ sau Phase 5
+### Phase 2 — Một ngôn ngữ, xoá nhánh i18n chết (3–4 ngày) — ⬅️ KẾ TIẾP
 - **Thứ tự thi công:** Phase 0 → 1 → **5** → **2** → 3 → 4 → 6 (user decision). Audit `04-refactor.md` §7.0
   khuyến nghị i18n làm **muộn nhất** vì Phase 2 chạm cùng 32 file với Phase 3/4 (xung đột write scope);
   nếu vẫn giữ thứ tự này, bắt buộc: chỉ chạy Phase 2 khi **không** có agent Phase 3/4 đang mở cùng file.
@@ -81,15 +81,22 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
 | `App.tsx` | 2.152 | sau Phase 3, mục tiêu <500 |
 - **Gate:** mỗi file tách xong build + browser key flow; không đổi behavior.
 
-### Phase 5 — Bundle & dependency (2–3 ngày) — ⬅️ KẾ TIẾP
-1. Lazy `ThreeModelViewer` ở Home/PDP (Suspense + skeleton) → three-vendor rời initial (~-134KB gzip).
-2. Lazy 8 route không critical (Cart, Checkout, Orders, Tracking, Assets, Login, Register, Personalize) → tách index chunk.
-3. `canvas-confetti` dynamic import trong handler (bỏ khỏi initial).
-4. ~~Prune 18 iconMap glyph~~ **✅ đã làm ở Phase 1** (224→206, `check-icon-names` PASS); còn lại: xem xét tách `iconMap` theo nhóm nếu vẫn nặng.
-5. ~~Bỏ dep chết~~ **✅ đã làm ở Phase 1** (`dotenv`/`autoprefixer`/`bun.lock`); việc còn lại: đo lại `dist/` và ghi baseline bundle trước/sau.
-- **Ước tính:** initial JS gzip **~466KB → ~300–330KB (-30–35%)**; LCP cải thiện.
-- **Đo baseline thực tế Phase 1:** index `892.82K` → gzip **240.15K** (build 5.5s). Three vendor vẫn eager.
-- **Gate:** build size table trước/sau; browser 390/1440; 3D lazy load đúng.
+### Phase 5 — Bundle & dependency — ✅ DONE 2026-10-21 (QA verdict **GO**)
+1. ✅ Lazy `ThreeModelViewer` qua wrapper `LazyThreeModelViewer` (Suspense + fallback no-CLS) → three-vendor rời initial.
+2. ✅ Lazy 9 route không critical (Cart, Checkout, OrderSuccess, OrderTracking, MyOrders, Assets, Login, Register, Personalize) → 9 chunk riêng.
+3. ✅ `canvas-confetti` rời entry (chỉ còn trong chunk `CheckoutView`).
+4. ✅ Prune 18 iconMap glyph (làm ở Phase 1, 224→206, `check-icon-names` PASS).
+5. ✅ Bỏ `dotenv`/`autoprefixer`/`bun.lock` (Phase 1).
+- **Kết quả đo (official, build HEAD `6e3247d` + Phase 5, gzip Node z9):**
+  initial critical **464.251 → 285.807 B gzip (−178.444, −38,44%)**; raw **1.786.443 → 1.076.040 (−39,77%)**;
+  entry `index` **892.820/239.321 → 714.080/194.316 (−18,8% gzip)**; `three-vendor` 133.439 gzip **rời preload**.
+  Target ≤330K **PASS** (dư ~44K).
+- **Bằng chứng:** `handoff/phase5-{routes,three,bundle}.md` — index.html chỉ preload react+supabase; index chunk
+  0 static import three; 3 chunk static-import three đều lazy; 28 route-check × 390/1440: 0 pageerror, 0 overflow;
+  3D canvas render Home/PDP; fallback box = viewer box (no CLS); 10/10 offline gate PASS.
+- **Follow-up Phase 6+ (không chặn):** `supabase-vendor` vẫn eager 57,6K gzip; Home vẫn tải three **sau** first paint
+  (poster B1); 4 modal luôn mount ~40K raw; `manualChunks` tách react-dom/client; jszip/3MF lazy (backlog §5 `03-resources.md`).
+- **Gate (đã đạt):** build size table trước/sau; browser 390/1440; 3D lazy load đúng.
 
 ### Phase 6 — Docs-as-code & test (2–3 ngày)
 - Cập nhật `AGENTS.md` (12 migration, 32 bảng/2 view, 19 hàm/9 trigger, 92/7 policy).

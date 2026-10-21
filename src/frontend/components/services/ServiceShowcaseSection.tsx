@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Button, Card, Icon, Modal } from '@frontend/ui';
 import { readColorToken, type ColorTokenName } from '@frontend/theme/tokens';
-import { ThreeModelViewer } from '../ThreeModelViewer';
+import { ThreeModelViewer } from '../LazyThreeModelViewer';
 import { useLanguage } from '../../context/LanguageContext';
 
 /** Nhãn VI cho 4 mô hình minh hoạ của khung 3D (modelType chỉ là mã code, không render thô). */

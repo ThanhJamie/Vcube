@@ -44,15 +44,6 @@ import { NotFoundView } from '@frontend/components/NotFoundView';
 import { HomeView } from '@frontend/views/HomeView';
 import { ExploreView } from '@frontend/views/ExploreView';
 import { ProductDetailView } from '@frontend/views/ProductDetailView';
-import { CartView } from '@frontend/views/CartView';
-import { CheckoutView } from '@frontend/views/CheckoutView';
-import { OrderSuccessView } from '@frontend/views/OrderSuccessView';
-import { OrderTrackingView } from '@frontend/views/OrderTrackingView';
-import { MyOrdersView } from '@frontend/views/MyOrdersView';
-import { PersonalizeView } from '@frontend/views/PersonalizeView';
-import { AssetLibraryView } from '@frontend/views/AssetLibraryView';
-import { LoginView } from '@frontend/views/LoginView';
-import { RegisterView } from '@frontend/views/RegisterView';
 import { ChatSupportModal } from '@frontend/components/ChatSupportModal';
 import { InvoiceModal } from '@frontend/components/InvoiceModal';
 import { CartDrawer } from '@frontend/components/CartDrawer';
@@ -79,6 +70,20 @@ import {
 } from 'lucide-react';
 
 // Heavy modules code-split via React.lazy() for fast initial page load
+// Phase 5a — tách 9 view KHÔNG thuộc critical path khỏi graph khởi động. Giữ eager:
+// HomeView/ExploreView/ProductDetailView (storefront critical) + 5 route console bên dưới.
+// Các view này là named export nên phải map `.then(m => ({ default: m.X }))`.
+// Cấu trúc JSX/route/props KHÔNG đổi — mọi element vẫn nằm trong 1 <React.Suspense> duy nhất.
+const CartView = React.lazy(() => import('@frontend/views/CartView').then((m) => ({ default: m.CartView })));
+const CheckoutView = React.lazy(() => import('@frontend/views/CheckoutView').then((m) => ({ default: m.CheckoutView })));
+const OrderSuccessView = React.lazy(() => import('@frontend/views/OrderSuccessView').then((m) => ({ default: m.OrderSuccessView })));
+const OrderTrackingView = React.lazy(() => import('@frontend/views/OrderTrackingView').then((m) => ({ default: m.OrderTrackingView })));
+const MyOrdersView = React.lazy(() => import('@frontend/views/MyOrdersView').then((m) => ({ default: m.MyOrdersView })));
+const AssetLibraryView = React.lazy(() => import('@frontend/views/AssetLibraryView').then((m) => ({ default: m.AssetLibraryView })));
+const LoginView = React.lazy(() => import('@frontend/views/LoginView').then((m) => ({ default: m.LoginView })));
+const RegisterView = React.lazy(() => import('@frontend/views/RegisterView').then((m) => ({ default: m.RegisterView })));
+const PersonalizeView = React.lazy(() => import('@frontend/views/PersonalizeView').then((m) => ({ default: m.PersonalizeView })));
+
 const Tool3DView = React.lazy(() => import('@frontend/views/Tool3DView'));
 const AdminDashboardView = React.lazy(() => import('@frontend/views/AdminDashboardView'));
 const DesignerDashboardView = React.lazy(() => import('@frontend/views/DesignerDashboardView'));

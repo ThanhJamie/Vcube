@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { MATERIALS_CATALOG } from '../../data/mockData';
-import { ThreeModelViewer } from './ThreeModelViewer';
+import { ThreeModelViewer } from './LazyThreeModelViewer';
 import { useLanguage } from '../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber } from '@frontend/lib/format';
 import { Button, Icon, Modal } from '@frontend/ui';

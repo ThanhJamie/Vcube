@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, SiteContentConfig } from '../types';
 import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_SITE_CONTENT } from '../data/mockData';
-import { ThreeModelViewer } from '../components/ThreeModelViewer';
+import { ThreeModelViewer } from '../components/LazyThreeModelViewer';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { CustomIdeaRequestModal } from '../components/custom/CustomIdeaRequestModal';

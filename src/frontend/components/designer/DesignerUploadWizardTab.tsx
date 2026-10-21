@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../../../types';
-import { ThreeModelViewer } from '../ThreeModelViewer';
+import { ThreeModelViewer } from '../LazyThreeModelViewer';
 import { Button, Field, Icon, Input, Select } from '@frontend/ui';
 import { EMPTY_VALUE } from '@frontend/lib/format';
 import { settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';

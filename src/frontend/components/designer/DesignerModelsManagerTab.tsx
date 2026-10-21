@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product } from '../../../types';
-import { ThreeModelViewer } from '../ThreeModelViewer';
+import { ThreeModelViewer } from '../LazyThreeModelViewer';
 import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
