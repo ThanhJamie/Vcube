@@ -65,7 +65,7 @@ Nguyên tắc: snake_case → camelCase, **trường thiếu để `null`/`—`,
 | `useDesignerAdminStore` | `stores/` | ❌ | filter, `loadDesigners`, `updateDesigner`, `loadPayoutInfo`(RPC), `getDesignerStats` | Group2DesignersPanel |
 | `useCustomerAdminStore` | `stores/` | ❌ | filter, `loadCustomers`, `setNdaSigned`, `getCustomerStats` | Group3CustomersPanel |
 
-> Hai thư mục store (`src/stores` vs `src/frontend/stores`) là **bất nhất layout**, không trùng lặp chức năng.
+> Hai thư mục store (`src/stores` vs `src/frontend/stores`) từng là **bất nhất layout**, không trùng lặp chức năng. **Phase 3 (2026-10-21) đã gom về `src/frontend/stores`** — câu này là hiện trạng lịch sử.
 
 ---
 

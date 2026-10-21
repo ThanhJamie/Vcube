@@ -68,14 +68,26 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
   (ServiceShowcase); smoke `/admin`,`/designer`,`/lab` khi Supabase Resume.
 - **Gate (đã đạt):** lint/build; grep visible EN = 0 ngoài allowlist; smoke 12 route; không đổi text VI.
 
-### Phase 3 — Hợp nhất data/state (3–5 ngày)
-- Bỏ localStorage cache DB-backed trong `App.tsx` (`vcube_products`, `vcube_materials`, `vcube_printers`, `vcube_site_content`); server là nguồn duy nhất; giữ cache UI/cart nếu cần.
-- Gom 2 thư mục store (`src/frontend/stores` + `src/stores`) về `src/stores` hoặc `src/frontend/stores`; bỏ store trùng/không dùng (`useProductionStore` nếu chỉ demo).
-- Tách `App.tsx` state theo domain: catalog/settings/orders/cart-shell; route table ra `src/frontend/routes/`.
-- Chuyển `dbService` inline call ở panel về service; bỏ `computeShippingFee` khỏi `database.ts` nếu service đã có.
-- **Gate:** lint/build; browser 390/1440; không đổi data contract.
+### Phase 3 — Hợp nhất data/state — ✅ DONE 2026-10-21 (QA verdict **GO**)
+- ✅ Bỏ toàn bộ cache localStorage DB-backed trong `App.tsx` (`vcube_products`, `vcube_materials`,
+  `vcube_printers`, `vcube_site_content` — 4 read + 10 write + dead `vcube_pricing_config`); DB là nguồn duy nhất.
+  Thay 5 mock rỗng D11l bằng `[]`; xoá 7 hằng rỗng mồ côi khỏi `src/data/mockData.ts` (311→270 LOC).
+- ✅ Gom 2 thư mục store về **`src/frontend/stores`**: `git mv` 4 file admin/MES store, 13 importer → `@frontend/stores/*`,
+  `src/stores` bị xoá; nội dung store byte-identical (chỉ sửa depth `../`→`../../`).
+- ✅ Tách `App.tsx` **2.153 → 1.100 dòng**: `src/frontend/routes/routeWrappers.tsx`,
+  `src/frontend/components/shell/{navConfig,3 shell,LabRoute,index}.tsx`, `src/frontend/hooks/{useCatalogData,useSiteSettings,useOrdersData}.ts`
+  (10 file / 1.207 dòng). JSX return **byte-identical** (sha256), `<Routes>` byte-identical 30 path,
+  effect deps multiset khớp (9→10, +1 `[]` do tách bootstrap 5 call → 2+3), realtime channel/subscribe/removeChannel 1/1,
+  0 circular import trên 143 file.
+- **Chưa làm trong phase này (chuyển Phase 4/6):** route table `<Routes>` + `handleNavigate` vẫn ở App;
+  19 call `dbService.*` inline trong hooks chưa về service layer; `activeOrder` trả thừa; `useProductionStore` chưa đánh giá dead.
+- **Kết quả đo:** initial critical gzip 275.930 → **277.322 (+0,50%)** — refactor thuần, 0 chunk mới (chênh lệch
+  do chuyển code giữa chunk; không phải hồi quy).
+- **Bằng chứng:** `handoff/phase3-{state-app,stores,app-split,verify}.md`: 24 route-check 390/1440 0 pageerror/0 overflow/
+  0 white screen, 0 cache key; add-to-cart toast/store/cart OK; DB-down vẫn empty state; 10/10 offline gate PASS.
+- **Gate (đã đạt):** lint/build; browser 390/1440; không đổi data contract.
 
-### Phase 4 — Tách god-file (4–6 ngày)
+### Phase 4 — Tách god-file (4–6 ngày) — ⬅️ KẾ TIẾP
 | File | LOC | Cách tách |
 |---|---:|---|
 | `PricingConfigPanel.tsx` | 3.079 | 6 sub-panel + hook form/validation; giữ UI |

@@ -377,7 +377,7 @@ Files that look light by site count but carry **data-driven icon lists** - these
 | `src/frontend/components/admin/AdminSidebar.tsx` | 16 |
 | `src/frontend/views/AdminDashboardView.tsx` (`currentMeta`) | 16 |
 | `src/frontend/components/OrderProgress.tsx` | 8 |
-| `src/stores/useProductionStore.ts` (stage list) | 8 |
+| `src/frontend/stores/useProductionStore.ts` (stage list) | 8 |
 | `src/frontend/components/Header.tsx` (`navItems`) | 5 |
 | `src/frontend/components/admin/AdminUsersPanel.tsx` | 5 |
 | `src/frontend/views/DesignerDashboardView.tsx` | 5 |

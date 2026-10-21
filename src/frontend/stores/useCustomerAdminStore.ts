@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../backend/supabase/client';
+import { supabase } from '../../backend/supabase/client';
 
 /* ============================================================================
  * KHÁCH HÀNG — ĐỌC/GHI BẢNG THẬT `customer_profiles`

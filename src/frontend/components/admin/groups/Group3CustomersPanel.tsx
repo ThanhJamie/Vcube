@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useCustomerAdminStore, CustomerRow, isB2b } from '../../../../stores/useCustomerAdminStore';
+import { useCustomerAdminStore, CustomerRow, isB2b } from '@frontend/stores/useCustomerAdminStore';
 import { dbService } from '../../../../backend/supabase/database';
 import { designerService } from '../../../../backend/services/designerService';
 import { AppUserProfile } from '../../../../types';

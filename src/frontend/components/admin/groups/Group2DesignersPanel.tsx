@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useDesignerAdminStore, DesignerRow } from '../../../../stores/useDesignerAdminStore';
+import { useDesignerAdminStore, DesignerRow } from '@frontend/stores/useDesignerAdminStore';
 import { dbService } from '../../../../backend/supabase/database';
 import { AppUserProfile } from '../../../../types';
 import { Badge, Button, DataTable, EmptyState, Field, Icon, InfoTip, Input, Modal, Skeleton } from '@frontend/ui';

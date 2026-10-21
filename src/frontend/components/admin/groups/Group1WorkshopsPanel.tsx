@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useWorkshopAdminStore } from '../../../../stores/useWorkshopAdminStore';
+import { useWorkshopAdminStore } from '@frontend/stores/useWorkshopAdminStore';
 import { dbService } from '../../../../backend/supabase/database';
 import { WorkshopProfile, WorkshopMachine, WorkshopMaterial, WorkshopPartner, PrinterProfile } from '../../../../types';
 import { getPricingGlobalSettings } from '../../../../backend/services/settingsService';
@@ -108,11 +108,11 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   //     phải "đội máy toàn hệ thống".
   //
   // VÌ SAO KHÔNG đọc prop `printers` (dù App có truyền):
-  //   `App.tsx:642-650` khởi tạo prop đó bằng localStorage `vcube_printers` hoặc fixture
-  //   `PRINTER_PROFILES`, và `App.tsx:808-810` CHỈ ghi đè khi mảng remote KHÁC RỖNG
-  //   ⇒ prop không phân biệt được "bảng rỗng" với "truy vấn lỗi" (đúng thứ màn này phải
-  //   nói thật). `dbService.getPrinters()` ném lỗi thật nên mới dựng được 3 trạng thái
-  //   loading / rỗng / lỗi. Sau mỗi lần ghi ta vẫn gọi `onUpdatePrinters` để state App khớp DB.
+  //   App khởi tạo prop đó bằng `[]` (Phase 3: đã bỏ hẳn cache localStorage cho danh sách máy)
+  //   và CHỈ ghi đè khi mảng remote KHÁC RỖNG ⇒ prop không phân biệt được "bảng rỗng" với
+  //   "truy vấn lỗi" (đúng thứ màn này phải nói thật). `dbService.getPrinters()` ném lỗi
+  //   thật nên mới dựng được 3 trạng thái loading / rỗng / lỗi. Sau mỗi lần ghi ta vẫn gọi
+  //   `onUpdatePrinters` để state App khớp DB.
   // ==========================================================================
   const [fleetPrinters, setFleetPrinters] = useState<PrinterProfile[] | null>(null);
   const [isFleetLoading, setIsFleetLoading] = useState(false);

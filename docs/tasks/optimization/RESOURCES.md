@@ -77,7 +77,7 @@
 | Vấn đề | Bằng chứng | Hành động |
 |---|---|---|
 | 5 localStorage cache DB-backed trong App | `vcube_products`, `vcube_materials`, `vcube_printers`, `vcube_site_content`, `vcube_pricing_config` | bỏ cache DB; server là nguồn |
-| 2 thư mục store | `src/frontend/stores` + `src/stores` | gom 1; xoá store không dùng |
+| 2 thư mục store | `src/frontend/stores` + `src/frontend/stores` | gom 1; xoá store không dùng |
 | 3D dispose | `src/frontend/three/dispose.ts`; viewers có cleanup | giữ; test unmount/StrictMode |
 | Realtime channels | 3 channel; orders broadcast chưa subscribe | giữ; thêm subscribe khi feature |
 | Worker | `cadParser.worker.ts` tạo mỗi parse? | kiểm tra singleton/terminate; tránh leak |

@@ -6,7 +6,7 @@ import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { SEOHead } from '../components/SEOHead';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
 import { useAuth } from '../context/AuthContext';
-import { useCartStore } from '../stores/useCartStore';
+import { useCartStore } from '@frontend/stores/useCartStore';
 import { Icon, Badge, Button, Card, EmptyState, InfoTip, Sheet, Skeleton } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency, formatNumber } from '@frontend/lib/format';
 import { realProductImageUrl } from '@frontend/lib/productImage';

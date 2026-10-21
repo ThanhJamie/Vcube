@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -6,666 +6,68 @@ import {
   Navigate,
   useNavigate,
   useLocation,
-  useParams,
-  useSearchParams
 } from 'react-router-dom';
-import {
-  Product,
-  CartItem,
-  Order,
-  DigitalAsset,
-  SiteContentConfig,
-  MaterialProfile,
-  PrinterProfile,
-  InkiriCostFormulaConfig,
-  AccessoryItem,
-  WorkshopProfile
-} from './types';
-import {
-  PRODUCTS,
-  INITIAL_CART_ITEMS,
-  DIGITAL_ASSETS,
-  DEFAULT_SITE_CONTENT,
-  MATERIALS_CATALOG,
-  PRINTER_PROFILES,
-} from './data/mockData';
+import { CartItem, InkiriCostFormulaConfig, Order } from './types';
 import { AuthProvider, useAuth } from '@frontend/context/AuthContext';
 import { LanguageProvider, useLanguage } from '@frontend/context/LanguageContext';
-import { dbService } from './backend/supabase/database';
-import { rowToProduct } from './backend/supabase/mappers';
-import { settingsAccessors, subscribeSettings, savePricingConfig as savePricingConfigAudited } from './backend/services/settingsService';
-import { WorkshopService } from '@backend/services/workshopService';
-import { supabase } from './backend/supabase/client';
 import { Header } from '@frontend/components/Header';
 import { AuthModal } from '@frontend/components/AuthModal';
 import { RoleGuard } from '@frontend/components/RoleGuard';
 import { ScrollToTop } from '@frontend/components/ScrollToTop';
 import { NotFoundView } from '@frontend/components/NotFoundView';
 import { HomeView } from '@frontend/views/HomeView';
-import { ExploreView } from '@frontend/views/ExploreView';
-import { ProductDetailView } from '@frontend/views/ProductDetailView';
 import { ChatSupportModal } from '@frontend/components/ChatSupportModal';
 import { InvoiceModal } from '@frontend/components/InvoiceModal';
 import { CartDrawer } from '@frontend/components/CartDrawer';
-import { EMPTY_VALUE } from '@frontend/lib/format';
 import { PageSkeleton } from '@frontend/components/PageSkeleton';
 import { RouteErrorBoundary } from '@frontend/components/RouteErrorBoundary';
 import { useCartStore } from '@frontend/stores/useCartStore';
 import { useUIStore } from '@frontend/stores/useUIStore';
-import { AppShell, Button, EmptyState, Icon, SideNav, Topbar } from '@frontend/ui';
+import { Icon } from '@frontend/ui';
 import {
-  Boxes,
-  ClipboardList,
-  History,
-  Layers,
-  LayoutDashboard,
-  Menu,
-  MessagesSquare,
-  Package,
-  Printer,
-  Settings,
-  Store,
-  UploadCloud,
-  Wallet,
-} from 'lucide-react';
+  ProtectedRoute,
+  ExploreRoute,
+  ProductDetailRoute,
+  PersonalizeRoute,
+  OrderSuccessRoute,
+  OrderTrackingRoute,
+} from '@frontend/routes/routeWrappers';
+import { DesignerDashboardShell, LabRoute } from '@frontend/components/shell';
+import { useCatalogData } from '@frontend/hooks/useCatalogData';
+import { useSiteSettings } from '@frontend/hooks/useSiteSettings';
+import { useOrdersData } from '@frontend/hooks/useOrdersData';
 
 // Heavy modules code-split via React.lazy() for fast initial page load
 // Phase 5a — tách 9 view KHÔNG thuộc critical path khỏi graph khởi động. Giữ eager:
-// HomeView/ExploreView/ProductDetailView (storefront critical) + 5 route console bên dưới.
-// Các view này là named export nên phải map `.then(m => ({ default: m.X }))`.
+// HomeView (storefront critical). Các view named export phải map `.then(m => ({ default: m.X }))`.
 // Cấu trúc JSX/route/props KHÔNG đổi — mọi element vẫn nằm trong 1 <React.Suspense> duy nhất.
+// Phase 3c: lazy declaration của view chỉ dùng bởi route wrapper/shell đã chuyển sang
+// `routes/routeWrappers.tsx` / `components/shell/LabRoute.tsx` (cùng pattern, không đổi cách split).
 const CartView = React.lazy(() => import('@frontend/views/CartView').then((m) => ({ default: m.CartView })));
 const CheckoutView = React.lazy(() => import('@frontend/views/CheckoutView').then((m) => ({ default: m.CheckoutView })));
-const OrderSuccessView = React.lazy(() => import('@frontend/views/OrderSuccessView').then((m) => ({ default: m.OrderSuccessView })));
-const OrderTrackingView = React.lazy(() => import('@frontend/views/OrderTrackingView').then((m) => ({ default: m.OrderTrackingView })));
 const MyOrdersView = React.lazy(() => import('@frontend/views/MyOrdersView').then((m) => ({ default: m.MyOrdersView })));
 const AssetLibraryView = React.lazy(() => import('@frontend/views/AssetLibraryView').then((m) => ({ default: m.AssetLibraryView })));
 const LoginView = React.lazy(() => import('@frontend/views/LoginView').then((m) => ({ default: m.LoginView })));
 const RegisterView = React.lazy(() => import('@frontend/views/RegisterView').then((m) => ({ default: m.RegisterView })));
-const PersonalizeView = React.lazy(() => import('@frontend/views/PersonalizeView').then((m) => ({ default: m.PersonalizeView })));
 
 const Tool3DView = React.lazy(() => import('@frontend/views/Tool3DView'));
 const AdminDashboardView = React.lazy(() => import('@frontend/views/AdminDashboardView'));
 const DesignerDashboardView = React.lazy(() => import('@frontend/views/DesignerDashboardView'));
-// W1a — cổng xưởng in (/lab). Hai module này trước Đợt 10 HOÀN TOÀN mồ côi
-// (xem docs/plans/19-product-audit.md §1.2), code-split như 3 view nặng phía trên.
-const WorkshopSettingsView = React.lazy(() => import('@frontend/views/WorkshopSettingsView'));
-const WorkshopOnboardingWizard = React.lazy(() => import('@frontend/components/onboarding/WorkshopOnboardingWizard'));
-
-
-// --- ROUTE WRAPPER COMPONENTS ---
-
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isLoggedIn, loading } = useAuth();
-  // Chờ khôi phục phiên trước khi redirect: nếu không, deep-link (F5 / tab mới) tới
-  // /orders, /assets… sẽ bị đẩy về /auth/login dù phiên Supabase còn hợp lệ.
-  // UI-001 (P1): trước đây trả `null` ⇒ màn TRẮNG trong lúc khôi phục phiên, không có
-  // phản hồi cho người dùng khi mạng chậm/Supabase paused. Nay render skeleton của
-  // route (component có sẵn) — KHÔNG đổi logic auth/redirect: hết loading vẫn rẽ nhánh
-  // `!isLoggedIn` như cũ.
-  if (loading) return <PageSkeleton />;
-  if (!isLoggedIn) {
-    return <Navigate to="/auth/login" replace />;
-  }
-  return <>{children}</>;
-};
-
-const ExploreRoute: React.FC<{
-  products: Product[];
-  productsLoading?: boolean;
-  productsError?: boolean;
-  onRetry?: () => void;
-  materials?: MaterialProfile[];
-  pricingConfig?: InkiriCostFormulaConfig;
-  onAddToCart: (item: CartItem) => void;
-  onNavigate: (screen: string, payload?: any) => void;
-  onSelectProduct: (product: Product) => void;
-  onShowToast: (msg: string) => void;
-}> = ({ products, productsLoading, productsError, onRetry, materials, pricingConfig, onAddToCart, onNavigate, onSelectProduct, onShowToast }) => {
-  const [searchParams] = useSearchParams();
-  const category = searchParams.get('category') || 'all';
-  const search = searchParams.get('search') || '';
-  const tag = searchParams.get('tag') || 'all';
-
-  return (
-    <ExploreView
-      products={products}
-      productsLoading={productsLoading}
-      productsError={productsError}
-      onRetry={onRetry}
-      materials={materials}
-      pricingConfig={pricingConfig}
-      initialCategory={category}
-      initialSearch={search}
-      initialTag={tag}
-      onAddToCart={onAddToCart}
-      onNavigate={onNavigate}
-      onSelectProduct={onSelectProduct}
-      onShowToast={onShowToast}
-    />
-  );
-};
-
-const ProductDetailRoute: React.FC<{
-  products: Product[];
-  productsLoading?: boolean;
-  productsError?: boolean;
-  onRetry?: () => void;
-  materials?: MaterialProfile[];
-  pricingConfig?: InkiriCostFormulaConfig;
-  onAddToCart: (item: CartItem) => void;
-  onNavigate: (screen: string, payload?: any) => void;
-  onShowToast: (msg: string) => void;
-}> = ({ products, productsLoading, productsError, onRetry, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
-  const { productId } = useParams<{ productId: string }>();
-  const product = products.find((p) => p.id === productId);
-
-  if (product) {
-    return (
-      <ProductDetailView
-        product={product}
-        allProducts={products}
-        materials={materials}
-        pricingConfig={pricingConfig}
-        onAddToCart={onAddToCart}
-        onNavigate={onNavigate}
-        onShowToast={onShowToast}
-      />
-    );
-  }
-
-  if (productsLoading) {
-    return (
-      <div role="status" className="min-h-dvh bg-canvas flex items-center justify-center p-6">
-        <div className="text-center space-y-3">
-          <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin motion-reduce:animate-none mx-auto" />
-          <p className="font-mono text-xs text-fg-subtle">Đang tải thông số kỹ thuật mô hình 3D...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (productsError) {
-    return (
-      <div role="alert" className="min-h-dvh bg-canvas flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <EmptyState
-            icon={<Icon name="error" size={20} />}
-            title="Không tải được kho bản vẽ"
-            description="Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại."
-            action={
-              <Button
-                variant="secondary"
-                size="md"
-                loading={Boolean(productsLoading)}
-                loadingLabel="Đang tải…"
-                leadingIcon={<Icon name="refresh" size={18} />}
-                onClick={() => onRetry?.()}
-              >
-                Thử lại
-              </Button>
-            }
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
-      <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
-        <Icon name="precision_manufacturing" size={36} className="text-fg-subtle" />
-        <h2 className="font-bold text-lg text-fg">Không tìm thấy bản vẽ CAD này</h2>
-        <p className="text-xs text-fg-subtle">Mô hình bạn đang tìm có thể đã được lưu trữ hoặc thay đổi mã định danh.</p>
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={() => onNavigate('explore')}
-        >
-          Quay lại Kho Bản Vẽ
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-const PersonalizeRoute: React.FC<{
-  products: Product[];
-  materials?: MaterialProfile[];
-  pricingConfig?: InkiriCostFormulaConfig;
-  onAddToCart: (item: CartItem) => void;
-  onNavigate: (screen: string, payload?: any) => void;
-  onShowToast: (msg: string) => void;
-}> = ({ products, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
-  const { productId } = useParams<{ productId?: string }>();
-  // A11 GUARD (CI-04): catalog fixture đã bị rỗng hoá ⇒ `products[0]` là `undefined` và
-  // `PersonalizeView` (prop `product` bắt buộc) crash khi truy cập `product.images[0]`.
-  // Không cá nhân hoá một sản phẩm không tồn tại: id không khớp HOẶC catalog rỗng ⇒ trạng thái
-  // "không tìm thấy". `/personalize` không kèm id vẫn lấy sản phẩm đầu khi catalog có dữ liệu thật.
-  const product = productId ? products.find((p) => p.id === productId) : products[0];
-
-  if (!product) {
-    return <NotFoundView />;
-  }
-
-  return (
-    <PersonalizeView
-      product={product}
-      materials={materials}
-      pricingConfig={pricingConfig}
-      onAddToCart={onAddToCart}
-      onNavigate={onNavigate}
-      onShowToast={onShowToast}
-    />
-  );
-};
-
-/**
- * P0 (OT-01): phân giải đơn theo `:orderId` một cách NGHIÊM NGẶT.
- *
- * Trước đây: `orders.find(...) || activeOrder || orders[0]` — nghĩa là
- * `/tracking/<id bất kỳ>` hoặc `/order-success/<id bất kỳ>` sẽ render đại đơn
- * đầu tiên trong danh sách, tức là đơn của người khác.
- *
- * Hiện tại: khớp thì trả đơn đó, không khớp thì trả `null` để view render trạng
- * thái "không tìm thấy". KHÔNG có đường fallback nào khác.
- */
-function resolveOrderById(orders: Order[], orderId?: string): Order | null {
-  if (!orderId) return null;
-  return orders.find((o) => o.id === orderId) ?? null;
-}
-
-const OrderSuccessRoute: React.FC<{
-  orders: Order[];
-  onNavigate: (screen: string, payload?: any) => void;
-  onOpenInvoice: (order: Order) => void;
-}> = ({ orders, onNavigate, onOpenInvoice }) => {
-  const { orderId } = useParams<{ orderId?: string }>();
-  const order = resolveOrderById(orders, orderId);
-
-  if (!order) {
-    return <OrderNotFoundView onNavigate={onNavigate} context="order-success" />;
-  }
-
-  return (
-    <OrderSuccessView
-      order={order}
-      onNavigate={onNavigate}
-      onOpenInvoice={onOpenInvoice}
-    />
-  );
-};
-
-const OrderTrackingRoute: React.FC<{
-  orders: Order[];
-  onNavigate: (screen: string, payload?: any) => void;
-  onOpenChat: () => void;
-  onOpenInvoice: (order: Order) => void;
-}> = ({ orders, onNavigate, onOpenChat, onOpenInvoice }) => {
-  const { orderId } = useParams<{ orderId?: string }>();
-  const order = resolveOrderById(orders, orderId);
-
-  return (
-    <OrderTrackingView
-      order={order ?? undefined}
-      notFound={!order && Boolean(orderId)}
-      onNavigate={onNavigate}
-      onOpenChat={onOpenChat}
-      onOpenInvoice={onOpenInvoice}
-    />
-  );
-};
-
-/** Trạng thái "không tìm thấy đơn" dùng chung cho /order-success/:id. */
-const OrderNotFoundView: React.FC<{
-  onNavigate: (screen: string, payload?: any) => void;
-  context: 'order-success' | 'tracking';
-}> = ({ onNavigate, context }) => (
-  <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
-    <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
-      <Icon name="receipt_long" size={36} className="text-fg-subtle" />
-      <h2 className="font-bold text-lg text-fg">Không tìm thấy đơn hàng</h2>
-      <p className="text-xs text-fg-subtle leading-relaxed">
-        {context === 'order-success'
-          ? 'Liên kết này không ứng với đơn hàng nào trong phiên làm việc hiện tại. Đơn của bạn nằm trong mục Đơn hàng, hoặc tra cứu bằng mã đơn kèm token.'
-          : 'Chúng tôi không có đơn hàng nào khớp với mã bạn mở. Vui lòng tra cứu lại bằng mã đơn kèm token.'}
-      </p>
-      <div className="flex flex-col sm:flex-row justify-center gap-2 pt-1">
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={() => onNavigate('tracking')}
-        >
-          Tra cứu đơn hàng
-        </Button>
-        <Button
-          variant="secondary"
-          size="lg"
-          onClick={() => onNavigate('my_orders')}
-        >
-          Đơn hàng của tôi
-        </Button>
-      </div>
-    </div>
-  </div>
-);
-
-/* --------------------------------------------------------------------------
-   Shell cho khu ĐÃ ĐĂNG NHẬP: `/lab` và `/designer`.
-
-   Vì sao đặt ở đây mà không nằm trong từng view: mỗi route chỉ được có ĐÚNG MỘT
-   tầng khung. `LabRoute` có 3 nhánh (đang tải · wizard onboarding · bảng điều
-   khiển) và cả 3 đều phải nằm trong cùng một `AppShell` — nếu để view tự bọc thì
-   nhánh wizard sẽ mất khung và thành ngõ cụt (không còn Header storefront vì
-   `MainApp` đã ẩn Header cho `/lab`).
-
-   Dùng đúng primitive của Đợt 11A: `AppShell` + `SideNav` (240px/64px) + `Topbar`
-   (56px), nội dung `max-w-[1400px]`, drawer mobile bằng `Sheet side="left"`, có
-   skip-link. Không tự dựng lại khung mới.
-
-   ⚠️ `id` của mục nav PHẢI khớp tab id trong view tương ứng:
-      - `/lab`      -> `TabId` của `views/WorkshopSettingsView.tsx`
-      - `/designer` -> `activeTab` của `views/DesignerDashboardView.tsx`
-   -------------------------------------------------------------------------- */
-
-type DashboardNavItem = { id: string; label: string; icon: React.ElementType };
-type DashboardNavGroup = { label: string; items: DashboardNavItem[] };
-
-const LAB_NAV: DashboardNavGroup[] = [
-  {
-    label: 'Vận hành',
-    items: [
-      { id: 'queue', label: 'Hàng đợi việc', icon: ClipboardList },
-      { id: 'machines', label: 'Máy in', icon: Printer },
-      { id: 'materials', label: 'Vật liệu & kho', icon: Layers },
-      { id: 'accessories', label: 'Phụ kiện', icon: Package },
-    ],
-  },
-  {
-    label: 'Quản trị',
-    items: [
-      { id: 'audit_trail', label: 'Sổ kho', icon: History },
-      { id: 'preferences', label: 'Cấu hình xưởng', icon: Settings },
-    ],
-  },
-];
-
-const DESIGNER_NAV: DashboardNavGroup[] = [
-  {
-    label: 'Ấn phẩm',
-    items: [
-      { id: 'overview', label: 'Tổng quan & doanh thu', icon: LayoutDashboard },
-      { id: 'models', label: 'Quản lý ấn phẩm', icon: Boxes },
-      { id: 'wizard', label: 'Đăng tải & cấu hình', icon: UploadCloud },
-    ],
-  },
-  {
-    label: 'Kinh doanh',
-    items: [
-      { id: 'requests', label: 'Yêu cầu CAD & chat', icon: MessagesSquare },
-      { id: 'payouts', label: 'Quyết toán tiền mặt', icon: Wallet },
-    ],
-  },
-];
-
-const DashboardShell: React.FC<{
-  basePath: '/lab' | '/designer';
-  activeId: string;
-  groups: DashboardNavGroup[];
-  brandTitle: string;
-  brandHint: string;
-  navLabel: string;
-  children: React.ReactNode;
-}> = ({ basePath, activeId, groups, brandTitle, brandHint, navLabel, children }) => {
-  const navigate = useNavigate();
-  const { profile, user } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const activeLabel =
-    groups.flatMap((group) => group.items).find((item) => item.id === activeId)?.label ?? '';
-  const who = (profile?.displayName || user?.email || '?').trim();
-  const initials = who.charAt(0).toUpperCase();
-
-  return (
-    <AppShell
-      collapsed={collapsed}
-      mobileOpen={mobileOpen}
-      onMobileOpenChange={setMobileOpen}
-      navLabel={navLabel}
-      sidebar={
-        <SideNav
-          variant="pill"
-          label={navLabel}
-          collapsed={collapsed}
-          onCollapsedChange={setCollapsed}
-          activeId={activeId}
-          onSelect={(id) => navigate(`${basePath}/${id}`)}
-          groups={groups.map((group) => ({
-            id: group.label,
-            label: group.label,
-            items: group.items.map((item) => ({
-              id: item.id,
-              label: item.label,
-              icon: <item.icon className="size-4.5" aria-hidden="true" />,
-            })),
-          }))}
-        />
-      }
-      topbar={({ openNav }) => (
-        <Topbar
-          leading={
-            <Button
-              iconOnly
-              variant="ghost"
-              size="sm"
-              aria-label="Mở điều hướng"
-              onClick={openNav}
-              className="lg:hidden"
-            >
-              <Menu aria-hidden="true" className="size-4" />
-            </Button>
-          }
-          brand={
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-brand text-xs font-bold text-fg shadow-soft">
-                V
-              </span>
-              <span className="hidden min-w-0 flex-col leading-tight sm:flex">
-                <span className="truncate text-sm font-semibold tracking-tight text-fg">
-                  {brandTitle}
-                </span>
-                <span className="truncate text-xs text-fg-subtle">{brandHint}</span>
-              </span>
-            </span>
-          }
-          breadcrumb={
-            <span className="truncate text-xs text-fg-muted">
-              {brandTitle}
-              {activeLabel ? ` / ${activeLabel}` : ''}
-            </span>
-          }
-          actions={
-            <Button
-              variant="secondary"
-              size="sm"
-              leadingIcon={<Store aria-hidden="true" className="size-4" />}
-              onClick={() => navigate('/')}
-            >
-              Về cửa hàng
-            </Button>
-          }
-          avatar={
-            <span
-              aria-hidden="true"
-              title={who}
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-xs font-medium text-fg-muted"
-            >
-              {initials}
-            </span>
-          }
-        />
-      )}
-    >
-      {children}
-    </AppShell>
-  );
-};
-
-/** Shell của `/lab` — `activeId` đọc từ URL nên `/lab/:tab` deep-link được. */
-const LabDashboardShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { tab } = useParams();
-  const known = LAB_NAV.some((group) => group.items.some((item) => item.id === tab));
-  return (
-    <DashboardShell
-      basePath="/lab"
-      activeId={known ? String(tab) : 'queue'}
-      groups={LAB_NAV}
-      brandTitle="Xưởng in VCUBE"
-      brandHint="Xưởng in (MES)"
-      navLabel="Điều hướng xưởng in"
-    >
-      {children}
-    </DashboardShell>
-  );
-};
-
-/** Shell của `/designer` — `activeId` đọc từ URL nên `/designer/:tab` deep-link được. */
-const DesignerDashboardShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { tab } = useParams();
-  const known = DESIGNER_NAV.some((group) => group.items.some((item) => item.id === tab));
-  return (
-    <DashboardShell
-      basePath="/designer"
-      activeId={known ? String(tab) : 'overview'}
-      groups={DESIGNER_NAV}
-      brandTitle="Xưởng thiết kế"
-      brandHint="Tác giả & bản quyền"
-      navLabel="Điều hướng studio tác giả"
-    >
-      {children}
-    </DashboardShell>
-  );
-};
-
-/**
- * W1a — cổng xưởng in `/lab`.
- *
- * Quyết định hiển thị dựa trên hàng `workshop_profiles` CỦA CHÍNH người đăng nhập
- * (khớp `user_id`), đọc qua `WorkshopService` — không truy vấn DB inline trong component:
- *   - chưa có hàng, hoặc `verified_status='Pending'` ⇒ `WorkshopOnboardingWizard`;
- *   - đã có hàng (đã duyệt) ⇒ bảng điều khiển xưởng `WorkshopSettingsView`.
- * Trước W1a, `/lab` không tồn tại trong router nên cả hai module trên không có người gọi.
- */
-const LabRoute: React.FC<{
-  onNavigate: (screen: string, payload?: any) => void;
-  onShowToast: (msg: string) => void;
-}> = ({ onNavigate, onShowToast }) => {
-  const { user } = useAuth();
-  const [gate, setGate] = useState<'loading' | 'onboarding' | 'ready'>('loading');
-  const [profile, setProfile] = useState<WorkshopProfile | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!user?.id) {
-      // RoleGuard đã chặn khách; tới đây mà không có uid thì không thể xác định hồ sơ.
-      setGate('loading');
-      return;
-    }
-    setGate('loading');
-    WorkshopService.getWorkshopProfileByUserId(user.id)
-      .then((found) => {
-        if (cancelled) return;
-        setProfile(found);
-        setGate(!found || found.verifiedStatus === 'Pending' ? 'onboarding' : 'ready');
-      })
-      .catch((err) => {
-        console.warn('Could not resolve workshop profile for /lab:', err);
-        if (cancelled) return;
-        setProfile(null);
-        setGate('onboarding');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  if (gate === 'loading') {
-    return (
-      <LabDashboardShell>
-        <PageSkeleton />
-      </LabDashboardShell>
-    );
-  }
-
-  if (gate === 'onboarding') {
-    return (
-      <LabDashboardShell>
-        <WorkshopOnboardingWizard
-          initialData={profile ?? undefined}
-          onNavigate={onNavigate}
-          onShowToast={onShowToast}
-          // Hồ sơ đã gửi nhưng còn 'Pending': wizard vẫn là cổng vào (theo brief Đợt 10
-          // §W1a), nhưng KHÔNG được biến thành ngõ cụt — xưởng phải mở được bảng điều khiển.
-          // KHÔNG chuyển gate ở `onComplete`: giữ wizard để hiện BƯỚC 4 (chờ duyệt);
-          // chỉ khi bấm "Mở bảng điều khiển" (onSkipToDashboard) mới vào MES.
-          onSkipToDashboard={() => setGate('ready')}
-        />
-      </LabDashboardShell>
-    );
-  }
-
-  return (
-    <LabDashboardShell>
-      <WorkshopSettingsView onNavigate={onNavigate} onShowToast={onShowToast} />
-    </LabDashboardShell>
-  );
-};
 
 // --- MAIN APPLICATION COMPONENT WITH ROUTING ---
 
 function MainApp() {
   const { t } = useLanguage();
-  const { user, role, isLoggedIn, loading: authLoading } = useAuth();
+  const { user, role, isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Core App State with LocalStorage persistence for Admin & Designer configurable items
-  const [products, setProducts] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem('vcube_products');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.warn('Could not load saved products', e);
-    }
-    return PRODUCTS;
-  });
-  /** Đang nạp catalog từ DB — HomeView dùng để hiện skeleton thay vì "0 bản vẽ". */
-  const [productsLoading, setProductsLoading] = useState(true);
-  /** Lỗi đọc catalog lần gần nhất (D1=1A: chỉ boolean, không lộ err.message). */
-  const [productsError, setProductsError] = useState(false);
-  /** Theo dõi mounted để không setState sau unmount. */
-  const mountedRef = useRef(true);
-  /** Chặn double-fetch (StrictMode / retry khi in-flight). */
-  const productsLoadingRef = useRef(false);
-  /** Tăng mỗi khi realtime/admin cập nhật state để fetch cũ không đè (D6/D7). */
-  const productsRevisionRef = useRef(0);
-  /**
-   * Khoá ngữ cảnh auth (`user?.id|role`) của lượt fetch: `requestAuthKeyRef` = lượt SẮP gọi,
-   * `activeAuthKeyRef` = lượt ĐANG bay. Nếu guard `productsLoadingRef` chặn một lượt có khoá
-   * KHÁC lượt đang bay (user/role đổi giữa chừng) thì ghi vào `pendingRefetchRef` để chạy lại
-   * sau `finally`. CÙNG khoá (StrictMode double-invoke) KHÔNG xếp hàng ⇒ vẫn chống double-fetch.
-   */
-  const requestAuthKeyRef = useRef<string | null>(null);
-  const activeAuthKeyRef = useRef<string | null>(null);
-  const pendingRefetchRef = useRef<string | null>(null);
-  // Zustand State Management for Cart & UI
+  // Zustand State Management for Cart
   const cart = useCartStore((s) => s.cart);
   const appliedDiscount = useCartStore((s) => s.appliedDiscount);
   const addToCartStore = useCartStore((s) => s.addToCart);
   const updateQuantityStore = useCartStore((s) => s.updateQuantity);
   const removeItemStore = useCartStore((s) => s.removeItem);
-  const clearCartStore = useCartStore((s) => s.clearCart);
   const setAppliedDiscount = useCartStore((s) => s.setAppliedDiscount);
   const mergeGuestCart = useCartStore((s) => s.mergeGuestCart);
 
@@ -682,251 +84,56 @@ function MainApp() {
   const addToast = useUIStore((s) => s.addToast);
   const removeToast = useUIStore((s) => s.removeToast);
 
-  // Đơn hàng KHÔNG được seed từ fixture: chỉ chứa đơn thật do người dùng tạo
-  // trong phiên, hoặc đơn đọc từ Supabase (xem effect bên dưới).
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [assets, setAssets] = useState<DigitalAsset[]>(DIGITAL_ASSETS);
-  const [siteContent, setSiteContent] = useState<SiteContentConfig>(() => {
-    try {
-      const saved = localStorage.getItem('vcube_site_content');
-      if (saved) return { ...DEFAULT_SITE_CONTENT, ...JSON.parse(saved) };
-    } catch (e) {
-      console.warn('Could not load saved site content', e);
-    }
-    return DEFAULT_SITE_CONTENT;
-  });
-  
-  const [materials, setMaterials] = useState<MaterialProfile[]>(() => {
-    try {
-      const saved = localStorage.getItem('vcube_materials');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.warn('Could not load saved materials', e);
-    }
-    return MATERIALS_CATALOG;
-  });
-
-  const [printers, setPrinters] = useState<PrinterProfile[]>(() => {
-    try {
-      const saved = localStorage.getItem('vcube_printers');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.warn('Could not load saved printers', e);
-    }
-    return PRINTER_PROFILES;
-  });
-
-  // Đợt T: danh mục phụ kiện do DB quyết định — khởi tạo rỗng.
-  // Trước đây state gán fixture rỗng trong mockData nhưng
-  // KHÔNG có chỗ nào nạp từ bảng `accessories`, nên trang quản trị luôn trống.
-  const [accessories, setAccessories] = useState<AccessoryItem[]>([]);
-
-  /**
-   * `null` = CHƯA có cấu hình công thức giá thật.
-   *
-   * Trước đây state này khởi tạo bằng `DEFAULT_INKIRI_FORMULA_CONFIG` (bộ số của công cụ
-   * Inkiri) và còn merge nó với bản lưu localStorage. Hệ quả: views nhận một bộ số KHÔNG ai
-   * cấu hình nên HomeView cộng ra 15,5% phụ phí (8 + 2,5 + 5 của Inkiri) rồi hiển thị cho
-   * khách, trong khi engine đọc `pricing_global_settings.marketplace_fee_percent` ⇒ số hiển
-   * thị và số tính có thể KHÁC NHAU. Đó là lỗi TIỀN.
-   *
-   * Bỏ hẳn bộ số mẫu ở thượng nguồn: thiếu cấu hình ⇒ `null` ⇒ views hiện `—`.
-   */
-  const [pricingConfig, setPricingConfig] = useState<InkiriCostFormulaConfig | null>(null);
-
-  /**
-   * Phí nền tảng — MỘT nguồn duy nhất, đúng nguồn engine đọc
-   * (`pricingEngine.ts:426-428`: `pricing_global_settings.marketplace_fee_percent`).
-   * `null` = chưa cấu hình; KHÔNG rơi về 8.
-   */
-  const [marketplaceFeePercent, setMarketplaceFeePercent] = useState<number | null>(
-    () => settingsAccessors.pricingGlobal()?.marketplaceFeePercent ?? null
-  );
-
-  /** Đọc lại cache settings (đồng bộ, không chạm DB) và chỉ set khi giá trị đổi. */
-  const setMarketplaceFeeFromCache = () => {
-    const next = settingsAccessors.pricingGlobal()?.marketplaceFeePercent ?? null;
-    setMarketplaceFeePercent((prev) => (prev === next ? prev : next));
+  const showToast = (msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    addToast({ message: msg, type });
   };
 
-  // Cache settings được nạp ở `main.tsx` (không `await`) và cập nhật qua realtime ⇒ đăng ký
-  // nhận thay đổi để số hiển thị bám đúng nguồn của engine, không mở truy vấn mới.
-  //
-  // ⚠️ LỊCH SỆ: `bootstrapSettings()` từng KHÔNG gọi `notify()` nên subscription chỉ bắn một lần với
-  // cache rỗng. Nay service đã báo cho subscriber khi nạp xong (W2-I); lời gọi
-  // `setMarketplaceFeeFromCache()` ngay tại đây được giữ nguyên để render đầu tiên đọc cache
-  // đồng bộ (không đợi effect), không đổi hành vi.
-  useEffect(() => {
-    setMarketplaceFeeFromCache();
-    return subscribeSettings(setMarketplaceFeeFromCache);
-  }, [pricingConfig]);
+  // Domain hooks — state/effects/handlers theo domain (Phase 3c). Hành vi giữ nguyên:
+  // catalog (products/materials/printers/accessories + CRUD + realtime), settings
+  // (siteContent/pricingConfig/marketplace fee), orders/assets.
+  const {
+    products,
+    productsLoading,
+    productsError,
+    loadProducts,
+    materials,
+    printers,
+    accessories,
+    handleAddNewProduct,
+    handleUpdateProduct,
+    handleDeleteProduct,
+    handleUpdateMaterials,
+    handleUpdatePrinters,
+    handleUpdateAccessories,
+  } = useCatalogData({ showToast });
+  const {
+    siteContent,
+    pricingConfig,
+    effectivePricingConfig,
+    handleUpdateSiteContent,
+    handleUpdatePricingConfig,
+  } = useSiteSettings();
+  const {
+    orders,
+    assets,
+    setActiveOrder,
+    handleOrderCompleted,
+    handleUpdateOrderStatus,
+  } = useOrdersData();
 
-  // Synchronize products from Supabase DB on startup (retryable, revision-guarded)
-  //
-  // `loadProducts` là nguồn DUY NHẤT thay `products` từ DB. Cờ `productsLoadingRef` chặn
-  // double-fetch (StrictMode/retry khi in-flight); `productsRevisionRef` nhường quyền cho
-  // realtime/admin mới hơn đã cập nhật state trong lúc fetch còn bay (R1/R3/R8).
-  const loadProducts = useCallback(async () => {
-    const authKey = requestAuthKeyRef.current;
-    if (productsLoadingRef.current) {
-      // Đang có lượt bay. Chỉ hẹn chạy lại khi ngữ cảnh auth ĐÃ ĐỔI; cùng ngữ cảnh (StrictMode)
-      // thì bỏ qua để không tạo double-fetch.
-      if (authKey !== activeAuthKeyRef.current) pendingRefetchRef.current = authKey;
-      return;
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
+
+  // FAB chat: ẩn khi cuộn xuống (xem effect `controlUnderFab` bên dưới).
+  const [isFabHidden, setIsFabHidden] = useState(false);
+  const fabRef = useRef<HTMLButtonElement | null>(null);
+
+  // Sync server cart with guest local cart upon user login
+  useEffect(() => {
+    if (isLoggedIn && user) {
+      // When user logs in, merge guest local cart with user's remote server cart
+      mergeGuestCart([]);
     }
-    productsLoadingRef.current = true;
-    activeAuthKeyRef.current = authKey;
-    setProductsLoading(true);
-    setProductsError(false);
-    const startRev = productsRevisionRef.current;
-    try {
-      const remote = await dbService.getProducts();          // RLS quyết định; KHÔNG seed fixture
-      if (!mountedRef.current) return;
-      if (productsRevisionRef.current !== startRev) return;  // nhường realtime/admin mới hơn
-      setProducts(remote);
-      if (remote.length === 0) {
-        // D7(a-safe): DB xác nhận rỗng và không lỗi ⇒ xoá cache để empty-state nói thật.
-        try { localStorage.removeItem('vcube_products'); } catch { /* ignore: localStorage cache clear — không chặn luồng catalog */ }
-      }
-    } catch (err) {
-      console.warn('[vcube] Could not sync remote products:', err);
-      if (mountedRef.current) setProductsError(true);        // giữ cache hiện có (D2)
-    } finally {
-      productsLoadingRef.current = false;
-      if (mountedRef.current) setProductsLoading(false);
-      // Lượt bị nuốt khi auth/user/role đổi giữa chừng → chạy lại một lần với ngữ cảnh mới nhất.
-      const pendingKey = pendingRefetchRef.current;
-      pendingRefetchRef.current = null;
-      if (pendingKey !== null && pendingKey !== activeAuthKeyRef.current && mountedRef.current) {
-        requestAuthKeyRef.current = pendingKey;
-        void loadProducts();
-      }
-    }
-  }, []);
-
-  // Theo dõi mounted để không setState sau unmount (StrictMode-safe).
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
-
-  // Fetch catalog sau khi auth đã resolve — tránh anon RLS trả [] rồi xoá cache oan (F14/F15).
-  useEffect(() => {
-    if (authLoading) return;
-    // Ghi ngữ cảnh auth của lượt sắp gọi để `loadProducts` phân biệt "đổi user/role" với
-    // StrictMode double-invoke cùng ngữ cảnh.
-    requestAuthKeyRef.current = `${user?.id ?? 'anon'}|${role ?? ''}`;
-    void loadProducts();
-  }, [authLoading, user?.id, role, loadProducts]);
-
-  // Supabase Realtime Channel for Multi-user Sync — tách riêng khỏi fetch (D6).
-  useEffect(() => {
-    let isMounted = true;
-
-    const channel = supabase
-      .channel('public:products')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        (payload) => {
-          if (!isMounted) return;
-          if (payload.eventType === 'INSERT') {
-            const newRecord: any = payload.new;
-            productsRevisionRef.current++;
-            setProducts((prev) => {
-              if (prev.some((p) => p.id === newRecord.id)) return prev;
-              // Dùng CHÍNH mapper của tầng dữ liệu (cùng hàm mà `dbService.getProducts()` dùng ở
-              // trên). Bản map viết tay trước đây đoán hộ 4 dữ kiện cho hàng CHƯA khai: `cad_format
-              // || 'STL'`, `print_time || '2h'`, `supported_materials || ['PLA Tough']`,
-              // `production_readiness || 'ready_to_print'` — khách nhìn một định dạng/thời gian in/độ
-              // sẵn sàng sản xuất chưa từng được ai khai (docs/design/data-honesty.md).
-              return [rowToProduct(newRecord), ...prev];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedRecord: any = payload.new;
-            productsRevisionRef.current++;
-            setProducts((prev) =>
-              prev.map((p) =>
-                p.id === updatedRecord.id
-                  ? {
-                      ...p,
-                      name: updatedRecord.name || p.name,
-                      category: updatedRecord.category || p.category,
-                      pricePhysical: Number(updatedRecord.price_physical ?? p.pricePhysical),
-                      priceDigital: Number(updatedRecord.price_digital ?? p.priceDigital),
-                      status: (updatedRecord.status || p.status).toLowerCase() as any,
-                      badge: updatedRecord.badge !== undefined ? updatedRecord.badge : p.badge,
-                      images: Array.isArray(updatedRecord.images) ? updatedRecord.images : p.images,
-                      thumbnailUrl: updatedRecord.thumbnail_url || p.thumbnailUrl,
-                    }
-                  : p
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            const deletedRecord: any = payload.old;
-            productsRevisionRef.current++;
-            if (deletedRecord?.id) {
-              setProducts((prev) => prev.filter((p) => p.id !== deletedRecord.id));
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      isMounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  // Fetch dynamic system parameters (Pricing Config & Site Content) from Supabase on mount
-  useEffect(() => {
-    let isMounted = true;
-    dbService.getPricingConfig().then((cfg) => {
-      if (isMounted && cfg) setPricingConfig(cfg);
-    }).catch((err) => console.warn('Could not load remote pricing config:', err));
-
-    dbService.getSiteContent().then((content) => {
-      if (isMounted && content) setSiteContent(content);
-    }).catch((err) => console.warn('Could not load remote site content:', err));
-
-    dbService.getMaterials().then((remoteMats) => {
-      if (isMounted && remoteMats && remoteMats.length > 0) setMaterials(remoteMats);
-    }).catch((err) => console.warn('Could not load remote materials:', err));
-
-    dbService.getPrinters().then((remotePrinters) => {
-      if (isMounted && remotePrinters && remotePrinters.length > 0) setPrinters(remotePrinters);
-    }).catch((err) => console.warn('Could not load remote printers:', err));
-
-    // Đợt T: nạp danh mục phụ kiện từ bảng `accessories`.
-    // Khác materials/printers: bảng RỖNG là thông tin thật ⇒ gán luôn `[]`
-    // (để UI hiện trạng thái trống), KHÔNG giữ fixture và không bịa danh mục.
-    dbService.getAccessories().then((remoteAccessories) => {
-      if (isMounted && Array.isArray(remoteAccessories)) setAccessories(remoteAccessories);
-    }).catch((err) => console.warn('Could not load remote accessories:', err));
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  /**
-   * Admin cần thấy TOÀN BỘ đơn (RLS `vcube_orders_admin_all` cho phép) để Overview, badge
-   * sidebar và cảnh báo chờ thanh toán có số thật. Trước đây App không nạp `orders` từ DB nên
-   * các chỗ đó luôn rỗng.
-   */
-  useEffect(() => {
-    if (role !== 'admin') return;
-    let alive = true;
-    dbService.getOrders()
-      .then((list) => {
-        if (alive && Array.isArray(list)) setOrders(list);
-      })
-      .catch((err) => console.warn('Could not load orders for admin:', err));
-    return () => {
-      alive = false;
-    };
-  }, [role]);
+  }, [isLoggedIn, user, mergeGuestCart]);
 
   /**
    * FAB "Trợ lý tự động" (lớp phủ `fixed`) LUÔN hiển thị; chỉ tự ẩn khi hộp FAB thực sự
@@ -1007,114 +214,6 @@ function MainApp() {
       if (settleTimer !== undefined) window.clearTimeout(settleTimer);
     };
   }, [location.pathname, isChatOpen, isCartDrawerOpen]);
-
-  const handleUpdatePricingConfig = async (newConfig: InkiriCostFormulaConfig) => {
-    setPricingConfig(newConfig);
-    try {
-      localStorage.setItem('vcube_pricing_config', JSON.stringify(newConfig));
-    } catch (e) {
-      console.warn('Could not save pricing config', e);
-    }
-    // Ghi qua service ĐÃ KIỂM SOÁT (validate + audit log + cache + realtime). Trả kết quả
-    // thật để UI không báo "đã lưu" khi DB từ chối (trước đây luôn báo thành công).
-    try {
-      const res = await savePricingConfigAudited(newConfig);
-      if (!res.success) {
-        console.warn('Could not persist pricing config to Supabase:', res.error);
-      }
-      return res;
-    } catch (e: any) {
-      const error = e?.message || 'Lỗi không xác định khi lưu công thức.';
-      console.warn('Could not persist pricing config to Supabase:', error);
-      return { success: false, error };
-    }
-  };
-
-  /**
-   * Cấu hình đưa xuống views. KHÔNG bơm bộ số mặc định nào; chỉ bù ĐÚNG MỘT ô bằng giá trị
-   * thật của nguồn phí nền tảng (nếu đã cấu hình) để số hiển thị = số engine tính.
-   *
-   * Vì sao phải bù: các view storefront vẫn tổng hợp phụ phí từ
-   * `platformCommissionPercent + paymentGatewayFeePercent + designerRoyaltyPercent`, trong
-   * khi ô `platformCommissionPercent` đã bị engine NGỪNG đọc và /admin cũng không còn ghi
-   * (ô disabled "đã ngừng dùng") ⇒ trong DB nó là `undefined` ⇒ view hiện `—` cho phí nền
-   * tảng trong lúc engine vẫn tính đủ phí đó ⇒ lệch số.
-   *
-   * Engine KHÔNG đọc `platformCommissionPercent` trong công thức nữa
-   * (`pricingEngine.ts:426-428`), nên phép bù này không thể làm engine tính khác đi.
-   */
-  const effectivePricingConfig: InkiriCostFormulaConfig | null = useMemo(() => {
-    if (!pricingConfig) return null;
-    return {
-      ...pricingConfig,
-      platformCommissionPercent:
-        marketplaceFeePercent !== null ? marketplaceFeePercent : pricingConfig.platformCommissionPercent ?? null,
-    } as InkiriCostFormulaConfig;
-  }, [pricingConfig, marketplaceFeePercent]);
-
-  const handleUpdateMaterials = (newMaterials: MaterialProfile[]) => {
-    // Xoá trên DB những vật liệu đã bị bỏ khỏi danh sách (trước đây chỉ upsert phần còn lại
-    // nên hàng đã xoá vẫn sống trong DB và quay lại sau khi tải lại).
-    const removed = materials.filter((m) => !newMaterials.some((n) => n.id === m.id));
-    setMaterials(newMaterials);
-    try {
-      localStorage.setItem('vcube_materials', JSON.stringify(newMaterials));
-    } catch (e) {
-      console.warn('Could not save materials', e);
-    }
-    newMaterials.forEach((m) => {
-      dbService.saveMaterial(m).catch((e) => console.warn('Failed to sync material to Supabase:', e));
-    });
-    removed.forEach((m) => {
-      dbService.deleteMaterial(m.id).catch((e) => console.warn('Failed to delete material from Supabase:', e));
-    });
-  };
-
-  const handleUpdatePrinters = (newPrinters: PrinterProfile[]) => {
-    const removed = printers.filter((p) => !newPrinters.some((n) => n.id === p.id));
-    setPrinters(newPrinters);
-    try {
-      localStorage.setItem('vcube_printers', JSON.stringify(newPrinters));
-    } catch (e) {
-      console.warn('Could not save printers', e);
-    }
-    newPrinters.forEach((p) => {
-      dbService.savePrinter(p).catch((e) => console.warn('Failed to sync printer to Supabase:', e));
-    });
-    removed.forEach((p) => {
-      dbService.deletePrinter(p.id).catch((e) => console.warn('Failed to delete printer from Supabase:', e));
-    });
-  };
-
-  const handleUpdateAccessories = (newAccessories: AccessoryItem[]) => {
-    const removed = accessories.filter((a) => !newAccessories.some((n) => n.id === a.id));
-    setAccessories(newAccessories);
-    newAccessories.forEach((a) => {
-      dbService.saveAccessory(a).catch((e) => console.warn('Failed to sync accessory to Supabase:', e));
-    });
-    removed.forEach((a) => {
-      dbService.deleteAccessory(a.id).catch((e) => console.warn('Failed to delete accessory from Supabase:', e));
-    });
-  };
-
-  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
-  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
-
-  // FAB chat: ẩn khi cuộn xuống (xem effect `controlUnderFab` bên dưới).
-  const [isFabHidden, setIsFabHidden] = useState(false);
-  const fabRef = useRef<HTMLButtonElement | null>(null);
-
-  // Sync server cart with guest local cart upon user login
-  useEffect(() => {
-    if (isLoggedIn && user) {
-      // When user logs in, merge guest local cart with user's remote server cart
-      mergeGuestCart([]);
-    }
-  }, [isLoggedIn, user, mergeGuestCart]);
-
-  const showToast = (msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
-    addToast({ message: msg, type });
-  };
 
   const handleOpenAuth = (mode: 'signin' | 'signup' | 'account' = 'signin') => {
     openAuthModal(mode);
@@ -1335,158 +434,6 @@ function MainApp() {
       type: 'info',
       undoAction: itemToRemove ? () => addToCartStore(itemToRemove) : undefined
     });
-  };
-
-  /**
-   * Đơn VỪA TẠO (chỉ trên RAM) — thêm vào Thư viện file CAD đúng những gì ĐÃ BIẾT từ chính
-   * đơn, KHÔNG bịa phần còn lại.
-   *
-   * Trước đây khối này gán cho file vừa mua một loạt dữ kiện chưa ai đọc được: `isVerified:
-   * true`, `format: 'STL'`, `version: 'v2.0'`, `license: 'Commercial'`, `maxDownloads:
-   * 'Không giới hạn'`, `fileSize: '16.5 MB'`, `model3DType: 'gear'`.
-   *
-   * Nguồn thật của file số là bảng `digital_assets` (`file_format` / `file_size_bytes` /
-   * `license_type` / `download_limit`, xem `20260901_baseline_schema.sql`) — nhưng RLS CHỈ
-   * cho designer sở hữu và admin đọc (`20261010_harden_rls.sql`), khách không có policy nào,
-   * nên PHÍA KHÁCH không có giá trị thật nào của file để điền. Vì vậy trường không biết để
-   * `—`, KHÔNG đoán (docs/design/data-honesty.md).
-   *
-   * LƯU Ý: `DigitalAsset` (`src/types/index.ts`) vẫn khai `format` / `license` / `version` /
-   * `maxDownloads` / `fileSize` là BẮT BUỘC và `format`/`license` là union hẹp, nên chỗ này
-   * buộc phải ép kiểu để mang được giá trị trung thực `—`; nới type nằm ngoài phạm vi file này.
-   */
-  const handleOrderCompleted = (newOrder: Order) => {
-    setOrders((prev) => [newOrder, ...prev]);
-    setActiveOrder(newOrder);
-
-    // Add digital files to user's Digital Asset Library
-    const newAssets: DigitalAsset[] = newOrder.items
-      .filter((i) => i.type === 'digital')
-      .map((i) => ({
-        id: `asset-${Date.now()}-${Math.random()}`,
-        name: i.name,
-        designer: i.designer,
-        // Giấy phép chỉ nêu khi CHÍNH ĐƠN có ghi (`items.license` ← `license_type` của sản
-        // phẩm); đơn không ghi ⇒ `—`, không đoán hộ.
-        license: (i.license ?? EMPTY_VALUE) as DigitalAsset['license'],
-        // Không có trên đơn và khách không đọc được `digital_assets` ⇒ `—`.
-        format: EMPTY_VALUE as DigitalAsset['format'],
-        version: EMPTY_VALUE,
-        maxDownloads: EMPTY_VALUE,
-        fileSize: EMPTY_VALUE,
-        purchaseDate: new Date().toLocaleDateString('vi-VN'),
-        downloadsCount: 0,
-        image: i.image
-      }));
-
-    if (newAssets.length > 0) {
-      setAssets((prev) => [...newAssets, ...prev]);
-    }
-
-    clearCartStore();
-  };
-
-  // Product Handlers (Synced to Supabase DB & LocalStorage Catalog DB with Rollback)
-  const handleAddNewProduct = async (prod: Product) => {
-    const previous = [...products];
-    // Optimistic UI update
-    setProducts((prev) => {
-      productsRevisionRef.current++;
-      const updated = [prod, ...prev];
-      try { localStorage.setItem('vcube_products', JSON.stringify(updated)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
-      return updated;
-    });
-
-    const res = await dbService.saveProduct(prod);
-    if (!res.success) {
-      // Rollback on DB error
-      console.warn('Rollback adding product due to DB error:', res.error);
-      setProducts(previous);
-      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
-      showToast('Không thể lưu vào Supabase. Đã hoàn tác.');
-    } else {
-      showToast('Đã thêm sản phẩm thành công!');
-    }
-  };
-
-  const handleUpdateProduct = async (updated: Product) => {
-    const previous = [...products];
-    // Optimistic UI update
-    setProducts((prev) => {
-      productsRevisionRef.current++;
-      const next = prev.map((p) => (p.id === updated.id ? updated : p));
-      try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
-      return next;
-    });
-
-    const res = await dbService.saveProduct(updated);
-    if (!res.success) {
-      // Rollback on DB error
-      console.warn('Rollback updating product due to DB error:', res.error);
-      setProducts(previous);
-      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
-      showToast('Lỗi cập nhật trên Supabase. Đã hoàn tác.');
-    } else {
-      showToast('Đã cập nhật sản phẩm thành công!');
-    }
-  };
-
-  const handleDeleteProduct = async (productId: string) => {
-    const previous = [...products];
-    // Optimistic UI update
-    setProducts((prev) => {
-      productsRevisionRef.current++;
-      const next = prev.filter((p) => p.id !== productId);
-      try { localStorage.setItem('vcube_products', JSON.stringify(next)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
-      return next;
-    });
-
-    const res = await dbService.deleteProduct(productId);
-    if (!res.success) {
-      // Rollback on DB error
-      console.warn('Rollback deleting product due to DB error:', res.error);
-      setProducts(previous);
-      try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
-      showToast('Lỗi xóa trên Supabase. Đã hoàn tác.');
-    } else {
-      showToast('Đã xóa sản phẩm thành công!');
-    }
-  };
-
-  const handleUpdateOrderStatus = (orderId: string, newStageIndex: number, newStatus: Order['status'], progress?: number) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id === orderId) {
-          const updated: Order = {
-            ...o,
-            statusStageIndex: newStageIndex,
-            status: newStatus,
-            layerProgress: progress !== undefined ? progress : o.layerProgress
-          };
-          if (activeOrder?.id === orderId) {
-            setActiveOrder(updated);
-          }
-          return updated;
-        }
-        return o;
-      })
-    );
-  };
-
-  const handleUpdateSiteContent = async (newContent: SiteContentConfig) => {
-    setSiteContent(newContent);
-    try {
-      localStorage.setItem('vcube_site_content', JSON.stringify(newContent));
-    } catch (e) {
-      console.warn('Could not save site content to localStorage', e);
-    }
-    // Trả kết quả THẬT cho panel để nó chỉ báo "đã lưu" khi DB nhận (trước đây panel tự báo
-    // thành công trước khi hàm này chạy xong).
-    const res = await dbService.saveSiteContent(newContent);
-    if (!res.success) {
-      console.warn('Could not save site content to Supabase:', res.error);
-    }
-    return res;
   };
 
   // P1 §4: giữ nhãn nhưng BỎ phần rỗng; không còn gì để in thì ẩn cả dòng

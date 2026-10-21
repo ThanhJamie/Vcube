@@ -1,6 +1,6 @@
 import React from 'react';
 import { CartItem } from '../../types';
-import { useCartStore } from '../stores/useCartStore';
+import { useCartStore } from '@frontend/stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { usePricingGlobalSettings } from '../hooks/useSettings';

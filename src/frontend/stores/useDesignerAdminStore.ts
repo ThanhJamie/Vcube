@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../backend/supabase/client';
+import { supabase } from '../../backend/supabase/client';
 
 /* ============================================================================
  * NHÀ THIẾT KẾ — ĐỌC/GHI BẢNG THẬT `designer_profiles`

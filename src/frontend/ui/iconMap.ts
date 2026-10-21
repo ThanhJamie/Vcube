@@ -5,7 +5,7 @@
  *
  * VÌ SAO LÀ MAP THEO CHUỖI (deviation có chủ ý so với `docs/plans/07-execution-phases.md` §7):
  *   `07` §7 yêu cầu đổi field `.icon` trong data thành **tham chiếu component**. Không làm
- *   vậy được: các object trong `src/data/mockData.ts` và `src/stores/useProductionStore.ts`
+ *   vậy được: các object trong `src/data/mockData.ts` và store sản xuất (`useProductionStore`)
  *   được seed xuống Supabase (`seedService`) và nằm trong store — **tham chiếu component
  *   không serialize được**. Nên field `.icon` GIỮ NGUYÊN kiểu `string`, và mọi điểm render
  *   đi qua `<Icon name={...} />`. Không sót icon nào vì tất cả đều qua map này.

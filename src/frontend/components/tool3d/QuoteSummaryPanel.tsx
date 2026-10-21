@@ -13,7 +13,7 @@ import { InternalCostBreakdownModal } from './InternalCostBreakdownModal';
 import { MachineComparisonModal } from './MachineComparisonModal';
 import { Badge, Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
 import { useAuth } from '../../context/AuthContext';
-import { useUIStore } from '../../stores/useUIStore';
+import { useUIStore } from '@frontend/stores/useUIStore';
 import { EMPTY_VALUE, formatCurrency, formatNumber, formatWeight } from '../../lib/format';
 
 /**

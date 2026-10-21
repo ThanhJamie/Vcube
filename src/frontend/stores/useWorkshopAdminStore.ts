@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { supabase } from '../backend/supabase/client';
-import { WorkshopProfile, WorkshopMachine, WorkshopMaterial } from '../types';
+import { supabase } from '../../backend/supabase/client';
+import { WorkshopProfile, WorkshopMachine, WorkshopMaterial } from '../../types';
 
 export interface WorkshopFilterState {
   region: 'all' | 'Bắc' | 'Trung' | 'Nam';

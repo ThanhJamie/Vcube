@@ -46,7 +46,7 @@ backend/
       └─ orderService / settingsService / workshopService / designerService: đang dùng
 
 UI: src/frontend/ui (29 module) + src/frontend/components (53 file)
-State: src/frontend/stores (cart/UI) + src/stores (4 admin/MES) — 2 thư mục song song
+State: src/frontend/stores (cart/UI + 4 admin/MES — **đã gom 1 thư mục ở Phase 3**, trước đó là 2 thư mục song song)
 ```
 
 ---

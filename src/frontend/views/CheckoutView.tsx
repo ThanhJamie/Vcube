@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { CartItem, Order, OrderPaymentStatus, SiteContentConfig } from '../../types';
 import { useAuth } from '../context/AuthContext';
-import { useCartStore } from '../stores/useCartStore';
+import { useCartStore } from '@frontend/stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { usePricingGlobalSettings } from '../hooks/useSettings';

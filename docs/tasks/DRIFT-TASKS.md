@@ -873,7 +873,7 @@ Các claim kỹ thuật trong board đã được rà trực tiếp. Kết quả
 | `.env.example` chỉ có `NEXT_PUBLIC_*`, có `vcube-red.vercel.app` | ✅ đúng | `.env.example:15,18,25` |
 | SETUP: JWT là placeholder `…example_*` nhưng **project ref thật** bị nhúng | ⚠️ đính chính | `docs/SETUP_RUNBOOK.md:172-201` (chỉ cần placeholder hoá ref) |
 | UI primitives ở `src/frontend/ui/`; chưa có `ComingSoon.tsx` | ✅ đúng | `ls src/frontend/ui` |
-| `PAYOUT_TRANSACTIONS = []`; `INITIAL_WORKSHOP_NODES = []` | ✅ đúng | `src/data/mockData.ts:225`; `src/stores/useProductionStore.ts:278` |
+| `PAYOUT_TRANSACTIONS = []`; `INITIAL_WORKSHOP_NODES = []` | ✅ đúng | `src/data/mockData.ts:225`; `src/frontend/stores/useProductionStore.ts:278` |
 | Comment `src` sai "không có bảng" | ✅ đúng | `AssetLibraryView.tsx:19-25`; `MyOrdersView.tsx:88-96` |
 | `motion` không có trong `package.json`; icon `strokeWidth` mặc định 2 | ✅ đúng | `package.json`; `src/frontend/ui/Icon.tsx:42` |
 | `prefers-reduced-motion` đã có toàn cục | ✅ đúng | `src/index.css:507-511` |
@@ -909,7 +909,7 @@ Các claim kỹ thuật trong board đã được rà trực tiếp. Kết quả
 **Hậu kiểm đã sửa ngay:** T00 guard prod (chặn thêm `NEXT_PUBLIC_SUPABASE_URL` + secret); T05 `run-checks` coi script gate chưa đăng ký là **lỗi** (thêm `--allow-unregistered`); `.env.worktree.example` để trống secret; bỏ project ref thật khỏi `DOCS-REVIEW-BACKLOG.md`; icon-map `360`; data-honesty PC-01.
 
 **Kết quả audit W0 (nguồn cho T0A-2):**
-- **File `src` phải sửa trước revoke:** `src/stores/useDesignerAdminStore.ts` (`.select('*')` + đọc `bank_name/bank_account/tax_id` + `.update(...).select('id')`) và `src/backend/services/workshopService.ts` (`.select('*')`). Không có embed `designer_profiles(*)`.
+- **File `src` phải sửa trước revoke:** `src/frontend/stores/useDesignerAdminStore.ts` (`.select('*')` + đọc `bank_name/bank_account/tax_id` + `.update(...).select('id')`) và `src/backend/services/workshopService.ts` (`.select('*')`). Không có embed `designer_profiles(*)`.
 - **Cột an toàn** (baseline `885–902`): `id, user_id, display_name, bio, portfolio_url, avatar_url, royalty_percent, verified_status, rating, total_sales, created_at, updated_at`. **Khoá chủ = `user_id`**.
 - **PII phát hiện thêm (mở task):**
   - **T0A-5 (mới, P1)** — `workshop_partners` (`address/contact_person/phone/email`) nằm trong `v_catalog_read` ⇒ anon đọc được. Sửa như SEC-01.

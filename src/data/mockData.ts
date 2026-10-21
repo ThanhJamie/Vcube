@@ -1,15 +1,10 @@
 import {
   Product,
-  Order,
-  DigitalAsset,
   AnalysisFile,
   PayoutTransaction,
   MaterialProfile,
   PrinterProfile,
-  InkiriCostFormulaConfig,
-  AccessoryItem,
-  WorkshopPartner,
-  AppUserProfile
+  InkiriCostFormulaConfig
 } from '../types';
 
 export const CATEGORIES = [
@@ -43,30 +38,10 @@ export const POPULAR_TAGS = [
 export const MATERIALS_CATALOG: MaterialProfile[] = [];
 
 // ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// CI-05: tồn kho phụ kiện (450/180/1250…) là số bịa.
-// Nguồn thật: bảng `accessories` — nhập ở /admin (Kho).
-export const ACCESSORIES_CATALOG: AccessoryItem[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
 // CI-01 (Critical): toàn bộ catalog, giá, badge, salesCount/reviewsCount là fixture;
 // trước đây còn bị đẩy vào Supabase nên không phân biệt được với hàng thật.
 // Nguồn thật: bảng `products` — nhập ở /admin (Sản phẩm).
 export const PRODUCTS: Product[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// Giỏ hàng mẫu không phải dữ liệu của người dùng: giỏ phải bắt đầu rỗng.
-export const INITIAL_CART_ITEMS = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// OT-02/OT-03 (Critical): đơn bịa kèm PII thật-của-người-khác (Nguyễn Văn Minh,
-// 0987 654 321, địa chỉ FPT Tower) từng hiện như đơn của người đang đăng nhập.
-// Nguồn thật: bảng `orders` (theo user) + RPC `get_order_by_guest_token`.
-export const MOCK_ORDERS: Order[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// CI-06: thư viện CAD đã mua (downloadsCount, purchaseDate, license) là bịa.
-// Nguồn thật: quyền sở hữu trong DB — /assets chỉ hiện khi có hàng thật.
-export const DIGITAL_ASSETS: DigitalAsset[] = [];
 
 // ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
 // AD-05/CI-05: hạm đội máy và thông số/giá thuê máy là fixture.
@@ -292,20 +267,4 @@ export const DEFAULT_SITE_CONTENT: import('../types').SiteContentConfig = {
   seoRobotsIndex: true,
 };
 
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// CI-05: bản sao thứ hai của danh mục phụ kiện bịa.
-// Đợt T: `App.tsx` nay nạp từ bảng `accessories` nên hằng số này KHÔNG còn nơi nào dùng.
-// Nguồn thật: bảng `accessories`.
-export const DEFAULT_ACCESSORIES: AccessoryItem[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// CI-07: năng lực đối tác xưởng (inStockMaterials, SLA rating, công suất) là bịa.
-// Nguồn thật: bảng `workshop_partners` — /admin (Xưởng).
-export const WORKSHOP_PARTNERS: WorkshopPartner[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// AT-05/CI-08 (Critical): hồ sơ người dùng bịa kèm số giấy tờ KYC và số tài khoản ngân hàng,
-// từng được đẩy vào user_profiles/kyc_records của project thật.
-// Nguồn thật: bảng `user_profiles` + `kyc_records` (RLS).
-export const MOCK_APP_USERS: AppUserProfile[] = [];
 
