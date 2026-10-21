@@ -9,7 +9,6 @@ import { CustomIdeaRequestModal } from '../components/custom/CustomIdeaRequestMo
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
 import { ServiceShowcaseSection } from '../components/services/ServiceShowcaseSection';
 import { SEOHead } from '../components/SEOHead';
-import { useLanguage } from '../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber, formatPercent } from '@frontend/lib/format';
 import { realProductImageUrl } from '@frontend/lib/productImage';
 import { Icon, Button, Card, EmptyState, InfoTip } from '@frontend/ui';
@@ -170,9 +169,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectProduct,
   onShowToast
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
-  const locale = isVi ? 'vi-VN' : 'en-US';
+  const locale = 'vi-VN';
   /**
    * D8/Đợt P: `DEFAULT_INKIRI_FORMULA_CONFIG` KHÔNG còn là nguồn giá trị. Không có cấu hình
    * thật ⇒ `null` và mọi con số phái sinh đều là `—` kèm InfoTip nêu ĐÍCH DANH thông số thiếu
@@ -297,9 +294,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     // Data-honesty: `price_digital` không lớn hơn 0 (0 hoặc NULL/NaN) nghĩa là người bán KHÔNG
     // bán kênh file số ⇒ KHÔNG được đẩy vào giỏ một dòng 0đ. Chỉ giá `> 0` mới là CÓ BÁN.
     if (!(isNum(product.priceDigital) && product.priceDigital > 0)) {
-      onShowToast?.(isVi
-        ? `Sản phẩm "${product.name}" không mở bán kênh file số (giá file số không lớn hơn 0) nên chưa thể mua.`
-        : `"${product.name}" is not sold as a CAD file (its CAD price is not greater than 0), so it cannot be purchased.`);
+      onShowToast?.(`Sản phẩm "${product.name}" không mở bán kênh file số (giá file số không lớn hơn 0) nên chưa thể mua.`);
       return;
     }
     const item: CartItem = {
@@ -318,7 +313,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     };
     onAddToCart(item);
     if (onShowToast) {
-      onShowToast(isVi ? `Đã thêm tệp CAD "${product.name}" vào giỏ!` : `Added CAD File "${product.name}" to cart!`);
+      onShowToast(`Đã thêm tệp CAD "${product.name}" vào giỏ!`);
     }
   };
 
@@ -328,9 +323,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const hasPartners = partnersList.length > 0;
   // Dải số liệu: giá trị rỗng ⇒ "Chưa cấu hình" (nhập ở /admin -> Nội dung site), không đoán.
   const heroMetrics = [
-    { label: activeContent.heroMetric1Label || (isVi ? 'Dung Sai Đo Kiểm' : 'Inspection tolerance'), value: (activeContent.heroMetric1Value || '').trim() },
-    { label: activeContent.heroMetric2Label || (isVi ? 'Thời Gian Bàn Giao' : 'Lead time'), value: (activeContent.heroMetric2Value || '').trim() },
-    { label: activeContent.heroMetric3Label || (isVi ? 'Tiêu Chuẩn Sản Xuất' : 'Production standard'), value: (activeContent.heroMetric3Value || '').trim() },
+    { label: activeContent.heroMetric1Label || ('Dung Sai Đo Kiểm'), value: (activeContent.heroMetric1Value || '').trim() },
+    { label: activeContent.heroMetric2Label || ('Thời Gian Bàn Giao'), value: (activeContent.heroMetric2Value || '').trim() },
+    { label: activeContent.heroMetric3Label || ('Tiêu Chuẩn Sản Xuất'), value: (activeContent.heroMetric3Value || '').trim() },
   ];
   // P1 §5: cả 3 chỉ số rỗng ⇒ gộp thành MỘT DÒNG MẢNH thay vì một hàng 3 thẻ trống.
   const heroMetricsFilled = heroMetrics.filter((m) => m.value);
@@ -340,8 +335,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     <div className="min-h-dvh flex flex-col bg-canvas text-fg font-sans relative selection:bg-primary selection:text-primary-fg">
       {/* SEO & Dynamic Head */}
       <SEOHead
-        title={activeContent.seoTitle || (isVi ? 'VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì' : 'VCUBE — Industrial 3D Printing & Instant CAD Quotes')}
-        description={activeContent.seoDescription || (isVi ? 'Nền tảng sản xuất bồi đắp linh kiện cơ khí và khuôn mẫu kỹ thuật số hàng đầu Việt Nam.' : 'Additive manufacturing platform for precision mechanical parts and digital tooling.')}
+        title={activeContent.seoTitle || ('VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì')}
+        description={activeContent.seoDescription || ('Nền tảng sản xuất bồi đắp linh kiện cơ khí và khuôn mẫu kỹ thuật số hàng đầu Việt Nam.')}
         image={activeContent.seoOgImage}
         url={activeContent.seoCanonicalUrl}
         type="website"
@@ -378,7 +373,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 }}
                 trailingIcon={<Icon name="arrow_downward" size={16} />}
               >
-                <span>{activeContent.announcementActionText || (isVi ? 'Xem Sản Phẩm Tag 2/9' : 'View Tagged Products')}</span>
+                <span>{activeContent.announcementActionText || ('Xem Sản Phẩm Tag 2/9')}</span>
               </Button>
             </div>
           </div>
@@ -397,10 +392,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
 
               <h1 className="fluid-hero-heading text-fg tracking-tight">
-                {activeContent.heroHeadlineLine1 || (isVi ? 'CHẾ TÁC CƠ KHÍ' : 'MECHANICAL FABRICATION')}
+                {activeContent.heroHeadlineLine1 || ('CHẾ TÁC CƠ KHÍ')}
                 <br />
                 <span className="text-primary">
-                  {activeContent.heroHeadlineHighlight || (isVi ? 'IN 3D CÔNG NGHIỆP CHÍNH XÁC' : 'PRECISION INDUSTRIAL 3D PRINTING')}
+                  {activeContent.heroHeadlineHighlight || ('IN 3D CÔNG NGHIỆP CHÍNH XÁC')}
                 </span>
               </h1>
 
@@ -408,7 +403,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <div className="w-1.5 h-14 bg-primary rounded-full flex-shrink-0 mt-1" />
                 <p className="text-sm sm:text-base text-fg-muted leading-relaxed font-sans font-normal">
                   {(!activeContent.heroSubheadline || activeContent.heroSubheadline.includes('Dữ liệu mẫu để kiểm thử') || activeContent.heroSubheadline.includes('--remove'))
-                    ? (isVi ? 'Nền tảng sản xuất bồi đắp linh kiện cơ khí, vỏ hộp IoT và khuôn mẫu kỹ thuật số.' : 'Additive manufacturing platform for precision parts, IoT enclosures, and rapid tooling.')
+                    ? ('Nền tảng sản xuất bồi đắp linh kiện cơ khí, vỏ hộp IoT và khuôn mẫu kỹ thuật số.')
                     : activeContent.heroSubheadline}
                 </p>
               </div>
@@ -419,7 +414,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   onClick={() => onNavigate('quote')}
                   leadingIcon={<Icon name="upload_file" size={20} />}
                 >
-                  <span>{siteCopy(activeContent.heroCtaQuoteText, isVi ? 'Báo giá tệp 3D tức thì' : 'Get an Instant 3D Quote')}</span>
+                  <span>{siteCopy(activeContent.heroCtaQuoteText, 'Báo giá tệp 3D tức thì')}</span>
                 </Button>
 
                 <Button size="lg" variant="secondary"
@@ -429,7 +424,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   }}
                   leadingIcon={<Icon name="view_in_ar" size={20} className="text-primary" />}
                 >
-                  <span>{activeContent.heroCtaCatalogText || (isVi ? 'Khám Phá Kho Mẫu CAD' : 'Browse the CAD Catalog')}</span>
+                  <span>{activeContent.heroCtaCatalogText || ('Khám Phá Kho Mẫu CAD')}</span>
                 </Button>
               </div>
 
@@ -440,17 +435,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <p className="pt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fg-muted">
                   <Icon name="info" size={16} className="text-fg-muted shrink-0" />
                   <span>
-                    {isVi
-                      ? 'Dung sai đo kiểm, thời gian bàn giao và tiêu chuẩn sản xuất:'
-                      : 'Inspection tolerance, lead time and production standard:'}
+                    Dung sai đo kiểm, thời gian bàn giao và tiêu chuẩn sản xuất:
                   </span>
                   <span className="font-mono font-semibold text-fg-muted">
-                    {isVi ? 'Chưa cấu hình' : 'Not configured'}
+                    Chưa cấu hình
                   </span>
                   <Button variant="ghost" size="sm" className="text-primary font-bold"
                     onClick={() => onNavigate('admin')}
                   >
-                    {isVi ? 'Nhập ở /admin' : 'Set in /admin'}
+                    Nhập ở /admin
                   </Button>
                 </p>
               ) : (
@@ -462,7 +455,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <span className="font-mono text-sm sm:text-base font-semibold text-fg tabular-nums">{m.value}</span>
                       ) : (
                         <span className="font-mono text-xs font-semibold text-fg-muted">
-                          {isVi ? 'Chưa cấu hình' : 'Not configured'}
+                          Chưa cấu hình
                         </span>
                       )}
                     </Card>
@@ -564,7 +557,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </div>
                     <div className="min-w-0">
                       <span className="block font-mono text-xs font-bold uppercase tracking-wider text-fg-muted">
-                        {isVi ? 'Dung sai cam kết' : 'Committed Tolerance'}
+                        Dung sai cam kết
                       </span>
                       <p className="text-xs font-medium text-fg">{toleranceSpec}</p>
                     </div>
@@ -580,7 +573,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div
               role="button"
               tabIndex={0}
-              aria-label={isVi ? 'Tải tệp CAD lên để báo giá' : 'Upload a CAD file to quote'}
+              aria-label="Tải tệp CAD lên để báo giá"
               onClick={() => heroFileInputRef.current?.click()}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -619,13 +612,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   ? 'border-primary bg-primary-tint ring-2 ring-ring/20'
                   : 'border-line-control bg-surface-muted hover:border-fg-subtle hover:bg-surface'
               }`}
-              title={isVi ? 'Bấm hoặc kéo thả tệp STL, 3MF, STEP, OBJ vào đây để nhận báo giá tức thì' : 'Click or drop an STL, 3MF, STEP or OBJ file here for an instant quote'}
+              title="Bấm hoặc kéo thả tệp STL, 3MF, STEP, OBJ vào đây để nhận báo giá tức thì"
             >
               <input
                 ref={heroFileInputRef}
                 type="file"
                 accept=".stl,.3mf,.step,.stp,.obj"
-                aria-label={isVi ? 'Tải tệp CAD để báo giá' : 'Upload a CAD file for a quote'}
+                aria-label="Tải tệp CAD để báo giá"
                 onChange={(e) => {
                   if (e.target.files && e.target.files.length > 0) {
                     const file = e.target.files[0];
@@ -643,17 +636,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-tech text-xs uppercase tracking-wider font-bold text-primary bg-primary-tint px-1.5 py-0.5 rounded-sm">
-                      {isDraggingFile ? (isVi ? 'Thả để tải lên' : 'Drop to upload') : (isVi ? 'Kéo & thả' : 'Drag & drop')}
+                      {isDraggingFile ? ('Thả để tải lên') : ('Kéo & thả')}
                     </span>
                     <span className="font-bold text-xs text-fg">
                       {isDraggingFile
-                        ? (isVi ? 'Thả tệp CAD vào đây để phân tích tức thì!' : 'Drop the CAD file here to analyse it instantly!')
-                        : (isVi ? 'Kéo thả tệp CAD vào đây hoặc bấm để chọn' : 'Drop a CAD file here or click to choose')}
+                        ? ('Thả tệp CAD vào đây để phân tích tức thì!')
+                        : ('Kéo thả tệp CAD vào đây hoặc bấm để chọn')}
                     </span>
-                    <InfoTip label={isVi ? 'Tệp CAD được xử lý thế nào?' : 'How the CAD file is processed'}>
-                      {isVi
-                        ? 'Hệ thống tính thể tích, kiểm tra độ kín nước và dựng BOM từ chính tệp bạn tải lên. Mọi số đo hiển thị ở /quote đều lấy từ tệp đó.'
-                        : 'Volume, watertightness and the BOM are computed from the file you upload. Every figure shown at /quote comes from that file.'}
+                    <InfoTip label="Tệp CAD được xử lý thế nào?">
+                      Hệ thống tính thể tích, kiểm tra độ kín nước và dựng BOM từ chính tệp bạn tải lên. Mọi số đo hiển thị ở /quote đều lấy từ tệp đó.
                     </InfoTip>
                   </div>
                   <p className="text-xs text-fg-muted truncate mt-0.5 font-tech">
@@ -662,7 +653,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
                 <span className="hidden sm:flex items-center gap-1 text-xs font-tech uppercase tracking-wider text-primary font-bold shrink-0">
                   <Icon name="drag_pan" size={18} />
-                  <span>{isVi ? 'Thả tệp' : 'Drop'}</span>
+                  <span>Thả tệp</span>
                 </span>
               </div>
             </div>
@@ -689,12 +680,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </span>
               </div>
               <h2 className="fluid-h2 text-fg">
-                {isVi ? 'Khám Phá Kho Mẫu & Bản Vẽ CAD Kỹ Thuật' : 'Browse Industrial CAD & 3D Engineering Catalog'}
+                {'Khám Phá Kho Mẫu & Bản Vẽ CAD Kỹ Thuật'}
               </h2>
               <p className="text-xs sm:text-sm text-fg-muted mt-1 max-w-2xl">
-                {isVi
-                  ? 'Tuyển tập bản vẽ kỹ thuật cơ khí chính xác, vỏ hộp bo mạch và linh kiện tự động hóa. Đầy đủ định dạng STEP/STL gốc cho từng bản vẽ có trong kho.'
-                  : 'Curated repository of precision mechanical models, IoT enclosures, and robotics parts. Original STEP/STL formats for every model listed in the catalog.'}
+                Tuyển tập bản vẽ kỹ thuật cơ khí chính xác, vỏ hộp bo mạch và linh kiện tự động hóa. Đầy đủ định dạng STEP/STL gốc cho từng bản vẽ có trong kho.
               </p>
             </div>
 
@@ -702,7 +691,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="grid min-w-0 grid-cols-2 gap-2 font-tech text-xs text-fg-muted sm:grid-cols-4">
               <div className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-2 shadow-soft">
                 <Icon name="verified" size={16} className="shrink-0 text-positive" aria-hidden="true" />
-                <span>{isVi ? 'Kiểm tra lưới theo tệp' : 'Per-file mesh check'}</span>
+                <span>Kiểm tra lưới theo tệp</span>
               </div>
               <div className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-2 shadow-soft">
                 <Icon name="category" size={16} className="shrink-0 text-fg-muted" aria-hidden="true" />
@@ -710,11 +699,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
               <div className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-2 shadow-soft">
                 <Icon name="straighten" size={16} className="shrink-0 text-fg-muted" aria-hidden="true" />
-                <span>{isVi ? 'Dung sai theo thoả thuận' : 'Tolerance as agreed'}</span>
+                <span>Dung sai theo thoả thuận</span>
               </div>
               <div className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-2 shadow-soft">
                 <Icon name="license" size={16} className="shrink-0 text-info" aria-hidden="true" />
-                <span>{isVi ? 'Giấy phép theo từng tệp' : 'License per file'}</span>
+                <span>Giấy phép theo từng tệp</span>
               </div>
             </div>
           </div>
@@ -728,14 +717,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <Icon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" aria-hidden="true" />
                 <input
                   type="text"
-                  aria-label={isVi ? 'Tìm kiếm linh kiện CAD' : 'Search CAD parts'}
-                  placeholder={isVi ? 'Tìm linh kiện CAD (vd: Bánh răng, ESP32, Drone, NEMA)...' : 'Search CAD parts (e.g. Gear, ESP32, Drone, NEMA)...'}
+                  aria-label="Tìm kiếm linh kiện CAD"
+                  placeholder="Tìm linh kiện CAD (vd: Bánh răng, ESP32, Drone, NEMA)..."
                   value={cadSearch}
                   onChange={(e) => setCadSearch(e.target.value)}
                   className="h-11 w-full rounded-full border border-line-control bg-surface pl-9 pr-9 font-sans text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 {cadSearch && (
-                  <Button iconOnly variant="ghost" size="sm" aria-label={isVi ? 'Xóa tìm kiếm' : 'Clear search'}
+                  <Button iconOnly variant="ghost" size="sm" aria-label="Xóa tìm kiếm"
                     onClick={() => setCadSearch('')}
                     className="absolute right-0.5 top-1/2 -translate-y-1/2"
                     leadingIcon={<Icon name="close" size={16} />}
@@ -747,13 +736,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
                 {/* Result count */}
                 <span className="font-tech text-xs text-fg-muted">
-                  {isVi ? 'Tìm thấy' : 'Found'} <strong className="text-primary font-bold tabular-nums">{displayedProducts.length}</strong> {isVi ? 'bản vẽ CAD' : 'CAD designs'}
+                  Tìm thấy <strong className="text-primary font-bold tabular-nums">{displayedProducts.length}</strong> bản vẽ CAD
                 </span>
 
                 <div className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-muted p-1">
                   <button
                     type="button"
-                    aria-label={isVi ? 'Xem dạng lưới thẻ' : 'Grid view'}
+                    aria-label="Xem dạng lưới thẻ"
                     aria-pressed={catalogViewMode === 'grid'}
                     onClick={() => setCatalogViewMode('grid')}
                     className={`grid size-10 max-md:size-12 place-items-center rounded-full transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -766,7 +755,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    aria-label={isVi ? 'Xem bảng thông số kỹ thuật' : 'Technical spec list view'}
+                    aria-label="Xem bảng thông số kỹ thuật"
                     aria-pressed={catalogViewMode === 'tech-table'}
                     onClick={() => setCatalogViewMode('tech-table')}
                     className={`grid size-10 max-md:size-12 place-items-center rounded-full transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -783,7 +772,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   onClick={() => handleProtectedAction(() => onNavigate('explore'))}
                   trailingIcon={<Icon name="arrow_forward" size={16} />}
                 >
-                  <span>{isVi ? 'Toàn Bộ Kho Bản Vẽ' : 'Full Catalog'}</span>
+                  <span>Toàn Bộ Kho Bản Vẽ</span>
                 </Button>
               </div>
             </div>
@@ -795,7 +784,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 aria-pressed={selectedCategory === 'all'}
                 leadingIcon={<Icon name="select_all" size={16} />}
               >
-                <span>{isVi ? 'Tất cả danh mục' : 'All Categories'}</span>
+                <span>Tất cả danh mục</span>
                 <span className="font-mono text-xs tabular-nums px-1.5 rounded-full bg-surface-muted text-fg-muted">
                   {products.length}
                 </span>
@@ -809,7 +798,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     aria-pressed={isActive}
                     leadingIcon={<Icon name={cat.icon} size={16} />}
                   >
-                    <span>{isVi ? cat.name : (cat as any).nameEn || cat.name}</span>
+                    <span>{cat.name}</span>
                     <span className={`font-mono text-xs tabular-nums px-1.5 rounded-full ${
                       isActive ? 'bg-primary-fg text-primary' : 'bg-surface-muted text-fg-muted'
                     }`}>
@@ -824,7 +813,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="pt-2 flex items-center gap-2">
               <span className="text-xs font-mono font-bold uppercase text-fg-muted shrink-0 flex items-center gap-1">
                 <Icon name="sell" size={14} className="text-primary" />
-                {isVi ? 'Thẻ nhanh:' : 'Tags:'}
+                Thẻ nhanh:
               </span>
 
               <div className="flex-1 min-w-0">
@@ -848,7 +837,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             : 'bg-surface text-fg-muted border-line hover:border-line-control hover:text-fg'
                         }`}
                       >
-                        <span>#{isVi ? tag.nameVi : tag.nameEn}</span>
+                        <span>#{tag.nameVi}</span>
                         {is29 && (
                           <span className="bg-warning-strong text-surface-inverse text-xs font-bold px-1 rounded-sm uppercase">
                             HOT
@@ -864,7 +853,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <Button variant="ghost" size="sm" className="text-danger shrink-0"
                   onClick={() => setSelectedTag('all')}
                 >
-                  {isVi ? 'Bỏ lọc tag' : 'Clear tag'}
+                  Bỏ lọc tag
                 </Button>
               )}
             </div>
@@ -877,9 +866,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning-tint px-3 py-2 text-xs text-warning"
             >
               <Icon name="warning" size={16} />
-              {isVi
-                ? 'Không làm mới được kho — đang hiển thị dữ liệu lần trước.'
-                : 'Could not refresh the catalogue — showing previous data.'}
+              Không làm mới được kho — đang hiển thị dữ liệu lần trước.
             </p>
           )}
 
@@ -887,7 +874,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {productsLoading && products.length === 0 && displayedProducts.length === 0 ? (
             <div
               role="status"
-              aria-label={isVi ? 'Đang tải kho bản vẽ' : 'Loading the catalogue'}
+              aria-label="Đang tải kho bản vẽ"
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
             >
               {Array.from({ length: 6 }).map((_, i) => (
@@ -906,21 +893,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div role="alert">
                 <EmptyState
                   icon={<Icon name="error" size={20} />}
-                  title={isVi ? 'Không tải được kho bản vẽ' : 'Could not load the catalogue'}
-                  description={isVi
-                    ? 'Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại.'
-                    : 'Could not reach the data server. Check your connection and try again.'}
+                  title="Không tải được kho bản vẽ"
+                  description="Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại."
                   action={
                     <>
                       <Button
                         variant="secondary"
                         size="sm"
                         loading={Boolean(productsLoading)}
-                        loadingLabel={isVi ? 'Đang tải…' : 'Loading…'}
+                        loadingLabel="Đang tải…"
                         leadingIcon={<Icon name="refresh" size={16} />}
                         onClick={() => onRetryProducts?.()}
                       >
-                        {isVi ? 'Thử lại' : 'Retry'}
+                        Thử lại
                       </Button>
                       <Button
                         variant="primary"
@@ -928,7 +913,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         leadingIcon={<Icon name="upload_file" size={16} />}
                         onClick={() => onNavigate('quote')}
                       >
-                        {isVi ? 'Báo giá tệp 3D của bạn' : 'Quote your own 3D file'}
+                        Báo giá tệp 3D của bạn
                       </Button>
                     </>
                   }
@@ -942,14 +927,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 bordered={false}
                 icon={<Icon name={products.length === 0 ? 'inventory_2' : 'search_off'} size={20} />}
                 title={products.length === 0
-                  ? (isVi ? 'Kho bản vẽ đang trống' : 'The catalogue is empty')
-                  : (isVi ? 'Không tìm thấy linh kiện CAD phù hợp' : 'No CAD parts match your criteria')}
+                  ? ('Kho bản vẽ đang trống')
+                  : ('Không tìm thấy linh kiện CAD phù hợp')}
                 description={products.length === 0
-                  ? (isVi ? 'Chưa có bản vẽ CAD nào được đăng trên VCUBE.' : 'No CAD model has been published on VCUBE yet.')
-                  : (isVi ? 'Bộ lọc hiện tại không khớp bản vẽ nào trong kho — thử xóa từ khóa hoặc đổi danh mục.' : 'The current filters match nothing in the library — clear the query or switch category.')}
+                  ? ('Chưa có bản vẽ CAD nào được đăng trên VCUBE.')
+                  : ('Bộ lọc hiện tại không khớp bản vẽ nào trong kho — thử xóa từ khóa hoặc đổi danh mục.')}
                 action={products.length === 0 ? (
                   <Button size="sm" onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}>
-                    {isVi ? 'Tải tệp CAD của bạn' : 'Upload your CAD file'}
+                    Tải tệp CAD của bạn
                   </Button>
                 ) : (
                   <Button size="sm" variant="secondary"
@@ -959,7 +944,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       setSelectedTag('all');
                     }}
                   >
-                    {isVi ? 'Hiển thị tất cả bản vẽ' : 'Reset All Filters'}
+                    Hiển thị tất cả bản vẽ
                   </Button>
                 )}
               />
@@ -979,7 +964,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <div
                     role="button"
                     tabIndex={0}
-                    aria-label={isVi ? `Xem chi tiết: ${product.name}` : `View details: ${product.name}`}
+                    aria-label={`Xem chi tiết: ${product.name}`}
                     className="relative aspect-4/3 cursor-pointer overflow-hidden bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     onClick={() => handleSelectProductAction(product, 'product_detail')}
                     onKeyDown={(e) => {
@@ -996,7 +981,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     >
                       <Icon name={categoryIcon(product.category)} size={44} />
                       <span className="font-tech text-xs uppercase tracking-wider">
-                        {isVi ? 'Chưa có ảnh' : 'No image yet'}
+                        Chưa có ảnh
                       </span>
                     </div>
                     {realProductImageUrl(product.images, product.thumbnailUrl) ? (
@@ -1024,15 +1009,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <button
                       type="button"
                       onClick={(e) => handleOpen3DPreview(product, e)}
-                      aria-label={isVi ? `Xem trước 3D: ${product.name}` : `3D preview: ${product.name}`}
+                      aria-label={`Xem trước 3D: ${product.name}`}
                       className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-2 bg-surface-inverse/70 font-tech text-xs font-bold uppercase tracking-wider text-on-inverse opacity-0 transition-opacity pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:bg-surface-inverse/40 [@media(hover:none)]:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                      title={isVi ? 'Xoay xem 3D ngay tại đây' : 'Instant 3D Mesh Inspection'}
+                      title="Xoay xem 3D ngay tại đây"
                     >
                       <span className="grid size-10 place-items-center rounded-md bg-primary text-primary-fg shadow-e1">
                         <Icon name="3d_rotation" size={24} />
                       </span>
                       <span className="rounded-md border border-line bg-surface-inverse px-3 py-1 text-accent">
-                        {isVi ? 'Soi 3D 360° trực tiếp' : 'Inspect 3D Mesh'}
+                        Soi 3D 360° trực tiếp
                       </span>
                     </button>
 
@@ -1060,7 +1045,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </span>
                       ) : (
                         <span className="shrink-0 font-sans text-xs text-fg-muted">
-                          {isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
+                          Chưa có đánh giá
                         </span>
                       )}
                     </div>
@@ -1118,7 +1103,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <div className="flex items-baseline justify-between gap-2 font-sans">
                         <div className="min-w-0">
                           <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                            {isVi ? 'Tệp số' : 'CAD file'}
+                            Tệp số
                           </span>
                           <span className="font-tech text-sm font-bold tabular-nums text-fg">
                             {vnd(product.priceDigital, locale)}
@@ -1126,7 +1111,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </div>
                         <div className="min-w-0 text-right">
                           <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                            {isVi ? 'In vật lý' : 'Physical part'}
+                            In vật lý
                           </span>
                           <span className="font-tech text-sm font-bold tabular-nums text-fg">
                             {vnd(product.pricePhysical, locale)}
@@ -1145,28 +1130,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           onClick={(e) => handleQuickAddDigital(product, e)}
                           disabled={!(isNum(product.priceDigital) && product.priceDigital > 0)}
                           title={isNum(product.priceDigital) && product.priceDigital > 0
-                            ? (isVi ? 'Tải tệp CAD STL/STEP gốc' : 'Get original CAD file')
-                            : (isVi ? 'Người bán không mở bán kênh tệp số.' : 'The seller does not sell this product as a CAD file.')}
+                            ? ('Tải tệp CAD STL/STEP gốc')
+                            : ('Người bán không mở bán kênh tệp số.')}
                           leadingIcon={<Icon name="download" size={16} />}
                         >
                           <span>
                             {isNum(product.priceDigital) && product.priceDigital > 0
-                              ? (isVi ? 'Mua tệp CAD' : 'Buy CAD File')
-                              : (isVi ? 'Không bán tệp số' : 'File not sold')}
+                              ? ('Mua tệp CAD')
+                              : ('Không bán tệp số')}
                           </span>
                         </Button>
 
                         <Button size="sm" variant="secondary"
                           onClick={() => handleSelectProductAction(product, 'product_detail')}
-                          title={isVi ? 'Xem chi tiết & đặt in vật lý' : 'Inspect details & Order Physical'}
+                          title={'Xem chi tiết & đặt in vật lý'}
                           leadingIcon={<Icon name="precision_manufacturing" size={16} className="text-fg" />}
                         >
-                          <span>{isVi ? 'Đặt in' : 'Order'}</span>
+                          <span>Đặt in</span>
                         </Button>
 
                         {product.isCustomizable && (
                           <Button iconOnly size="sm" variant="secondary"
-                            aria-label={isVi ? 'Khắc tên / Tùy biến kích thước' : 'Custom engraving & resizing'}
+                            aria-label="Khắc tên / Tùy biến kích thước"
                             onClick={() => handleSelectProductAction(product, 'personalize')}
                             leadingIcon={<Icon name="tune" size={16} className="text-fg" />}
                           />
@@ -1184,13 +1169,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <table className="w-full text-left font-sans">
                   <thead className="bg-surface-muted text-xs uppercase tracking-wider text-fg-subtle border-b border-line">
                     <tr>
-                      <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Linh Kiện CAD' : 'CAD Part'}</th>
-                      <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Danh Mục' : 'Category'}</th>
-                      <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Kích Thước' : 'Dimensions'}</th>
-                      <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Thời Gian In' : 'Print time'}</th>
-                      <th className="h-10 px-4 text-right font-semibold">{isVi ? 'Giá tệp số' : 'Digital price'}</th>
-                      <th className="h-10 px-4 text-right font-semibold">{isVi ? 'Giá In Vật Lý' : 'Physical price'}</th>
-                      <th className="h-10 px-4 text-right font-semibold">{isVi ? 'Thao Tác' : 'Actions'}</th>
+                      <th className="h-10 px-4 text-left font-semibold">Linh Kiện CAD</th>
+                      <th className="h-10 px-4 text-left font-semibold">Danh Mục</th>
+                      <th className="h-10 px-4 text-left font-semibold">Kích Thước</th>
+                      <th className="h-10 px-4 text-left font-semibold">Thời Gian In</th>
+                      <th className="h-10 px-4 text-right font-semibold">Giá tệp số</th>
+                      <th className="h-10 px-4 text-right font-semibold">Giá In Vật Lý</th>
+                      <th className="h-10 px-4 text-right font-semibold">Thao Tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line-subtle">
@@ -1255,8 +1240,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               disabled={!(isNum(product.priceDigital) && product.priceDigital > 0)}
                             >
                               {isNum(product.priceDigital) && product.priceDigital > 0
-                                ? (isVi ? 'Tải CAD' : 'Buy STL')
-                                : (isVi ? 'Không bán tệp số' : 'File not sold')}
+                                ? ('Tải CAD')
+                                : ('Không bán tệp số')}
                             </Button>
                           </div>
                         </td>
@@ -1277,16 +1262,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 onClick={() => setCatalogLimit((n) => n + CATALOG_PAGE_SIZE)}
                 leadingIcon={<Icon name="expand_more" size={20} />}
               >
-                {isVi
-                  ? `Xem thêm ${formatNumber(displayedProducts.length - visibleProducts.length)} mẫu CAD`
-                  : `Show ${formatNumber(displayedProducts.length - visibleProducts.length)} more CAD models`}
+                {`Xem thêm ${formatNumber(displayedProducts.length - visibleProducts.length)} mẫu CAD`}
               </Button>
               <button
                 type="button"
                 onClick={() => handleProtectedAction(() => onNavigate('explore'))}
                 className="text-xs text-fg-muted hover:text-primary font-medium cursor-pointer underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
               >
-                {isVi ? 'Hoặc xem toàn bộ kho bản vẽ' : 'Or browse the full catalog'}
+                Hoặc xem toàn bộ kho bản vẽ
               </button>
             </div>
           ) : null}
@@ -1294,15 +1277,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Footer Callout */}
           <Card variant="soft" className="flex flex-col items-center justify-between gap-3 sm:flex-row">
             <span className="text-xs text-fg-muted">
-              {isVi
-                ? 'Bạn có tệp 3D của riêng mình? Sử dụng công cụ phân tích lưới và báo giá tức thì của chúng tôi.'
-                : 'Have your own CAD model? Upload to our automated mesh slicer and instant cost calculator.'}
+              Bạn có tệp 3D của riêng mình? Sử dụng công cụ phân tích lưới và báo giá tức thì của chúng tôi.
             </span>
             <Button variant="secondary" size="sm" className="shrink-0"
               onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}
               leadingIcon={<Icon name="upload_file" size={16} className="text-primary" />}
             >
-              <span>{isVi ? 'Tải tệp của bạn lên' : 'Upload Your CAD File'}</span>
+              <span>Tải tệp của bạn lên</span>
             </Button>
           </Card>
         </div>
@@ -1313,10 +1294,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="mx-auto max-w-7xl space-y-8">
           <div className="text-center space-y-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-              {isVi ? 'QUY TRÌNH ĐẶT HÀNG' : 'HOW IT WORKS'}
+              QUY TRÌNH ĐẶT HÀNG
             </span>
             <h2 className="fluid-h2 text-fg">
-              {isVi ? 'Từ Bản Vẽ Đến Chi Tiết Hoàn Thiện' : 'From CAD File to Finished Part'}
+              Từ Bản Vẽ Đến Chi Tiết Hoàn Thiện
             </h2>
           </div>
           <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1333,8 +1314,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </span>
                   <span className="font-mono text-2xl font-bold tabular-nums text-fg-muted">0{i + 1}</span>
                 </div>
-                <h3 className="font-semibold text-base tracking-tight text-fg">{isVi ? step.titleVi : step.titleEn}</h3>
-                <p className="text-sm text-fg-muted leading-relaxed">{isVi ? step.descVi : step.descEn}</p>
+                <h3 className="font-semibold text-base tracking-tight text-fg">{step.titleVi}</h3>
+                <p className="text-sm text-fg-muted leading-relaxed">{step.descVi}</p>
               </li>
             ))}
           </ol>
@@ -1347,32 +1328,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="relative z-10 max-w-3xl mx-auto text-center space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-inverse-raised/80 border border-on-inverse/15 rounded-full text-xs font-semibold uppercase tracking-wider text-accent">
               <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
-              <span>{isVi ? 'SẴN SÀNG SẢN XUẤT' : 'READY TO MANUFACTURE'}</span>
+              <span>SẴN SÀNG SẢN XUẤT</span>
             </div>
 
             <h2 className="fluid-h2 text-on-inverse tracking-tight">
-              {isVi ? 'Hiện Thực Hoá Mô Hình 3D Của Bạn' : 'Bring Your 3D Designs to Life'}
+              Hiện Thực Hoá Mô Hình 3D Của Bạn
             </h2>
 
             <p className="text-sm sm:text-base text-on-inverse/70 max-w-2xl mx-auto font-sans leading-relaxed">
-              {isVi
-                ? 'Tải tệp CAD để nhận báo giá tức thì, phân tích lưới in 3D tự động và kết nối trực tiếp với mạng lưới xưởng in công nghiệp đạt chuẩn.'
-                : 'Upload your CAD models for instant quoting, automated mesh inspection, and direct manufacturing with certified industrial workshops.'}
+              Tải tệp CAD để nhận báo giá tức thì, phân tích lưới in 3D tự động và kết nối trực tiếp với mạng lưới xưởng in công nghiệp đạt chuẩn.
             </p>
 
             {/* Feature Guarantees */}
             <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 pt-2 text-xs font-mono text-on-inverse/80">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-on-inverse/15">
                 <Icon name="verified_user" size={16} className="text-accent" />
-                <span>{isVi ? 'Bảo mật dữ liệu chuẩn NDA' : 'Strict NDA Protection'}</span>
+                <span>Bảo mật dữ liệu chuẩn NDA</span>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-on-inverse/15">
                 <Icon name="straighten" size={16} className="text-accent" />
-                <span>{isVi ? 'Kiểm soát dung sai kỹ thuật' : 'Rigorous Tolerance QC'}</span>
+                <span>Kiểm soát dung sai kỹ thuật</span>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-on-inverse/15">
                 <Icon name="local_shipping" size={16} className="text-accent" />
-                <span>{isVi ? 'Giao hàng nhanh toàn quốc' : 'Nationwide Fast Delivery'}</span>
+                <span>Giao hàng nhanh toàn quốc</span>
               </div>
             </div>
 
@@ -1385,7 +1364,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 leadingIcon={<Icon name="upload_file" size={20} />}
                 className="w-full sm:w-auto shadow-e1"
               >
-                <span>{isVi ? 'Báo giá tệp 3D của bạn' : 'Quote Your 3D File'}</span>
+                <span>Báo giá tệp 3D của bạn</span>
               </Button>
 
               <Button
@@ -1395,7 +1374,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 leadingIcon={<Icon name="lightbulb" size={20} />}
                 className="w-full sm:w-auto border border-on-inverse/15 bg-surface-inverse-raised text-on-inverse"
               >
-                <span>{isVi ? 'Tư Vấn & Custom Theo Ý Tưởng' : 'Custom Service by Idea'}</span>
+                <span>{'Tư Vấn & Custom Theo Ý Tưởng'}</span>
               </Button>
             </div>
 
@@ -1403,7 +1382,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {hasPartners && (
               <div className="pt-8 border-t border-on-inverse/15 mt-8 space-y-3">
                 <span className="text-xs uppercase font-mono font-bold text-on-inverse/60 tracking-widest block">
-                  {activeContent.trustPartnersTitle || (isVi ? 'Đơn Vị Đồng Hành Cùng VCUBE' : 'Trusted by Leading Partners')}
+                  {activeContent.trustPartnersTitle || ('Đơn Vị Đồng Hành Cùng VCUBE')}
                 </span>
                 <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 font-mono text-xs font-bold text-on-inverse/80">
                   {partnersList.map((partner, pIdx) => (
@@ -1426,7 +1405,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <a
           href={`tel:${activeContent.hotline.replace(/[^\d+]/g, '')}`}
           className="fixed bottom-6 left-6 z-drawer hidden min-h-11 items-center gap-2 rounded-md bg-primary px-4 py-3 font-sans text-xs font-semibold text-primary-fg shadow-e2 transition-colors duration-200 hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none sm:flex"
-          aria-label={isVi ? `Gọi hotline ${activeContent.hotline}` : `Call hotline ${activeContent.hotline}`}
+          aria-label={`Gọi hotline ${activeContent.hotline}`}
         >
           <Icon name="call" size={18} />
           <span className="tabular-nums">{activeContent.hotline}</span>

@@ -47,20 +47,26 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
   `check-icon-names` PASS 206 glyph. Handoff: `handoff/phase1-{backend,ui,repo}.md`.
 - **Gate (đã đạt):** lint/build/10 gate; `rg` 0 hit các symbol đã xoá; bundle không tăng.
 
-### Phase 2 — Một ngôn ngữ, xoá nhánh i18n chết (3–4 ngày) — ⬅️ KẾ TIẾP
-- **Thứ tự thi công:** Phase 0 → 1 → **5** → **2** → 3 → 4 → 6 (user decision). Audit `04-refactor.md` §7.0
-  khuyến nghị i18n làm **muộn nhất** vì Phase 2 chạm cùng 32 file với Phase 3/4 (xung đột write scope);
-  nếu vẫn giữ thứ tự này, bắt buộc: chỉ chạy Phase 2 khi **không** có agent Phase 3/4 đang mở cùng file.
-- Codemod 1.201 `isVi ? 'VI' : 'EN'` → chỉ giữ VI; 46 `language ===` → bỏ.
-- Xoá `DICTIONARY` `en:` (85 entries), `Language` type, `setLanguage`/`toggleLanguage` nếu không còn caller; giữ API `useLanguage` nếu cần `t()` cho claims.
-- Xoá `configuredClaims` en fallback; giữ claims đọc từ settings.
-- Giữ nguyên technical acronyms/allowlist; copy review theo `COPY-GLOSSARY.md`.
-- Làm theo file, không codemod toàn repo một lần; 2 batch: storefront/transaction, console.
-- **Ước tính (đã đính chính):** **1.201 là số điểm sửa**, số dòng **xoá được chỉ ~250–350 LOC** + 85
-  dictionary entries (audit `04-refactor.md` §3.2). Đừng dùng con số “500–1.200 LOC” cũ.
-- **Bước zero-risk nên làm trước:** đặt `const isVi = true` (hoặc bỏ hẳn biến) để TypeScript loại nhánh
-  EN ở compile-time mà chưa cần sửa 1.201 site; sau đó mới codemod theo file.
-- **Gate:** lint/build; grep visible EN = 0 ngoài allowlist; smoke 12 route; không đổi text VI.
+### Phase 2 — Một ngôn ngữ, xoá nhánh i18n chết — ✅ DONE 2026-10-21 (QA verdict **GO**)
+- ✅ Codemod **1.428** `ConditionalExpression` chết `isVi ? VI : EN` (grep cùng dòng chỉ 1.201; AST mới đúng)
+  trên **34 file**, dùng TS compiler API text-range (không reprint) + unwrap 800 JSX literal có guard
+  render-equivalence; xoá 28 `const isVi`, 28 binding `language`, 27 import `useLanguage`, 37 value-use sửa tay.
+  Diff: **37 file, +1.516/−2.256** (builder báo 34 file trước pass 2b; verifier chốt 37).
+- ✅ `LanguageContext` **521→412 dòng**: xoá **85 `en:`**, API còn `{ t }`; bỏ `language` state,
+  `setLanguage`, `toggleLanguage`, `Language` type, `localStorage['vcube_language']` (dead write),
+  `configuredClaims(language)`; bỏ `_fallbackEn` + 25 đối số EN chết của `t()`.
+- ✅ `App.tsx`: 18 ternary `language === 'vi'` → nhánh VI; `Header` bỏ `language` khỏi dep-array.
+- **Kết quả đo (official):** initial critical gzip **285.807 → 275.930 (−9.877, −3,46%)**;
+  entry **714.080/194.316 → 691.048/184.439** (gzip −5,08%); **45.145 B EN** bỏ khỏi source.
+- **Bằng chứng:** `handoff/phase2-{i18n-codemod,i18n-core,verify}.md` — AST-verified 1.493 identifier `isVi`
+  ở HEAD = 1.428 conditionals + 28 defs + 37 value-uses; letter-stream VI text **giống tuyệt đối** 37/37 file;
+  85/85 dictionary key VI không đổi; **50 route-check** (390/1440) 0 pageerror/0 overflow; VI-only smoke 0 hit
+  danh sách EN; tiền `.000 ₫`, **0** `$`/`USD`; 10/10 offline gate PASS.
+- **Follow-up (không chặn):** 67/85 dictionary key không còn tham chiếu (~2.610 ký tự) → dọn Phase 6;
+  copy P3: `Custom` (Home CTA, `HomeView.tsx:1377`), placeholder `tag/Gear/Snap-Fit` (`LanguageContext.tsx:66`),
+  taxonomy `Snap-Fit/Parametric & Decor` (`mockData.ts:33,35`); field chết `nameEn/badgeEn/ctaLabelEn`
+  (ServiceShowcase); smoke `/admin`,`/designer`,`/lab` khi Supabase Resume.
+- **Gate (đã đạt):** lint/build; grep visible EN = 0 ngoài allowlist; smoke 12 route; không đổi text VI.
 
 ### Phase 3 — Hợp nhất data/state (3–5 ngày)
 - Bỏ localStorage cache DB-backed trong `App.tsx` (`vcube_products`, `vcube_materials`, `vcube_printers`, `vcube_site_content`); server là nguồn duy nhất; giữ cache UI/cart nếu cần.

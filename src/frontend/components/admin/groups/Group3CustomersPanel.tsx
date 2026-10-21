@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCustomerAdminStore, CustomerRow, isB2b } from '../../../../stores/useCustomerAdminStore';
-import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { designerService } from '../../../../backend/services/designerService';
 import { AppUserProfile } from '../../../../types';
@@ -75,8 +74,6 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
   onShowToast,
   onNavigateSection
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   const [activeTab, setActiveTab] = useState<'customers' | 'nda' | 'rfq' | 'kyc'>('customers');
 
@@ -123,14 +120,12 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       setKycRows(Array.isArray(rows) ? rows.map(toKycRow) : []);
     } catch (err: any) {
       onShowToast?.(
-        isVi
-          ? `Không tải được hồ sơ KYC: ${err?.message || 'lỗi không xác định'}`
-          : `Failed to load KYC profiles: ${err?.message || 'unknown error'}`
+        `Không tải được hồ sơ KYC: ${err?.message || 'lỗi không xác định'}`
       );
     } finally {
       setIsKycLoading(false);
     }
-  }, [isVi, onShowToast]);
+  }, [onShowToast]);
 
   useEffect(() => {
     void loadKycRows();
@@ -168,9 +163,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       onShowToast?.(successMessage);
     } else {
       onShowToast?.(
-        isVi
-          ? `Cập nhật KYC thất bại: ${result.error || 'lỗi không xác định'}`
-          : `Failed to update KYC: ${result.error || 'unknown error'}`
+        `Cập nhật KYC thất bại: ${result.error || 'lỗi không xác định'}`
       );
     }
   };
@@ -180,18 +173,18 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       row,
       'verified',
       undefined,
-      isVi ? `Đã phê duyệt hồ sơ KYC cho ${row.displayName}` : `Approved KYC for ${row.displayName}`
+      `Đã phê duyệt hồ sơ KYC cho ${row.displayName}`
     );
     setReviewingKyc(null);
   };
 
   const handleRejectKyc = async (row: KycRow) => {
-    const reason = kycRejectionReason.trim() || (isVi ? 'Hồ sơ định danh chưa hợp lệ.' : 'Invalid identity document.');
+    const reason = kycRejectionReason.trim() || ('Hồ sơ định danh chưa hợp lệ.');
     await applyKycResult(
       row,
       'rejected',
       reason,
-      isVi ? `Đã từ chối hồ sơ KYC của ${row.displayName}` : `Rejected KYC for ${row.displayName}`
+      `Đã từ chối hồ sơ KYC của ${row.displayName}`
     );
     setReviewingKyc(null);
     setKycRejectionReason('');
@@ -258,9 +251,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
     const uid = target.user?.uid || target.row.userId;
     if (!uid) {
       onShowToast?.(
-        isVi
-          ? 'Không xác định được hồ sơ người dùng để thăng cấp.'
-          : 'Could not resolve the user profile to promote.'
+        'Không xác định được hồ sơ người dùng để thăng cấp.'
       );
       setCustomerToPromote(null);
       return;
@@ -272,16 +263,12 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       });
       if (!res.ok) {
         onShowToast?.(
-          isVi
-            ? `Cấp quyền nhà thiết kế thất bại: ${res.error || 'lỗi không xác định'}`
-            : `Failed to promote to Designer: ${res.error || 'unknown error'}`
+          `Cấp quyền nhà thiết kế thất bại: ${res.error || 'lỗi không xác định'}`
         );
         return;
       }
       onShowToast?.(
-        isVi
-          ? `Đã cấp quyền nhà thiết kế cho ${target.name || target.email || uid}`
-          : `Promoted ${target.name || target.email || uid} to Designer`
+        `Đã cấp quyền nhà thiết kế cho ${target.name || target.email || uid}`
       );
       setCustomerToPromote(null);
       await loadCustomers();
@@ -326,20 +313,14 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       const label = row.profileName || row.companyName || row.id;
       if (!res.success) {
         onShowToast?.(
-          isVi
-            ? `Ghi trạng thái NDA thất bại: ${res.error || 'lỗi không xác định'}`
-            : `Failed to write NDA status: ${res.error || 'unknown error'}`
+          `Ghi trạng thái NDA thất bại: ${res.error || 'lỗi không xác định'}`
         );
         return;
       }
       onShowToast?.(
         signed
-          ? isVi
-            ? `Đã ghi NDA đã ký cho ${label} vào customer_profiles`
-            : `Recorded signed NDA for ${label} in customer_profiles`
-          : isVi
-          ? `Đã thu hồi NDA của ${label} trong customer_profiles`
-          : `Revoked NDA for ${label} in customer_profiles`
+          ? `Đã ghi NDA đã ký cho ${label} vào customer_profiles`
+          : `Đã thu hồi NDA của ${label} trong customer_profiles`
       );
     } finally {
       setSavingNdaId(null);
@@ -350,7 +331,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
   const customerColumns = useMemo<DataTableColumn<CustomerDisplayRow>[]>(() => [
     {
       key: 'name',
-      header: isVi ? 'Khách Hàng / Đơn Vị' : 'Client entity',
+      header: 'Khách Hàng / Đơn Vị',
       value: (c) => c.name || '',
       render: (c) => (
         <div>
@@ -359,27 +340,27 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
         </div>
       ),
     },
-    { key: 'type', header: isVi ? 'Phân loại' : 'Type', value: (c) => c.type, render: (c) => <span className="px-2 py-0.5 bg-surface-muted border border-line font-medium text-xs rounded-sm text-fg-muted">{c.type}</span> },
-    { key: 'taxId', header: isVi ? 'Mã số thuế' : 'Tax ID', value: (c) => c.row.taxId || '', render: (c) => <span className="text-fg-muted">{c.row.taxId || '—'}</span> },
+    { key: 'type', header: 'Phân loại', value: (c) => c.type, render: (c) => <span className="px-2 py-0.5 bg-surface-muted border border-line font-medium text-xs rounded-sm text-fg-muted">{c.type}</span> },
+    { key: 'taxId', header: 'Mã số thuế', value: (c) => c.row.taxId || '', render: (c) => <span className="text-fg-muted">{c.row.taxId || '—'}</span> },
     {
       key: 'ndaSignedAt',
-      header: isVi ? 'Ngày ký kết' : 'Signed date',
+      header: 'Ngày ký kết',
       value: (c) => c.row.ndaSignedAt || '',
       render: (c) => <span className="text-fg-subtle">{c.row.ndaSignedAt ? new Date(c.row.ndaSignedAt).toLocaleDateString('vi-VN') : '—'}</span>,
     },
     {
       key: 'ndaSigned',
-      header: isVi ? 'Trạng thái' : 'Status',
+      header: 'Trạng thái',
       value: (c) => (c.row.ndaSigned ? 'signed' : 'unsigned'),
       render: (c) => (
         <Badge variant={c.row.ndaSigned ? 'success' : 'neutral'} dot>
-          {c.row.ndaSigned ? (isVi ? 'Đã Ghi Nhận' : 'Signed') : (isVi ? 'Chưa Ký' : 'Unsigned')}
+          {c.row.ndaSigned ? ('Đã Ghi Nhận') : ('Chưa Ký')}
         </Badge>
       ),
     },
     {
       key: 'actions',
-      header: isVi ? 'Hành động' : 'Actions',
+      header: 'Hành động',
       align: 'right',
       render: (c) =>
         c.row.ndaSigned ? (
@@ -389,7 +370,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             onClick={() => void handleSetNda(c.row, false)}
             disabled={savingNdaId === c.row.id}
           >
-            {isVi ? 'Thu Hồi' : 'Revoke'}
+            Thu Hồi
           </Button>
         ) : (
           <Button
@@ -398,18 +379,18 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             onClick={() => void handleSetNda(c.row, true)}
             disabled={savingNdaId === c.row.id}
           >
-            {isVi ? 'Ghi Đã Ký' : 'Mark signed'}
+            Ghi Đã Ký
           </Button>
         ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi, savingNdaId]);
+  ], [savingNdaId]);
 
   /** Cột bảng KYC dùng primitive `DataTable`. */
   const kycColumns = useMemo<DataTableColumn<KycRow>[]>(() => [
     {
       key: 'user',
-      header: isVi ? 'Người dùng / Pháp nhân' : 'User / Entity',
+      header: 'Người dùng / Pháp nhân',
       value: (r) => r.displayName || '',
       render: (r) => (
         <div>
@@ -419,10 +400,10 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
         </div>
       ),
     },
-    { key: 'role', header: isVi ? 'Vai trò' : 'Role', value: (r) => r.role, render: (r) => <span className="px-2 py-0.5 bg-surface-muted border border-line text-fg-muted rounded-sm font-medium text-xs uppercase">{roleLabel(r.role)}</span> },
+    { key: 'role', header: 'Vai trò', value: (r) => r.role, render: (r) => <span className="px-2 py-0.5 bg-surface-muted border border-line text-fg-muted rounded-sm font-medium text-xs uppercase">{roleLabel(r.role)}</span> },
     {
       key: 'kycStatus',
-      header: isVi ? 'Trạng thái KYC' : 'KYC status',
+      header: 'Trạng thái KYC',
       value: (r) => r.kycStatus,
       render: (r) => (
         <Badge
@@ -443,13 +424,13 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
     },
     {
       key: 'accountStatus',
-      header: isVi ? 'Tài khoản' : 'Account',
+      header: 'Tài khoản',
       value: (r) => r.accountStatus,
       render: (r) => <span className={`text-xs font-bold uppercase ${r.accountStatus === 'active' ? 'text-positive' : 'text-danger'}`}>{accountStatusLabel(r.accountStatus)}</span>,
     },
     {
       key: 'orders',
-      header: isVi ? 'Đơn / Chi tiêu' : 'Orders / Spend',
+      header: 'Đơn / Chi tiêu',
       numeric: true,
       value: (r) => r.totalSpent,
       render: (r) => (
@@ -461,28 +442,28 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
     },
     {
       key: 'actions',
-      header: isVi ? 'Thao tác' : 'Actions',
+      header: 'Thao tác',
       align: 'right',
       render: (r) => (
         <div className="flex items-center justify-end gap-1.5">
           {r.kycStatus !== 'verified' && (
             <Button variant="primary" size="sm" onClick={() => void handleApproveKyc(r)}>
-              {isVi ? 'Duyệt' : 'Approve'}
+              Duyệt
             </Button>
           )}
           {r.kycStatus !== 'rejected' && (
             <Button variant="danger-ghost" size="sm" onClick={() => setReviewingKyc(r)}>
-              {isVi ? 'Từ chối' : 'Reject'}
+              Từ chối
             </Button>
           )}
           <Button variant="secondary" size="sm" onClick={() => setReviewingKyc(r)}>
-            {isVi ? 'Hồ sơ' : 'Review'}
+            Hồ sơ
           </Button>
         </div>
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi]);
+  ], []);
 
   return (
     <div className="space-y-6">
@@ -490,16 +471,14 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-6 rounded-lg border border-line">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="technical">{isVi ? 'Khách hàng' : 'Customers'}</Badge>
+            <Badge variant="technical">Khách hàng</Badge>
             <h2 className="text-xl font-bold text-fg tracking-tight">
-              {isVi ? 'Quản Trị Khách Hàng, NDA & Đơn Lô Lớn RFQ' : 'Customers, NDA Agreements & Batch RFQ Hub'}
+              {'Quản Trị Khách Hàng, NDA & Đơn Lô Lớn RFQ'}
             </h2>
           </div>
           <div className="mt-1">
-            <InfoTip label={isVi ? 'Mục này quản trị những gì?' : 'What does this hub manage?'}>
-              {isVi
-                ? 'Phân hệ khách hàng B2C / Doanh nghiệp B2B (MST, Hóa đơn VAT), kiểm soát thỏa thuận NDA bảo mật và điều phối báo giá dự án in 3D hàng loạt.'
-                : 'Manage B2C / B2B corporate profiles, enforce confidential NDA contracts, and process industrial batch RFQ requests.'}
+            <InfoTip label="Mục này quản trị những gì?">
+              Phân hệ khách hàng B2C / Doanh nghiệp B2B (MST, Hóa đơn VAT), kiểm soát thỏa thuận NDA bảo mật và điều phối báo giá dự án in 3D hàng loạt.
             </InfoTip>
           </div>
         </div>
@@ -515,7 +494,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             }`}
           >
             <Icon name="corporate_fare" size={18} />
-            {isVi ? 'Khách Hàng B2B/B2C' : 'Customers'}
+            Khách Hàng B2B/B2C
           </button>
           <button
             onClick={() => setActiveTab('nda')}
@@ -526,7 +505,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             }`}
           >
             <Icon name="verified_user" size={18} />
-            {isVi ? 'Thỏa Thuận NDA' : 'NDA Agreements'}
+            Thỏa Thuận NDA
           </button>
           <button
             onClick={() => setActiveTab('rfq')}
@@ -537,7 +516,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             }`}
           >
             <Icon name="request_quote" size={18} />
-            {isVi ? 'Báo Giá Lô Lớn (RFQ)' : 'Batch RFQ'}
+            Báo Giá Lô Lớn (RFQ)
           </button>
           <button
             onClick={() => setActiveTab('kyc')}
@@ -548,7 +527,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             }`}
           >
             <Icon name="badge" size={18} />
-            {isVi ? 'Hồ Sơ KYC' : 'KYC Review'}
+            Hồ Sơ KYC
             {pendingKycCount > 0 && (
               <Badge variant="danger" size="sm">
                 {pendingKycCount}
@@ -562,57 +541,55 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       {/* KPI Cards — số đọc từ `customer_profiles` / `user_profiles`; thiếu cột ⇒ '—' */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tổng Khách Hàng' : 'Total Accounts'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Tổng Khách Hàng</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">
             {customersError ? '—' : isCustomersLoading ? '…' : stats.totalCustomers}
           </div>
           <div className="text-xs text-fg-subtle font-medium mt-0.5">
             {customersError
-              ? isVi ? 'Lỗi đọc customer_profiles' : 'customer_profiles read failed'
+              ? 'Lỗi đọc customer_profiles'
               : `${stats.b2bCount} B2B • ${stats.b2cCount} B2C`}
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Doanh Nghiệp B2B' : 'B2B Corporate'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Doanh Nghiệp B2B</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">{customersError ? '—' : stats.b2bCount}</div>
           <div className="text-xs text-info font-medium mt-0.5">
-            {isVi ? 'Suy từ tên công ty / MST' : 'From company or tax id'}
+            Suy từ tên công ty / MST
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'NDA Đã Ký' : 'NDA Signed'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">NDA Đã Ký</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">{customersError ? '—' : stats.signedNDACount}</div>
           <div className="text-xs text-positive font-medium mt-0.5">customer_profiles.nda_signed</div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'NDA Chờ Duyệt' : 'NDA Review'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">NDA Chờ Duyệt</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">—</div>
           <div className="text-xs text-warning font-medium mt-0.5">
-            {isVi
-              ? 'Bảng chỉ có nda_signed (không có trạng thái chờ duyệt)'
-              : 'Only nda_signed exists (no pending state)'}
+            Bảng chỉ có nda_signed (không có trạng thái chờ duyệt)
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Dự Án RFQ Lô Lớn' : 'Batch RFQs'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Dự Án RFQ Lô Lớn</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">—</div>
           <div className="text-xs text-info font-medium mt-0.5">
-            {isVi ? 'Chưa có nguồn dữ liệu RFQ' : 'No RFQ data source'}
+            Chưa có nguồn dữ liệu RFQ
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Doanh Thu Khách' : 'Total Revenue'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Doanh Thu Khách</div>
           <div className="text-lg font-bold tabular-nums text-fg mt-1 truncate">
             {totalSpendVnd === null ? '—' : formatVnd(totalSpendVnd)}
           </div>
           <div className="text-xs text-positive font-medium mt-0.5">
             {totalSpendVnd === null
-              ? isVi ? 'Không ghép được hồ sơ người dùng' : 'No user profile matched'
+              ? 'Không ghép được hồ sơ người dùng'
               : 'user_profiles.total_spent'}
           </div>
         </div>
@@ -625,7 +602,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-4 rounded-lg border border-line">
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
-                <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Phân loại:' : 'Type:'}</span>
+                <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">Phân loại:</span>
                 {(['all', 'B2B', 'B2C'] as const).map((tp) => (
                   <button
                     key={tp}
@@ -636,7 +613,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
-                    {tp === 'all' ? (isVi ? 'Tất cả' : 'All') : tp === 'B2B' ? (isVi ? '🏢 Doanh nghiệp (B2B)' : '🏢 B2B') : (isVi ? '👤 Cá nhân (B2C)' : '👤 B2C')}
+                    {tp === 'all' ? ('Tất cả') : tp === 'B2B' ? ('🏢 Doanh nghiệp (B2B)') : ('👤 Cá nhân (B2C)')}
                   </button>
                 ))}
               </div>
@@ -653,13 +630,13 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
-                    {s === 'all' ? (isVi ? 'Tất cả' : 'All') : s === 'Signed' ? (isVi ? 'Đã ký' : 'Signed') : (isVi ? 'Chưa ký' : 'Not signed')}
+                    {s === 'all' ? ('Tất cả') : s === 'Signed' ? ('Đã ký') : ('Chưa ký')}
                   </button>
                 ))}
               </div>
 
               <span className="text-xs text-fg-subtle">
-                {isVi ? 'Nguồn: bảng customer_profiles' : 'Source: customer_profiles'}
+                Nguồn: bảng customer_profiles
               </span>
             </div>
 
@@ -668,8 +645,8 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                 <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
                 <Input
                   type="text"
-                  placeholder={isVi ? 'Tìm tên, công ty, MST, email...' : 'Search customer, tax ID...'}
-                  aria-label={isVi ? 'Tìm khách hàng theo tên, công ty, MST hoặc email' : 'Search customers by name, company, tax ID or email'}
+                  placeholder="Tìm tên, công ty, MST, email..."
+                  aria-label="Tìm khách hàng theo tên, công ty, MST hoặc email"
                   value={filters.searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-8"
@@ -683,7 +660,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                 onClick={() => void loadCustomers()}
                 disabled={isCustomersLoading}
               >
-                {isVi ? 'Tải Lại' : 'Reload'}
+                Tải Lại
               </Button>
             </div>
           </div>
@@ -692,7 +669,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
           {isCustomersLoading && customers.length === 0 && customersError === null && (
             <div
               role="status"
-              aria-label={isVi ? 'Đang tải hồ sơ khách hàng từ customer_profiles...' : 'Loading customer profiles from customer_profiles...'}
+              aria-label="Đang tải hồ sơ khách hàng từ customer_profiles..."
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
               {[0, 1].map((i) => (
@@ -707,11 +684,11 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
               <Icon name="error" size={24} className="text-danger mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-semibold text-danger text-sm">
-                  {isVi ? 'Không đọc được bảng customer_profiles' : 'Could not read the customer_profiles table'}
+                  Không đọc được bảng customer_profiles
                 </h4>
                 <p className="text-xs text-danger mt-1 font-mono break-all">{customersError}</p>
                 <Button variant="secondary" size="sm" className="mt-2" onClick={() => void loadCustomers()}>
-                  {isVi ? 'Thử lại' : 'Retry'}
+                  Thử lại
                 </Button>
               </div>
             </div>
@@ -720,20 +697,16 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
           {customersError === null && !isCustomersLoading && filteredCustomers.length === 0 && (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có khách hàng nào' : 'No customer yet'}
+              title="Chưa có khách hàng nào"
               description={
                 customers.length === 0
-                  ? isVi
-                    ? 'Bảng customer_profiles chưa có bản ghi nào.'
-                    : 'The customer_profiles table has no row yet.'
-                  : isVi
-                  ? 'Không có hồ sơ khách hàng nào khớp bộ lọc hiện tại.'
-                  : 'No customer profile matches the current filter.'
+                  ? 'Bảng customer_profiles chưa có bản ghi nào.'
+                  : 'Không có hồ sơ khách hàng nào khớp bộ lọc hiện tại.'
               }
               icon={<Icon name="group" size={20} className="text-primary" />}
               action={
                 <Button variant="secondary" size="sm" onClick={() => setActiveTab('kyc')}>
-                  {isVi ? 'Xem Hồ Sơ KYC' : 'View KYC profiles'}
+                  Xem Hồ Sơ KYC
                 </Button>
               }
             />
@@ -764,11 +737,11 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
 
                         {row.ndaSigned ? (
                           <Badge variant="success" dot>
-                            {isVi ? 'NDA đã ký' : 'NDA signed'}
+                            NDA đã ký
                           </Badge>
                         ) : (
                           <Badge variant="neutral">
-                            {isVi ? 'Chưa ký NDA' : 'NDA not signed'}
+                            Chưa ký NDA
                           </Badge>
                         )}
                       </div>
@@ -780,12 +753,12 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                     </div>
 
                     <div className="text-right">
-                      <div className="text-xs text-fg-subtle font-semibold uppercase tracking-wider">{isVi ? 'Tổng Chi Tiêu' : 'Total Spend'}</div>
+                      <div className="text-xs text-fg-subtle font-semibold uppercase tracking-wider">Tổng Chi Tiêu</div>
                       <div className="font-bold text-fg font-mono tabular-nums text-sm">
                         {c.user ? formatVnd(Number(c.user.totalSpent || 0)) : '—'}
                       </div>
                       <div className="text-xs text-fg-subtle">
-                        {c.user ? `${c.user.totalOrders} ${isVi ? 'đơn hàng' : 'orders'}` : isVi ? 'chưa ghép user_profiles' : 'no user_profiles row'}
+                        {c.user ? `${c.user.totalOrders} ${'đơn hàng'}` : 'chưa ghép user_profiles'}
                       </div>
                     </div>
                   </div>
@@ -794,16 +767,16 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                   {c.type === 'B2B' && (
                     <div className="mt-3 p-3 bg-surface-muted rounded-md border border-line-subtle space-y-1.5 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-fg-subtle">{isVi ? 'Mã số thuế (MST):' : 'Tax ID:'}</span>
-                        <span className="font-mono font-bold text-fg">{row.taxId || (isVi ? 'Chưa có trong DB' : 'Not in DB')}</span>
+                        <span className="text-fg-subtle">Mã số thuế (MST):</span>
+                        <span className="font-mono font-bold text-fg">{row.taxId || ('Chưa có trong DB')}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-fg-subtle">{isVi ? 'Email hóa đơn VAT:' : 'Billing Email:'}</span>
+                        <span className="text-fg-subtle">Email hóa đơn VAT:</span>
                         <span className="font-mono text-fg-muted">{row.billingEmail || c.email || '—'}</span>
                       </div>
                       {row.preferredPaymentMethod && (
                         <div className="flex justify-between">
-                          <span className="text-fg-subtle">{isVi ? 'Thanh toán ưu tiên:' : 'Preferred payment:'}</span>
+                          <span className="text-fg-subtle">Thanh toán ưu tiên:</span>
                           <span className="font-bold text-fg-muted uppercase">{row.preferredPaymentMethod}</span>
                         </div>
                       )}
@@ -840,7 +813,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                 {/* Footer Action — ghi thẳng customer_profiles.nda_signed */}
                 <div className="mt-4 pt-3 border-t border-line-subtle flex items-center justify-between text-xs">
                   <span className="text-fg-subtle">
-                    {isVi ? 'Ký NDA:' : 'NDA signed:'}{' '}
+                    Ký NDA:{' '}
                     <span className="font-bold text-fg-muted">
                       {row.ndaSignedAt ? new Date(row.ndaSignedAt).toLocaleDateString('vi-VN') : '—'}
                     </span>
@@ -855,7 +828,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                         onClick={() => void handleSetNda(row, true)}
                         disabled={savingNdaId === row.id}
                       >
-                        {isVi ? 'Ghi NDA Đã Ký' : 'Mark NDA signed'}
+                        Ghi NDA Đã Ký
                       </Button>
                     ) : (
                       <Button
@@ -864,7 +837,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                         onClick={() => void handleSetNda(row, false)}
                         disabled={savingNdaId === row.id}
                       >
-                        {isVi ? 'Thu Hồi NDA' : 'Revoke NDA'}
+                        Thu Hồi NDA
                       </Button>
                     )}
                     <Button
@@ -873,7 +846,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                       leadingIcon={<Icon name="shield" size={16} />}
                       onClick={() => setSelectedCustomerForNda(row)}
                     >
-                      {isVi ? 'Hồ Sơ' : 'Info'}
+                      Hồ Sơ
                     </Button>
                     {canPromoteToDesigner(c) && (
                       <Button
@@ -882,7 +855,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                         leadingIcon={<Icon name="badge" size={16} />}
                         onClick={() => setCustomerToPromote(c)}
                       >
-                        {isVi ? 'Cấp quyền nhà thiết kế' : 'Promote to Designer'}
+                        Cấp quyền nhà thiết kế
                       </Button>
                     )}
                   </div>
@@ -901,23 +874,21 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
           <div className="bg-surface p-4 rounded-lg border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div>
               <h4 className="font-semibold text-fg text-sm">
-                {isVi ? 'Chính Sách Bảo Mật Tài Sản Trí Tuệ & Tệp CAD (Chuẩn NDA)' : 'IP Confidentiality & CAD NDA'}
+                {'Chính Sách Bảo Mật Tài Sản Trí Tuệ & Tệp CAD (Chuẩn NDA)'}
               </h4>
               <p className="text-fg-subtle mt-0.5">
-                {isVi
-                  ? 'Trạng thái NDA đọc/ghi trực tiếp cột customer_profiles.nda_signed (bảng không có trạng thái "chờ duyệt").'
-                  : 'NDA status is read/written directly to customer_profiles.nda_signed (the table has no pending state).'}
+                Trạng thái NDA đọc/ghi trực tiếp cột customer_profiles.nda_signed (bảng không có trạng thái "chờ duyệt").
               </p>
             </div>
             <Badge variant="success" className="shrink-0">
-              {isVi ? `Đã ký: ${stats.signedNDACount}` : `Signed: ${stats.signedNDACount}`}
+              {`Đã ký: ${stats.signedNDACount}`}
             </Badge>
           </div>
 
           <div className="bg-surface rounded-lg border border-line overflow-hidden">
             {isCustomersLoading && customers.length === 0 && customersError === null ? (
               <div className="py-8 text-center text-sm text-fg-muted">
-                {isVi ? 'Đang tải hồ sơ khách hàng từ customer_profiles...' : 'Loading customer profiles from customer_profiles...'}
+                Đang tải hồ sơ khách hàng từ customer_profiles...
               </div>
             ) : customersError !== null ? (
               <div role="alert" className="m-4 p-4 bg-danger-tint border border-danger/20 rounded-lg text-xs text-danger font-mono break-all">
@@ -926,16 +897,12 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             ) : customers.length === 0 ? (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có tài liệu NDA nào' : 'No NDA document yet'}
-              description={
-                isVi
-                  ? 'Bảng customer_profiles chưa có bản ghi nào nên chưa có hồ sơ NDA nào để hiển thị.'
-                  : 'customer_profiles has no row yet, so there is no NDA record to show.'
-              }
+              title="Chưa có tài liệu NDA nào"
+              description="Bảng customer_profiles chưa có bản ghi nào nên chưa có hồ sơ NDA nào để hiển thị."
               icon={<Icon name="policy" size={20} className="text-primary" />}
               action={
                 <Button variant="secondary" size="sm" onClick={() => setActiveTab('customers')}>
-                  {isVi ? 'Xem Khách Hàng' : 'View customers'}
+                  Xem Khách Hàng
                 </Button>
               }
             />
@@ -944,8 +911,8 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
               columns={customerColumns}
               rows={displayRows}
               getRowId={(row) => row.row.id}
-              caption={isVi ? 'Danh sách khách hàng' : 'Customer list'}
-              tableLabel={isVi ? 'Danh sách khách hàng' : 'Customer list'}
+              caption="Danh sách khách hàng"
+              tableLabel="Danh sách khách hàng"
               defaultSort={[{ key: 'name', direction: 'asc' }]}
             />
             )}
@@ -960,23 +927,17 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             <Icon name="warning" size={24} className="text-warning mt-0.5" />
             <div className="text-xs">
               <h4 className="font-semibold text-warning text-sm">
-                {isVi ? 'Chưa có nguồn dữ liệu RFQ trong DB' : 'No RFQ data source in the DB yet'}
+                Chưa có nguồn dữ liệu RFQ trong DB
               </h4>
               <p className="text-fg-muted mt-1">
-                {isVi
-                  ? 'Bảng `quotes` KHÔNG phải bảng RFQ: nó chỉ có file_name / material_id / printer_id / quantity / unit_price / payload (một bản báo giá cho 1 file) — không có tên dự án, số lượng lô, hạn giao hay trạng thái RFQ. Và trong toàn bộ service layer CHỈ có `dbService.saveQuote()` (ghi mù, có `insert` mà không có hàm ĐỌC). Vì vậy tab này không hiển thị danh sách thay thế và không có nút báo giá trên RAM.'
-                  : 'The `quotes` table is NOT an RFQ table: it only has file_name / material_id / printer_id / quantity / unit_price / payload (one quote for one file) — no project name, batch quantity, deadline or RFQ status. The whole service layer only has `dbService.saveQuote()` (blind insert, no reader). This tab therefore shows no substitute list and offers no RAM-only quoting.'}
+                Bảng `quotes` KHÔNG phải bảng RFQ: nó chỉ có file_name / material_id / printer_id / quantity / unit_price / payload (một bản báo giá cho 1 file) — không có tên dự án, số lượng lô, hạn giao hay trạng thái RFQ. Và trong toàn bộ service layer CHỈ có `dbService.saveQuote()` (ghi mù, có `insert` mà không có hàm ĐỌC). Vì vậy tab này không hiển thị danh sách thay thế và không có nút báo giá trên RAM.
               </p>
             </div>
           </div>
           <EmptyState
             size="sm"
-            title={isVi ? 'Không có bản ghi RFQ' : 'No RFQ record'}
-            description={
-              isVi
-                ? 'Cần một bảng + hàm service đọc/ghi yêu cầu báo giá lô lớn trước khi tab này có dữ liệu thật.'
-                : 'A table plus service read/write for batch quote requests is required before this tab can hold real data.'
-            }
+            title="Không có bản ghi RFQ"
+            description="Cần một bảng + hàm service đọc/ghi yêu cầu báo giá lô lớn trước khi tab này có dữ liệu thật."
             icon={<Icon name="request_quote" size={20} className="text-primary" />}
           />
         </div>
@@ -988,42 +949,42 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
           open
           onClose={() => setSelectedCustomerForNda(null)}
           size="md"
-          title={isVi ? 'Hồ Sơ Thỏa Thuận Bảo Mật (NDA)' : 'NDA Profile'}
+          title="Hồ Sơ Thỏa Thuận Bảo Mật (NDA)"
         >
             <div className="space-y-3 text-xs">
               <div className="p-4 bg-surface-muted rounded-md space-y-1.5 border border-line-subtle">
                 <div className="flex justify-between">
-                  <span className="text-fg-subtle">{isVi ? 'Tên khách hàng:' : 'Client Name:'}</span>
+                  <span className="text-fg-subtle">Tên khách hàng:</span>
                   <span className="font-bold text-fg">
                     {selectedCustomerForNda.profileName || '—'}
                   </span>
                 </div>
                 {selectedCustomerForNda.companyName && (
                   <div className="flex justify-between">
-                    <span className="text-fg-subtle">{isVi ? 'Pháp nhân:' : 'Entity:'}</span>
+                    <span className="text-fg-subtle">Pháp nhân:</span>
                     <span className="font-bold text-fg">{selectedCustomerForNda.companyName}</span>
                   </div>
                 )}
                 {selectedCustomerForNda.taxId && (
                   <div className="flex justify-between">
-                    <span className="text-fg-subtle">{isVi ? 'MST:' : 'Tax ID:'}</span>
+                    <span className="text-fg-subtle">MST:</span>
                     <span className="font-mono font-bold text-fg">{selectedCustomerForNda.taxId}</span>
                   </div>
                 )}
                 {selectedCustomerForNda.billingEmail && (
                   <div className="flex justify-between">
-                    <span className="text-fg-subtle">{isVi ? 'Email hóa đơn:' : 'Billing email:'}</span>
+                    <span className="text-fg-subtle">Email hóa đơn:</span>
                     <span className="font-mono text-fg-muted">{selectedCustomerForNda.billingEmail}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-fg-subtle">{isVi ? 'Trạng thái NDA:' : 'Status:'}</span>
+                  <span className="text-fg-subtle">Trạng thái NDA:</span>
                   <span className={`font-bold ${selectedCustomerForNda.ndaSigned ? 'text-positive' : 'text-fg-muted'}`}>
-                    {selectedCustomerForNda.ndaSigned ? (isVi ? 'Đã ký' : 'Signed') : isVi ? 'Chưa ký' : 'Not signed'}
+                    {selectedCustomerForNda.ndaSigned ? ('Đã ký') : 'Chưa ký'}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-fg-subtle">{isVi ? 'Ngày ghi nhận:' : 'Recorded at:'}</span>
+                  <span className="text-fg-subtle">Ngày ghi nhận:</span>
                   <span className="font-mono text-fg-muted">
                     {selectedCustomerForNda.ndaSignedAt
                       ? new Date(selectedCustomerForNda.ndaSignedAt).toLocaleDateString('vi-VN')
@@ -1033,7 +994,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
               </div>
 
               <div className="p-4 bg-info-tint rounded-md border border-info/20 text-fg-muted text-xs space-y-1">
-                <div className="font-bold text-info">{isVi ? 'Cam Kết Bảo Vệ Thiết Kế CAD:' : 'CAD IP Protection:'}</div>
+                <div className="font-bold text-info">Cam Kết Bảo Vệ Thiết Kế CAD:</div>
                 <p>1. Bản quyền thuộc 100% về khách hàng và nhà phát triển.</p>
                 <p>2. Không sao lưu, tái sử dụng hoặc cung cấp cho bên thứ 3 dưới mọi hình thức.</p>
                 <p>3. Tiêu hủy mẫu phế phẩm thử nghiệm theo tiêu chuẩn bảo mật.</p>
@@ -1045,7 +1006,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                   variant="secondary"
                   onClick={() => setSelectedCustomerForNda(null)}
                 >
-                  {isVi ? 'Đóng' : 'Close'}
+                  Đóng
                 </Button>
               </div>
             </div>
@@ -1059,7 +1020,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
                 <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">
-                  {isVi ? 'KYC:' : 'KYC:'}
+                  KYC:
                 </span>
                 {(['all', 'pending_review', 'verified', 'rejected', 'unverified'] as const).map((s) => (
                   <button
@@ -1070,24 +1031,14 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                     }`}
                   >
                     {s === 'all'
-                      ? isVi
-                        ? 'Tất cả'
-                        : 'All'
+                      ? 'Tất cả'
                       : s === 'pending_review'
-                      ? isVi
-                        ? 'Chờ duyệt'
-                        : 'Pending'
+                      ? 'Chờ duyệt'
                       : s === 'verified'
-                      ? isVi
-                        ? 'Đã duyệt'
-                        : 'Verified'
+                      ? 'Đã duyệt'
                       : s === 'rejected'
-                      ? isVi
-                        ? 'Bị từ chối'
-                        : 'Rejected'
-                      : isVi
-                      ? 'Chưa nộp'
-                      : 'Unverified'}
+                      ? 'Bị từ chối'
+                      : 'Chưa nộp'}
                   </button>
                 ))}
               </div>
@@ -1099,7 +1050,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                 onClick={() => void loadKycRows()}
                 disabled={isKycLoading}
               >
-                {isVi ? 'Tải lại' : 'Reload'}
+                Tải lại
               </Button>
             </div>
 
@@ -1107,8 +1058,8 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
               <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
               <Input
                 type="text"
-                aria-label={isVi ? 'Tìm kiếm hồ sơ KYC theo tên, email, doanh nghiệp' : 'Search KYC profiles by name, email, company'}
-                placeholder={isVi ? 'Tìm tên, email, doanh nghiệp...' : 'Search name, email, company...'}
+                aria-label="Tìm kiếm hồ sơ KYC theo tên, email, doanh nghiệp"
+                placeholder="Tìm tên, email, doanh nghiệp..."
                 value={kycSearch}
                 onChange={(e) => setKycSearch(e.target.value)}
                 className="pl-8"
@@ -1120,12 +1071,8 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
             {!isKycLoading && filteredKycRows.length === 0 ? (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có hồ sơ KYC nào' : 'No KYC profile yet'}
-              description={
-                isVi
-                  ? 'Không hồ sơ người dùng nào khớp bộ lọc KYC hiện tại.'
-                  : 'No user profile matches the current KYC filter.'
-              }
+              title="Chưa có hồ sơ KYC nào"
+              description="Không hồ sơ người dùng nào khớp bộ lọc KYC hiện tại."
               icon={<Icon name="verified" size={20} className="text-primary" />}
               action={
                 <Button
@@ -1133,7 +1080,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                   size="sm"
                   onClick={() => setActiveTab('customers')}
                 >
-                  {isVi ? 'Xem Khách Hàng' : 'View customers'}
+                  Xem Khách Hàng
                 </Button>
               }
             />
@@ -1143,13 +1090,13 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
               rows={filteredKycRows}
               getRowId={(row) => row.uid}
               loading={isKycLoading && kycRows.length === 0}
-              caption={isVi ? 'Hồ sơ KYC' : 'KYC profiles'}
-              tableLabel={isVi ? 'Hồ sơ KYC' : 'KYC profiles'}
+              caption="Hồ sơ KYC"
+              tableLabel="Hồ sơ KYC"
               emptyState={
                 <EmptyState
                   live
-                  title={isVi ? 'Không có hồ sơ KYC phù hợp' : 'No matching KYC profiles'}
-                  description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc trạng thái.' : 'Clear the search or change the status filter.'}
+                  title="Không có hồ sơ KYC phù hợp"
+                  description="Thử xoá từ khoá hoặc đổi bộ lọc trạng thái."
                 />
               }
             />
@@ -1162,11 +1109,11 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
               open
               onClose={() => setReviewingKyc(null)}
               size="lg"
-              title={isVi ? 'Thẩm định hồ sơ định danh (KYC)' : 'KYC review'}
+              title="Thẩm định hồ sơ định danh (KYC)"
             >
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-fg-subtle">{isVi ? 'Người dùng:' : 'User:'}</span>
+                    <span className="text-fg-subtle">Người dùng:</span>
                     <span className="font-bold text-fg">{reviewingKyc.displayName}</span>
                   </div>
                   <div className="flex justify-between">
@@ -1178,22 +1125,22 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                     <span className="font-mono text-fg-muted">{reviewingKyc.email}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-fg-subtle">{isVi ? 'Vai trò:' : 'Role:'}</span>
+                    <span className="text-fg-subtle">Vai trò:</span>
                     <span className="font-bold uppercase text-info">{roleLabel(reviewingKyc.role)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-fg-subtle">{isVi ? 'Trạng thái KYC hiện tại:' : 'Current KYC:'}</span>
+                    <span className="text-fg-subtle">Trạng thái KYC hiện tại:</span>
                     <span className="font-bold text-fg">{kycStatusLabel(reviewingKyc.kycStatus)}</span>
                   </div>
                   {reviewingKyc.notes && (
                     <div className="p-3 bg-warning-tint border border-warning/20 rounded-md text-warning">
-                      <div className="font-semibold text-xs uppercase">{isVi ? 'Ghi chú hiện tại:' : 'Current note:'}</div>
+                      <div className="font-semibold text-xs uppercase">Ghi chú hiện tại:</div>
                       <p>{reviewingKyc.notes}</p>
                     </div>
                   )}
 
                   <Field
-                    label={isVi ? 'Lý do từ chối (bắt buộc khi từ chối):' : 'Rejection reason (required when rejecting):'}
+                    label="Lý do từ chối (bắt buộc khi từ chối):"
                     optionalLabel={null}
                   >
                     {(control) => (
@@ -1202,7 +1149,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                         type="text"
                         value={kycRejectionReason}
                         onChange={(e) => setKycRejectionReason(e.target.value)}
-                        placeholder={isVi ? 'Ví dụ: Ảnh CCCD bị mờ, MST không khớp tên doanh nghiệp...' : 'e.g. blurry ID, tax code mismatch...'}
+                        placeholder="Ví dụ: Ảnh CCCD bị mờ, MST không khớp tên doanh nghiệp..."
                       />
                     )}
                   </Field>
@@ -1214,21 +1161,21 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                     variant="secondary"
                     onClick={() => setReviewingKyc(null)}
                   >
-                    {isVi ? 'Đóng' : 'Close'}
+                    Đóng
                   </Button>
                   <Button
                     type="button"
                     variant="danger"
                     onClick={() => void handleRejectKyc(reviewingKyc)}
                   >
-                    {isVi ? 'Từ Chối KYC' : 'Reject KYC'}
+                    Từ Chối KYC
                   </Button>
                   <Button
                     type="button"
                     variant="primary"
                     onClick={() => void handleApproveKyc(reviewingKyc)}
                   >
-                    {isVi ? 'Duyệt Xác Minh' : 'Approve KYC'}
+                    Duyệt Xác Minh
                   </Button>
                 </div>
             </Modal>
@@ -1239,16 +1186,14 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       {/* MODAL: XÁC NHẬN CẤP QUYỀN DESIGNER */}
       <ConfirmDialog
         open={customerToPromote !== null}
-        title={isVi ? 'Cấp quyền nhà thiết kế' : 'Promote to Designer'}
+        title="Cấp quyền nhà thiết kế"
         description={
           customerToPromote
-            ? isVi
-              ? `Cấp quyền nhà thiết kế cho ${customerToPromote.name || customerToPromote.email || 'người dùng này'}? Vai trò trong user_profiles sẽ đổi thành "designer" và hồ sơ designer_profiles sẽ được tạo/cập nhật.`
-              : `Promote ${customerToPromote.name || customerToPromote.email || 'this user'} to Designer? Their user_profiles role becomes "designer" and a designer_profiles row will be created/updated.`
+            ? `Cấp quyền nhà thiết kế cho ${customerToPromote.name || customerToPromote.email || 'người dùng này'}? Vai trò trong user_profiles sẽ đổi thành "designer" và hồ sơ designer_profiles sẽ được tạo/cập nhật.`
             : ''
         }
-        confirmLabel={isVi ? 'Cấp quyền' : 'Promote'}
-        cancelLabel={isVi ? 'Huỷ' : 'Cancel'}
+        confirmLabel="Cấp quyền"
+        cancelLabel="Huỷ"
         loading={isPromoting}
         onCancel={() => {
           if (isPromoting) return;

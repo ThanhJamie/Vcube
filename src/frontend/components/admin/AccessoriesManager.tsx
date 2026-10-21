@@ -3,7 +3,6 @@ import { AccessoryItem } from '../../types';
 import { Icon, InfoTip, ConfirmDialog, DataTable, EmptyState, Field, Input, Modal, Button, Badge, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatNumber } from '../../lib/format';
-import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Đợt S (#1): phòng vệ cho cột nullable — hôm nay `rowToAccessory` vẫn quy NULL về `0`
@@ -49,8 +48,6 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
   onUpdateAccessories,
   onShowToast
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [editingItem, setEditingItem] = useState<AccessoryItem | null>(null);
@@ -178,7 +175,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
   const accessoryColumns = useMemo<DataTableColumn<AccessoryItem>[]>(() => [
     {
       key: 'name',
-      header: isVi ? 'Tên Phụ Kiện / SKU' : 'Accessory / SKU',
+      header: 'Tên Phụ Kiện / SKU',
       value: (a) => a.name,
       render: (item) => (
         <div className="flex items-center gap-3">
@@ -208,7 +205,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     },
     {
       key: 'category',
-      header: isVi ? 'Phân Loại' : 'Category',
+      header: 'Phân Loại',
       value: (a) => a.category,
       render: (item) => (
         <div>
@@ -219,14 +216,14 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     },
     {
       key: 'costPrice',
-      header: isVi ? 'Giá Vốn Xưởng' : 'Cost price',
+      header: 'Giá Vốn Xưởng',
       numeric: true,
       value: (a) => a.costPrice ?? 0,
       render: (item) => <span className="font-mono tabular-nums text-fg-muted">{numText(item.costPrice, ' ₫')}</span>,
     },
     {
       key: 'sellingPrice',
-      header: isVi ? 'Giá Báo Khách' : 'Sell price',
+      header: 'Giá Báo Khách',
       numeric: true,
       value: (a) => a.sellingPrice ?? 0,
       render: (item) => {
@@ -246,7 +243,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     },
     {
       key: 'stockCount',
-      header: isVi ? 'Tồn Kho' : 'Stock',
+      header: 'Tồn Kho',
       align: 'center',
       value: (a) => a.stockCount ?? 0,
       render: (item) => {
@@ -295,7 +292,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     },
     {
       key: 'warehouseLocation',
-      header: isVi ? 'Vị Trí Kệ Kho' : 'Shelf location',
+      header: 'Vị Trí Kệ Kho',
       value: (a) => a.warehouseLocation || '',
       render: (item) => (
         <span className="flex items-center gap-1 font-mono font-bold text-primary">
@@ -306,7 +303,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     },
     {
       key: 'isActive',
-      header: isVi ? 'Trạng Thái' : 'Status',
+      header: 'Trạng Thái',
       align: 'center',
       value: (a) => (a.isActive ? 'active' : 'hidden'),
       render: (item) => (
@@ -324,7 +321,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
     },
     {
       key: 'actions',
-      header: isVi ? 'Thao Tác' : 'Actions',
+      header: 'Thao Tác',
       align: 'right',
       render: (item) => (
         <div className="flex items-center justify-end gap-1.5">
@@ -333,8 +330,8 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
             iconOnly
             size="sm"
             variant="ghost"
-            aria-label={isVi ? `Sửa ${item.name}` : `Edit ${item.name}`}
-            title={isVi ? 'Chỉnh sửa thông số' : 'Edit'}
+            aria-label={`Sửa ${item.name}`}
+            title="Chỉnh sửa thông số"
             onClick={() => setEditingItem(item)}
             leadingIcon={<Icon name="edit" size={16} />}
           />
@@ -343,8 +340,8 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
             iconOnly
             size="sm"
             variant="danger-ghost"
-            aria-label={isVi ? `Xoá ${item.name}` : `Delete ${item.name}`}
-            title={isVi ? 'Xóa phụ kiện' : 'Delete'}
+            aria-label={`Xoá ${item.name}`}
+            title="Xóa phụ kiện"
             onClick={() => handleDeleteItem(item.id, item.name)}
             leadingIcon={<Icon name="delete" size={16} />}
           />
@@ -352,7 +349,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi]);
+  ], []);
 
   return (
     <div className="space-y-6">
@@ -458,13 +455,11 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
         <div className="rounded-lg border border-line-subtle bg-surface p-6">
           <EmptyState
             icon={<Icon name="extension" size={20} />}
-            title={isVi ? 'Chưa có phụ kiện nào trong cơ sở dữ liệu' : 'No accessories yet'}
-            description={isVi
-              ? 'Bảng phụ kiện đang rỗng — nền tảng không tự sinh phụ kiện mẫu. Hãy thêm phụ kiện thật.'
-              : 'The accessories table is empty — no sample data is generated. Add real accessories.'}
+            title="Chưa có phụ kiện nào trong cơ sở dữ liệu"
+            description="Bảng phụ kiện đang rỗng — nền tảng không tự sinh phụ kiện mẫu. Hãy thêm phụ kiện thật."
             action={
               <Button variant="primary" size="sm" onClick={() => setIsNewModalOpen(true)}>
-                {isVi ? 'Thêm Phụ Kiện Mới' : 'Add accessory'}
+                Thêm Phụ Kiện Mới
               </Button>
             }
           />
@@ -474,14 +469,14 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
           columns={accessoryColumns}
           rows={filteredAccessories}
           getRowId={(row) => row.id}
-          caption={isVi ? 'Danh sách phụ kiện' : 'Accessory list'}
-          tableLabel={isVi ? 'Danh sách phụ kiện' : 'Accessory list'}
+          caption="Danh sách phụ kiện"
+          tableLabel="Danh sách phụ kiện"
           defaultSort={[{ key: 'name', direction: 'asc' }]}
           emptyState={
             <EmptyState
               live
-              title={isVi ? 'Không tìm thấy phụ kiện phù hợp' : 'No matching accessories'}
-              description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc phân loại.' : 'Clear the search or change the category filter.'}
+              title="Không tìm thấy phụ kiện phù hợp"
+              description="Thử xoá từ khoá hoặc đổi bộ lọc phân loại."
             />
           }
         />

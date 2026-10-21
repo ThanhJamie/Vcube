@@ -1,12 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../context/LanguageContext';
 import { Button, Icon } from '@frontend/ui';
 
 export const NotFoundView: React.FC = () => {
   const navigate = useNavigate();
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   return (
     <div className="min-h-dvh grid place-items-center bg-canvas p-6">
@@ -20,12 +17,10 @@ export const NotFoundView: React.FC = () => {
             LỖI 404 • KHÔNG TÌM THẤY ĐƯỜNG DẪN
           </span>
           <h1 className="text-2xl font-bold tracking-tight text-fg">
-            {isVi ? 'Không Tìm Thấy Trang Yêu Cầu' : 'Page Not Found'}
+            Không Tìm Thấy Trang Yêu Cầu
           </h1>
           <p className="text-sm text-fg-muted font-sans leading-relaxed">
-            {isVi
-              ? 'Đường dẫn bạn vừa truy cập không tồn tại hoặc đã được chuyển sang phân hệ khác trong hệ thống VCUBE.'
-              : 'The URL or route you requested does not exist or has been relocated to another workspace in the VCUBE platform.'}
+            Đường dẫn bạn vừa truy cập không tồn tại hoặc đã được chuyển sang phân hệ khác trong hệ thống VCUBE.
           </p>
         </div>
 
@@ -36,7 +31,7 @@ export const NotFoundView: React.FC = () => {
             onClick={() => navigate('/')}
             leadingIcon={<Icon name="home" size={16} />}
           >
-            {isVi ? 'Về Trang Chủ' : 'Return Home'}
+            Về Trang Chủ
           </Button>
 
           <Button
@@ -45,7 +40,7 @@ export const NotFoundView: React.FC = () => {
             onClick={() => navigate('/explore')}
             leadingIcon={<Icon name="storefront" size={16} />}
           >
-            {isVi ? 'Khám Phá' : 'Marketplace'}
+            Khám Phá
           </Button>
         </div>
       </div>

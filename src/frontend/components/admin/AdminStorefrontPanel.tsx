@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { SiteContentConfig } from '../../types';
-import { useLanguage } from '../../context/LanguageContext';
 import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
 
 interface AdminStorefrontPanelProps {
@@ -40,8 +39,6 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
   onUpdateSiteContent,
   onShowToast,
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   const [localContent, setLocalContent] = useState<SiteContentConfig>({ ...siteContent });
   const [activeTab, setActiveTab] = useState<'hero' | 'announcement' | 'workflow' | 'estimator' | 'facilities' | 'customIdea'>('hero');
@@ -98,8 +95,8 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
     if (invalidShippingKey) {
       onShowToast(
         invalidShippingKey === 'freeShippingThreshold'
-          ? (isVi ? 'Ngưỡng miễn phí vận chuyển không được là số âm' : 'Free-shipping threshold cannot be negative')
-          : (isVi ? 'Phí vận chuyển tiêu chuẩn không được là số âm' : 'Standard shipping fee cannot be negative')
+          ? ('Ngưỡng miễn phí vận chuyển không được là số âm')
+          : ('Phí vận chuyển tiêu chuẩn không được là số âm')
       );
       return;
     }
@@ -109,10 +106,10 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
       const res = await onUpdateSiteContent(localContent);
       if (!res || res.success) {
         setIsSaved(true);
-        onShowToast(isVi ? 'Đã lưu cấu hình giao diện trang chủ & cửa hàng!' : 'Saved Landing Page & Storefront CMS settings!');
+        onShowToast('Đã lưu cấu hình giao diện trang chủ & cửa hàng!');
       } else {
         setIsSaved(false);
-        onShowToast(isVi ? `KHÔNG lưu được: ${res.error || 'lỗi không xác định'}` : `Could not save: ${res.error || 'unknown error'}`);
+        onShowToast(`KHÔNG lưu được: ${res.error || 'lỗi không xác định'}`);
       }
     } finally {
       setIsSaving(false);
@@ -132,7 +129,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-fg mt-2 flex items-center gap-2">
             <Icon name="tune" size={24} className="text-primary" />
-            {isVi ? 'Quản Trị Nội Dung Trang Chủ VCUBE' : 'Landing Page Dynamic Content CMS'}
+            Quản Trị Nội Dung Trang Chủ VCUBE
           </h2>
           <div className="mt-1">
             <InfoTip label="Cấu hình trang chủ sửa được những gì?">
@@ -146,22 +143,22 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
           {!isSaved && !isSaving && (
             <span className="text-xs font-medium text-warning flex items-center gap-1">
               <Icon name="warning" size={14} />
-              {isVi ? 'Chưa lưu' : 'Unsaved'}
+              Chưa lưu
             </span>
           )}
           <Button
             variant={isSaved ? 'secondary' : 'primary'}
             loading={isSaving}
-            loadingLabel={isVi ? 'Đang lưu…' : 'Saving…'}
+            loadingLabel="Đang lưu…"
             leadingIcon={<Icon name="save" size={16} />}
             onClick={handleSave}
             disabled={isSaved}
           >
             {isSaving
-              ? (isVi ? 'Đang lưu…' : 'Saving…')
+              ? ('Đang lưu…')
               : isSaved
-              ? (isVi ? 'Đã Lưu Nội Dung' : 'All Changes Saved')
-              : (isVi ? 'Lưu Thay Đổi Ngay' : 'Save Changes Now')}
+              ? ('Đã Lưu Nội Dung')
+              : ('Lưu Thay Đổi Ngay')}
           </Button>
         </div>
       </div>
@@ -235,7 +232,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
           }`}
         >
           <Icon name="domain" size={16} />
-          <span>{isVi ? 'Đối Tác & Cơ Sở Xưởng' : 'Partners & Facilities'}</span>
+          <span>{'Đối Tác & Cơ Sở Xưởng'}</span>
         </button>
 
         <button
@@ -249,7 +246,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
           }`}
         >
           <Icon name="design_services" size={16} />
-          <span>{isVi ? 'Dịch Vụ CAD Theo Yêu Cầu' : 'Custom 3D Service'}</span>
+          <span>Dịch Vụ CAD Theo Yêu Cầu</span>
         </button>
       </div>
 
@@ -492,7 +489,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
               <input
                 type="checkbox" checked={localContent.announcementActive === true}
                 onChange={(e) => handleChange('announcementActive', e.target.checked)}
-                aria-label={isVi ? 'Bật / Tắt Thanh Thông Báo' : 'Enable / disable announcement bar'}
+                aria-label="Bật / Tắt Thanh Thông Báo"
                 className="peer sr-only"
               />
               <div className="h-6 w-11 rounded-full bg-line-control transition-colors duration-200 peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring motion-reduce:transition-none after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-line after:bg-surface after:transition-all after:content-[''] peer-checked:after:translate-x-full motion-reduce:after:transition-none"></div>
@@ -861,7 +858,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                     numeric
                     value={shippingInputValue(localContent.freeShippingThreshold)}
                     onChange={(e) => handleShippingChange('freeShippingThreshold', e.target.value)}
-                    placeholder={isVi ? 'Chưa cấu hình' : 'Not configured'}
+                    placeholder="Chưa cấu hình"
                     className="font-mono"
                   />
                 )}
@@ -879,7 +876,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
                     numeric
                     value={shippingInputValue(localContent.standardShippingFee)}
                     onChange={(e) => handleShippingChange('standardShippingFee', e.target.value)}
-                    placeholder={isVi ? 'Chưa cấu hình' : 'Not configured'}
+                    placeholder="Chưa cấu hình"
                     className="font-mono"
                   />
                 )}
@@ -895,12 +892,10 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
           <div className="border-b border-line-subtle pb-4">
             <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
               <Icon name="design_services" size={22} className="text-fg-muted" />
-              {isVi ? 'Cấu Hình Dịch Vụ CAD Theo Yêu Cầu & Dựng Mô Hình Từ Ý Tưởng' : 'Custom 3D CAD Modeling & Idea Service CMS'}
+              {'Cấu Hình Dịch Vụ CAD Theo Yêu Cầu & Dựng Mô Hình Từ Ý Tưởng'}
             </h3>
             <p className="text-xs text-fg-subtle mt-1">
-              {isVi
-                ? 'Tùy chỉnh tiêu đề, thông điệp, quy trình 3 giai đoạn và dải quảng cáo của khối dịch vụ thiết kế theo yêu cầu trên trang chủ.'
-                : 'Customize headline, narrative, 3-stage process workflow, and promotional banner for the custom CAD modeling service on the Landing Page.'}
+              Tùy chỉnh tiêu đề, thông điệp, quy trình 3 giai đoạn và dải quảng cáo của khối dịch vụ thiết kế theo yêu cầu trên trang chủ.
             </p>
           </div>
 
@@ -908,26 +903,24 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
           <div className="flex items-center justify-between gap-4 rounded-lg border border-line-subtle bg-surface-muted p-4">
             <div>
               <span className="text-sm font-medium text-fg block">
-                {isVi ? 'Bật hiển thị khối trên trang chủ' : 'Enable Section on Landing Page'}
+                Bật hiển thị khối trên trang chủ
               </span>
               <span className="text-xs text-fg-muted">
-                {isVi
-                  ? 'Cho phép khách hàng xem quy trình và mở form đăng ký tư vấn ý tưởng'
-                  : 'Allow visitors to view the 3-stage process and open the idea submission modal'}
+                Cho phép khách hàng xem quy trình và mở form đăng ký tư vấn ý tưởng
               </span>
             </div>
             <input
               type="checkbox"
               checked={localContent.customIdeaActive !== false}
               onChange={(e) => handleChange('customIdeaActive', e.target.checked)}
-              aria-label={isVi ? 'Bật hiển thị khối trên trang chủ' : 'Enable Section on Landing Page'}
+              aria-label="Bật hiển thị khối trên trang chủ"
               className="size-5 shrink-0 cursor-pointer rounded-sm border border-line-control accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
           {/* Section Headlines */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label={isVi ? 'Huy Hiệu Trên Cùng' : 'Top Badge'} optionalLabel={null}>
+            <Field label="Huy Hiệu Trên Cùng" optionalLabel={null}>
               {(control) => (
                 <Input
                   {...control}
@@ -940,44 +933,44 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
               )}
             </Field>
 
-            <Field label={isVi ? 'Nút Kêu Gọi Hành Động' : 'CTA Button Label'} optionalLabel={null}>
+            <Field label="Nút Kêu Gọi Hành Động" optionalLabel={null}>
               {(control) => (
                 <Input
                   {...control}
                   type="text"
                   value={localContent.customIdeaCtaText || ''}
                   onChange={(e) => handleChange('customIdeaCtaText', e.target.value)}
-                  placeholder={isVi ? 'Đăng Ký Dịch Vụ Thiết Kế Từ Ý Tưởng' : 'Submit Custom 3D Idea'}
+                  placeholder="Đăng Ký Dịch Vụ Thiết Kế Từ Ý Tưởng"
                 />
               )}
             </Field>
 
-            <Field label={isVi ? 'Tiêu Đề Chính Khối' : 'Main Section Headline'} className="md:col-span-2" optionalLabel={null}>
+            <Field label="Tiêu Đề Chính Khối" className="md:col-span-2" optionalLabel={null}>
               {(control) => (
                 <Input
                   {...control}
                   type="text"
                   value={localContent.customIdeaTitle || ''}
                   onChange={(e) => handleChange('customIdeaTitle', e.target.value)}
-                  placeholder={isVi ? 'Biến Ý Tưởng Thành Bản Vẽ CAD 3D & Sản Phẩm Thực Tế' : 'Transform Concept Ideas into Precision 3D CAD & Physical Prototypes'}
+                  placeholder={'Biến Ý Tưởng Thành Bản Vẽ CAD 3D & Sản Phẩm Thực Tế'}
                 />
               )}
             </Field>
 
-            <Field label={isVi ? 'Mô Tả Phụ' : 'Subtitle Description'} className="md:col-span-2" optionalLabel={null}>
+            <Field label="Mô Tả Phụ" className="md:col-span-2" optionalLabel={null}>
               {(control) => (
                 <textarea
                   {...control}
                   rows={2}
                   value={localContent.customIdeaSubtitle || ''}
                   onChange={(e) => handleChange('customIdeaSubtitle', e.target.value)}
-                  placeholder={isVi ? 'Bạn chưa có tệp CAD 3D? Chỉ cần phác thảo sơ bộ hoặc bài toán thực tế, đội ngũ kỹ sư VCUBE sẽ dựng mô hình CAD chuẩn kỹ thuật và gia công mẫu thử nghiệm bàn giao tận tay.' : 'No 3D CAD file yet? Provide preliminary sketches or functional criteria, and VCUBE engineers will build engineering-grade CAD models and deliver physical prototypes.'}
+                  placeholder="Bạn chưa có tệp CAD 3D? Chỉ cần phác thảo sơ bộ hoặc bài toán thực tế, đội ngũ kỹ sư VCUBE sẽ dựng mô hình CAD chuẩn kỹ thuật và gia công mẫu thử nghiệm bàn giao tận tay."
                   className={TEXTAREA_CLASS}
                 />
               )}
             </Field>
 
-            <Field label={isVi ? 'Đường Dẫn Ảnh Đại Diện (URL)' : 'Banner Image URL'} className="md:col-span-2" optionalLabel={null}>
+            <Field label="Đường Dẫn Ảnh Đại Diện (URL)" className="md:col-span-2" optionalLabel={null}>
               {(control) => (
                 <Input
                   {...control}
@@ -994,7 +987,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
           {/* 3-Stage Process Configuration */}
           <div className="border-t border-line-subtle pt-6 space-y-4">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-fg-muted font-mono">
-              {isVi ? 'CẤU HÌNH QUY TRÌNH 3 GIAI ĐOẠN' : '3-STAGE WORKFLOW CONFIGURATION'}
+              CẤU HÌNH QUY TRÌNH 3 GIAI ĐOẠN
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1002,27 +995,27 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
               <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-4">
                 <div className="flex items-center gap-2 font-mono font-semibold text-fg">
                   <span className="rounded-sm border border-line bg-surface px-2 py-0.5">01</span>
-                  <span>{isVi ? 'Giai Đoạn 1' : 'Stage 1'}</span>
+                  <span>Giai Đoạn 1</span>
                 </div>
-                <Field label={isVi ? 'Tiêu đề' : 'Title'} optionalLabel={null}>
+                <Field label="Tiêu đề" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
                       type="text"
                       value={localContent.customIdeaStep1Title || ''}
                       onChange={(e) => handleChange('customIdeaStep1Title', e.target.value)}
-                      placeholder={isVi ? 'Tiếp Nhận Ý Tưởng & Phác Thảo' : 'Idea Intake & Concept Sketching'}
+                      placeholder={'Tiếp Nhận Ý Tưởng & Phác Thảo'}
                     />
                   )}
                 </Field>
-                <Field label={isVi ? 'Nội dung mô tả' : 'Description'} optionalLabel={null}>
+                <Field label="Nội dung mô tả" optionalLabel={null}>
                   {(control) => (
                     <textarea
                       {...control}
                       rows={3}
                       value={localContent.customIdeaStep1Desc || ''}
                       onChange={(e) => handleChange('customIdeaStep1Desc', e.target.value)}
-                      placeholder={isVi ? 'Cung cấp bản vẽ tay, ảnh chụp mẫu vật hoặc mô tả bài toán công năng. Kỹ sư tiếp nhận, phân tích tính khả thi DFM và lập phương án sơ bộ.' : 'Submit preliminary hand sketches, physical photos, or functional criteria. Engineers assess DFM feasibility and establish design briefs.'}
+                      placeholder="Cung cấp bản vẽ tay, ảnh chụp mẫu vật hoặc mô tả bài toán công năng. Kỹ sư tiếp nhận, phân tích tính khả thi DFM và lập phương án sơ bộ."
                       className={TEXTAREA_CLASS}
                     />
                   )}
@@ -1033,27 +1026,27 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
               <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-4">
                 <div className="flex items-center gap-2 font-mono font-semibold text-fg">
                   <span className="rounded-sm border border-line bg-surface px-2 py-0.5">02</span>
-                  <span>{isVi ? 'Giai Đoạn 2' : 'Stage 2'}</span>
+                  <span>Giai Đoạn 2</span>
                 </div>
-                <Field label={isVi ? 'Tiêu đề' : 'Title'} optionalLabel={null}>
+                <Field label="Tiêu đề" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
                       type="text"
                       value={localContent.customIdeaStep2Title || ''}
                       onChange={(e) => handleChange('customIdeaStep2Title', e.target.value)}
-                      placeholder={isVi ? 'Thiết Kế CAD 3D Chuẩn Kỹ Thuật' : 'Parametric 3D CAD Modeling'}
+                      placeholder="Thiết Kế CAD 3D Chuẩn Kỹ Thuật"
                     />
                   )}
                 </Field>
-                <Field label={isVi ? 'Nội dung mô tả' : 'Description'} optionalLabel={null}>
+                <Field label="Nội dung mô tả" optionalLabel={null}>
                   {(control) => (
                     <textarea
                       {...control}
                       rows={3}
                       value={localContent.customIdeaStep2Desc || ''}
                       onChange={(e) => handleChange('customIdeaStep2Desc', e.target.value)}
-                      placeholder={isVi ? 'Mô hình hoá tham số B-Rep trên phần mềm cơ khí chuyên nghiệp, kiểm tra lắp ghép dung sai ren cấy và tối ưu cho công nghệ in 3D.' : 'Parametric B-Rep solid modeling, tolerance assembly fit checks, and Design for Additive Manufacturing (DFAM) optimization.'}
+                      placeholder="Mô hình hoá tham số B-Rep trên phần mềm cơ khí chuyên nghiệp, kiểm tra lắp ghép dung sai ren cấy và tối ưu cho công nghệ in 3D."
                       className={TEXTAREA_CLASS}
                     />
                   )}
@@ -1064,27 +1057,27 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
               <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-4">
                 <div className="flex items-center gap-2 font-mono font-semibold text-fg">
                   <span className="rounded-sm border border-line bg-surface px-2 py-0.5">03</span>
-                  <span>{isVi ? 'Giai Đoạn 3' : 'Stage 3'}</span>
+                  <span>Giai Đoạn 3</span>
                 </div>
-                <Field label={isVi ? 'Tiêu đề' : 'Title'} optionalLabel={null}>
+                <Field label="Tiêu đề" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
                       type="text"
                       value={localContent.customIdeaStep3Title || ''}
                       onChange={(e) => handleChange('customIdeaStep3Title', e.target.value)}
-                      placeholder={isVi ? 'In Mẫu Thử Nghiệm & Bàn Giao' : 'Rapid Prototyping & Handover'}
+                      placeholder={'In Mẫu Thử Nghiệm & Bàn Giao'}
                     />
                   )}
                 </Field>
-                <Field label={isVi ? 'Nội dung mô tả' : 'Description'} optionalLabel={null}>
+                <Field label="Nội dung mô tả" optionalLabel={null}>
                   {(control) => (
                     <textarea
                       {...control}
                       rows={3}
                       value={localContent.customIdeaStep3Desc || ''}
                       onChange={(e) => handleChange('customIdeaStep3Desc', e.target.value)}
-                      placeholder={isVi ? 'Gia công mẫu thử 1:1 bằng vật liệu kỹ thuật thực tế, đo kiểm kích thước và bàn giao bộ tệp nguồn gốc kèm quyền sở hữu bản quyền.' : '1:1 rapid physical prototyping, precision dimensional validation, and complete handover of native CAD files with commercial IP rights.'}
+                      placeholder="Gia công mẫu thử 1:1 bằng vật liệu kỹ thuật thực tế, đo kiểm kích thước và bàn giao bộ tệp nguồn gốc kèm quyền sở hữu bản quyền."
                       className={TEXTAREA_CLASS}
                     />
                   )}

@@ -49,7 +49,7 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
       placement="right"
       showCloseButton={false}
       bodyClassName="flex min-h-0 flex-1 flex-col"
-      aria-label={t('supportAssistant', 'Trợ lý tự động', 'Automated assistant')}
+      aria-label={t('supportAssistant', 'Trợ lý tự động')}
     >
         {/* Header */}
         <div className="p-4 sm:p-5 bg-surface text-fg flex items-center justify-between border-b border-line">
@@ -59,7 +59,7 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
             </div>
             <div className="min-w-0">
               <h3 className="truncate text-sm font-semibold text-fg">
-                {t('supportAssistant', 'Trợ lý tự động', 'Automated assistant')}
+                {t('supportAssistant', 'Trợ lý tự động')}
               </h3>
               <p className="truncate font-sans text-xs text-fg-muted">Phản hồi tự động • Không phải kỹ sư trực ca</p>
             </div>

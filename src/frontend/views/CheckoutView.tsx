@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { CartItem, Order, OrderPaymentStatus, SiteContentConfig } from '../../types';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { useCartStore } from '../stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
@@ -43,8 +42,6 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   onNavigate
 }) => {
   const { user, profile, isLoggedIn } = useAuth();
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   // Q1 (Đợt 8C §0 / data-honesty PC-03): số tài khoản ngân hàng và tên pháp nhân trước
   // đây là HẰNG SỐ trong mã — khách nhìn thấy một số tài khoản BỊA ngay ở bước thanh toán
@@ -138,9 +135,9 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     const createdAt = new Date();
     const createdAtIso = createdAt.toISOString();
     const displayDate =
-      createdAt.toLocaleDateString(isVi ? 'vi-VN' : 'en-US') +
+      createdAt.toLocaleDateString('vi-VN') +
       ' ' +
-      createdAt.toLocaleTimeString(isVi ? 'vi-VN' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+      createdAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
     // P0 (PC-03 / data-honesty §5): đơn mới KHÔNG bao giờ tự nhận đã thanh toán.
     // VietQR/VNPAY chỉ được chuyển sang `paid` bởi webhook cổng thanh toán đã
@@ -242,7 +239,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       // Ghi DB hỏng ⇒ KHÔNG có màn hình thành công, KHÔNG đơn "trên RAM".
       // Hiện nguyên văn lỗi thật để người dùng/người vận hành biết chuyện gì xảy ra.
       setOrderError(
-        err?.message || (isVi ? 'Không lưu được đơn hàng vào cơ sở dữ liệu.' : 'Could not save the order to the database.')
+        err?.message || ('Không lưu được đơn hàng vào cơ sở dữ liệu.')
       );
     } finally {
       setIsProcessing(false);
@@ -261,15 +258,11 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           bordered
           className="w-full max-w-md bg-surface"
           icon={<Icon name="shopping_cart" size={22} />}
-          title={isVi ? 'Giỏ hàng của bạn đang trống' : 'Your cart is empty'}
-          description={
-            isVi
-              ? 'Thêm sản phẩm hoặc tệp CAD vào giỏ trước khi thanh toán.'
-              : 'Add a product or CAD file to your cart before checking out.'
-          }
+          title="Giỏ hàng của bạn đang trống"
+          description="Thêm sản phẩm hoặc tệp CAD vào giỏ trước khi thanh toán."
           action={
             <Button variant="primary" size="lg" onClick={() => onNavigate('cart')}>
-              {isVi ? 'Về giỏ hàng' : 'Back to cart'}
+              Về giỏ hàng
             </Button>
           }
         />
@@ -329,12 +322,10 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               </div>
               <div>
                 <p className="text-sm font-semibold text-fg">
-                  {isVi ? `Tài khoản đặt hàng: ${profile?.displayName || user?.email}` : `Ordering Account: ${profile?.displayName || user?.email}`}
+                  {`Tài khoản đặt hàng: ${profile?.displayName || user?.email}`}
                 </p>
                 <p className="text-xs text-fg-subtle">
-                  {isVi
-                    ? 'Đơn hàng sẽ tự động lưu vào kho lưu trữ số và cấp quyền theo dõi tiến độ in 3D.'
-                    : 'Order will be stored in your digital library with real-time print tracking.'}
+                  Đơn hàng sẽ tự động lưu vào kho lưu trữ số và cấp quyền theo dõi tiến độ in 3D.
                 </p>
               </div>
             </div>
@@ -351,16 +342,14 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-fg">
-                    {isVi ? 'Chế độ đặt hàng khách vãng lai' : 'Guest Checkout Active'}
+                    Chế độ đặt hàng khách vãng lai
                   </p>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info-tint px-2.5 py-1 text-xs font-medium text-info">
                     Không Cần Mật Khẩu
                   </span>
                 </div>
                 <p className="mt-0.5 text-xs text-fg-muted">
-                  {isVi
-                    ? 'Bạn có thể đặt in trực tiếp bằng SĐT & Địa chỉ. Hệ thống cấp một mã truy cập riêng để bạn tra cứu trạng thái đơn hàng.'
-                    : 'Checkout instantly with phone & address. A secure token will be generated to track your fabrication live.'}
+                  {'Bạn có thể đặt in trực tiếp bằng SĐT & Địa chỉ. Hệ thống cấp một mã truy cập riêng để bạn tra cứu trạng thái đơn hàng.'}
                 </p>
               </div>
             </div>
@@ -371,7 +360,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 className="inline-flex items-center gap-1.5 rounded-md border border-line-control bg-surface px-3.5 py-2 text-sm font-medium text-fg transition-colors duration-200 hover:border-fg-subtle hover:bg-surface-muted max-md:min-h-11"
               >
                 <Icon name="login" size={16} />
-                <span>{isVi ? 'Đăng nhập nếu có tài khoản' : 'Sign In'}</span>
+                <span>Đăng nhập nếu có tài khoản</span>
               </Link>
             </div>
           </Card>
@@ -604,14 +593,10 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                   ) : (
                     <div className="space-y-2 rounded-md border border-warning/20 bg-warning-tint p-3 text-xs text-fg-muted">
                       <p className="font-semibold text-warning">
-                        {isVi
-                          ? 'Chưa cấu hình thông tin chuyển khoản — liên hệ VCUBE'
-                          : 'Transfer details not configured — contact VCUBE'}
+                        Chưa cấu hình thông tin chuyển khoản — liên hệ VCUBE
                       </p>
                       <p className="leading-relaxed">
-                        {isVi
-                          ? 'VCUBE chưa khai báo ngân hàng, số tài khoản và tên pháp nhân nhận chuyển khoản. Vui lòng liên hệ VCUBE để nhận thông tin chính xác trước khi chuyển khoản.'
-                          : 'VCUBE has not configured a receiving bank account. Contact VCUBE for the correct details before transferring.'}
+                        VCUBE chưa khai báo ngân hàng, số tài khoản và tên pháp nhân nhận chuyển khoản. Vui lòng liên hệ VCUBE để nhận thông tin chính xác trước khi chuyển khoản.
                       </p>
                       {canConfigureTransferInfo && (
                         <Link
@@ -619,15 +604,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                           className="inline-flex items-center gap-1.5 font-semibold text-fg hover:underline max-md:min-h-11"
                         >
                           <Icon name="settings" size={16} />
-                          <span>{isVi ? 'Cấu hình ngay (Cấu hình → Pháp lý & Định danh)' : 'Configure now (Settings → Legal & Identity)'}</span>
+                          <span>{'Cấu hình ngay (Cấu hình → Pháp lý & Định danh)'}</span>
                         </Link>
                       )}
                     </div>
                   )}
                   <p className="pt-1 leading-relaxed text-fg-muted">
-                    {isVi
-                      ? 'Đơn hàng sẽ ở trạng thái CHỜ THANH TOÁN cho tới khi VCUBE đối soát được khoản chuyển. Xưởng chỉ bắt đầu in sau khi thanh toán được xác nhận.'
-                      : 'The order stays AWAITING PAYMENT until the transfer is reconciled. Production starts only after payment is confirmed.'}
+                    Đơn hàng sẽ ở trạng thái CHỜ THANH TOÁN cho tới khi VCUBE đối soát được khoản chuyển. Xưởng chỉ bắt đầu in sau khi thanh toán được xác nhận.
                   </p>
                 </div>
               )}
@@ -756,14 +739,14 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                   </div>
                 ) : pricingError ? (
                   <p className="text-xs leading-relaxed text-danger">
-                    {isVi ? `Không đọc được cấu hình VAT: ${pricingError}` : `Could not read VAT configuration: ${pricingError}`}
+                    {`Không đọc được cấu hình VAT: ${pricingError}`}
                   </p>
                 ) : vatPending ? (
                   <p className="text-xs leading-relaxed text-fg-subtle">
-                    {isVi ? 'Đang đọc cấu hình VAT…' : 'Loading VAT configuration…'}
+                    Đang đọc cấu hình VAT…
                   </p>
                 ) : (
-                  <p className="text-xs leading-relaxed text-fg-subtle">{vatNotConfiguredLabel(isVi)}</p>
+                  <p className="text-xs leading-relaxed text-fg-subtle">{vatNotConfiguredLabel()}</p>
                 )}
 
                 <div className="flex items-baseline justify-between gap-4 border-t border-line-subtle pt-4">
@@ -771,7 +754,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                   <div className="text-right">
                     <Money value={totalAmount} size="heading" className="block font-mono tabular-nums text-right text-fg" />
                     <span className="block text-xs text-fg-subtle">
-                      {vatTotalNote(isVi, vatRate)}
+                      {vatTotalNote(vatRate)}
                     </span>
                   </div>
                 </div>
@@ -785,12 +768,10 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 >
                   <p className="flex items-center gap-1.5 font-semibold">
                     <Icon name="error" size={16} className="shrink-0" />
-                    <span>{isVi ? 'ĐƠN HÀNG CHƯA ĐƯỢC TẠO' : 'ORDER NOT CREATED'}</span>
+                    <span>ĐƠN HÀNG CHƯA ĐƯỢC TẠO</span>
                   </p>
                   <p className="text-xs leading-relaxed">
-                    {isVi
-                      ? 'Hệ thống chưa ghi được đơn vào cơ sở dữ liệu, nên đơn CHƯA tồn tại. Chi tiết lỗi:'
-                      : 'The order was not written to the database, so it does NOT exist. Error detail:'}
+                    Hệ thống chưa ghi được đơn vào cơ sở dữ liệu, nên đơn CHƯA tồn tại. Chi tiết lỗi:
                   </p>
                   <p className="break-words text-xs">{orderError}</p>
                 </div>

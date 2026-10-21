@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useDesignerAdminStore, DesignerRow } from '../../../../stores/useDesignerAdminStore';
-import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { AppUserProfile } from '../../../../types';
 import { Badge, Button, DataTable, EmptyState, Field, Icon, InfoTip, Input, Modal, Skeleton } from '@frontend/ui';
@@ -32,8 +31,6 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
   onShowToast,
   onNavigateSection
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   const [activeTab, setActiveTab] = useState<'designers' | 'withdrawals' | 'analytics'>('designers');
 
@@ -62,12 +59,8 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
    */
   const noBadgeTierNote =
     designerColumns.length === 0
-      ? isVi
-        ? 'chưa xác định được cột vì bảng chưa có bản ghi nào'
-        : 'columns unknown because the table has no row yet'
-      : isVi
-      ? 'bảng designer_profiles không có cột badge_tier'
-      : 'designer_profiles has no badge_tier column';
+      ? 'chưa xác định được cột vì bảng chưa có bản ghi nào'
+      : 'bảng designer_profiles không có cột badge_tier';
 
   useEffect(() => {
     void loadDesigners();
@@ -92,14 +85,14 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
       } catch (err: any) {
         if (alive) {
           setUsers([]);
-          setUsersError(err?.message || (isVi ? 'lỗi không xác định' : 'unknown error'));
+          setUsersError(err?.message || ('lỗi không xác định'));
         }
       }
     })();
     return () => {
       alive = false;
     };
-  }, [isVi]);
+  }, []);
 
   const userById = useMemo(() => {
     const map = new Map<string, AppUserProfile>();
@@ -159,17 +152,13 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
       });
       if (!res.success) {
         onShowToast?.(
-          isVi
-            ? `Lưu hồ sơ designer thất bại: ${res.error || 'lỗi không xác định'}`
-            : `Failed to save designer profile: ${res.error || 'unknown error'}`
+          `Lưu hồ sơ designer thất bại: ${res.error || 'lỗi không xác định'}`
         );
         return; // giữ modal mở để không mất thao tác vừa nhập
       }
       setEditingDesigner(null);
       onShowToast?.(
-        isVi
-          ? `Đã lưu vào designer_profiles: ${editingDesigner.displayName}`
-          : `Saved to designer_profiles: ${editingDesigner.displayName}`
+        `Đã lưu vào designer_profiles: ${editingDesigner.displayName}`
       );
     } finally {
       setIsSavingDesigner(false);
@@ -191,12 +180,8 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
     const res = await updateDesigner(d.id, { badgeTier: nextTier });
     onShowToast?.(
       res.success
-        ? isVi
-          ? `Đã đổi huy hiệu ${d.displayName} thành ${nextTier === 'TopCreator' ? 'Tác giả hàng đầu' : nextTier === 'VerifiedEngineer' ? 'Kỹ sư đã kiểm duyệt' : nextTier === 'PioneerMaker' ? 'Nghệ nhân tiên phong' : 'Tác giả tiêu chuẩn'}`
-          : `Changed ${d.displayName} tier to ${nextTier}`
-        : isVi
-        ? `Đổi huy hiệu thất bại: ${res.error}`
-        : `Failed to change tier: ${res.error}`
+        ? `Đã đổi huy hiệu ${d.displayName} thành ${nextTier === 'TopCreator' ? 'Tác giả hàng đầu' : nextTier === 'VerifiedEngineer' ? 'Kỹ sư đã kiểm duyệt' : nextTier === 'PioneerMaker' ? 'Nghệ nhân tiên phong' : 'Tác giả tiêu chuẩn'}`
+        : `Đổi huy hiệu thất bại: ${res.error}`
     );
   };
 
@@ -215,16 +200,16 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
     },
     {
       key: 'royaltyPercent',
-      header: isVi ? 'Trần hoa hồng' : 'Royalty cap',
+      header: 'Trần hoa hồng',
       numeric: true,
       value: (d) => d.royaltyPercent ?? 0,
       render: (d) => <span className="font-bold text-primary">{d.royaltyPercent !== null ? `${d.royaltyPercent}%` : '—'}</span>,
     },
     { key: 'totalSales', header: 'total_sales', numeric: true, value: (d) => d.totalSales ?? 0, render: (d) => numOrDash(d.totalSales) },
-    { key: 'rating', header: isVi ? 'Đánh giá' : 'Rating', numeric: true, value: (d) => d.rating ?? 0, render: (d) => numOrDash(d.rating) },
-    { key: 'verifiedStatus', header: isVi ? 'Xác thực' : 'Verified', value: (d) => d.verifiedStatus || '', render: (d) => <span className="text-fg-muted">{verifiedStatusLabel(d.verifiedStatus)}</span> },
+    { key: 'rating', header: 'Đánh giá', numeric: true, value: (d) => d.rating ?? 0, render: (d) => numOrDash(d.rating) },
+    { key: 'verifiedStatus', header: 'Xác thực', value: (d) => d.verifiedStatus || '', render: (d) => <span className="text-fg-muted">{verifiedStatusLabel(d.verifiedStatus)}</span> },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi]);
+  ], []);
 
   return (
     <div className="space-y-6">
@@ -232,16 +217,14 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-6 rounded-lg border border-line">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="technical">{isVi ? 'Nhà thiết kế' : 'Designers'}</Badge>
+            <Badge variant="technical">Nhà thiết kế</Badge>
             <h2 className="text-xl font-bold text-fg tracking-tight">
-              {isVi ? 'Quản Trị Nhà Thiết Kế & Bản Quyền' : 'Designers & IP Royalty Hub'}
+              {'Quản Trị Nhà Thiết Kế & Bản Quyền'}
             </h2>
           </div>
           <div className="mt-1">
-            <InfoTip label={isVi ? 'Mục này quản trị những gì?' : 'What does this hub manage?'}>
-              {isVi
-                ? 'Hồ sơ nhà thiết kế đọc/ghi trực tiếp bảng designer_profiles: trần hoa hồng bản quyền và (nếu bảng có cột) huy hiệu.'
-                : 'Designer profiles are read/written directly to designer_profiles: royalty cap and (when the column exists) badge tier.'}
+            <InfoTip label="Mục này quản trị những gì?">
+              Hồ sơ nhà thiết kế đọc/ghi trực tiếp bảng designer_profiles: trần hoa hồng bản quyền và (nếu bảng có cột) huy hiệu.
             </InfoTip>
           </div>
         </div>
@@ -257,7 +240,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
             }`}
           >
             <Icon name="palette" size={18} />
-            {isVi ? 'Hồ Sơ Nhà Thiết Kế' : 'Designers'}
+            Hồ Sơ Nhà Thiết Kế
           </button>
           <button
             onClick={() => setActiveTab('withdrawals')}
@@ -268,7 +251,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
             }`}
           >
             <Icon name="payments" size={18} />
-            {isVi ? 'Lệnh Rút Tiền' : 'Payouts'}
+            Lệnh Rút Tiền
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -279,7 +262,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
             }`}
           >
             <Icon name="query_stats" size={18} />
-            {isVi ? 'Doanh thu & bán hàng' : 'Sales Stats'}
+            {'Doanh thu & bán hàng'}
           </button>
         </div>
       </div>
@@ -287,56 +270,56 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
       {/* KPI Cards — mọi số đều từ `designer_profiles`; không có cột ⇒ '—' */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tổng Nhà Thiết Kế' : 'Total Designers'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Tổng Nhà Thiết Kế</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">{error ? '—' : isLoading ? '…' : stats.totalDesigners}</div>
           <div className="text-xs text-fg-subtle font-medium mt-0.5">
             {error
-              ? isVi ? 'Lỗi đọc designer_profiles' : 'designer_profiles read failed'
-              : isVi ? 'Bảng designer_profiles' : 'designer_profiles table'}
+              ? 'Lỗi đọc designer_profiles'
+              : 'Bảng designer_profiles'}
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tác Giả Hàng Đầu' : 'Top Creators'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Tác Giả Hàng Đầu</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">{numOrDash(stats.topCreatorsCount)}</div>
           <div className="text-xs text-warning font-medium mt-0.5">
-            {hasBadgeColumn ? (isVi ? 'Huy hiệu cao nhất' : 'Elite tier') : noBadgeTierNote}
+            {hasBadgeColumn ? ('Huy hiệu cao nhất') : noBadgeTierNote}
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Kỹ Sư CAD' : 'Verified Eng.'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Kỹ Sư CAD</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">{numOrDash(stats.verifiedEngineersCount)}</div>
           <div className="text-xs text-info font-medium mt-0.5">
-            {hasBadgeColumn ? (isVi ? 'Kỹ thuật chính xác' : 'Mechanical') : noBadgeTierNote}
+            {hasBadgeColumn ? ('Kỹ thuật chính xác') : noBadgeTierNote}
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tác giả tiên phong' : 'Pioneers'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Tác giả tiên phong</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">{numOrDash(stats.pioneerMakersCount)}</div>
           <div className="text-xs text-info font-medium mt-0.5">
-            {hasBadgeColumn ? (isVi ? 'Tạo mẫu sáng tạo' : 'Artistic') : noBadgeTierNote}
+            {hasBadgeColumn ? ('Tạo mẫu sáng tạo') : noBadgeTierNote}
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Hoa hồng ghi nhận' : 'Royalties Recorded'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Hoa hồng ghi nhận</div>
           <div className="text-lg font-bold tabular-nums text-fg mt-1 truncate">
             {stats.totalRoyaltiesPaidVnd === null ? '—' : formatVnd(stats.totalRoyaltiesPaidVnd)}
           </div>
           <div className="text-xs text-positive font-medium mt-0.5">
             {stats.totalRoyaltiesPaidVnd === null
-              ? isVi ? 'Bảng không có cột total_royalties_earned' : 'no total_royalties_earned column'
-              : isVi ? 'Tổng theo hồ sơ' : 'From profiles'}
+              ? 'Bảng không có cột total_royalties_earned'
+              : 'Tổng theo hồ sơ'}
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Chờ Quyết Toán' : 'Pending Payout'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Chờ Quyết Toán</div>
           <div className="text-lg font-bold tabular-nums text-fg mt-1 truncate">—</div>
           <div className="text-xs text-danger font-medium mt-0.5">
-            {isVi ? 'Chưa có nguồn dữ liệu chi trả' : 'No payout data source'}
+            Chưa có nguồn dữ liệu chi trả
           </div>
         </div>
       </div>
@@ -349,7 +332,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               {hasBadgeColumn ? (
                 <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
-                  <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Huy hiệu:' : 'Badge Tier:'}</span>
+                  <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">Huy hiệu:</span>
                   {(['all', 'TopCreator', 'VerifiedEngineer', 'PioneerMaker', 'Standard'] as const).map((t) => (
                     <button
                       key={t}
@@ -361,28 +344,26 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                       }`}
                     >
                       {t === 'all'
-                        ? (isVi ? 'Tất cả' : 'All')
+                        ? ('Tất cả')
                         : t === 'TopCreator'
                         ? '👑 Tác giả hàng đầu'
                         : t === 'VerifiedEngineer'
                         ? '⚙️ Kỹ sư'
                         : t === 'PioneerMaker'
                         ? '🚀 Tiên phong'
-                        : (isVi ? 'Tiêu chuẩn' : 'Standard')}
+                        : ('Tiêu chuẩn')}
                     </button>
                   ))}
                 </div>
               ) : (
                 <span className="text-xs text-fg-subtle bg-surface-muted border border-line px-2.5 py-1.5 rounded-md">
-                  {isVi
-                    ? `Không lọc/gán huy hiệu được: ${noBadgeTierNote}.`
-                    : `Tier filter/assignment unavailable: ${noBadgeTierNote}.`}
+                  {`Không lọc/gán huy hiệu được: ${noBadgeTierNote}.`}
                 </span>
               )}
 
               <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
                 <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">
-                  {isVi ? 'Xác thực:' : 'Verified:'}
+                  Xác thực:
                 </span>
                 {(['all', 'Verified', 'Pending'] as const).map((s) => (
                   <button
@@ -394,7 +375,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
-                    {s === 'all' ? (isVi ? 'Tất cả' : 'All') : s === 'Verified' ? 'Đã duyệt' : 'Chờ duyệt'}
+                    {s === 'all' ? ('Tất cả') : s === 'Verified' ? 'Đã duyệt' : 'Chờ duyệt'}
                   </button>
                 ))}
               </div>
@@ -403,13 +384,13 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
             <div className="flex items-center gap-2">
               <div className="relative w-full md:w-72">
                 <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
-                <Field label={isVi ? 'Tìm tên nhà thiết kế, email' : 'Search designer'} hideLabel optionalLabel={null}>
+                <Field label="Tìm tên nhà thiết kế, email" hideLabel optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
                       type="text"
-                      aria-label={isVi ? 'Tìm tên nhà thiết kế, email' : 'Search designer'}
-                      placeholder={isVi ? 'Tìm tên nhà thiết kế, email...' : 'Search designer...'}
+                      aria-label="Tìm tên nhà thiết kế, email"
+                      placeholder="Tìm tên nhà thiết kế, email..."
                       value={filters.searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-8"
@@ -425,16 +406,14 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                 onClick={() => void loadDesigners()}
                 disabled={isLoading}
               >
-                {isVi ? 'Tải Lại' : 'Reload'}
+                Tải Lại
               </Button>
             </div>
           </div>
 
           {usersError !== null && (
             <p className="text-xs text-warning bg-warning-tint border border-warning/20 rounded-md px-3 py-2">
-              {isVi
-                ? `Không ghép được hồ sơ người dùng (email/SĐT) từ user_profiles: ${usersError}`
-                : `Could not join user profiles (email/phone) from user_profiles: ${usersError}`}
+              {`Không ghép được hồ sơ người dùng (email/SĐT) từ user_profiles: ${usersError}`}
             </p>
           )}
 
@@ -442,7 +421,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
           {isLoading && designers.length === 0 && error === null && (
             <div
               role="status"
-              aria-label={isVi ? 'Đang tải hồ sơ nhà thiết kế từ designer_profiles...' : 'Loading designer profiles from designer_profiles...'}
+              aria-label="Đang tải hồ sơ nhà thiết kế từ designer_profiles..."
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
               {[0, 1].map((i) => (
@@ -457,11 +436,11 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
               <Icon name="error" size={24} className="text-danger mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-semibold text-danger text-sm">
-                  {isVi ? 'Không đọc được bảng designer_profiles' : 'Could not read the designer_profiles table'}
+                  Không đọc được bảng designer_profiles
                 </h4>
                 <p className="text-xs text-danger mt-1 font-mono break-all">{error}</p>
                 <Button variant="secondary" size="sm" className="mt-2" onClick={() => void loadDesigners()}>
-                  {isVi ? 'Thử lại' : 'Retry'}
+                  Thử lại
                 </Button>
               </div>
             </div>
@@ -470,20 +449,16 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
           {error === null && !isLoading && filteredDesigners.length === 0 && (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có nhà thiết kế nào' : 'No designer yet'}
+              title="Chưa có nhà thiết kế nào"
               description={
                 designers.length === 0
-                  ? isVi
-                    ? 'Bảng designer_profiles chưa có bản ghi nào.'
-                    : 'The designer_profiles table has no row yet.'
-                  : isVi
-                  ? 'Không có hồ sơ nhà thiết kế nào khớp bộ lọc hiện tại.'
-                  : 'No designer profile matches the current filter.'
+                  ? 'Bảng designer_profiles chưa có bản ghi nào.'
+                  : 'Không có hồ sơ nhà thiết kế nào khớp bộ lọc hiện tại.'
               }
               icon={<Icon name="draw" size={20} className="text-primary" />}
               action={
                 <Button variant="secondary" size="sm" onClick={() => setActiveTab('analytics')}>
-                  {isVi ? 'Xem Doanh Thu Theo Nhà Thiết Kế' : 'View revenue by designer'}
+                  Xem Doanh Thu Theo Nhà Thiết Kế
                 </Button>
               }
             />
@@ -537,10 +512,10 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                           )}
                         </div>
                         <p className="text-xs text-fg-subtle mt-0.5">
-                          {user?.email || '—'} • {user?.phone || (isVi ? 'Chưa cập nhật SĐT' : 'No phone')}
+                          {user?.email || '—'} • {user?.phone || ('Chưa cập nhật SĐT')}
                         </p>
                         <p className="text-xs text-fg-subtle mt-0.5 font-mono">
-                          {isVi ? 'Xác thực:' : 'Verified:'} {verifiedStatusLabel(d.verifiedStatus)}
+                          Xác thực: {verifiedStatusLabel(d.verifiedStatus)}
                           {d.rating !== null ? ` • ★ ${d.rating}` : ''}
                         </p>
                       </div>
@@ -553,7 +528,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                       leadingIcon={<Icon name="tune" size={16} />}
                       onClick={() => handleOpenEdit(d)}
                     >
-                      {isVi ? 'Cấu Hình' : 'Configure'}
+                      Cấu Hình
                     </Button>
                   </div>
 
@@ -566,26 +541,26 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                   {/* Royalty & Sales — chỉ hiện số có thật trong DB */}
                   <div className="grid grid-cols-3 gap-2 mt-4 p-3 bg-surface-muted rounded-md border border-line-subtle">
                     <div>
-                      <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Trần Hoa Hồng' : 'Royalty Cap'}</div>
+                      <div className="text-xs text-fg-subtle font-semibold uppercase">Trần Hoa Hồng</div>
                       <div className="text-lg font-bold text-fg font-mono tabular-nums">
                         {d.royaltyPercent !== null ? `${d.royaltyPercent}%` : '—'}
                       </div>
                       <div className="text-xs text-fg-subtle">royalty_percent</div>
                     </div>
                     <div>
-                      <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Doanh Số Ghi Nhận' : 'Recorded Sales'}</div>
+                      <div className="text-xs text-fg-subtle font-semibold uppercase">Doanh Số Ghi Nhận</div>
                       <div className="text-sm font-bold text-fg font-mono tabular-nums mt-0.5">
                         {numOrDash(d.totalSales)}
                       </div>
                       <div className="text-xs text-fg-subtle">total_sales</div>
                     </div>
                     <div>
-                      <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Hoa Hồng Đã Trả' : 'Royalties Paid'}</div>
+                      <div className="text-xs text-fg-subtle font-semibold uppercase">Hoa Hồng Đã Trả</div>
                       <div className="text-sm font-bold text-warning font-mono tabular-nums mt-0.5">
                         {d.totalRoyaltiesEarned !== null ? formatVnd(d.totalRoyaltiesEarned) : '—'}
                       </div>
                       <div className="text-xs text-fg-subtle">
-                        {d.totalRoyaltiesEarned !== null ? 'total_royalties_earned' : isVi ? 'bảng không có cột này' : 'no such column'}
+                        {d.totalRoyaltiesEarned !== null ? 'total_royalties_earned' : 'bảng không có cột này'}
                       </div>
                     </div>
                   </div>
@@ -605,7 +580,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
 
                 <div className="mt-4 pt-3 border-t border-line-subtle flex items-center justify-between text-xs">
                   <span className="text-fg-subtle">
-                    {isVi ? 'Gia nhập:' : 'Joined:'}{' '}
+                    Gia nhập:{' '}
                     {d.createdAt ? new Date(d.createdAt).toLocaleDateString('vi-VN') : '—'}
                   </span>
                   <div className="flex items-center gap-2">
@@ -615,7 +590,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                         size="sm"
                         onClick={() => void handleCycleTier(d)}
                       >
-                        {isVi ? 'Thăng Hạng Nhanh' : 'Cycle Tier'}
+                        Thăng Hạng Nhanh
                       </Button>
                     )}
                   </div>
@@ -635,27 +610,21 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
             <Icon name="warning" size={24} className="text-warning mt-0.5" />
             <div className="text-xs">
               <h4 className="font-semibold text-warning text-sm">
-                {isVi ? 'Chưa có nguồn dữ liệu lệnh rút tiền trong DB' : 'No DB source for payout requests yet'}
+                Chưa có nguồn dữ liệu lệnh rút tiền trong DB
               </h4>
               <p className="text-fg-muted mt-1">
-                {isVi
-                  ? 'Không có bảng nào lưu YÊU CẦU rút tiền của designer: `payment_transactions` (baseline schema) chỉ có order_id / transaction_id / amount / status — không có designer_id, số tài khoản hay thời điểm yêu cầu; và không có hàm service nào đọc bảng đó. Vì vậy màn này KHÔNG hiển thị danh sách thay thế và không cho duyệt/từ chối trên RAM.'
-                  : 'No table stores designer payout REQUESTS: `payment_transactions` only has order_id / transaction_id / amount / status — no designer_id, bank account or requested-at; and no service function reads it. This screen therefore shows no substitute list and offers no RAM-only approve/reject.'}
+                Không có bảng nào lưu YÊU CẦU rút tiền của designer: `payment_transactions` (baseline schema) chỉ có order_id / transaction_id / amount / status — không có designer_id, số tài khoản hay thời điểm yêu cầu; và không có hàm service nào đọc bảng đó. Vì vậy màn này KHÔNG hiển thị danh sách thay thế và không cho duyệt/từ chối trên RAM.
               </p>
             </div>
           </div>
           <EmptyState
             size="sm"
-            title={isVi ? 'Không có bản ghi lệnh rút tiền' : 'No payout request record'}
-            description={
-              isVi
-                ? 'Cần một bảng + hàm service đọc/ghi yêu cầu rút tiền trước khi tab này có dữ liệu thật.'
-                : 'A table plus service read/write for payout requests is required before this tab can hold real data.'
-            }
+            title="Không có bản ghi lệnh rút tiền"
+            description="Cần một bảng + hàm service đọc/ghi yêu cầu rút tiền trước khi tab này có dữ liệu thật."
             icon={<Icon name="payments" size={20} className="text-primary" />}
             action={
               <Button variant="secondary" size="sm" onClick={() => setActiveTab('designers')}>
-                {isVi ? 'Xem Nhà Thiết Kế' : 'View designers'}
+                Xem Nhà Thiết Kế
               </Button>
             }
           />
@@ -667,12 +636,10 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
         <div className="space-y-4">
           <div className="bg-surface p-4 rounded-lg border border-line text-xs">
             <h4 className="font-semibold text-fg text-sm">
-              {isVi ? 'Số liệu đọc từ designer_profiles' : 'Numbers read from designer_profiles'}
+              Số liệu đọc từ designer_profiles
             </h4>
             <p className="text-fg-subtle mt-0.5">
-              {isVi
-                ? 'Chỉ hiển thị các cột có thật (`total_sales`, `rating`). Doanh thu theo tháng và số đơn hoàn thành KHÔNG có cột trong bảng nên để trống thay vì bịa số.'
-                : 'Only real columns are shown (`total_sales`, `rating`). Monthly revenue and completed orders have no column, so they are left blank instead of invented.'}
+              Chỉ hiển thị các cột có thật (`total_sales`, `rating`). Doanh thu theo tháng và số đơn hoàn thành KHÔNG có cột trong bảng nên để trống thay vì bịa số.
             </p>
           </div>
 
@@ -683,18 +650,16 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
           ) : designers.length === 0 ? (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có dữ liệu theo designer' : 'No per-designer data yet'}
+              title="Chưa có dữ liệu theo designer"
               description={
                 isLoading
-                  ? isVi ? 'Đang tải...' : 'Loading...'
-                  : isVi
-                  ? 'Bảng designer_profiles chưa có bản ghi nào.'
-                  : 'designer_profiles has no row yet.'
+                  ? 'Đang tải...'
+                  : 'Bảng designer_profiles chưa có bản ghi nào.'
               }
               icon={<Icon name="analytics" size={20} className="text-primary" />}
               action={
                 <Button variant="secondary" size="sm" onClick={() => setActiveTab('designers')}>
-                  {isVi ? 'Xem Nhà Thiết Kế' : 'View designers'}
+                  Xem Nhà Thiết Kế
                 </Button>
               }
             />
@@ -703,8 +668,8 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
               columns={analyticsColumns}
               rows={designers}
               getRowId={(row) => row.id}
-              caption={isVi ? 'Thống kê theo designer' : 'Per-designer analytics'}
-              tableLabel={isVi ? 'Thống kê theo designer' : 'Per-designer analytics'}
+              caption="Thống kê theo designer"
+              tableLabel="Thống kê theo designer"
               defaultSort={[{ key: 'totalSales', direction: 'desc' }]}
             />
           )}
@@ -717,12 +682,12 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
           open
           onClose={() => setEditingDesigner(null)}
           size="md"
-          title={isVi ? 'Cấu Hình Nhà Thiết Kế & Bản Quyền' : 'Configure Designer & IP'}
+          title={'Cấu Hình Nhà Thiết Kế & Bản Quyền'}
           description={editingDesigner.displayName}
         >
             <form onSubmit={handleSaveDesigner} className="space-y-4">
               {hasBadgeColumn ? (
-                <Field label={isVi ? 'Gán Huy Hiệu:' : 'Badge Tier Assignment:'} optionalLabel={null}>
+                <Field label="Gán Huy Hiệu:" optionalLabel={null}>
                   {() => (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {BADGE_TIERS.map((tier) => (
@@ -746,9 +711,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                 </Field>
               ) : (
                 <p className="text-xs text-fg-muted bg-surface-muted border border-line-subtle rounded-md px-3 py-2">
-                  {isVi
-                    ? `Mục huy hiệu được ẩn (không ghi vào cột không tồn tại): ${noBadgeTierNote}.`
-                    : `The tier section is hidden (no write to a non-existent column): ${noBadgeTierNote}.`}
+                  {`Mục huy hiệu được ẩn (không ghi vào cột không tồn tại): ${noBadgeTierNote}.`}
                 </p>
               )}
 
@@ -756,7 +719,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
               <Field
                 label={
                   <span className="flex items-center justify-between gap-2">
-                    <span>{isVi ? 'Trần Hoa Hồng Bản Quyền (%):' : 'Royalty Rate (%):'}</span>
+                    <span>Trần Hoa Hồng Bản Quyền (%):</span>
                     <span className="font-mono font-bold tabular-nums text-sm text-fg">{royaltyDraft}%</span>
                   </span>
                 }
@@ -776,17 +739,13 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                     />
                     <div className="flex justify-between text-xs text-fg-subtle mt-1 font-mono">
                       <span>Tối thiểu: 5%</span>
-                      <span>{isVi ? 'Mặc định: 10%' : 'Default: 10%'}</span>
-                      <span>{isVi ? 'Tối đa: 25%' : 'Max: 25%'}</span>
+                      <span>Mặc định: 10%</span>
+                      <span>Tối đa: 25%</span>
                     </div>
                     <p className="text-xs text-fg-subtle mt-1.5">
                       {editingDesigner.royaltyPercent === null
-                        ? isVi
-                          ? 'Hiện DB chưa có giá trị royalty_percent cho hồ sơ này. Thanh trượt đang ở 10% chỉ là điểm bắt đầu — bấm Lưu mới ghi.'
-                          : 'The DB currently has no royalty_percent for this profile. The slider starts at 10% but only Save writes it.'
-                        : isVi
-                        ? 'Giá trị đang lưu trong DB được nạp sẵn vào thanh trượt.'
-                        : 'The value currently stored in the DB is loaded into the slider.'}
+                        ? 'Hiện DB chưa có giá trị royalty_percent cho hồ sơ này. Thanh trượt đang ở 10% chỉ là điểm bắt đầu — bấm Lưu mới ghi.'
+                        : 'Giá trị đang lưu trong DB được nạp sẵn vào thanh trượt.'}
                     </p>
                   </div>
                 )}
@@ -798,14 +757,14 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                   variant="secondary"
                   onClick={() => setEditingDesigner(null)}
                 >
-                  {isVi ? 'Hủy' : 'Cancel'}
+                  Hủy
                 </Button>
                 <Button
                   type="submit"
                   variant="primary"
                   disabled={isSavingDesigner}
                 >
-                  {isSavingDesigner ? (isVi ? 'Đang lưu...' : 'Saving...') : isVi ? 'Lưu Vào DB' : 'Save to DB'}
+                  {isSavingDesigner ? ('Đang lưu...') : 'Lưu Vào DB'}
                 </Button>
               </div>
             </form>

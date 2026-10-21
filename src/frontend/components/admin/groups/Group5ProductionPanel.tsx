@@ -9,7 +9,6 @@ import {
 } from '../../../../stores/useProductionStore';
 import { Order } from '../../../types';
 import { dbService } from '../../../../backend/supabase/database';
-import { useLanguage } from '../../../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber } from '../../../lib/format';
 import { Badge, Button, EmptyState, Field, Icon, InfoTip, Input, Modal, Select, Skeleton } from '@frontend/ui';
 
@@ -135,8 +134,6 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
   onShowToast,
   onNavigateSection
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   // Store CHỈ giữ trạng thái giao diện (bộ lọc / dòng đang chọn / danh sách trạm chưa nối nguồn).
   // Không còn `jobs` trong store và không còn `persist`: nguồn sự thật là bảng `orders`.
@@ -186,11 +183,11 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
     } catch (err: any) {
       // Lỗi thật ⇒ KHÔNG hiện 0 như thể bảng rỗng, KHÔNG rơi về fixture/localStorage.
       setOrders(null);
-      setLoadError(err?.message || (isVi ? 'lỗi không xác định' : 'unknown error'));
+      setLoadError(err?.message || ('lỗi không xác định'));
     } finally {
       setIsLoading(false);
     }
-  }, [isVi]);
+  }, []);
 
   useEffect(() => {
     void loadOrders();
@@ -251,9 +248,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
     const result = await dbService.updateOrderStatus(job.id, stage.index, status);
     if (!result.success) {
       onShowToast?.(
-        isVi
-          ? `Cập nhật nấc sản xuất thất bại: ${result.error || 'lỗi không xác định'}`
-          : `Failed to update production stage: ${result.error || 'unknown error'}`
+        `Cập nhật nấc sản xuất thất bại: ${result.error || 'lỗi không xác định'}`
       );
       return false;
     }
@@ -269,25 +264,25 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
     if (job.stageIndex >= KANBAN_STAGES.length - 1) {
-      onShowToast?.(isVi ? 'Đã hoàn tất quy trình sản xuất' : 'Production flow already complete');
+      onShowToast?.('Đã hoàn tất quy trình sản xuất');
       return;
     }
     const next = KANBAN_STAGES[job.stageIndex + 1];
-    void persistStage(job, next.index, isVi ? `Đã chuyển sang: ${next.labelVi}` : `Advanced to: ${next.labelEn}`);
+    void persistStage(job, next.index, `Đã chuyển sang: ${next.labelVi}`);
   };
 
   const handleRegress = (jobId: string) => {
     const job = jobs.find((j) => j.id === jobId);
     if (!job || job.stageIndex <= 0) return;
     const prev = KANBAN_STAGES[job.stageIndex - 1];
-    void persistStage(job, prev.index, isVi ? `Đã lùi về: ${prev.shortVi}` : `Moved back to ${prev.labelEn}`);
+    void persistStage(job, prev.index, `Đã lùi về: ${prev.shortVi}`);
   };
 
   const handleSetStage = (jobId: string, stageIndex: number) => {
     const job = jobs.find((j) => j.id === jobId);
     const stage = KANBAN_STAGES[stageIndex];
     if (!job || !stage) return;
-    void persistStage(job, stage.index, isVi ? `Đã đặt nấc: ${stage.shortVi}` : `Stage set: ${stage.labelEn}`);
+    void persistStage(job, stage.index, `Đã đặt nấc: ${stage.shortVi}`);
   };
 
   // Metrics — chưa tải xong thì `—`, KHÔNG hiện 0 như thể đã đo.
@@ -303,11 +298,11 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
         <div className="bg-danger-tint border border-danger/20 rounded-lg p-4 space-y-2">
           <div className="flex items-center gap-2 text-danger font-semibold text-sm">
             <Icon name="error" size={20} className="text-danger" />
-            {isVi ? 'Không tải được đơn hàng từ Supabase' : 'Could not load orders from Supabase'}
+            Không tải được đơn hàng từ Supabase
           </div>
           <p className="text-xs font-mono text-danger break-all">{loadError}</p>
           <Button variant="secondary" size="sm" onClick={() => void loadOrders()}>
-            {isVi ? 'Thử lại' : 'Retry'}
+            Thử lại
           </Button>
         </div>
       );
@@ -316,7 +311,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
       return (
         <div
           role="status"
-          aria-label={isVi ? 'ĐANG TẢI ĐƠN HÀNG THẬT TỪ SUPABASE…' : 'LOADING REAL ORDERS FROM SUPABASE…'}
+          aria-label="ĐANG TẢI ĐƠN HÀNG THẬT TỪ SUPABASE…"
           className="flex flex-col gap-3.5 overflow-hidden md:flex-row"
         >
           {[0, 1, 2, 3].map((i) => (
@@ -334,7 +329,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
           icon={<Icon name="inbox" size={20} className="text-primary" />}
           action={
             <Button variant="secondary" size="sm" onClick={() => void loadOrders()}>
-              {isVi ? 'Tải lại' : 'Reload'}
+              Tải lại
             </Button>
           }
         />
@@ -357,18 +352,12 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
             <h2 className="text-lg font-bold tracking-tight text-fg mt-1.5 flex items-center gap-2.5">
               <Icon name="precision_manufacturing" size={24} className="text-primary" />
               {activeTab === 'dispatcher'
-                ? isVi
-                  ? 'Đơn Hàng & Điều Phối Trạm In'
-                  : 'Orders & Workshop Dispatch'
-                : isVi
-                ? 'Hàng Đợi Chế Tác: Bảng Kanban 8 Nấc & Điều Phối Trạm'
-                : 'MES Production: 8-Stage Kanban & Geo-Dispatcher'}
+                ? 'Đơn Hàng & Điều Phối Trạm In'
+                : 'Hàng Đợi Chế Tác: Bảng Kanban 8 Nấc & Điều Phối Trạm'}
             </h2>
             <div className="mt-0.5">
-              <InfoTip label={isVi ? 'Điều phối sản xuất hoạt động thế nào?' : 'How does production dispatch work?'}>
-                {isVi
-                  ? 'Thẻ Kanban là ĐƠN THẬT trong bảng orders; chuyển nấc ghi thẳng xuống Supabase. Điều phối trạm in cần trạm đã được khai báo.'
-                  : 'Each Kanban card is a REAL order row; stage moves are written straight to Supabase. Dispatch needs declared workshops.'}
+              <InfoTip label="Điều phối sản xuất hoạt động thế nào?">
+                Thẻ Kanban là ĐƠN THẬT trong bảng orders; chuyển nấc ghi thẳng xuống Supabase. Điều phối trạm in cần trạm đã được khai báo.
               </InfoTip>
             </div>
           </div>
@@ -409,9 +398,9 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
               leadingIcon={<Icon name="refresh" size={16} />}
               onClick={() => void loadOrders()}
               disabled={isLoading}
-              title={isVi ? 'Đọc lại đơn từ Supabase' : 'Reload orders from Supabase'}
+              title="Đọc lại đơn từ Supabase"
             >
-              {isVi ? 'Tải lại' : 'Reload'}
+              Tải lại
             </Button>
           </div>
         </div>
@@ -430,7 +419,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
               }`}
             >
               <Icon name="view_kanban" size={16} />
-              {isVi ? 'Bảng Kanban 8 Nấc' : '8-Stage Kanban'}
+              Bảng Kanban 8 Nấc
               <span className="text-xs px-1.5 py-0.5 bg-surface border border-line text-fg-muted rounded-full font-mono tabular-nums">
                 {ordersReady ? filteredJobs.length : EMPTY_VALUE}
               </span>
@@ -447,7 +436,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
               }`}
             >
               <Icon name="hub" size={16} />
-              {isVi ? 'Danh Sách Đơn & Điều Phối' : 'Orders & Dispatch'}
+              {'Danh Sách Đơn & Điều Phối'}
               {ordersReady && suggestedDispatchCount > 0 && (
                 <span className="text-xs px-1.5 py-0.5 bg-warning-tint border border-warning/20 text-warning rounded-full font-mono tabular-nums">
                   {suggestedDispatchCount}
@@ -466,7 +455,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
               }`}
             >
               <Icon name="factory" size={16} />
-              {isVi ? 'Trạm Xưởng & Đội Máy' : 'Workshop Fleet'}
+              {'Trạm Xưởng & Đội Máy'}
               <span className="text-xs px-1.5 py-0.5 bg-surface border border-line text-fg-muted rounded-full font-mono tabular-nums">
                 {workshops.length} trạm
               </span>
@@ -481,8 +470,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label={isVi ? 'Tìm mã đơn, khách hàng, vật liệu' : 'Search orders'}
-                placeholder={isVi ? 'Tìm mã đơn, khách hàng, vật liệu...' : 'Search orders...'}
+                aria-label="Tìm mã đơn, khách hàng, vật liệu"
+                placeholder="Tìm mã đơn, khách hàng, vật liệu..."
                 className="pl-8 pr-9 w-48 sm:w-64"
               />
               <Icon name="search" size={16} className="text-fg-subtle absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -514,7 +503,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                       : 'text-fg-muted hover:text-fg'
                   }`}
                 >
-                  {reg === 'all' ? (isVi ? 'Toàn Quốc' : 'All') : `Miền ${reg}`}
+                  {reg === 'all' ? ('Toàn Quốc') : `Miền ${reg}`}
                 </button>
               ))}
             </div>
@@ -523,10 +512,10 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
             <Select
               value={activeWorkshopFilter}
               onChange={(e) => setActiveWorkshopFilter(e.target.value)}
-              aria-label={isVi ? 'Lọc đơn theo trạm xưởng (MES)' : 'Filter orders by MES hub'}
+              aria-label="Lọc đơn theo trạm xưởng (MES)"
               className="w-full sm:w-52"
             >
-              <option value="all">{isVi ? 'Tất cả trạm MES' : 'All MES hubs'}</option>
+              <option value="all">Tất cả trạm MES</option>
               {workshops.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name} ({w.region})
@@ -540,20 +529,16 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
       {/* 2. TAB CONTENT: KANBAN BOARD */}
       {activeTab === 'kanban' &&
         (renderOrdersGate(
-          isVi ? 'Chưa có đơn nào trong bảng orders' : 'No order in the orders table',
-          isVi
-            ? 'Supabase trả về 0 đơn (hoặc tài khoản này không được RLS cho đọc). Đơn sẽ xuất hiện ở đây ngay khi khách đặt hàng — không có hàng nào được tạo mẫu.'
-            : 'Supabase returned 0 orders (or RLS does not let this account read them). Orders appear here as soon as customers place them; nothing is seeded.'
+          'Chưa có đơn nào trong bảng orders',
+          'Supabase trả về 0 đơn (hoặc tài khoản này không được RLS cho đọc). Đơn sẽ xuất hiện ở đây ngay khi khách đặt hàng — không có hàng nào được tạo mẫu.'
         ) ?? (
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1 text-xs text-fg-muted">
               <span className="flex items-center gap-1.5">
                 <Icon name="touch_app" size={16} className="text-primary" />
-                <span>{isVi ? 'Chuyển nấc sản xuất trên từng thẻ' : 'Move a card to the next stage'}</span>
-                <InfoTip label={isVi ? 'Cách chuyển nấc sản xuất' : 'How to move a card between stages'}>
-                  {isVi
-                    ? 'Bấm nút mũi tên trên thẻ để ghi nấc mới xuống Supabase (orders.status + orders.status_stage_index).'
-                    : 'Press the arrow on a card to write the new stage to Supabase (orders.status + orders.status_stage_index).'}
+                <span>Chuyển nấc sản xuất trên từng thẻ</span>
+                <InfoTip label="Cách chuyển nấc sản xuất">
+                  Bấm nút mũi tên trên thẻ để ghi nấc mới xuống Supabase (orders.status + orders.status_stage_index).
                 </InfoTip>
               </span>
               <span>Hiển thị {filteredJobs.length} / {jobs.length} đơn</span>
@@ -578,7 +563,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                           </div>
                           <div className="min-w-0">
                             <h3 className="text-xs font-semibold uppercase tracking-wider text-fg-muted truncate">
-                              {isVi ? stage.shortVi : stage.key}
+                              {stage.shortVi}
                             </h3>
                             <p className="text-xs text-fg-subtle truncate">{stage.role.replace('Sale Hub', 'Kinh doanh').replace('Slicing', 'cắt lớp').replace('Farm', 'xưởng in')}</p>
                           </div>
@@ -596,7 +581,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                         {stageJobs.length === 0 ? (
                           <div className="py-8 text-center text-fg-subtle text-sm border border-dashed border-line-subtle rounded-lg">
                             <Icon name="inbox" size={24} className="block mb-1 text-fg-subtle" />
-                            {isVi ? 'Không có đơn ở nấc này' : 'Empty stage'}
+                            Không có đơn ở nấc này
                           </div>
                         ) : (
                           stageJobs.map((job) => (
@@ -621,7 +606,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                                       ? 'bg-info-tint text-info border-info/20'
                                       : 'bg-surface-muted text-fg-muted border-line'
                                   }`}>
-                                    {job.region === 'Chưa rõ' ? (isVi ? 'Chưa rõ khu vực' : 'Region unknown') : `Miền ${job.region}`}
+                                    {job.region === 'Chưa rõ' ? ('Chưa rõ khu vực') : `Miền ${job.region}`}
                                   </span>
 
                                   {/* Priority Badge — `orders` chưa có cột ưu tiên nên không tự bật */}
@@ -760,10 +745,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
       {/* 3. TAB CONTENT: ORDER LIST & DISPATCH */}
       {activeTab === 'dispatcher' &&
         (renderOrdersGate(
-          isVi ? 'Chưa có đơn nào trong bảng orders' : 'No order in the orders table',
-          isVi
-            ? 'Không có đơn THẬT nào để phân bổ. Danh sách này chỉ dựng từ bảng orders — không có đơn mẫu.'
-            : 'No REAL order to allocate. This list is built from the orders table only — nothing is seeded.'
+          'Chưa có đơn nào trong bảng orders',
+          'Không có đơn THẬT nào để phân bổ. Danh sách này chỉ dựng từ bảng orders — không có đơn mẫu.'
         ) ?? (
           <div className="space-y-4">
             <div className="bg-warning-tint border border-warning/20 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -776,9 +759,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                     Phân Bổ Đơn Về Trạm Xưởng
                   </h3>
                   <p className="text-xs text-warning mt-0.5">
-                    {isVi
-                      ? 'Danh sách đơn THẬT chưa được phân bổ. Vùng miền suy từ địa chỉ giao hàng; đề xuất chỉ xuất hiện khi đã có trạm in được khai báo.'
-                      : 'REAL orders not yet allocated. Region is inferred from the shipping address; a recommendation appears only once a workshop is declared.'}
+                    Danh sách đơn THẬT chưa được phân bổ. Vùng miền suy từ địa chỉ giao hàng; đề xuất chỉ xuất hiện khi đã có trạm in được khai báo.
                   </p>
                 </div>
               </div>
@@ -796,13 +777,11 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                 <span className="flex items-start gap-1.5">
                   <Icon name="info" size={16} className="text-primary shrink-0 mt-0.5" />
                   <span>
-                    {isVi
-                      ? 'Chưa có trạm in nào được khai báo và hệ thống chưa có đường ghi orders.assigned_workshop_id, nên nút xác nhận điều phối đã được gỡ thay vì báo thành công mà không lưu được gì.'
-                      : 'No workshop is declared and there is no write path for orders.assigned_workshop_id yet, so the confirm-dispatch buttons were removed instead of reporting a success that stores nothing.'}
+                    Chưa có trạm in nào được khai báo và hệ thống chưa có đường ghi orders.assigned_workshop_id, nên nút xác nhận điều phối đã được gỡ thay vì báo thành công mà không lưu được gì.
                   </span>
                 </span>
                 <Button variant="secondary" size="sm" onClick={() => onNavigateSection?.('partners')}>
-                  {isVi ? 'Khai trạm in' : 'Declare workshops'}
+                  Khai trạm in
                 </Button>
               </div>
             )}
@@ -810,12 +789,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
             {filteredJobs.length === 0 ? (
               <EmptyState
                 size="sm"
-                title={isVi ? 'Không có đơn nào khớp bộ lọc' : 'No order matches the filters'}
-                description={
-                  isVi
-                    ? 'Không đơn nào khớp bộ lọc vùng/xưởng hiện tại nên danh sách trống.'
-                    : 'No order matches the current region/workshop filter, so the list is empty.'
-                }
+                title="Không có đơn nào khớp bộ lọc"
+                description="Không đơn nào khớp bộ lọc vùng/xưởng hiện tại nên danh sách trống."
                 icon={<Icon name="share_location" size={20} className="text-primary" />}
                 action={
                   <Button
@@ -823,7 +798,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                     size="sm"
                     onClick={() => setActiveTab('kanban')}
                   >
-                    {isVi ? 'Xem Kanban 8 Nấc' : 'Open 8-stage Kanban'}
+                    Xem Kanban 8 Nấc
                   </Button>
                 }
               />
@@ -852,7 +827,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                                 ? 'bg-info-tint text-info border-info/20'
                                 : 'bg-surface-muted text-fg-muted border-line'
                             }`}>
-                              {job.region === 'Chưa rõ' ? (isVi ? 'Chưa rõ khu vực' : 'Region unknown') : `Khu vực: Miền ${job.region}`}
+                              {job.region === 'Chưa rõ' ? ('Chưa rõ khu vực') : `Khu vực: Miền ${job.region}`}
                             </span>
                             <span className="text-xs font-bold px-2 py-0.5 bg-surface-muted text-fg-muted border border-line-subtle rounded-full">
                               Chưa phân bổ
@@ -927,9 +902,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                               </div>
                               <div className="text-xs text-positive font-semibold mt-0.5">
                                 {rec.printerStatus === 'Free'
-                                  ? isVi
-                                    ? 'Trạng thái: Trống (Free)'
-                                    : 'Status: Free'
+                                  ? 'Trạng thái: Trống (Free)'
                                   : `Trạng thái: ${rec.printerStatus}`}
                               </div>
                             </div>
@@ -968,12 +941,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
           {workshops.length === 0 ? (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có dữ liệu đội máy theo xưởng' : 'No fleet data per workshop'}
-              description={
-                isVi
-                  ? 'Chưa có xưởng nào được khai báo nên chưa tổng hợp được đội máy và tồn kho.'
-                  : 'No workshop has been declared yet, so no fleet or stock can be aggregated.'
-              }
+              title="Chưa có dữ liệu đội máy theo xưởng"
+              description="Chưa có xưởng nào được khai báo nên chưa tổng hợp được đội máy và tồn kho."
               icon={<Icon name="factory" size={20} className="text-primary" />}
               action={
                 <Button
@@ -981,7 +950,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   size="sm"
                   onClick={() => onNavigateSection?.('partners')}
                 >
-                  {isVi ? 'Mở Mạng Lưới Xưởng In' : 'Open workshop network'}
+                  Mở Mạng Lưới Xưởng In
                 </Button>
               }
             />
@@ -1152,9 +1121,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   onClick={() => {
                     patchSession(selectedJob.id, { operatorNotes: editingJobNotes });
                     onShowToast?.(
-                      isVi
-                        ? 'Đã ghi nhận ghi chú TRONG PHIÊN (orders chưa có cột lưu ghi chú kỹ thuật).'
-                        : 'Note kept for THIS SESSION only (orders has no technician-note column).'
+                      'Đã ghi nhận ghi chú TRONG PHIÊN (orders chưa có cột lưu ghi chú kỹ thuật).'
                     );
                   }}
                 >
@@ -1176,7 +1143,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   </span>
                 </div>
 
-                <Field label={isVi ? 'Kết quả đo kiểm QC' : 'QC inspection result'} hideLabel optionalLabel={null}>
+                <Field label="Kết quả đo kiểm QC" hideLabel optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
@@ -1196,14 +1163,12 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                     onClick={() => {
                       const note = qcNotesInput.trim();
                       if (!note) {
-                        onShowToast?.(isVi ? 'Nhập kết quả đo kiểm trước khi xác nhận QC.' : 'Enter the inspection result before confirming QC.');
+                        onShowToast?.('Nhập kết quả đo kiểm trước khi xác nhận QC.');
                         return;
                       }
                       patchSession(selectedJob.id, { qcInspectionPassed: true, qcNotes: note });
                       onShowToast?.(
-                        isVi
-                          ? 'Đã ghi nhận QC Đạt TRONG PHIÊN (chưa có cột DB cho kết quả QC).'
-                          : 'QC pass kept for THIS SESSION only (no DB column for QC results).'
+                        'Đã ghi nhận QC Đạt TRONG PHIÊN (chưa có cột DB cho kết quả QC).'
                       );
                     }}
                   >
@@ -1217,14 +1182,12 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                     onClick={() => {
                       const note = qcNotesInput.trim();
                       if (!note) {
-                        onShowToast?.(isVi ? 'Nhập lý do không đạt trước khi yêu cầu in lại.' : 'Enter the defect reason before requesting a reprint.');
+                        onShowToast?.('Nhập lý do không đạt trước khi yêu cầu in lại.');
                         return;
                       }
                       patchSession(selectedJob.id, { qcInspectionPassed: false, qcNotes: note });
                       onShowToast?.(
-                        isVi
-                          ? 'Đã đánh dấu in lại TRONG PHIÊN (chưa có cột DB cho kết quả QC).'
-                          : 'Reprint flag kept for THIS SESSION only (no DB column for QC results).'
+                        'Đã đánh dấu in lại TRONG PHIÊN (chưa có cột DB cho kết quả QC).'
                       );
                     }}
                   >
@@ -1247,14 +1210,14 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                     onClick={() => {
                       const order = (orders ?? []).find((o) => o.id === selectedJob.id);
                       if (!order) {
-                        onShowToast?.(isVi ? 'Không còn đơn này trong dữ liệu vừa tải.' : 'This order is no longer in the loaded data.');
+                        onShowToast?.('Không còn đơn này trong dữ liệu vừa tải.');
                         return;
                       }
                       setSelectedJobId(null);
                       onNavigateTracking(order);
                     }}
                   >
-                    {isVi ? 'Xem hành trình đơn' : 'View order tracking'}
+                    Xem hành trình đơn
                   </Button>
                 )}
                 <Button

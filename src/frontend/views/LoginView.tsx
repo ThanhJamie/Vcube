@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { Button, Card, Field, Icon, Input } from '@frontend/ui';
 import { ENABLE_GOOGLE_OAUTH, ENABLE_PASSWORD_RESET } from '../components/AuthModal';
 
@@ -13,8 +12,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { signInWithEmail, signInWithGoogle } = useAuth();
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +28,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
     setNotice(null);
 
     if (!email.trim() || !password) {
-      setErrorMessage(isVi ? 'Vui lòng nhập đầy đủ email và mật khẩu.' : 'Please enter your email and password.');
+      setErrorMessage('Vui lòng nhập đầy đủ email và mật khẩu.');
       return;
     }
 
@@ -47,9 +44,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
     } catch (err: any) {
       setErrorMessage(
         err?.message ||
-          (isVi
-            ? 'Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.'
-            : 'Login failed. Please verify your credentials.')
+          ('Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.')
       );
     } finally {
       setIsLoading(false);
@@ -65,7 +60,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
       const redirectTarget = searchParams.get('redirectTo') || '/';
       navigate(redirectTarget);
     } catch (err: any) {
-      setErrorMessage(err?.message || (isVi ? 'Không thể kết nối Google OAuth.' : 'Failed to connect to Google OAuth.'));
+      setErrorMessage(err?.message || ('Không thể kết nối Google OAuth.'));
     } finally {
       setIsGoogleLoading(false);
     }
@@ -84,7 +79,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
             Trung tâm VCUBE
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-fg">
-            {isVi ? 'Đăng Nhập' : 'Sign In'}
+            Đăng Nhập
           </h1>
         </div>
 
@@ -105,7 +100,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
           )}
 
           <form onSubmit={handleLogin} className="space-y-5">
-            <Field label={isVi ? 'Email hoặc Mã định danh' : 'Email or Account ID'} required>
+            <Field label="Email hoặc Mã định danh" required>
               {(control) => (
                 <div className="relative">
                   <Icon
@@ -127,7 +122,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
               )}
             </Field>
 
-            <Field label={isVi ? 'Mật khẩu' : 'Password'} required>
+            <Field label="Mật khẩu" required>
               {(control) => (
                 <div className="relative">
                   <Icon
@@ -163,21 +158,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
                   type="button"
                   onClick={() =>
                     setNotice(
-                      isVi
-                        ? 'Tính năng đặt lại mật khẩu qua email chưa được bật. Vui lòng liên hệ bộ phận hỗ trợ VCUBE để được cấp lại quyền truy cập.'
-                        : 'Email password reset is not enabled yet. Please contact VCUBE support to restore access.'
+                      'Tính năng đặt lại mật khẩu qua email chưa được bật. Vui lòng liên hệ bộ phận hỗ trợ VCUBE để được cấp lại quyền truy cập.'
                     )
                   }
                   className="cursor-pointer rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {isVi ? 'Quên mật khẩu?' : 'Forgot password?'}
+                  Quên mật khẩu?
                 </button>
               )}
               {/* Cờ reset đang tắt (chưa có SMTP) ⇒ giữ kênh gợi ý bằng chữ tĩnh,
                   không phải link/alert, không bịa hotline (không có site_content trong cây này). */}
               {!ENABLE_PASSWORD_RESET && (
                 <span className="text-sm text-fg-muted">
-                  {isVi ? 'Quên mật khẩu? Liên hệ hỗ trợ' : 'Forgot password? Contact support'}
+                  Quên mật khẩu? Liên hệ hỗ trợ
                 </span>
               )}
             </div>
@@ -189,10 +182,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
               size="lg"
               fullWidth
               loading={isLoading}
-              loadingLabel={isVi ? 'Đang xác thực...' : 'Authenticating...'}
+              loadingLabel="Đang xác thực..."
               trailingIcon={<Icon name="arrow_forward" size={16} />}
             >
-              {isVi ? 'Đăng Nhập' : 'Sign In'}
+              Đăng Nhập
             </Button>
 
             {/* Divider */}
@@ -204,7 +197,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
                   <div className="w-full border-t border-line-subtle"></div>
                 </div>
                 <span className="relative bg-surface px-3 text-xs text-fg-subtle uppercase">
-                  {isVi ? 'Hoặc tiếp tục với' : 'Or continue with'}
+                  Hoặc tiếp tục với
                 </span>
               </div>
 
@@ -237,7 +230,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
                   </svg>
                 }
               >
-                {isVi ? 'Đăng nhập với Google' : 'Sign in with Google'}
+                Đăng nhập với Google
               </Button>
               </>
             )}
@@ -246,12 +239,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
           {/* Switch to Register */}
           <div className="mt-6 border-t border-line-subtle pt-6 text-center">
             <p className="text-sm text-fg-muted">
-              {isVi ? 'Chưa có tài khoản VCUBE?' : "Don't have a VCUBE account?"}{' '}
+              Chưa có tài khoản VCUBE?{' '}
               <Link
                 to="/auth/register"
                 className="ml-1 inline-flex items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
               >
-                <span>{isVi ? 'Đăng Ký' : 'Register'}</span>
+                <span>Đăng Ký</span>
                 <Icon name="arrow_forward" size={16} />
               </Link>
             </p>

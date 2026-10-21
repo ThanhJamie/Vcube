@@ -158,8 +158,6 @@ const ProductDetailRoute: React.FC<{
   onShowToast: (msg: string) => void;
 }> = ({ products, productsLoading, productsError, onRetry, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
   const { productId } = useParams<{ productId: string }>();
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
   const product = products.find((p) => p.id === productId);
 
   if (product) {
@@ -193,20 +191,18 @@ const ProductDetailRoute: React.FC<{
         <div className="w-full max-w-md">
           <EmptyState
             icon={<Icon name="error" size={20} />}
-            title={isVi ? 'Không tải được kho bản vẽ' : 'Could not load the catalogue'}
-            description={isVi
-              ? 'Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại.'
-              : 'Could not reach the data server. Check your connection and try again.'}
+            title="Không tải được kho bản vẽ"
+            description="Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại."
             action={
               <Button
                 variant="secondary"
                 size="md"
                 loading={Boolean(productsLoading)}
-                loadingLabel={isVi ? 'Đang tải…' : 'Loading…'}
+                loadingLabel="Đang tải…"
                 leadingIcon={<Icon name="refresh" size={18} />}
                 onClick={() => onRetry?.()}
               >
-                {isVi ? 'Thử lại' : 'Retry'}
+                Thử lại
               </Button>
             }
           />
@@ -629,7 +625,7 @@ const LabRoute: React.FC<{
 // --- MAIN APPLICATION COMPONENT WITH ROUTING ---
 
 function MainApp() {
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
   const { user, role, isLoggedIn, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1195,7 +1191,7 @@ function MainApp() {
 
     // Only admin can access admin console
     if (screen === 'admin' && role !== 'admin') {
-      showToast(language === 'vi' ? 'Chỉ Quản Trị Viên (Admin) mới có quyền truy cập trang quản trị' : 'Admin role required to access Admin Console');
+      showToast('Chỉ Quản Trị Viên (Admin) mới có quyền truy cập trang quản trị');
       navigate('/');
       return;
     }
@@ -1205,7 +1201,7 @@ function MainApp() {
     // `role` được khai là `UserRole` (chưa có 'workshop') nên so sánh qua `string`.
     const roleName: string = role;
     if (screen === 'lab' && roleName !== 'lab' && roleName !== 'workshop' && roleName !== 'admin') {
-      showToast(language === 'vi' ? 'Chỉ tài khoản Xưởng in (Lab) hoặc Quản trị viên mới vào được Bảng điều khiển xưởng in' : 'Print Lab or Admin role required to access the Print Lab dashboard');
+      showToast('Chỉ tài khoản Xưởng in (Lab) hoặc Quản trị viên mới vào được Bảng điều khiển xưởng in');
       navigate('/');
       return;
     }
@@ -1335,7 +1331,7 @@ function MainApp() {
     const itemToRemove = cart.find((i) => i.id === id);
     removeItemStore(id);
     addToast({
-      message: language === 'vi' ? 'Đã xóa sản phẩm khỏi giỏ hàng' : 'Removed item from cart',
+      message: 'Đã xóa sản phẩm khỏi giỏ hàng',
       type: 'info',
       undoAction: itemToRemove ? () => addToCartStore(itemToRemove) : undefined
     });
@@ -1378,7 +1374,7 @@ function MainApp() {
         version: EMPTY_VALUE,
         maxDownloads: EMPTY_VALUE,
         fileSize: EMPTY_VALUE,
-        purchaseDate: new Date().toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US'),
+        purchaseDate: new Date().toLocaleDateString('vi-VN'),
         downloadsCount: 0,
         image: i.image
       }));
@@ -1407,9 +1403,9 @@ function MainApp() {
       console.warn('Rollback adding product due to DB error:', res.error);
       setProducts(previous);
       try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
-      showToast(language === 'vi' ? 'Không thể lưu vào Supabase. Đã hoàn tác.' : 'Could not save to Supabase. Reverted.');
+      showToast('Không thể lưu vào Supabase. Đã hoàn tác.');
     } else {
-      showToast(language === 'vi' ? 'Đã thêm sản phẩm thành công!' : 'Product added successfully!');
+      showToast('Đã thêm sản phẩm thành công!');
     }
   };
 
@@ -1429,9 +1425,9 @@ function MainApp() {
       console.warn('Rollback updating product due to DB error:', res.error);
       setProducts(previous);
       try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
-      showToast(language === 'vi' ? 'Lỗi cập nhật trên Supabase. Đã hoàn tác.' : 'Supabase update failed. Reverted.');
+      showToast('Lỗi cập nhật trên Supabase. Đã hoàn tác.');
     } else {
-      showToast(language === 'vi' ? 'Đã cập nhật sản phẩm thành công!' : 'Product updated successfully!');
+      showToast('Đã cập nhật sản phẩm thành công!');
     }
   };
 
@@ -1451,9 +1447,9 @@ function MainApp() {
       console.warn('Rollback deleting product due to DB error:', res.error);
       setProducts(previous);
       try { localStorage.setItem('vcube_products', JSON.stringify(previous)); } catch { /* ignore: localStorage cache write — không chặn luồng catalog */ }
-      showToast(language === 'vi' ? 'Lỗi xóa trên Supabase. Đã hoàn tác.' : 'Supabase delete failed. Reverted.');
+      showToast('Lỗi xóa trên Supabase. Đã hoàn tác.');
     } else {
-      showToast(language === 'vi' ? 'Đã xóa sản phẩm thành công!' : 'Product deleted successfully!');
+      showToast('Đã xóa sản phẩm thành công!');
     }
   };
 
@@ -1756,7 +1752,7 @@ function MainApp() {
             element={
               <RoleGuard
                 allowedRoles={['designer', 'admin']}
-                featureName={language === 'vi' ? 'Xưởng thiết kế & Quản lý ấn phẩm' : '3D Designer Studio & Publications'}
+                featureName={'Xưởng thiết kế & Quản lý ấn phẩm'}
                 onNavigate={handleNavigate}
               >
                 <DesignerDashboardShell>
@@ -1779,7 +1775,7 @@ function MainApp() {
             element={
               <RoleGuard
                 allowedRoles={['designer', 'admin']}
-                featureName={language === 'vi' ? 'Xưởng thiết kế & Quản lý ấn phẩm' : '3D Designer Studio & Publications'}
+                featureName={'Xưởng thiết kế & Quản lý ấn phẩm'}
                 onNavigate={handleNavigate}
               >
                 <DesignerDashboardShell>
@@ -1806,7 +1802,7 @@ function MainApp() {
             element={
               <RoleGuard
                 allowedRoles={['admin']}
-                featureName={language === 'vi' ? 'ForgeControl Quản Trị Hệ Thống' : 'ForgeControl Administration Console'}
+                featureName="ForgeControl Quản Trị Hệ Thống"
                 onNavigate={handleNavigate}
               >
                 <AdminDashboardView
@@ -1837,7 +1833,7 @@ function MainApp() {
             element={
               <RoleGuard
                 allowedRoles={['admin']}
-                featureName={language === 'vi' ? 'ForgeControl Quản Trị Hệ Thống' : 'ForgeControl Administration Console'}
+                featureName="ForgeControl Quản Trị Hệ Thống"
                 onNavigate={handleNavigate}
               >
                 <AdminDashboardView
@@ -1900,12 +1896,12 @@ function MainApp() {
         className={`fixed bottom-6 right-6 z-drawer flex items-center gap-2.5 rounded-md bg-primary hover:bg-primary-hover px-4 py-3 font-sans text-xs text-primary-fg shadow-e2 border border-transparent transition-all duration-200 motion-reduce:transition-none active:scale-[0.97] touch-target-btn cursor-pointer ${
           isFabHidden ? 'opacity-0 pointer-events-none invisible' : 'opacity-100'
         }`}
-        aria-label={t('liveSupportAria', 'Tư vấn kỹ thuật trực tuyến', 'Live technical consultation')}
+        aria-label={t('liveSupportAria', 'Tư vấn kỹ thuật trực tuyến')}
       >
         <span className="w-2 h-2 rounded-full bg-brand animate-pulse motion-reduce:animate-none"></span>
         <Icon name="support_agent" size={20} className="text-primary-fg" />
         <span className="font-bold text-xs uppercase tracking-widest hidden sm:inline font-tech">
-          {t('supportAssistant', 'Trợ lý tự động', 'Automated assistant')}
+          {t('supportAssistant', 'Trợ lý tự động')}
         </span>
       </button>
       )}
@@ -2024,16 +2020,16 @@ function MainApp() {
                   </span>
                 </div>
                 <p className="text-xs text-on-inverse/70 leading-relaxed font-sans">
-                  {t('footerAbout', 'Nền tảng sản xuất bồi đắp và chế tác linh kiện cơ khí chính xác cho xưởng và phòng R&D.', 'Additive manufacturing and precision mechanical fabrication platform for workshops and R&D teams.')}
+                  {t('footerAbout', 'Nền tảng sản xuất bồi đắp và chế tác linh kiện cơ khí chính xác cho xưởng và phòng R&D.')}
                 </p>
                 {siteContent.toleranceSpec ? (
                   <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-inverse-raised text-accent text-xs font-tech uppercase tracking-wider rounded-sm border border-on-inverse/15">
-                    <span>{t('footerToleranceLabel', 'Dung sai chế tạo:', 'Fabrication tolerance:')} {siteContent.toleranceSpec}</span>
+                    <span>{t('footerToleranceLabel', 'Dung sai chế tạo:')} {siteContent.toleranceSpec}</span>
                   </div>
                 ) : (
                   <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-inverse-raised text-on-inverse/80 text-xs font-mono tracking-wider rounded-sm border border-on-inverse/15">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                    <span>{language === 'vi' ? 'Tiêu chuẩn chế tạo công nghiệp' : 'Industrial Manufacturing Standard'}</span>
+                    <span>Tiêu chuẩn chế tạo công nghiệp</span>
                   </div>
                 )}
               </div>
@@ -2041,27 +2037,27 @@ function MainApp() {
               {/* Col 2: Customer Navigation */}
               <div className="space-y-2.5 text-xs font-sans">
                 <p className="font-bold uppercase tracking-widest text-on-inverse/70 text-xs font-tech">
-                  {t('footerServices', 'Dịch Vụ & Mua Hàng', 'Customer Store')}
+                  {t('footerServices', 'Dịch Vụ & Mua Hàng')}
                 </p>
                 <ul className="space-y-2 text-on-inverse/70">
                   <li>
                     <button onClick={() => handleNavigate('explore')} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
-                      {t('footerMarketplace', 'Sàn linh kiện 3D', '3D Parts Marketplace')}
+                      {t('footerMarketplace', 'Sàn linh kiện 3D')}
                     </button>
                   </li>
                   <li>
                     <button onClick={() => handleNavigate('quote')} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
-                      {t('footerInstantQuote', 'Báo giá in 3D trực tuyến', 'Instant 3D File Quoting')}
+                      {t('footerInstantQuote', 'Báo giá in 3D trực tuyến')}
                     </button>
                   </li>
                   <li>
                     <button onClick={() => handleNavigate('cart')} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
-                      {t('cartTitle', 'Giỏ hàng của bạn', 'Your Shopping Cart')}
+                      {t('cartTitle', 'Giỏ hàng của bạn')}
                     </button>
                   </li>
                   <li>
                     <button onClick={() => handleNavigate('orders')} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
-                      {t('myOrdersTracking', 'Theo dõi đơn hàng thời gian thực', 'Real-time Order Tracking')}
+                      {t('myOrdersTracking', 'Theo dõi đơn hàng thời gian thực')}
                     </button>
                   </li>
                 </ul>
@@ -2071,7 +2067,7 @@ function MainApp() {
               {role === 'admin' && (
                 <div className="space-y-2.5 text-xs font-sans">
                   <p className="font-bold uppercase tracking-widest text-on-inverse/70 text-xs font-tech">
-                    {t('footerCreators', 'Quản Trị Hệ Thống', 'Administration')}
+                    {t('footerCreators', 'Quản Trị Hệ Thống')}
                   </p>
                   <ul className="space-y-2 text-on-inverse/70">
                     <li>
@@ -2081,17 +2077,17 @@ function MainApp() {
                     </li>
                     <li>
                       <button onClick={() => handleNavigate('admin', { section: 'products' })} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
-                        {language === 'vi' ? 'Quản lý sản phẩm & giá' : 'Product & Pricing Management'}
+                        {'Quản lý sản phẩm & giá'}
                       </button>
                     </li>
                     <li>
                       <button onClick={() => handleNavigate('admin', { section: 'queue' })} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
-                        {language === 'vi' ? 'Hàng đợi & tiến độ gia công' : 'Fabrication Queue & Status'}
+                        {'Hàng đợi & tiến độ gia công'}
                       </button>
                     </li>
                     <li>
                       <button onClick={() => handleNavigate('admin', { section: 'storefront' })} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
-                        {language === 'vi' ? 'Cấu hình phí ship & thông báo' : 'Site Content & Announcement'}
+                        {'Cấu hình phí ship & thông báo'}
                       </button>
                     </li>
                   </ul>
@@ -2101,7 +2097,7 @@ function MainApp() {
               {/* Col 4: Dynamic Contact from Admin Content */}
               <div className="space-y-2.5 text-xs font-sans">
                 <p className="font-bold uppercase tracking-widest text-on-inverse/70 text-xs font-tech">
-                  {t('footerLocationTitle', 'Trụ Sở & Xưởng Chế Tác', 'Headquarters & Facilities')}
+                  {t('footerLocationTitle', 'Trụ Sở & Xưởng Chế Tác')}
                 </p>
                 {siteContent.hanoiWorkshopAddress && (
                   <p className="text-on-inverse/70">
@@ -2120,11 +2116,11 @@ function MainApp() {
             </div>
 
             <div className="pt-8 border-t border-on-inverse/15 flex flex-col sm:flex-row items-center justify-between text-xs text-on-inverse/70 font-sans gap-4">
-              <p>{t('footerRights', '© 2026 VCUBE Việt Nam. Bảo lưu mọi quyền.', '© 2026 VCUBE Vietnam Industrial Fabrication. All rights reserved.')}</p>
+              <p>{t('footerRights', '© 2026 VCUBE Việt Nam. Bảo lưu mọi quyền.')}</p>
               <div className="flex items-center gap-4">
-                <span>{t('footerCadSecurity', 'Bảo mật dữ liệu CAD/STL', 'CAD/STL Data Security')}</span>
+                <span>{t('footerCadSecurity', 'Bảo mật dữ liệu CAD/STL')}</span>
                 <span>•</span>
-                <span>{t('footerQcPolicy', 'Đo kiểm theo quy trình thoả thuận', 'Inspection per agreed process')}</span>
+                <span>{t('footerQcPolicy', 'Đo kiểm theo quy trình thoả thuận')}</span>
               </div>
             </div>
 

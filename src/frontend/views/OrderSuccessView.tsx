@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Order } from '../../types';
-import { useLanguage } from '../context/LanguageContext';
 import { Icon, Button, Badge, Card } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency, formatDateTime } from '../lib/format';
 
@@ -34,8 +33,6 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
   onNavigate,
   onOpenInvoice
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
   const [copiedToken, setCopiedToken] = useState(false);
 
   const hasDigitalItems = order.items.some(i => i.type === 'digital');
@@ -121,10 +118,10 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
               <p className={`font-bold text-xs ${isPaid ? 'text-positive' : 'text-warning'}`}>1. Thanh toán</p>
               <p className={`text-xs ${isPaid ? 'text-positive' : 'text-warning'}`}>
                 {isPaid
-                  ? (isVi ? 'Đã xác nhận' : 'Confirmed')
+                  ? ('Đã xác nhận')
                   : isCod
-                  ? (isVi ? 'Thu khi giao hàng (COD)' : 'Cash on delivery')
-                  : (isVi ? 'Đang chờ thanh toán' : 'Awaiting payment')}
+                  ? ('Thu khi giao hàng (COD)')
+                  : ('Đang chờ thanh toán')}
               </p>
             </div>
 
@@ -139,11 +136,11 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
               }`}>
                 2
               </div>
-              <p className={`font-bold text-xs ${canStartProduction ? 'text-fg' : 'text-fg-muted'}`}>{isVi ? '2. Duyệt tệp & cắt lớp' : '2. File review & slicing'}</p>
+              <p className={`font-bold text-xs ${canStartProduction ? 'text-fg' : 'text-fg-muted'}`}>{'2. Duyệt tệp & cắt lớp'}</p>
               <p className={canStartProduction ? 'text-xs text-info' : 'text-xs text-fg-muted'}>
                 {canStartProduction
-                  ? (isVi ? 'Xưởng sẽ tiếp nhận' : 'Workshop will pick up')
-                  : (isVi ? 'Chờ xác nhận thanh toán' : 'Waiting for payment')}
+                  ? ('Xưởng sẽ tiếp nhận')
+                  : ('Chờ xác nhận thanh toán')}
               </p>
             </div>
 
@@ -152,8 +149,8 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
               <div className="mx-auto grid size-6 place-items-center bg-line text-fg-muted text-xs font-bold rounded-full">
                 3
               </div>
-              <p className="font-bold text-xs text-fg-muted">{isVi ? '3. Lên bàn in 3D' : '3. Queue on printer'}</p>
-              <p className="text-xs text-fg-muted">{isVi ? 'Chưa gán máy in' : 'No printer assigned yet'}</p>
+              <p className="font-bold text-xs text-fg-muted">3. Lên bàn in 3D</p>
+              <p className="text-xs text-fg-muted">Chưa gán máy in</p>
             </div>
 
             {/* Stage 4 — không hứa hẹn dung sai khi chưa có hồ sơ đo kiểm */}
@@ -161,8 +158,8 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
               <div className="mx-auto grid size-6 place-items-center bg-line text-fg-muted text-xs font-bold rounded-full">
                 4
               </div>
-              <p className="font-bold text-xs text-fg-muted">{isVi ? '4. Giao hàng' : '4. Delivery'}</p>
-              <p className="text-xs text-fg-muted">{isVi ? 'Chưa có mã vận đơn' : 'No tracking code yet'}</p>
+              <p className="font-bold text-xs text-fg-muted">4. Giao hàng</p>
+              <p className="text-xs text-fg-muted">Chưa có mã vận đơn</p>
             </div>
           </div>
 
@@ -174,20 +171,16 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
                   <Icon name="folder_zip" size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-xs text-fg">{isVi ? 'Bản quyền tệp CAD trong đơn' : 'CAD licences in this order'}</h4>
+                  <h4 className="font-bold text-xs text-fg">Bản quyền tệp CAD trong đơn</h4>
                   <p className="text-xs text-fg-muted font-mono">
-                    {isVi
-                      ? 'Tệp nằm trong Kho Tệp CAD. Tình trạng tải trực tiếp hiển thị theo quyền thực tế của từng tệp.'
-                      : 'Files live in the CAD library. Direct download availability reflects each file’s real entitlement.'}
+                    Tệp nằm trong Kho Tệp CAD. Tình trạng tải trực tiếp hiển thị theo quyền thực tế của từng tệp.
                   </p>
                 </div>
               </div>
               {order.secureAccessToken ? (
                 // Đơn khách (guest): `/assets` nằm sau đăng nhập ⇒ KHÔNG dẫn vào ngõ cụt.
                 <p className="text-xs font-mono text-fg-muted max-w-[16rem] text-right">
-                  {isVi
-                    ? 'Đăng nhập bằng email đặt hàng để mở Kho Tệp CAD.'
-                    : 'Sign in with the order email to open the CAD library.'}
+                  Đăng nhập bằng email đặt hàng để mở Kho Tệp CAD.
                 </p>
               ) : (
                 <Button
@@ -212,7 +205,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
                 onClick={() => onNavigate('tracking', { orderId: order.id })}
                 leadingIcon={<Icon name="sensors" size={18} />}
               >
-                <span>{isVi ? 'THEO DÕI TIẾN ĐỘ ĐƠN HÀNG' : 'TRACK ORDER PROGRESS'}</span>
+                <span>THEO DÕI TIẾN ĐỘ ĐƠN HÀNG</span>
               </Button>
             )}
 
@@ -223,7 +216,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
               onClick={() => onOpenInvoice(order)}
               leadingIcon={<Icon name="receipt_long" size={18} />}
             >
-              <span>{isVi ? 'Xem / In hoá đơn' : 'View / print invoice'}</span>
+              <span>Xem / In hoá đơn</span>
             </Button>
           </div>
         </Card>
@@ -264,7 +257,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
           </div>
 
           <div className="flex items-center justify-between text-xs font-mono">
-            <span className="text-xs text-fg-subtle uppercase">{isVi ? 'Tổng tiền đơn hàng:' : 'Order total:'}</span>
+            <span className="text-xs text-fg-subtle uppercase">Tổng tiền đơn hàng:</span>
             <span className="font-mono font-semibold text-base sm:text-lg text-fg tabular-nums text-right">
               {formatCurrency(order.payment.total)}
             </span>

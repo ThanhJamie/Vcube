@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useLanguage } from '../../context/LanguageContext';
 import { UserRole } from '../../../types';
 import { Badge, Button, Icon } from '@frontend/ui';
 
@@ -15,8 +14,6 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
   onOpenCart,
 }) => {
   const { user, profile, role, logout } = useAuth();
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
   const navigate = useNavigate();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -75,28 +72,28 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
     switch (r) {
       case 'admin':
         return {
-          title: isVi ? 'Ban Quản Trị' : 'Super Admin',
+          title: 'Ban Quản Trị',
           badgeText: 'Quản trị',
           badgeVariant: 'info' as const,
           avatarBg: 'bg-info-tint text-info',
         };
       case 'designer':
         return {
-          title: isVi ? 'Tác Giả 3D' : 'Creator & CAD',
+          title: 'Tác Giả 3D',
           badgeText: 'Tác giả 3D',
           badgeVariant: 'warning' as const,
           avatarBg: 'bg-warning-tint text-warning',
         };
       case 'lab':
         return {
-          title: isVi ? 'Xưởng In MES' : 'MES Hub Lab',
+          title: 'Xưởng In MES',
           badgeText: 'Xưởng in',
           badgeVariant: 'success' as const,
           avatarBg: 'bg-positive-tint text-positive',
         };
       default:
         return {
-          title: isVi ? 'Khách Đặt In' : 'Customer',
+          title: 'Khách Đặt In',
           badgeText: 'Khách hàng',
           badgeVariant: 'technical' as const,
           avatarBg: 'bg-primary-tint text-primary',
@@ -105,7 +102,7 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
   };
 
   const theme = getRoleTheme(role);
-  const displayName = profile?.displayName || user?.email?.split('@')[0] || (isVi ? 'Thành viên VCUBE' : 'VCUBE Member');
+  const displayName = profile?.displayName || user?.email?.split('@')[0] || ('Thành viên VCUBE');
   const initialLetter = displayName.charAt(0).toUpperCase();
 
   return (
@@ -122,7 +119,7 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
         className={`flex cursor-pointer items-center gap-1.5 rounded-md p-1 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
           isOpen ? 'bg-surface-muted' : 'hover:bg-surface-muted'
         }`}
-        aria-label={isVi ? "Tài khoản người dùng" : "User account"}
+        aria-label="Tài khoản người dùng"
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-controls="vcube-user-menu"
@@ -137,13 +134,13 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
         <div
           id="vcube-user-menu"
           role="dialog"
-          aria-label={isVi ? 'Tài khoản người dùng' : 'User account'}
+          aria-label="Tài khoản người dùng"
           className="absolute right-0 z-panel mt-2 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-line bg-surface p-1 text-xs shadow-e2 transition-colors sm:w-[390px]"
         >
           <div className="rounded-md bg-surface-muted p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                {isVi ? 'HỒ SƠ ĐỊNH DANH' : 'IDENTITY & ACCESS'}
+                HỒ SƠ ĐỊNH DANH
               </span>
               <Badge variant={theme.badgeVariant} size="sm" className="shrink-0 uppercase">
                 {theme.badgeText}
@@ -173,10 +170,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center justify-between px-2.5 py-1">
                   <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                    {isVi ? 'ĐƠN HÀNG & TIẾN ĐỘ SẢN XUẤT' : 'ORDERS & FABRICATION PROGRESS'}
+                    {'ĐƠN HÀNG & TIẾN ĐỘ SẢN XUẤT'}
                   </span>
                   <Badge variant="technical" size="sm">
-                    {isVi ? '8 nấc gia công' : '8 stages'}
+                    8 nấc gia công
                   </Badge>
                 </div>
 
@@ -190,10 +187,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Đơn Hàng Của Tôi' : 'My Orders'}
+                      Đơn Hàng Của Tôi
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Tiến độ sản xuất & thông tin vận đơn' : 'Production progress & carrier details'}
+                      {'Tiến độ sản xuất & thông tin vận đơn'}
                     </p>
                   </div>
                 </button>
@@ -208,10 +205,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Báo Giá In 3D Từ Tệp CAD' : 'Instant Quote from CAD'}
+                      Báo Giá In 3D Từ Tệp CAD
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Tải tệp lên để phân tích & báo giá' : 'Upload a file to analyse and quote'}
+                      {'Tải tệp lên để phân tích & báo giá'}
                     </p>
                   </div>
                 </button>
@@ -226,10 +223,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Tùy biến cá nhân hoá' : 'Product Customizer & Personalization'}
+                      Tùy biến cá nhân hoá
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Khắc laser, màu sắc AMS & phụ kiện đồ gá' : 'Laser engraving, AMS colors & fixtures'}
+                      {'Khắc laser, màu sắc AMS & phụ kiện đồ gá'}
                     </p>
                   </div>
                 </button>
@@ -241,10 +238,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center justify-between px-2.5 py-1">
                   <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                    {isVi ? 'XƯỞNG THIẾT KẾ' : 'CREATOR STUDIO'}
+                    XƯỞNG THIẾT KẾ
                   </span>
                   <Badge variant="warning" size="sm">
-                    {isVi ? 'Bản Quyền STL' : 'STL Royalties'}
+                    Bản Quyền STL
                   </Badge>
                 </div>
 
@@ -258,10 +255,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Bảng Điều Khiển Tác Giả' : 'Creator Dashboard'}
+                      Bảng Điều Khiển Tác Giả
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Quản lý catalog bản vẽ, upload STL/3MF' : 'Manage CAD catalog, upload STL/3MF'}
+                      Quản lý catalog bản vẽ, upload STL/3MF
                     </p>
                   </div>
                 </button>
@@ -276,10 +273,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Thu Nhập & Hoa Hồng' : 'Earnings & Royalties'}
+                      {'Thu Nhập & Hoa Hồng'}
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Số liệu thật hiển thị trong xưởng thiết kế' : 'Real figures are shown in the Creator Studio'}
+                      Số liệu thật hiển thị trong xưởng thiết kế
                     </p>
                   </div>
                 </button>
@@ -291,10 +288,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center justify-between px-2.5 py-1">
                   <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                    {isVi ? 'XƯỞNG IN & CỤM MÁY IN' : 'MES HUB & PRINT FLEET'}
+                    {'XƯỞNG IN & CỤM MÁY IN'}
                   </span>
                   <Badge variant="success" size="sm">
-                    {isVi ? 'Xưởng In' : 'Print Lab'}
+                    Xưởng In
                   </Badge>
                 </div>
 
@@ -308,10 +305,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Hàng đợi chế tác' : 'Fabrication Queue'}
+                      Hàng đợi chế tác
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Nhận phôi in, chia lệnh cắt lớp Bambu/SLA' : 'Receive print jobs, dispatch Bambu/SLA slicing'}
+                      Nhận phôi in, chia lệnh cắt lớp Bambu/SLA
                     </p>
                   </div>
                 </button>
@@ -326,10 +323,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Cụm Máy In Bambu Lab X1C / P1S' : 'Bambu Lab X1C / P1S Fleet'}
+                      Cụm Máy In Bambu Lab X1C / P1S
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Giám sát nhiệt độ buồng, bàn in & cuộn nhựa' : 'Monitor chamber temp, bed & filament spools'}
+                      {'Giám sát nhiệt độ buồng, bàn in & cuộn nhựa'}
                     </p>
                   </div>
                 </button>
@@ -341,10 +338,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center justify-between px-2.5 py-1">
                   <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                    {isVi ? 'QUẢN TRỊ HỆ THỐNG' : 'FORGECONTROL ADMIN'}
+                    QUẢN TRỊ HỆ THỐNG
                   </span>
                   <Badge variant="info" size="sm">
-                    {isVi ? 'Toàn Quyền' : 'Full Access'}
+                    Toàn Quyền
                   </Badge>
                 </div>
 
@@ -358,10 +355,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Bảng Điều Khiển Trung Tâm' : 'Central Admin Dashboard'}
+                      Bảng Điều Khiển Trung Tâm
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Quản lý tổng quan doanh thu, đơn hàng & máy' : 'Overview of revenue, orders & printer fleet'}
+                      {'Quản lý tổng quan doanh thu, đơn hàng & máy'}
                     </p>
                   </div>
                 </button>
@@ -376,10 +373,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Quản Trị Người Dùng & KYC' : 'User Management & KYC'}
+                      {'Quản Trị Người Dùng & KYC'}
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Thẩm định hồ sơ 4 nhóm tác nhân' : 'Review profiles of 4 stakeholder groups'}
+                      Thẩm định hồ sơ 4 nhóm tác nhân
                     </p>
                   </div>
                 </button>
@@ -394,10 +391,10 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-fg">
-                      {isVi ? 'Cấu Hình Định Giá Inkiri v2' : 'Inkiri v2 Pricing Configuration'}
+                      Cấu Hình Định Giá Inkiri v2
                     </p>
                     <p className="text-xs text-fg-subtle truncate">
-                      {isVi ? 'Chi phí khấu hao máy, điện, nhựa & nhân công' : 'Depreciation, energy, filament & labor costs'}
+                      {'Chi phí khấu hao máy, điện, nhựa & nhân công'}
                     </p>
                   </div>
                 </button>
@@ -414,7 +411,7 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
               onClick={() => handleNavigateRoute('/', 'home')}
               leadingIcon={<Icon name="home" size={16} />}
             >
-              {isVi ? 'Trang chủ' : 'Home'}
+              Trang chủ
             </Button>
 
             <Button
@@ -424,7 +421,7 @@ export const UserAvatarMenu: React.FC<UserAvatarMenuProps> = ({
               onClick={() => handleItemClick(logout)}
               leadingIcon={<Icon name="logout" size={16} />}
             >
-              {isVi ? 'Đăng xuất' : 'Sign Out'}
+              Đăng xuất
             </Button>
           </div>
         </div>

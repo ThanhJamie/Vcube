@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Button, Card, Icon, Modal } from '@frontend/ui';
 import { readColorToken, type ColorTokenName } from '@frontend/theme/tokens';
 import { ThreeModelViewer } from '../LazyThreeModelViewer';
-import { useLanguage } from '../../context/LanguageContext';
 
 /** Nhãn VI cho 4 mô hình minh hoạ của khung 3D (modelType chỉ là mã code, không render thô). */
 const MODEL_LABEL_VI: Record<ServiceItem['modelType'], string> = {
@@ -216,8 +215,6 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
   onNavigate,
   onOpenCustomIdeaModal
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   const [selectedServiceId, setSelectedServiceId] = useState<string>('rapid_print');
   const [modalService, setModalService] = useState<ServiceItem | null>(null);
@@ -261,15 +258,13 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-line">
           <div className="max-w-3xl space-y-2">
             <span className="font-mono text-xs font-semibold uppercase tracking-wider text-fg-muted block">
-              {isVi ? 'HỆ SINH THÁI DỊCH VỤ VCUBE' : 'CORE SERVICES // VCUBE ENGINEERING'}
+              HỆ SINH THÁI DỊCH VỤ VCUBE
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold text-fg tracking-tight">
-              {isVi ? 'Giải Pháp Gia Công & Thiết Kế 3D Chuẩn Công Nghiệp' : 'Industrial 3D Printing & Engineering Solutions'}
+              {'Giải Pháp Gia Công & Thiết Kế 3D Chuẩn Công Nghiệp'}
             </h2>
             <p className="text-sm sm:text-base text-fg-muted leading-relaxed">
-              {isVi
-                ? 'VCUBE kết hợp công nghệ in 3D hiện đại với dịch vụ kỹ thuật chuyên sâu: từ chế tác theo tệp CAD, hiện thực hóa ý tưởng đến kiểm định đo lường chuẩn xác.'
-                : 'VCUBE integrates cutting-edge additive manufacturing with precision engineering: from instant CAD file quoting to custom idea prototyping and metrology inspection.'}
+              VCUBE kết hợp công nghệ in 3D hiện đại với dịch vụ kỹ thuật chuyên sâu: từ chế tác theo tệp CAD, hiện thực hóa ý tưởng đến kiểm định đo lường chuẩn xác.
             </p>
           </div>
 
@@ -280,14 +275,14 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
               onClick={() => onNavigate('quote')}
               leadingIcon={<Icon name="upload_file" size={16} className="text-primary" />}
             >
-              <span>{isVi ? 'Báo Giá Trực Tiếp' : 'Instant Slicer Quote'}</span>
+              <span>Báo Giá Trực Tiếp</span>
             </Button>
             <Button
               size="sm"
               onClick={onOpenCustomIdeaModal}
               leadingIcon={<Icon name="design_services" size={16} />}
             >
-              <span>{isVi ? 'Gửi Ý Tưởng Mới' : 'Submit Concept'}</span>
+              <span>Gửi Ý Tưởng Mới</span>
             </Button>
           </div>
         </div>
@@ -332,15 +327,15 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                         {/* Title & Badge */}
                         <div className="space-y-1">
                           <span className="font-mono text-xs uppercase tracking-wider text-fg-muted font-bold block">
-                            {isVi ? service.badgeVi : service.badgeEn}
+                            {service.badgeVi}
                           </span>
                           <h3 className="font-bold text-base text-fg leading-snug">
-                            {isVi ? service.nameVi : service.nameEn}
+                            {service.nameVi}
                           </h3>
                         </div>
 
                         <p className="text-xs text-fg-muted mt-2 line-clamp-2 leading-relaxed">
-                          {isVi ? service.shortDescVi : service.shortDescEn}
+                          {service.shortDescVi}
                         </p>
                       </div>
 
@@ -358,7 +353,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                           className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-fg hover:text-primary hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                         >
                           <Icon name="info" size={14} aria-hidden="true" />
-                          <span>{isVi ? 'Chi tiết dịch vụ' : 'View specs'}</span>
+                          <span>Chi tiết dịch vụ</span>
                         </button>
 
                         <Button
@@ -371,7 +366,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                           }}
                           leadingIcon={<Icon name="arrow_forward" size={14} />}
                         >
-                          <span>{isVi ? 'Bắt đầu' : 'Start'}</span>
+                          <span>Bắt đầu</span>
                         </Button>
                       </div>
                     </Card>
@@ -388,12 +383,10 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 </div>
                 <div>
                   <span className="text-xs font-bold text-fg block">
-                    {isVi ? 'Bạn cần tư vấn giải pháp kỹ thuật riêng?' : 'Need a custom engineering consultation?'}
+                    Bạn cần tư vấn giải pháp kỹ thuật riêng?
                   </span>
                   <span className="text-xs text-fg-muted">
-                    {isVi
-                      ? 'Đội ngũ kỹ sư VCUBE sẵn sàng phân tích dung sai và báo giá gia công theo yêu cầu.'
-                      : 'VCUBE engineers evaluate tolerance, assembly fit and material compatibility.'}
+                    Đội ngũ kỹ sư VCUBE sẵn sàng phân tích dung sai và báo giá gia công theo yêu cầu.
                   </span>
                 </div>
               </div>
@@ -404,7 +397,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 onClick={onOpenCustomIdeaModal}
                 trailingIcon={<Icon name="arrow_forward" size={14} />}
               >
-                <span>{isVi ? 'Nhận tư vấn 1:1' : '1:1 Advisory'}</span>
+                <span>Nhận tư vấn 1:1</span>
               </Button>
             </div>
           </div>
@@ -417,14 +410,14 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-positive animate-pulse motion-reduce:animate-none" />
                   <span className="font-mono text-xs font-bold text-fg uppercase tracking-wider">
-                    {isVi ? 'MÔ PHỎNG 3D · ' : 'LIVE 3D MESH · '}
+                    {'MÔ PHỎNG 3D · '}
                     <span className="text-primary">{MODEL_LABEL_VI[activeService.modelType]}</span>
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1 text-xs font-mono text-fg-muted">
                   <span className="px-2 py-0.5 rounded-sm bg-surface-muted border border-line-subtle">
-                    {isVi ? activeService.badgeVi : activeService.badgeEn}
+                    {activeService.badgeVi}
                   </span>
                 </div>
               </div>
@@ -443,7 +436,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 {/* Floating Top Controls Pill — HUD sáng (§3.8) trên nền render tối */}
                 <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-panel">
                   <span className="font-mono text-xs text-fg-muted px-3 py-1 rounded-full border border-line bg-surface/90 backdrop-blur-sm">
-                    {isVi ? 'Kéo chuột để xoay 360°' : 'Drag to orbit 360°'}
+                    Kéo chuột để xoay 360°
                   </span>
 
                   {/* Wireframe & Auto-rotate triggers */}
@@ -482,7 +475,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 {/* Floating Color Palette — dock sáng (§3.8) */}
                 <div className="absolute bottom-3 left-3 pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-surface/95 shadow-e2 backdrop-blur-md px-2 py-1">
                   <span className="px-1 text-xs font-mono text-fg-muted">
-                    {isVi ? 'Màu:' : 'Color:'}
+                    Màu:
                   </span>
                   {VIEWER_COLOR_TOKENS.map((token) => {
                     const hex = colorOf(token);
@@ -515,10 +508,10 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
               <div className="p-4 bg-surface border-t border-line space-y-3">
                 <div className="flex items-center justify-between text-xs font-mono">
                   <span className="text-fg-muted">
-                    {isVi ? 'Đang mô phỏng mô hình:' : 'Simulated Model:'}
+                    Đang mô phỏng mô hình:
                   </span>
                   <span className="font-bold text-fg">
-                    {isVi ? activeService.nameVi : activeService.nameEn}
+                    {activeService.nameVi}
                   </span>
                 </div>
 
@@ -529,7 +522,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                     onClick={() => handleExecuteAction(activeService.actionType)}
                     trailingIcon={<Icon name="arrow_forward" size={16} />}
                   >
-                    <span>{isVi ? activeService.ctaLabelVi : activeService.ctaLabelEn}</span>
+                    <span>{activeService.ctaLabelVi}</span>
                   </Button>
                   <Button
                     variant="secondary"
@@ -537,7 +530,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                     onClick={() => setModalService(activeService)}
                     leadingIcon={<Icon name="visibility" size={16} className="text-primary" />}
                   >
-                    <span>{isVi ? 'Chi Tiết' : 'Specs'}</span>
+                    <span>Chi Tiết</span>
                   </Button>
                 </div>
               </div>
@@ -559,10 +552,10 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
               </span>
               <div>
                 <h3 className="font-bold text-lg text-fg leading-tight">
-                  {isVi ? modalService.nameVi : modalService.nameEn}
+                  {modalService.nameVi}
                 </h3>
                 <span className="font-mono text-xs text-primary font-semibold">
-                  {isVi ? modalService.badgeVi : modalService.badgeEn}
+                  {modalService.badgeVi}
                 </span>
               </div>
             </div>
@@ -570,7 +563,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
           footer={
             modalService ? (<div className="flex items-center justify-between w-full">
               <Button variant="ghost" size="sm" onClick={() => setModalService(null)}>
-                {isVi ? 'Đóng' : 'Close'}
+                Đóng
               </Button>
               <Button
                 size="sm"
@@ -581,14 +574,14 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 }}
                 trailingIcon={<Icon name="arrow_forward" size={16} />}
               >
-                <span>{isVi ? modalService.ctaLabelVi : modalService.ctaLabelEn}</span>
+                <span>{modalService.ctaLabelVi}</span>
               </Button>
             </div>) : undefined}
         >
           {modalService ? (<div className="space-y-6">
             {/* Description */}
             <p className="text-sm text-fg-muted leading-relaxed">
-              {isVi ? modalService.fullDescVi : modalService.fullDescEn}
+              {modalService.fullDescVi}
             </p>
 
             {/* 3D Preview in Modal */}
@@ -602,17 +595,17 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 className="w-full h-full"
               />
               <div className="pointer-events-none absolute bottom-2.5 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-full border border-line bg-surface/90 px-3 py-1 font-mono text-xs text-fg-muted backdrop-blur-sm">
-                {isVi ? 'Mô hình minh họa (xoay 360°)' : 'Service Interactive 3D Preview'}
+                Mô hình minh họa (xoay 360°)
               </div>
             </div>
 
             {/* Technical Specifications Grid */}
             <div>
               <h4 className="font-mono text-xs uppercase tracking-wider text-fg-muted font-bold mb-2.5">
-                {isVi ? 'THÔNG SỐ KỸ THUẬT & CAM KẾT' : 'TECHNICAL SPECIFICATIONS & COMMITMENTS'}
+                {'THÔNG SỐ KỸ THUẬT & CAM KẾT'}
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-mono text-xs">
-                {(isVi ? modalService.specsVi : modalService.specsEn).map((spec) => (
+                {(modalService.specsVi).map((spec) => (
                   <div
                     key={spec.label}
                     className="flex items-start justify-between gap-3 rounded-md bg-surface-muted p-2.5"
@@ -627,10 +620,10 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
             {/* Feature Highlights */}
             <div>
               <h4 className="font-mono text-xs uppercase tracking-wider text-fg-muted font-bold mb-2.5">
-                {isVi ? 'ĐẶC ĐIỂM NỔI BẬT' : 'KEY CAPABILITIES'}
+                ĐẶC ĐIỂM NỔI BẬT
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                {(isVi ? modalService.featuresVi : modalService.featuresEn).map((feat) => (
+                {(modalService.featuresVi).map((feat) => (
                   <div key={feat} className="flex items-start gap-2">
                     <span className="text-primary font-bold shrink-0">✓</span>
                     <span className="text-fg">{feat}</span>

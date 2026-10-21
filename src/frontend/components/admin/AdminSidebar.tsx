@@ -29,7 +29,6 @@ export interface AdminNavCounts {
 }
 
 export function buildAdminNavGroups(
-  isVi: boolean,
   {
     ordersCount,
     activeJobsCount,
@@ -42,29 +41,29 @@ export function buildAdminNavGroups(
 ): AdminNavGroup[] {
   return [
     {
-      group: isVi ? 'Tổng quan' : 'Overview',
+      group: 'Tổng quan',
       items: [
         {
           id: 'overview' as AdminNavSection,
-          label: isVi ? 'Tổng Quan Điều Hành' : 'Executive Overview',
+          label: 'Tổng Quan Điều Hành',
           icon: 'dashboard',
           badge: null
         }
       ]
     },
     {
-      group: isVi ? 'Xưởng in & Thiết bị' : 'Workshops & Fleet',
+      group: 'Xưởng in & Thiết bị',
       items: [
         {
           id: 'partners' as AdminNavSection,
-          label: isVi ? 'Mạng Lưới Xưởng In MES' : 'Workshop MES Network',
+          label: 'Mạng Lưới Xưởng In MES',
           icon: 'factory',
           badge: null,
           badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'machines' as AdminNavSection,
-          label: isVi ? 'Đội Máy In 3D' : '3D Printer Fleet',
+          label: 'Đội Máy In 3D',
           icon: 'print',
           badge: fleetBadge,
           badgeColor: 'bg-surface-muted text-fg-muted border border-line'
@@ -72,78 +71,78 @@ export function buildAdminNavGroups(
       ]
     },
     {
-      group: isVi ? 'Nhà thiết kế' : 'Designers',
+      group: 'Nhà thiết kế',
       items: [
         {
           id: 'designers' as AdminNavSection,
-          label: isVi ? 'Nhà Thiết Kế & Bản Quyền' : 'Designers & IP Rights',
+          label: 'Nhà Thiết Kế & Bản Quyền',
           icon: 'draw',
           badge: null
         }
       ]
     },
     {
-      group: isVi ? 'Khách hàng' : 'Customers',
+      group: 'Khách hàng',
       items: [
         {
           id: 'users' as AdminNavSection,
-          label: isVi ? 'Khách Hàng & Hồ Sơ KYC' : 'Customers & Accounts',
+          label: 'Khách Hàng & Hồ Sơ KYC',
           icon: 'manage_accounts',
           badge: null
         }
       ]
     },
     {
-      group: isVi ? 'Danh mục & Định giá' : 'Catalog & Pricing',
+      group: 'Danh mục & Định giá',
       items: [
         {
           id: 'pricing' as AdminNavSection,
-          label: isVi ? 'Công Thức Giá Inkiri v3.4' : 'Inkiri Pricing Engine',
+          label: 'Công Thức Giá Inkiri v3.4',
           icon: 'tune',
           badge: null
         },
         {
           id: 'materials' as AdminNavSection,
-          label: isVi ? 'Danh Mục Nhựa & Resin' : 'Filaments & Resins',
+          label: 'Danh Mục Nhựa & Resin',
           icon: 'layers',
           badge: materialsCount > 0 ? `${materialsCount}` : null,
           badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'hardware' as AdminNavSection,
-          label: isVi ? 'Phụ Kiện, Ốc Cấy & Nam Châm' : 'Hardware & Fasteners',
+          label: 'Phụ Kiện, Ốc Cấy & Nam Châm',
           icon: 'extension',
           badge: accessoriesCount > 0 ? `${accessoriesCount}` : null,
           badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'quote-calc' as AdminNavSection,
-          label: isVi ? 'Báo Giá Dự Toán BOM' : 'BOM Quote Calculator',
+          label: 'Báo Giá Dự Toán BOM',
           icon: 'calculate',
           badge: null
         }
       ]
     },
     {
-      group: isVi ? 'Vận hành sản xuất' : 'Production Operations',
+      group: 'Vận hành sản xuất',
       items: [
         {
           id: 'queue' as AdminNavSection,
-          label: isVi ? 'Hàng Đợi & Kanban 8 Nấc' : '8-Stage MES Kanban',
+          label: 'Hàng Đợi & Kanban 8 Nấc',
           icon: 'precision_manufacturing',
           badge: activeJobsCount > 0 ? `${activeJobsCount}` : null,
           badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'orders' as AdminNavSection,
-          label: isVi ? 'Đơn Hàng & Điều Phối Trạm In' : 'Orders & Dispatch',
+          label: 'Đơn Hàng & Điều Phối Trạm In',
           icon: 'receipt_long',
           badge: ordersCount > 0 ? `${ordersCount}` : null,
           badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'inventory' as AdminNavSection,
-          label: isVi ? 'Kho Vật Liệu & Vị Trí Kệ' : 'Warehouse Inventory',
+          label: 'Kho Vật Liệu & Vị Trí Kệ',
           icon: 'shelves',
           badge: lowStockCount > 0 ? `${lowStockCount}` : null,
           badgeColor: 'bg-surface-muted text-fg-muted border border-line'
@@ -151,30 +150,30 @@ export function buildAdminNavGroups(
       ]
     },
     {
-      group: isVi ? 'CỬA HÀNG & HỆ THỐNG' : 'STOREFRONT & SYSTEM',
+      group: 'CỬA HÀNG & HỆ THỐNG',
       items: [
         {
           id: 'products' as AdminNavSection,
-          label: isVi ? 'Sản Phẩm & Danh Mục 3D' : 'Products & Catalog',
+          label: 'Sản Phẩm & Danh Mục 3D',
           icon: 'inventory_2',
           badge: productsCount > 0 ? `${productsCount}` : null,
           badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'storefront' as AdminNavSection,
-          label: isVi ? 'Cấu Hình Trang Chủ' : 'Landing Page CMS',
+          label: 'Cấu Hình Trang Chủ',
           icon: 'storefront',
           badge: null
         },
         {
           id: 'seo' as AdminNavSection,
-          label: isVi ? 'Quản Trị SEO & Thẻ Mô Tả' : 'SEO & Metadata',
+          label: 'Quản Trị SEO & Thẻ Mô Tả',
           icon: 'travel_explore',
           badge: null
         },
         {
           id: 'settings' as AdminNavSection,
-          label: isVi ? 'Cài Đặt Xưởng & Hệ Thống' : 'Settings & Cloud',
+          label: 'Cài Đặt Xưởng & Hệ Thống',
           icon: 'settings',
           badge: null
         }

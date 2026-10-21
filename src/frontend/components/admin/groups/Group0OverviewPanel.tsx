@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { Order, Product, PrinterProfile, MaterialProfile, AccessoryItem } from '../../../types';
-import { useLanguage } from '../../../context/LanguageContext';
 import { AdminNavSection } from '../AdminSidebar';
 import {
   Button,
@@ -62,8 +61,6 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
   onNavigateSection,
   onNavigateTracking
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
   const [timeframe, setTimeframe] = useState<Timeframe>('month');
 
   // ---------------------------------------------------------------------------
@@ -146,25 +143,17 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
       list.push({
         id: `material-${material.id}`,
         severity: material.stockRollsCount === 0 ? 'critical' : 'warning',
-        title: isVi
-          ? `${material.name} dưới ngưỡng tồn kho`
-          : `${material.name} is below the stock threshold`,
+        title: `${material.name} dưới ngưỡng tồn kho`,
         // D8: `stock_rolls_count` NULL/thiếu ⇒ KHÔNG được in "Còn undefined cuộn".
         // Ba trạng thái phải khác nhau: chưa ghi nhận · hết hàng · còn hàng.
         description:
           material.stockRollsCount == null
-            ? isVi
-              ? 'Chưa ghi nhận số cuộn tồn kho.'
-              : 'No spool count recorded.'
+            ? 'Chưa ghi nhận số cuộn tồn kho.'
             : material.stockRollsCount <= 0
-              ? isVi
-                ? 'Đã hết cuộn trong kho.'
-                : 'No spool left in stock.'
-              : isVi
-                ? `Còn ${material.stockRollsCount} cuộn trong kho.`
-                : `${material.stockRollsCount} spools left in stock.`,
+              ? 'Đã hết cuộn trong kho.'
+              : `Còn ${material.stockRollsCount} cuộn trong kho.`,
         target: 'inventory',
-        action: isVi ? 'Xem kho' : 'Open inventory'
+        action: 'Xem kho'
       });
     });
 
@@ -172,14 +161,10 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
       list.push({
         id: `accessory-${accessory.id}`,
         severity: accessory.stockCount === 0 ? 'critical' : 'warning',
-        title: isVi
-          ? `${accessory.name} dưới ngưỡng tồn kho`
-          : `${accessory.name} is below the stock threshold`,
-        description: isVi
-          ? `Còn ${accessory.stockCount} ${accessory.unit} (ngưỡng ${accessory.lowStockThreshold}).`
-          : `${accessory.stockCount} ${accessory.unit} left (threshold ${accessory.lowStockThreshold}).`,
+        title: `${accessory.name} dưới ngưỡng tồn kho`,
+        description: `Còn ${accessory.stockCount} ${accessory.unit} (ngưỡng ${accessory.lowStockThreshold}).`,
         target: 'inventory',
-        action: isVi ? 'Xem kho' : 'Open inventory'
+        action: 'Xem kho'
       });
     });
 
@@ -189,14 +174,10 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
         list.push({
           id: `printer-${printer.id}`,
           severity: 'warning',
-          title: isVi
-            ? `${printer.name} đang ở trạng thái bảo trì`
-            : `${printer.name} is in maintenance`,
-          description: isVi
-            ? 'Máy đang được đánh dấu bảo trì trong hồ sơ thiết bị.'
-            : 'The device record is flagged as under maintenance.',
+          title: `${printer.name} đang ở trạng thái bảo trì`,
+          description: 'Máy đang được đánh dấu bảo trì trong hồ sơ thiết bị.',
           target: 'machines',
-          action: isVi ? 'Xem đội máy' : 'Open fleet'
+          action: 'Xem đội máy'
         });
       });
 
@@ -206,36 +187,24 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
         list.push({
           id: `order-${order.id}`,
           severity: 'info',
-          title: isVi
-            ? `Đơn ${order.orderNumber} chờ thanh toán`
-            : `Order ${order.orderNumber} awaits payment`,
-          description: isVi
-            ? 'Chưa ghi nhận thanh toán cho đơn này.'
-            : 'No payment has been recorded for this order.',
+          title: `Đơn ${order.orderNumber} chờ thanh toán`,
+          description: 'Chưa ghi nhận thanh toán cho đơn này.',
           target: 'orders',
-          action: isVi ? 'Xem đơn' : 'Open order'
+          action: 'Xem đơn'
         });
       });
 
     return list;
-  }, [metrics, printers, orders, isVi]);
+  }, [metrics, printers, orders]);
 
   const timeframeLabel = (tf: Timeframe) =>
     tf === 'today'
-      ? isVi
-        ? 'Hôm Nay'
-        : 'Today'
+      ? 'Hôm Nay'
       : tf === 'week'
-        ? isVi
-          ? 'Tuần Này'
-          : 'Week'
+        ? 'Tuần Này'
         : tf === 'month'
-          ? isVi
-            ? 'Tháng Này'
-            : 'Month'
-          : isVi
-            ? 'Quý Này'
-            : 'Quarter';
+          ? 'Tháng Này'
+          : 'Quý Này';
 
   const fleetSegments = CHART_SERIES.map((series) => {
     const count =
@@ -246,7 +215,7 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
           : metrics.maintenancePrinters;
     return {
       ...series,
-      label: isVi ? series.labelVi : series.labelEn,
+      label: series.labelVi,
       count,
       percent: metrics.totalPrinters > 0 ? (count / metrics.totalPrinters) * 100 : 0
     };
@@ -259,23 +228,21 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <span className="inline-flex items-center rounded-sm border border-line bg-surface-muted px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-fg-muted">
-              {isVi ? 'Tổng quan' : 'Overview'}
+              Tổng quan
             </span>
             <h2 className="text-lg font-bold tracking-tight text-fg mt-2 flex items-center gap-2.5">
               <Icon name="dashboard" size={24} className="text-primary" />
-              {isVi ? 'Tổng Quan Điều Hành Hệ Sinh Thái VCUBE' : 'VCUBE Executive Operations Hub'}
+              Tổng Quan Điều Hành Hệ Sinh Thái VCUBE
             </h2>
             <div className="mt-1">
-              <InfoTip label={isVi ? 'Các chỉ số này được tính thế nào?' : 'How are these figures computed?'}>
-                {isVi
-                  ? 'Mọi chỉ số dưới đây được tính từ dữ liệu đã nạp (đội máy in, đơn hàng, kho vật tư). Chỉ số không có nguồn dữ liệu hiển thị “—”.'
-                  : 'Every figure below is computed from loaded data (printer fleet, orders, inventory). Metrics without a source render “—”.'}
+              <InfoTip label="Các chỉ số này được tính thế nào?">
+                Mọi chỉ số dưới đây được tính từ dữ liệu đã nạp (đội máy in, đơn hàng, kho vật tư). Chỉ số không có nguồn dữ liệu hiển thị “—”.
               </InfoTip>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-line bg-surface-muted p-1" role="group" aria-label={isVi ? 'Chọn kỳ báo cáo' : 'Reporting period'}>
+            <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-line bg-surface-muted p-1" role="group" aria-label="Chọn kỳ báo cáo">
               {(['today', 'week', 'month', 'quarter'] as const).map((tf) => (
                 <button
                   key={tf}
@@ -298,7 +265,7 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
               leadingIcon={<Icon name="precision_manufacturing" size={18} />}
               onClick={() => onNavigateSection?.('queue')}
             >
-              {isVi ? 'Hàng Đợi MES' : 'MES Queue'}
+              Hàng Đợi MES
             </Button>
           </div>
         </div>
@@ -307,7 +274,7 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
       {/* 2. Thẻ KPI — dùng primitive StatCard; thiếu dữ liệu ⇒ “—” */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label={isVi ? 'Tỷ lệ sử dụng đội máy' : 'Fleet utilisation'}
+          label="Tỷ lệ sử dụng đội máy"
           value={
             metrics.fleetUtilisation === null
               ? EMPTY_VALUE
@@ -316,34 +283,26 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
           icon={<Icon name="print" size={20} />}
           hint={
             metrics.totalPrinters === 0
-              ? isVi
-                ? 'Chưa khai báo máy in nào'
-                : 'No printer recorded yet'
-              : isVi
-                ? `${metrics.printingPrinters} đang in / ${metrics.totalPrinters} máy`
-                : `${metrics.printingPrinters} printing / ${metrics.totalPrinters} printers`
+              ? 'Chưa khai báo máy in nào'
+              : `${metrics.printingPrinters} đang in / ${metrics.totalPrinters} máy`
           }
           onClick={() => onNavigateSection?.('machines')}
         />
 
         <StatCard
-          label={isVi ? 'Đơn đang chế tác' : 'Orders in production'}
+          label="Đơn đang chế tác"
           value={orders.length === 0 ? EMPTY_VALUE : metrics.inProduction}
           icon={<Icon name="precision_manufacturing" size={20} />}
           hint={
             orders.length === 0
-              ? isVi
-                ? 'Chưa có đơn hàng nào'
-                : 'No orders loaded'
-              : isVi
-                ? `${orders.length} đơn trong hệ thống`
-                : `${orders.length} orders loaded`
+              ? 'Chưa có đơn hàng nào'
+              : `${orders.length} đơn trong hệ thống`
           }
           onClick={() => onNavigateSection?.('queue')}
         />
 
         <StatCard
-          label={`${isVi ? 'Doanh thu' : 'Revenue'} · ${timeframeLabel(timeframe)}`}
+          label={`${'Doanh thu'} · ${timeframeLabel(timeframe)}`}
           value={
             metrics.revenueCurrent === null
               ? EMPTY_VALUE
@@ -356,33 +315,25 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
               : {
                   value: formatPercent(metrics.growthRatio, { isRatio: true, fractionDigits: 1 }),
                   direction: metrics.growthRatio >= 0 ? 'up' : 'down',
-                  label: isVi ? 'so với kỳ trước' : 'vs. previous period'
+                  label: 'so với kỳ trước'
                 }
           }
           hint={
             metrics.revenueCurrent === null
-              ? isVi
-                ? 'Chưa có đơn hàng trong kỳ này'
-                : 'No order in this period'
-              : isVi
-                ? `${metrics.knownOrdersCount} đơn có mốc thời gian`
-                : `${metrics.knownOrdersCount} orders with a valid date`
+              ? 'Chưa có đơn hàng trong kỳ này'
+              : `${metrics.knownOrdersCount} đơn có mốc thời gian`
           }
           onClick={() => onNavigateSection?.('orders')}
         />
 
         <StatCard
-          label={isVi ? 'Cảnh báo tồn kho' : 'Inventory alerts'}
+          label="Cảnh báo tồn kho"
           value={metrics.lowStockTotal === null ? EMPTY_VALUE : metrics.lowStockTotal}
           icon={<Icon name="inventory_2" size={20} />}
           hint={
             metrics.inventoryKnown
-              ? isVi
-                ? `${metrics.lowStockMaterials.length} vật liệu · ${metrics.lowStockAccessories.length} phụ kiện dưới ngưỡng`
-                : `${metrics.lowStockMaterials.length} materials · ${metrics.lowStockAccessories.length} accessories below threshold`
-              : isVi
-                ? 'Chưa có dữ liệu kho vật tư'
-                : 'No inventory data yet'
+              ? `${metrics.lowStockMaterials.length} vật liệu · ${metrics.lowStockAccessories.length} phụ kiện dưới ngưỡng`
+              : 'Chưa có dữ liệu kho vật tư'
           }
           onClick={() => onNavigateSection?.('inventory')}
         />
@@ -397,15 +348,11 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
             </span>
             <CardTitle className="text-lg mt-2 flex items-center gap-2">
               <Icon name="pie_chart" size={24} className="text-primary" />
-              {isVi
-                ? 'Biểu Đồ Phân Bổ Cơ Cấu Chi Phí & Định Giá Inkiri'
-                : 'Inkiri Cost Structure & Pricing Breakdown'}
+              {'Biểu Đồ Phân Bổ Cơ Cấu Chi Phí & Định Giá Inkiri'}
             </CardTitle>
             <span className="flex items-center gap-1.5">
-              <InfoTip label={isVi ? 'Cơ cấu chi phí lấy từ đâu?' : 'Where does the cost structure come from?'}>
-                {isVi
-                  ? 'Cơ cấu chi phí chỉ được vẽ từ bản ghi chi phí thật của kỳ đang chọn.'
-                  : 'The cost structure is drawn only from real cost records for the selected period.'}
+              <InfoTip label="Cơ cấu chi phí lấy từ đâu?">
+                Cơ cấu chi phí chỉ được vẽ từ bản ghi chi phí thật của kỳ đang chọn.
               </InfoTip>
             </span>
           </div>
@@ -415,12 +362,8 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
         <CardContent className="pt-4">
           <EmptyState
             size="sm"
-            title={isVi ? 'Chưa có dữ liệu cơ cấu chi phí' : 'No cost structure data'}
-            description={
-              isVi
-                ? 'Chưa có bản ghi chi phí (khấu hao, điện, nhân công, vật tư) cho kỳ này nên không tính được tỷ trọng.'
-                : 'No cost record (depreciation, power, labour, material) exists for this period, so no share can be computed.'
-            }
+            title="Chưa có dữ liệu cơ cấu chi phí"
+            description="Chưa có bản ghi chi phí (khấu hao, điện, nhân công, vật tư) cho kỳ này nên không tính được tỷ trọng."
             icon={<Icon name="pie_chart" size={20} className="text-primary" />}
             action={
               <Button
@@ -429,7 +372,7 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
                 leadingIcon={<Icon name="tune" size={18} />}
                 onClick={() => onNavigateSection?.('pricing')}
               >
-                {isVi ? 'Mở cấu hình giá' : 'Open pricing setup'}
+                Mở cấu hình giá
               </Button>
             }
           />
@@ -443,13 +386,11 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
             <div>
               <CardTitle className="text-base flex items-center gap-2">
                 <Icon name="notifications_active" size={24} className="text-warning" />
-                {isVi ? 'Cảnh Báo Vận Hành' : 'Operational alerts'}
+                Cảnh Báo Vận Hành
               </CardTitle>
               <span className="flex items-center gap-1.5">
-                <InfoTip label={isVi ? 'Cảnh báo vận hành sinh từ đâu?' : 'Where do operational alerts come from?'}>
-                  {isVi
-                    ? 'Sinh trực tiếp từ đội máy in, kho vật tư và đơn hàng đã nạp — không có mốc thời gian thì không hiển thị giờ.'
-                    : 'Derived directly from the loaded fleet, inventory and orders — no timestamp is shown when none exists.'}
+                <InfoTip label="Cảnh báo vận hành sinh từ đâu?">
+                  Sinh trực tiếp từ đội máy in, kho vật tư và đơn hàng đã nạp — không có mốc thời gian thì không hiển thị giờ.
                 </InfoTip>
               </span>
             </div>
@@ -463,16 +404,12 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
           {alerts.length === 0 ? (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có cảnh báo nào' : 'No alerts'}
-              description={
-                isVi
-                  ? 'Không có vật tư nào dưới ngưỡng, không máy nào ở trạng thái bảo trì và không đơn nào chờ thanh toán trong dữ liệu hiện có.'
-                  : 'No material below threshold, no printer under maintenance and no order awaiting payment in the loaded data.'
-              }
+              title="Chưa có cảnh báo nào"
+              description="Không có vật tư nào dưới ngưỡng, không máy nào ở trạng thái bảo trì và không đơn nào chờ thanh toán trong dữ liệu hiện có."
               icon={<Icon name="check_circle" size={20} />}
               action={
                 <Button variant="secondary" size="sm" onClick={() => onNavigateSection?.('inventory')}>
-                  {isVi ? 'Kiểm tra kho' : 'Check inventory'}
+                  Kiểm tra kho
                 </Button>
               }
             />
@@ -525,11 +462,11 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
             <div>
               <CardTitle className="text-base flex items-center gap-2">
                 <Icon name="hub" size={24} className="text-primary" />
-                {isVi ? 'Phân Bổ Đội Máy In' : 'Printer fleet distribution'}
+                Phân Bổ Đội Máy In
               </CardTitle>
               <span className="flex items-center gap-1.5">
-                <InfoTip label={isVi ? 'Phân bổ đội máy in đếm theo tiêu chí nào?' : 'How is the fleet distribution counted?'}>
-                  {isVi ? 'Đếm theo trạng thái thiết bị đã khai báo.' : 'Counted from recorded device status.'}
+                <InfoTip label="Phân bổ đội máy in đếm theo tiêu chí nào?">
+                  Đếm theo trạng thái thiết bị đã khai báo.
                 </InfoTip>
               </span>
             </div>
@@ -538,23 +475,21 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
           {metrics.totalPrinters === 0 ? (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có máy in nào' : 'No printer recorded'}
+              title="Chưa có máy in nào"
               description={
                 <span className="flex flex-wrap items-center justify-center gap-1.5">
                   <span>
-                    {isVi ? 'Chưa nhận được thiết bị nào từ bảng printer_fleet.' : 'No device received from printer_fleet.'}
+                    Chưa nhận được thiết bị nào từ bảng printer_fleet.
                   </span>
-                  <InfoTip label={isVi ? 'Vì sao chưa có gì để phân bổ?' : 'Why is there nothing to break down?'}>
-                    {isVi
-                      ? 'Bảng điều khiển chưa nhận được thiết bị nào từ bảng printer_fleet, nên không có gì để phân bổ.'
-                      : 'The dashboard received no device from printer_fleet, so there is nothing to break down.'}
+                  <InfoTip label="Vì sao chưa có gì để phân bổ?">
+                    Bảng điều khiển chưa nhận được thiết bị nào từ bảng printer_fleet, nên không có gì để phân bổ.
                   </InfoTip>
                 </span>
               }
               icon={<Icon name="print" size={20} />}
               action={
                 <Button variant="primary" size="sm" onClick={() => onNavigateSection?.('machines')}>
-                  {isVi ? 'Khai báo máy in' : 'Register a printer'}
+                  Khai báo máy in
                 </Button>
               }
             />
@@ -602,7 +537,7 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
                 fullWidth
                 onClick={() => onNavigateSection?.('partners')}
               >
-                {isVi ? 'Quản lý mạng lưới xưởng in' : 'Manage workshop network'}
+                Quản lý mạng lưới xưởng in
               </Button>
             </>
           )}
@@ -615,13 +550,11 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
           <div>
             <CardTitle className="text-base flex items-center gap-2">
               <Icon name="inventory_2" size={24} className="text-primary" />
-              {isVi ? 'Danh Mục Sản Phẩm Đã Nạp' : 'Loaded catalog'}
+              Danh Mục Sản Phẩm Đã Nạp
             </CardTitle>
             <span className="flex items-center gap-1.5">
-              <InfoTip label={isVi ? 'Danh mục đã nạp đếm những gì?' : 'What does the loaded catalog count?'}>
-                {isVi
-                  ? 'Chỉ đếm số bản ghi đọc được; không kèm lượt bán hay đánh giá vì chưa có nguồn dữ liệu.'
-                  : 'Counts loaded records only; no sales or ratings because no source exists.'}
+              <InfoTip label="Danh mục đã nạp đếm những gì?">
+                Chỉ đếm số bản ghi đọc được; không kèm lượt bán hay đánh giá vì chưa có nguồn dữ liệu.
               </InfoTip>
             </span>
           </div>
@@ -630,31 +563,27 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
           {products.length === 0 ? (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có sản phẩm nào' : 'No product yet'}
-              description={
-                isVi
-                  ? 'Bảng products chưa có bản ghi nào, nên danh mục đang rỗng.'
-                  : 'The products table has no row, so the catalog is empty.'
-              }
+              title="Chưa có sản phẩm nào"
+              description="Bảng products chưa có bản ghi nào, nên danh mục đang rỗng."
               icon={<Icon name="inventory_2" size={20} />}
               action={
                 <Button variant="primary" size="sm" onClick={() => onNavigateSection?.('products')}>
-                  {isVi ? 'Thêm sản phẩm' : 'Add a product'}
+                  Thêm sản phẩm
                 </Button>
               }
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="p-3 rounded-lg bg-surface-muted">
-                <div className="text-fg-subtle">{isVi ? 'Sản phẩm' : 'Products'}</div>
+                <div className="text-fg-subtle">Sản phẩm</div>
                 <div className="font-mono font-bold text-lg text-fg tabular-nums">{products.length}</div>
               </div>
               <div className="p-3 rounded-lg bg-surface-muted">
-                <div className="text-fg-subtle">{isVi ? 'Vật liệu' : 'Materials'}</div>
+                <div className="text-fg-subtle">Vật liệu</div>
                 <div className="font-mono font-bold text-lg text-fg tabular-nums">{materials.length}</div>
               </div>
               <div className="p-3 rounded-lg bg-surface-muted">
-                <div className="text-fg-subtle">{isVi ? 'Phụ kiện' : 'Accessories'}</div>
+                <div className="text-fg-subtle">Phụ kiện</div>
                 <div className="font-mono font-bold text-lg text-fg tabular-nums">{accessories.length}</div>
               </div>
             </div>

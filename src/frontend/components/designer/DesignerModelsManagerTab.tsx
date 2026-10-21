@@ -4,7 +4,6 @@ import { ThreeModelViewer } from '../LazyThreeModelViewer';
 import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
-import { useLanguage } from '../../context/LanguageContext';
 import { settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
 
 /**
@@ -67,8 +66,6 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
   onShowToast,
   onNavigateToUpload,
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
   const designerRoyaltyPercent = useDesignerRoyaltyPercent();
   // Filter state
   const [modelCategoryFilter, setModelCategoryFilter] = useState('all');
@@ -196,7 +193,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
   const modelColumns = useMemo<DataTableColumn<Product>[]>(() => [
     {
       key: 'name',
-      header: isVi ? 'Ấn phẩm & SKU' : 'Model & SKU',
+      header: 'Ấn phẩm & SKU',
       value: (p) => p.name,
       render: (prod) => (
         <div className="flex items-center gap-3">
@@ -219,10 +216,10 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
         </div>
       ),
     },
-    { key: 'designer', header: isVi ? 'Tác giả' : 'Designer', value: (p) => p.designer || '', render: (prod) => <span className="text-sm text-fg-muted">{prod.designer || '—'}</span> },
+    { key: 'designer', header: 'Tác giả', value: (p) => p.designer || '', render: (prod) => <span className="text-sm text-fg-muted">{prod.designer || '—'}</span> },
     {
       key: 'licenseType',
-      header: isVi ? 'Giấy phép' : 'License',
+      header: 'Giấy phép',
       value: (p) => p.licenseType || 'Standard',
       render: (prod) => (
         <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary-tint px-2.5 py-1 text-xs font-medium text-primary">
@@ -230,17 +227,17 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
         </span>
       ),
     },
-    { key: 'priceDigital', header: isVi ? 'Giá tải tệp số' : 'Digital price', numeric: true, value: (p) => p.priceDigital ?? 0, render: (prod) => <span className="font-semibold text-fg">{formatCurrency(prod.priceDigital)}</span> },
-    { key: 'pricePhysical', header: isVi ? 'Giá in 3D vật lý' : 'Physical price', numeric: true, value: (p) => p.pricePhysical ?? 0, render: (prod) => <span className="font-semibold text-fg">{formatCurrency(prod.pricePhysical)}</span> },
+    { key: 'priceDigital', header: 'Giá tải tệp số', numeric: true, value: (p) => p.priceDigital ?? 0, render: (prod) => <span className="font-semibold text-fg">{formatCurrency(prod.priceDigital)}</span> },
+    { key: 'pricePhysical', header: 'Giá in 3D vật lý', numeric: true, value: (p) => p.pricePhysical ?? 0, render: (prod) => <span className="font-semibold text-fg">{formatCurrency(prod.pricePhysical)}</span> },
     {
       key: 'status',
-      header: isVi ? 'Trạng thái' : 'Status',
+      header: 'Trạng thái',
       align: 'center',
       value: (p) => p.status || 'Published',
       render: (prod) => (
         <button
           onClick={() => handleToggleProductStatus(prod)}
-          title={isVi ? 'Bấm để đổi trạng thái xuất bản' : 'Click to toggle status'}
+          title="Bấm để đổi trạng thái xuất bản"
           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             prod.status === 'Under Review'
               ? 'border-warning/20 bg-warning-tint text-warning'
@@ -265,7 +262,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
     },
     {
       key: 'actions',
-      header: isVi ? 'Hành động' : 'Actions',
+      header: 'Hành động',
       align: 'right',
       render: (prod) => (
         <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
@@ -275,7 +272,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
             onClick={() => handleOpenEditModal(prod)}
             leadingIcon={<Icon name="edit" size={16} />}
           >
-            {isVi ? 'Sửa & giá' : 'Edit'}
+            {'Sửa & giá'}
           </Button>
           <Button
             size="sm"
@@ -283,14 +280,14 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
             onClick={() => setPreviewProduct(prod)}
             leadingIcon={<Icon name="view_in_ar" size={16} />}
           >
-            {isVi ? 'Xem 3D' : '3D'}
+            Xem 3D
           </Button>
           <Button
             iconOnly
             size="sm"
             variant="danger-ghost"
-            aria-label={isVi ? `Xoá ${prod.name}` : `Delete ${prod.name}`}
-            title={isVi ? 'Xoá ấn phẩm' : 'Delete'}
+            aria-label={`Xoá ${prod.name}`}
+            title="Xoá ấn phẩm"
             onClick={() => handleDeleteConfirm(prod)}
             leadingIcon={<Icon name="delete" size={16} />}
           />
@@ -298,7 +295,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi]);
+  ], []);
 
   return (
     <div className="space-y-4">
@@ -382,15 +379,15 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
         columns={modelColumns}
         rows={filteredProducts}
         getRowId={(row) => row.id}
-        caption={isVi ? 'Ấn phẩm của tôi' : 'My models'}
-        tableLabel={isVi ? 'Ấn phẩm của tôi' : 'My models'}
+        caption="Ấn phẩm của tôi"
+        tableLabel="Ấn phẩm của tôi"
         defaultSort={[{ key: 'name', direction: 'asc' }]}
         emptyState={
           <EmptyState
             live
-            title={isVi ? 'Không tìm thấy ấn phẩm nào phù hợp' : 'No matching models'}
-            description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc.' : 'Clear the search or change the filter.'}
-            action={<Button variant="primary" size="sm" onClick={onNavigateToUpload}>{isVi ? 'Đăng tải ấn phẩm mới' : 'Upload new model'}</Button>}
+            title="Không tìm thấy ấn phẩm nào phù hợp"
+            description="Thử xoá từ khoá hoặc đổi bộ lọc."
+            action={<Button variant="primary" size="sm" onClick={onNavigateToUpload}>Đăng tải ấn phẩm mới</Button>}
           />
         }
       />
@@ -401,7 +398,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
           open
           onClose={() => setEditingProduct(null)}
           size="lg"
-          title={<span className="flex items-center gap-2"><Icon name="edit" size={22} className="text-primary" />{isVi ? 'Chỉnh sửa ấn phẩm & giá in' : 'Edit model & pricing'}</span>}
+          title={<span className="flex items-center gap-2"><Icon name="edit" size={22} className="text-primary" />{'Chỉnh sửa ấn phẩm & giá in'}</span>}
         >
             <form onSubmit={handleSaveEditProduct} className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

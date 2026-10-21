@@ -3,7 +3,6 @@ import { MaterialProfile, AccessoryItem } from '../../types';
 import { Icon, InfoTip, DataTable, EmptyState, Field, Input, Button, Badge } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatNumber } from '../../lib/format';
-import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Đợt S (#1): `materials.cost_per_kg` / `price_per_gram` / `stock_rolls_count` … nay là
@@ -67,8 +66,6 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
   onUpdateAccessories,
   onShowToast
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
   const [filterType, setFilterType] = useState<'all' | 'materials' | 'accessories' | 'low_stock'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
@@ -176,7 +173,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
   const materialColumns = useMemo<DataTableColumn<MaterialProfile>[]>(() => [
     {
       key: 'name',
-      header: isVi ? 'Tên Vật Liệu' : 'Material',
+      header: 'Tên Vật Liệu',
       value: (m) => m.name,
       render: (mat) => (
         <div className="flex items-center gap-2">
@@ -192,24 +189,24 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
         </div>
       ),
     },
-    { key: 'brand', header: isVi ? 'Thương Hiệu' : 'Brand', value: (m) => m.brand || '', render: (mat) => <span className="text-fg-muted">{mat.brand || '—'}</span> },
+    { key: 'brand', header: 'Thương Hiệu', value: (m) => m.brand || '', render: (mat) => <span className="text-fg-muted">{mat.brand || '—'}</span> },
     {
       key: 'costPerKg',
-      header: isVi ? 'Giá Vốn / kg' : 'Cost / kg',
+      header: 'Giá Vốn / kg',
       numeric: true,
       value: (m) => costPerKgOf(m) ?? 0,
       render: (mat) => <span className="font-mono tabular-nums text-fg-muted">{numText(costPerKgOf(mat), ' ₫')}</span>,
     },
     {
       key: 'pricePerGram',
-      header: isVi ? 'Giá Báo / g' : 'Price / g',
+      header: 'Giá Báo / g',
       numeric: true,
       value: (m) => m.pricePerGram ?? 0,
       render: (mat) => <span className="font-mono font-bold tabular-nums text-primary">{numText(mat.pricePerGram, ' đ/g')}</span>,
     },
     {
       key: 'stockRollsCount',
-      header: isVi ? 'Tồn Kho (Cuộn)' : 'Stock (rolls)',
+      header: 'Tồn Kho (Cuộn)',
       align: 'center',
       value: (m) => m.stockRollsCount ?? 0,
       render: (mat) => {
@@ -236,22 +233,22 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
     },
     {
       key: 'quoteStatus',
-      header: isVi ? 'Trạng Thái Báo Giá' : 'Quote status',
+      header: 'Trạng Thái Báo Giá',
       align: 'center',
       render: (mat) => {
         const count = declaredNumber(mat.stockRollsCount);
         if (count === null) {
-          return <Badge variant="neutral">{isVi ? 'Chưa khai tồn' : 'Stock not declared'}</Badge>;
+          return <Badge variant="neutral">Chưa khai tồn</Badge>;
         }
         if (mat.inStock && count > 0) {
-          return <Badge variant="success" dot>{isVi ? 'Sẵn Sàng Cho Khách' : 'Available'}</Badge>;
+          return <Badge variant="success" dot>Sẵn Sàng Cho Khách</Badge>;
         }
-        return <Badge variant="danger" dot>{isVi ? 'Tạm Hết Hàng' : 'Out of stock'}</Badge>;
+        return <Badge variant="danger" dot>Tạm Hết Hàng</Badge>;
       },
     },
     {
       key: 'actions',
-      header: isVi ? 'Nhập / Xuất Kho' : 'Adjust stock',
+      header: 'Nhập / Xuất Kho',
       align: 'right',
       render: (mat) => (
         <div className="flex items-center justify-end gap-1">
@@ -275,7 +272,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi]);
+  ], []);
 
   const filteredAccessoriesList = useMemo(
     () =>
@@ -315,13 +312,13 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
     },
     {
       key: 'category',
-      header: isVi ? 'Phân Loại' : 'Category',
+      header: 'Phân Loại',
       value: (a) => a.category,
       render: (acc) => <Badge variant="info" className="capitalize">{acc.category}</Badge>,
     },
     {
       key: 'warehouseLocation',
-      header: isVi ? 'Vị Trí Kệ' : 'Shelf',
+      header: 'Vị Trí Kệ',
       value: (a) => a.warehouseLocation || '',
       render: (acc) => (
         <span className="flex items-center gap-1 font-mono text-xs font-bold text-primary">
@@ -330,11 +327,11 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
         </span>
       ),
     },
-    { key: 'costPrice', header: isVi ? 'Giá Vốn' : 'Cost', numeric: true, value: (a) => a.costPrice ?? 0, render: (acc) => <span className="font-mono tabular-nums text-fg-muted">{numText(acc.costPrice, ' ₫')}</span> },
-    { key: 'sellingPrice', header: isVi ? 'Giá Báo Khách' : 'Sell', numeric: true, value: (a) => a.sellingPrice ?? 0, render: (acc) => <span className="font-mono font-bold tabular-nums text-fg">{numText(acc.sellingPrice, ' ₫')}</span> },
+    { key: 'costPrice', header: 'Giá Vốn', numeric: true, value: (a) => a.costPrice ?? 0, render: (acc) => <span className="font-mono tabular-nums text-fg-muted">{numText(acc.costPrice, ' ₫')}</span> },
+    { key: 'sellingPrice', header: 'Giá Báo Khách', numeric: true, value: (a) => a.sellingPrice ?? 0, render: (acc) => <span className="font-mono font-bold tabular-nums text-fg">{numText(acc.sellingPrice, ' ₫')}</span> },
     {
       key: 'stockCount',
-      header: isVi ? 'Tồn Kho' : 'Stock',
+      header: 'Tồn Kho',
       align: 'center',
       value: (a) => a.stockCount ?? 0,
       render: (acc) => {
@@ -362,7 +359,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
     },
     {
       key: 'actions',
-      header: isVi ? 'Nhập / Xuất Nhanh' : 'Quick adjust',
+      header: 'Nhập / Xuất Nhanh',
       align: 'right',
       render: (acc) => (
         <div className="flex items-center justify-end gap-1">
@@ -386,7 +383,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi]);
+  ], []);
 
   return (
     <div className="space-y-6">
@@ -574,14 +571,14 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
             columns={materialColumns}
             rows={filteredMaterials}
             getRowId={(row) => row.id}
-            caption={isVi ? 'Tồn kho vật liệu' : 'Material inventory'}
-            tableLabel={isVi ? 'Tồn kho vật liệu' : 'Material inventory'}
+            caption="Tồn kho vật liệu"
+            tableLabel="Tồn kho vật liệu"
             defaultSort={[{ key: 'name', direction: 'asc' }]}
             emptyState={
               <EmptyState
                 live
-                title={isVi ? 'Không có vật liệu phù hợp' : 'No matching materials'}
-                description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc.' : 'Clear the search or change the filter.'}
+                title="Không có vật liệu phù hợp"
+                description="Thử xoá từ khoá hoặc đổi bộ lọc."
               />
             }
           />
@@ -606,14 +603,14 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
             columns={accessoryColumns}
             rows={filteredAccessoriesList}
             getRowId={(row) => row.id}
-            caption={isVi ? 'Tồn kho phụ kiện' : 'Accessory inventory'}
-            tableLabel={isVi ? 'Tồn kho phụ kiện' : 'Accessory inventory'}
+            caption="Tồn kho phụ kiện"
+            tableLabel="Tồn kho phụ kiện"
             defaultSort={[{ key: 'name', direction: 'asc' }]}
             emptyState={
               <EmptyState
                 live
-                title={isVi ? 'Không có phụ kiện phù hợp' : 'No matching accessories'}
-                description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc vị trí.' : 'Clear the search or change the location filter.'}
+                title="Không có phụ kiện phù hợp"
+                description="Thử xoá từ khoá hoặc đổi bộ lọc vị trí."
               />
             }
           />

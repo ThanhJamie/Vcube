@@ -716,7 +716,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               <span className="tabular-nums text-right text-fg">{vndAllowZero(vat.amount)}</span>
             </div>
           ) : (
-            <p className="text-xs text-fg-muted leading-relaxed font-sans">{vatNotConfiguredLabel(true)}</p>
+            <p className="text-xs text-fg-muted leading-relaxed font-sans">{vatNotConfiguredLabel()}</p>
           )}
           <div className="flex items-baseline justify-between gap-2 border-t border-line-subtle pt-2">
             <span className="text-lg font-bold text-fg">Tổng phải trả:</span>

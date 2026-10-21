@@ -5,7 +5,6 @@ import { CATEGORIES, POPULAR_TAGS } from '../data/mockData';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { SEOHead } from '../components/SEOHead';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
-import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useCartStore } from '../stores/useCartStore';
 import { Icon, Badge, Button, Card, EmptyState, InfoTip, Sheet, Skeleton } from '@frontend/ui';
@@ -24,8 +23,7 @@ import { realProductImageUrl } from '@frontend/lib/productImage';
  * - Giữ NGUYÊN logic: bộ lọc (sidebar desktop + bottom-sheet mobile), density, grid/table,
  *   tìm kiếm, phân trang, empty/loading/error, data-honesty (giá `> 0`, license, rating).
  * - VI-only (D0): bỏ thuật ngữ hiển thị tiếng Anh ngoài allowlist ("File" → "Tệp", nhãn
- *   giấy phép chuẩn hoá VI); nhánh `en` chết trong `isVi ? … : …` giữ nguyên (không
- *   mass-codemod theo PLAN §5.4).
+ *   giấy phép chuẩn hoá VI). Nhánh EN chết đã được xoá bằng codemod Phase 2a.
  */
 
 interface ExploreViewProps {
@@ -209,11 +207,9 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   onSelectProduct,
   onShowToast
 }) => {
-  const { language } = useLanguage();
   const { role } = useAuth();
-  const isVi = language === 'vi';
   const isAdmin = role === 'admin';
-  const numberLocale = isVi ? 'vi-VN' : 'en-US';
+  const numberLocale = 'vi-VN';
 
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
   const [searchQuery, setSearchQuery] = useState<string>(initialSearch);
@@ -467,13 +463,13 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
    */
   const renderFilters = () => (
     <div className="space-y-4">
-      <FilterGroup title={isVi ? 'Danh Mục Bản Vẽ' : 'CAD Categories'}>
+      <FilterGroup title="Danh Mục Bản Vẽ">
         <div className="space-y-1">
           <FilterOption
             active={selectedCategory === 'all'}
             onClick={() => setSelectedCategory('all')}
             icon="select_all"
-            label={isVi ? 'Tất cả danh mục' : 'All Categories'}
+            label="Tất cả danh mục"
             count={catalogProducts.length}
           />
           {CATEGORIES.filter(c => c.id !== 'all').map((cat) => (
@@ -482,7 +478,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               active={selectedCategory === cat.id}
               onClick={() => setSelectedCategory(cat.id)}
               icon={cat.icon}
-              label={isVi ? cat.name : (cat as any).nameEn || cat.name}
+              label={cat.name}
               count={categoryCounts[cat.id] || 0}
             />
           ))}
@@ -490,7 +486,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       </FilterGroup>
 
       {priceRange && (
-        <FilterGroup title={isVi ? 'Khoảng Giá In Vật Lý' : 'Physical Price Range'}>
+        <FilterGroup title="Khoảng Giá In Vật Lý">
           <div className="grid grid-cols-2 gap-1.5 mb-3">
             {PRICE_PRESETS.map((preset) => (
               <button
@@ -504,17 +500,17 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                     : 'bg-surface text-fg-muted border-line hover:border-line-control hover:text-fg'
                 }`}
               >
-                {isVi ? preset.vi : preset.en}
+                {preset.vi}
               </button>
             ))}
           </div>
 
           <div className="pt-1">
             <div className="flex justify-between items-baseline mb-1 text-xs font-mono gap-2">
-              <span className="text-fg-muted">{isVi ? 'Tối đa:' : 'Max:'}</span>
+              <span className="text-fg-muted">Tối đa:</span>
               <span className="font-bold text-fg tabular-nums">
                 {priceMax === null
-                  ? (isVi ? 'Không giới hạn' : 'No limit')
+                  ? ('Không giới hạn')
                   : formatCurrency(priceMax)}
               </span>
             </div>
@@ -529,7 +525,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 const next = Number(e.target.value);
                 setPriceMax(next >= priceRange.ceiling ? null : next);
               }}
-              aria-label={isVi ? 'Giá in vật lý tối đa' : 'Maximum physical print price'}
+              aria-label="Giá in vật lý tối đa"
               className="w-full accent-primary cursor-pointer"
             />
             <div className="flex justify-between text-xs font-mono text-fg-muted mt-0.5 tabular-nums">
@@ -542,12 +538,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
       {/* Material Filter — lấy từ bảng `materials` thật; rỗng ⇒ ẩn cả nhóm */}
       {materialOptions.length > 0 && (
-        <FilterGroup title={isVi ? 'Vật Liệu Hỗ Trợ' : 'Supported Material'} defaultOpen={false}>
+        <FilterGroup title="Vật Liệu Hỗ Trợ" defaultOpen={false}>
           <div className="space-y-1">
             <FilterOption
               active={selectedMaterial === 'all'}
               onClick={() => setSelectedMaterial('all')}
-              label={isVi ? 'Tất cả vật liệu' : 'All materials'}
+              label="Tất cả vật liệu"
               icon="done"
             />
             {materialOptions.map((mat) => (
@@ -562,7 +558,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         </FilterGroup>
       )}
 
-      <FilterGroup title={isVi ? 'Tính Năng' : 'Features'} defaultOpen={false}>
+      <FilterGroup title="Tính Năng" defaultOpen={false}>
         <label className="flex min-h-11 items-center gap-2.5 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -571,7 +567,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             className="size-4 accent-primary cursor-pointer"
           />
           <span className="text-sm text-fg font-medium">
-            {isVi ? 'Hỗ trợ khắc tên & tùy biến' : 'Custom engraving & resize'}
+            {'Hỗ trợ khắc tên & tùy biến'}
           </span>
         </label>
       </FilterGroup>
@@ -581,14 +577,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   return (
     <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans relative selection:bg-primary selection:text-primary-fg">
       <SEOHead
-        title={isVi ? 'Kho Bản Vẽ CAD & Linh Kiện 3D' : '3D CAD & Precision Parts Marketplace'}
-        description={isVi
-          ? (catalogProducts.length > 0
+        title={'Kho Bản Vẽ CAD & Linh Kiện 3D'}
+        description={(catalogProducts.length > 0
             ? `Kho ${catalogProducts.length} bản vẽ CAD & linh kiện 3D trên VCUBE — giá, vật liệu hỗ trợ và định dạng tệp lấy từ dữ liệu sản phẩm.`
-            : 'Kho bản vẽ CAD & linh kiện 3D của VCUBE. Hiện chưa có bản vẽ nào được đăng — bạn vẫn có thể gửi tệp 3D để nhận báo giá in.')
-          : (catalogProducts.length > 0
-            ? `${catalogProducts.length} CAD models on VCUBE — prices, supported materials and file formats read from product data.`
-            : 'VCUBE CAD catalogue. No model has been published yet — you can still send your own 3D file for a print quote.')}
+            : 'Kho bản vẽ CAD & linh kiện 3D của VCUBE. Hiện chưa có bản vẽ nào được đăng — bạn vẫn có thể gửi tệp 3D để nhận báo giá in.')}
         image={realProductImageUrl(products[0]?.images, products[0]?.thumbnailUrl)}
         url={typeof window !== 'undefined' ? window.location.href : undefined}
         type="website"
@@ -600,29 +592,23 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-xs font-semibold uppercase tracking-wider text-fg-muted shadow-soft">
               <span className="size-1.5 rounded-full bg-brand" aria-hidden="true" />
-              <span>{isVi ? 'Kho Bản Vẽ CAD VCUBE' : 'VCUBE CAD REPOSITORY'}</span>
+              <span>Kho Bản Vẽ CAD VCUBE</span>
             </div>
             <h1 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-fg">
-              {isVi ? 'Bộ Sưu Tập & Bản Vẽ Kỹ Thuật CAD' : 'Engineering CAD & Physical Catalog'}
+              {'Bộ Sưu Tập & Bản Vẽ Kỹ Thuật CAD'}
             </h1>
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs sm:text-sm text-fg-muted font-sans max-w-2xl leading-relaxed">
               <span>
                 {showError
-                  ? (isVi ? 'Chưa tải được kho bản vẽ.' : 'The catalogue could not be loaded.')
+                  ? ('Chưa tải được kho bản vẽ.')
                   : isCatalogLoading
-                    ? (isVi ? 'Đang tải kho bản vẽ…' : 'Loading the catalogue…')
+                    ? ('Đang tải kho bản vẽ…')
                     : catalogProducts.length > 0
-                      ? (isVi
-                        ? `${catalogProducts.length} bản vẽ đang có — vật liệu hỗ trợ, định dạng tệp và giá lấy từ dữ liệu sản phẩm.`
-                        : `${catalogProducts.length} models available — materials, file formats and prices read from product data.`)
-                      : (isVi
-                        ? 'Kho bản vẽ đang trống.'
-                        : 'The catalogue is empty.')}
+                      ? (`${catalogProducts.length} bản vẽ đang có — vật liệu hỗ trợ, định dạng tệp và giá lấy từ dữ liệu sản phẩm.`)
+                      : ('Kho bản vẽ đang trống.')}
               </span>
-              <InfoTip label={isVi ? 'Số bản vẽ này đếm gì?' : 'What does this count cover?'}>
-                {isVi
-                  ? 'Đếm theo các bản vẽ đang hiển thị với vai trò hiện tại. Trường nào người bán chưa khai (giá, giấy phép, thời gian in, tác giả) sẽ hiện — thay vì một giá trị đoán hộ. Kho trống thì bạn vẫn gửi được tệp 3D để nhận báo giá in.'
-                  : 'Counted over the models visible to the current role. Any field the seller has not declared (price, licence, print time, designer) renders — instead of a guessed value. An empty catalogue still lets you send your own 3D file for a print quote.'}
+              <InfoTip label="Số bản vẽ này đếm gì?">
+                Đếm theo các bản vẽ đang hiển thị với vai trò hiện tại. Trường nào người bán chưa khai (giá, giấy phép, thời gian in, tác giả) sẽ hiện — thay vì một giá trị đoán hộ. Kho trống thì bạn vẫn gửi được tệp 3D để nhận báo giá in.
               </InfoTip>
             </p>
           </div>
@@ -632,10 +618,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <div className="relative">
               <input
                 type="text"
-                placeholder={isVi ? 'Tìm linh kiện CAD (vd: Bánh răng, ESP32, Drone)...' : 'Search CAD models (e.g. Gear, Drone, NEMA)...'}
+                placeholder="Tìm linh kiện CAD (vd: Bánh răng, ESP32, Drone)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label={isVi ? 'Tìm kiếm bản vẽ CAD' : 'Search CAD models'}
+                aria-label="Tìm kiếm bản vẽ CAD"
                 className="h-11 w-full rounded-full border border-line-control bg-surface pl-10 pr-11 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring"
               />
               <Icon name="search" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-muted" />
@@ -644,7 +630,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   iconOnly
                   variant="ghost"
                   size="sm"
-                  aria-label={isVi ? 'Xoá từ khoá tìm kiếm' : 'Clear search'}
+                  aria-label="Xoá từ khoá tìm kiếm"
                   onClick={() => setSearchQuery('')}
                   className="absolute right-1 top-1/2 -translate-y-1/2"
                   leadingIcon={<Icon name="close" size={18} />}
@@ -659,7 +645,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               leadingIcon={<Icon name="request_quote" size={18} />}
               onClick={goToQuote}
             >
-              {isVi ? 'Báo giá tệp 3D của bạn' : 'Quote your own 3D file'}
+              Báo giá tệp 3D của bạn
             </Button>
           </div>
         </div>
@@ -668,11 +654,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         <section aria-labelledby="explore-categories" className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="explore-categories" className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-              {isVi ? 'Danh mục bản vẽ' : 'CAD categories'}
+              Danh mục bản vẽ
             </h2>
             {selectedCategory !== 'all' && (
               <Button variant="ghost" size="sm" leadingIcon={<Icon name="close" size={16} />} onClick={() => setSelectedCategory('all')}>
-                {isVi ? 'Bỏ lọc danh mục' : 'Clear category'}
+                Bỏ lọc danh mục
               </Button>
             )}
           </div>
@@ -700,7 +686,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                     ) : null}
                   </span>
                   <span className="text-xs font-semibold leading-snug text-fg">
-                    {isVi ? cat.name : (cat as any).nameEn || cat.name}
+                    {cat.name}
                   </span>
                 </button>
               );
@@ -713,7 +699,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-fg-muted">
               <Icon name="sell" size={18} className="text-fg-muted" />
-              {isVi ? 'Lọc nhanh theo thẻ kỹ thuật:' : 'Quick Filter by Engineering Tag:'}
+              Lọc nhanh theo thẻ kỹ thuật:
             </span>
             {selectedTag !== 'all' && (
               <Button
@@ -722,7 +708,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 leadingIcon={<Icon name="close" size={18} />}
                 onClick={() => setSelectedTag('all')}
               >
-                {isVi ? 'Bỏ lọc thẻ' : 'Clear tag'}
+                Bỏ lọc thẻ
               </Button>
             )}
           </div>
@@ -745,7 +731,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                     }`}
                   >
                     <Icon name={tag.icon} size={16} />
-                    <span>{isVi ? tag.nameVi : tag.nameEn}</span>
+                    <span>{tag.nameVi}</span>
                   </button>
                 );
               })}
@@ -759,57 +745,57 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-fg-muted">
                 <Icon name="filter_alt" size={18} />
-                {isVi ? 'Đang lọc:' : 'Active filters:'}
+                Đang lọc:
               </span>
 
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-fg">
-                  <span>{isVi ? 'Tìm' : 'Search'}: "{searchQuery}"</span>
-                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Xoá tìm kiếm' : 'Clear search'} onClick={() => setSearchQuery('')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
+                  <span>Tìm: "{searchQuery}"</span>
+                  <Button iconOnly size="sm" variant="ghost" aria-label="Xoá tìm kiếm" onClick={() => setSearchQuery('')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {selectedCategory !== 'all' && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-fg">
-                  <span>{isVi ? 'Danh mục' : 'Category'}: {CATEGORIES.find(c => c.id === selectedCategory)?.name || selectedCategory}</span>
-                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc danh mục' : 'Clear category'} onClick={() => setSelectedCategory('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
+                  <span>Danh mục: {CATEGORIES.find(c => c.id === selectedCategory)?.name || selectedCategory}</span>
+                  <Button iconOnly size="sm" variant="ghost" aria-label="Bỏ lọc danh mục" onClick={() => setSelectedCategory('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {selectedTag !== 'all' && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-fg">
-                  <span>{isVi ? 'Thẻ' : 'Tag'}: #{selectedTag}</span>
-                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc thẻ' : 'Clear tag'} onClick={() => setSelectedTag('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
+                  <span>Thẻ: #{selectedTag}</span>
+                  <Button iconOnly size="sm" variant="ghost" aria-label="Bỏ lọc thẻ" onClick={() => setSelectedTag('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {selectedMaterial !== 'all' && materialOptions.length > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-fg">
-                  <span>{isVi ? 'Vật liệu' : 'Material'}: {selectedMaterial}</span>
-                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc vật liệu' : 'Clear material'} onClick={() => setSelectedMaterial('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
+                  <span>Vật liệu: {selectedMaterial}</span>
+                  <Button iconOnly size="sm" variant="ghost" aria-label="Bỏ lọc vật liệu" onClick={() => setSelectedMaterial('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {pricePreset !== 'all' && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-fg">
                   <span>
-                    {isVi ? 'Giá' : 'Price'}: {pricePreset === 'under100' ? '< 100k' : pricePreset === '100to250' ? '100k – 250k' : pricePreset === '250to500' ? '250k – 500k' : '> 500k'}
+                    Giá: {pricePreset === 'under100' ? '< 100k' : pricePreset === '100to250' ? '100k – 250k' : pricePreset === '250to500' ? '250k – 500k' : '> 500k'}
                   </span>
-                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc khoảng giá' : 'Clear price range'} onClick={() => setPricePreset('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
+                  <Button iconOnly size="sm" variant="ghost" aria-label="Bỏ lọc khoảng giá" onClick={() => setPricePreset('all')} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {priceMax !== null && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-fg">
-                  <span>{isVi ? 'Tối đa' : 'Max'}: {formatCurrency(priceMax)}</span>
-                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ giới hạn giá' : 'Clear max price'} onClick={() => setPriceMax(null)} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
+                  <span>Tối đa: {formatCurrency(priceMax)}</span>
+                  <Button iconOnly size="sm" variant="ghost" aria-label="Bỏ giới hạn giá" onClick={() => setPriceMax(null)} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
 
               {onlyCustomizable && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-fg">
-                  <span>{isVi ? 'Hỗ trợ khắc tên & tùy biến' : 'Engraving & customization supported'}</span>
-                  <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Bỏ lọc tuỳ biến' : 'Clear customizable filter'} onClick={() => setOnlyCustomizable(false)} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
+                  <span>{'Hỗ trợ khắc tên & tùy biến'}</span>
+                  <Button iconOnly size="sm" variant="ghost" aria-label="Bỏ lọc tuỳ biến" onClick={() => setOnlyCustomizable(false)} className="-m-2 hover:text-danger" leadingIcon={<Icon name="close" size={18} />} />
                 </span>
               )}
             </div>
@@ -820,7 +806,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               leadingIcon={<Icon name="restart_alt" size={18} />}
               onClick={resetFilters}
             >
-              {isVi ? 'Xóa toàn bộ bộ lọc' : 'Reset all filters'}
+              Xóa toàn bộ bộ lọc
             </Button>
           </Card>
         )}
@@ -834,10 +820,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             leadingIcon={<Icon name="tune" size={18} className="text-fg-muted" />}
             onClick={() => setMobileFilterOpen(true)}
           >
-            {isVi ? `Bộ lọc (${filteredProducts.length})` : `Filters (${filteredProducts.length})`}
+            {`Bộ lọc (${filteredProducts.length})`}
           </Button>
           <Button variant="ghost" size="md" onClick={resetFilters}>
-            {isVi ? 'Đặt lại' : 'Reset'}
+            Đặt lại
           </Button>
         </div>
 
@@ -849,11 +835,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               <div className="flex items-center justify-between gap-2 pb-3.5 border-b border-line">
                 <span className="flex items-center gap-1.5 text-sm font-bold text-fg">
                   <Icon name="tune" size={18} className="text-fg-muted" />
-                  {isVi ? 'Bộ lọc phân loại' : 'Filter Options'}
+                  Bộ lọc phân loại
                 </span>
                 {hasActiveFilters && (
                   <Button variant="danger-ghost" size="sm" onClick={resetFilters}>
-                    {isVi ? 'Xóa lọc' : 'Reset'}
+                    Xóa lọc
                   </Button>
                 )}
               </div>
@@ -873,13 +859,13 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <Card variant="soft" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-fg-muted">
-                  {isVi ? 'Hiển thị' : 'Showing'} <strong className="text-fg font-mono font-semibold tabular-nums">{renderedProducts.length} / {filteredProducts.length}</strong> {isVi ? 'bản vẽ' : 'models'}
+                  Hiển thị <strong className="text-fg font-mono font-semibold tabular-nums">{renderedProducts.length} / {filteredProducts.length}</strong> bản vẽ
                 </span>
                 {selectedTag !== 'all' && (
-                  <Badge variant="neutral">{isVi ? 'Thẻ' : 'Tag'}: #{selectedTag}</Badge>
+                  <Badge variant="neutral">Thẻ: #{selectedTag}</Badge>
                 )}
                 {isAdmin && (
-                  <Badge variant="warning">{isVi ? 'Chế độ quản trị (mọi trạng thái)' : 'Admin view (all status)'}</Badge>
+                  <Badge variant="warning">Chế độ quản trị (mọi trạng thái)</Badge>
                 )}
               </div>
 
@@ -888,7 +874,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 <div className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-muted p-1">
                   <button
                     type="button"
-                    aria-label={isVi ? 'Xem dạng lưới' : 'Grid view'}
+                    aria-label="Xem dạng lưới"
                     aria-pressed={viewMode === 'grid'}
                     onClick={() => setViewMode('grid')}
                     className={`grid size-10 max-md:size-12 place-items-center rounded-full transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -901,7 +887,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    aria-label={isVi ? 'Xem dạng bảng' : 'Table view'}
+                    aria-label="Xem dạng bảng"
                     aria-pressed={viewMode === 'tech-table'}
                     onClick={() => setViewMode('tech-table')}
                     className={`grid size-10 max-md:size-12 place-items-center rounded-full transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -915,18 +901,18 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Sắp xếp:' : 'Sort:'}</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Sắp xếp:</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    aria-label={isVi ? 'Sắp xếp danh sách bản vẽ' : 'Sort models'}
+                    aria-label="Sắp xếp danh sách bản vẽ"
                     className="h-10 max-md:min-h-11 rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg cursor-pointer focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring"
                   >
-                    <option value="featured">{isVi ? 'Nổi bật nhất' : 'Featured'}</option>
-                    <option value="popular">{isVi ? 'Lượt in nhiều nhất' : 'Most Printed'}</option>
-                    <option value="price-asc">{isVi ? 'Giá tăng dần' : 'Price: Low to High'}</option>
-                    <option value="price-desc">{isVi ? 'Giá giảm dần' : 'Price: High to Low'}</option>
-                    <option value="rating">{isVi ? 'Đánh giá cao nhất' : 'Top Rated'}</option>
+                    <option value="featured">Nổi bật nhất</option>
+                    <option value="popular">Lượt in nhiều nhất</option>
+                    <option value="price-asc">Giá tăng dần</option>
+                    <option value="price-desc">Giá giảm dần</option>
+                    <option value="rating">Đánh giá cao nhất</option>
                   </select>
                 </div>
               </div>
@@ -936,7 +922,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <div className="sticky top-20 z-panel">
               <Card variant="soft" padding="sm" className="flex items-center justify-between gap-3">
                 <span className="min-w-0 truncate text-xs text-fg-muted">
-                  {isVi ? 'Đã có tệp CAD riêng? Báo giá gia công ngay.' : 'Have your own CAD file? Get a print quote now.'}
+                  Đã có tệp CAD riêng? Báo giá gia công ngay.
                 </span>
                 <Button
                   variant="primary"
@@ -945,7 +931,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   leadingIcon={<Icon name="request_quote" size={16} />}
                   onClick={goToQuote}
                 >
-                  {isVi ? 'Báo giá tệp 3D riêng' : 'Quote your 3D file'}
+                  Báo giá tệp 3D riêng
                 </Button>
               </Card>
             </div>
@@ -957,9 +943,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning-tint px-3 py-2 text-xs text-warning"
               >
                 <Icon name="warning" size={16} />
-                {isVi
-                  ? 'Không làm mới được kho — đang hiển thị dữ liệu lần trước.'
-                  : 'Could not refresh the catalogue — showing previous data.'}
+                Không làm mới được kho — đang hiển thị dữ liệu lần trước.
               </p>
             )}
 
@@ -967,7 +951,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               /* LOADING — skeleton đúng layout lưới thẻ */
               <div
                 role="status"
-                aria-label={isVi ? 'Đang tải kho bản vẽ' : 'Loading the catalogue'}
+                aria-label="Đang tải kho bản vẽ"
                 className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
               >
                 {Array.from({ length: SKELETON_CARD_COUNT }).map((_, index) => (
@@ -979,24 +963,22 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               <div role="alert">
                 <EmptyState
                   icon={<Icon name="error" size={20} />}
-                  title={isVi ? 'Không tải được kho bản vẽ' : 'Could not load the catalogue'}
-                  description={isVi
-                    ? 'Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại.'
-                    : 'Could not reach the data server. Check your connection and try again.'}
+                  title="Không tải được kho bản vẽ"
+                  description="Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại."
                   action={
                     <>
                       <Button
                         variant="secondary"
                         size="md"
                         loading={Boolean(productsLoading)}
-                        loadingLabel={isVi ? 'Đang tải…' : 'Loading…'}
+                        loadingLabel="Đang tải…"
                         leadingIcon={<Icon name="refresh" size={18} />}
                         onClick={() => onRetry?.()}
                       >
-                        {isVi ? 'Thử lại' : 'Retry'}
+                        Thử lại
                       </Button>
                       <Button variant="primary" size="md" onClick={goToQuote} leadingIcon={<Icon name="request_quote" size={18} />}>
-                        {isVi ? 'Báo giá tệp 3D của bạn' : 'Quote your own 3D file'}
+                        Báo giá tệp 3D của bạn
                       </Button>
                     </>
                   }
@@ -1009,17 +991,13 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 bordered
                 icon={<Icon name={catalogIsEmpty ? 'inventory_2' : 'search_off'} size={20} />}
                 title={catalogIsEmpty
-                  ? (isVi ? 'Kho bản vẽ đang trống' : 'The catalogue is empty')
-                  : (isVi ? 'Không có bản vẽ nào khớp bộ lọc' : 'No CAD models match your filters')}
+                  ? ('Kho bản vẽ đang trống')
+                  : ('Không có bản vẽ nào khớp bộ lọc')}
                 description={
                   <>
                     {catalogIsEmpty
-                      ? (isVi
-                        ? 'Chưa có bản vẽ CAD nào được đăng trên VCUBE.'
-                        : 'No CAD model has been published on VCUBE yet.')
-                      : (isVi
-                        ? 'Hãy bỏ bớt điều kiện hoặc đổi từ khoá tìm kiếm.'
-                        : 'Remove a condition or change the search term.')}
+                      ? ('Chưa có bản vẽ CAD nào được đăng trên VCUBE.')
+                      : ('Hãy bỏ bớt điều kiện hoặc đổi từ khoá tìm kiếm.')}
                     {!catalogIsEmpty && (
                       <span className="mt-2 block">
                         <button
@@ -1027,7 +1005,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                           onClick={goToQuote}
                           className="cursor-pointer rounded-sm text-sm font-medium text-fg underline underline-offset-4 transition-colors duration-200 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                          {isVi ? 'Báo giá tệp 3D của bạn' : 'Quote your own 3D file'}
+                          Báo giá tệp 3D của bạn
                         </button>
                       </span>
                     )}
@@ -1038,22 +1016,18 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                           onClick={resetFilters}
                           className="cursor-pointer rounded-sm text-sm font-medium text-fg underline underline-offset-4 transition-colors duration-200 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                          {isVi ? 'Xóa bộ lọc' : 'Clear filters'}
+                          Xóa bộ lọc
                         </button>
                       </span>
                     )}
                     <span className="mt-2 flex justify-center">
                       <InfoTip
-                        label={isVi ? 'Vì sao có thể không thấy bản vẽ nào?' : 'Why might no model be listed?'}
-                        title={isVi ? 'Về trạng thái rỗng' : 'About this empty state'}
+                        label="Vì sao có thể không thấy bản vẽ nào?"
+                        title="Về trạng thái rỗng"
                       >
                         {catalogIsEmpty
-                          ? (isVi
-                            ? 'Chưa có bản vẽ nào được đăng nên bộ lọc chưa có gì để lọc. Bạn vẫn gửi được tệp 3D của mình để nhận báo giá in.'
-                            : 'Nothing has been published yet, so there is nothing for the filters to match. You can still send your own 3D file to get a print quote.')
-                          : (isVi
-                            ? `${filteredProducts.length} / ${catalogProducts.length} bản vẽ khớp bộ lọc đang chọn.`
-                            : `${filteredProducts.length} / ${catalogProducts.length} models match the current filters.`)}
+                          ? ('Chưa có bản vẽ nào được đăng nên bộ lọc chưa có gì để lọc. Bạn vẫn gửi được tệp 3D của mình để nhận báo giá in.')
+                          : (`${filteredProducts.length} / ${catalogProducts.length} bản vẽ khớp bộ lọc đang chọn.`)}
                       </InfoTip>
                     </span>
                   </>
@@ -1061,11 +1035,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 action={
                   catalogIsEmpty ? (
                     <Button variant="primary" size="md" leadingIcon={<Icon name="request_quote" size={18} />} onClick={goToQuote}>
-                      {isVi ? 'Báo giá tệp 3D của bạn' : 'Quote your own 3D file'}
+                      Báo giá tệp 3D của bạn
                     </Button>
                   ) : (
                     <Button variant="primary" size="md" leadingIcon={<Icon name="restart_alt" size={18} />} onClick={resetFilters}>
-                      {isVi ? 'Xóa toàn bộ bộ lọc' : 'Reset all filters'}
+                      Xóa toàn bộ bộ lọc
                     </Button>
                   )
                 }
@@ -1128,13 +1102,13 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             type="button"
                             onClick={(e) => handleOpen3DPreview(product, e)}
                             className="absolute inset-0 bg-surface-inverse/70 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto [@media(hover:none)]:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:bg-surface-inverse/40 transition-opacity flex flex-col items-center justify-center gap-2 text-on-inverse font-mono text-xs uppercase tracking-wider font-bold cursor-pointer"
-                            aria-label={isVi ? `Xem trước 3D: ${product.name}` : `3D preview: ${product.name}`}
+                            aria-label={`Xem trước 3D: ${product.name}`}
                           >
                             <span className="grid size-11 place-items-center rounded-md bg-primary text-primary-fg shadow-e1">
                               <Icon name="3d_rotation" size={24} />
                             </span>
                             <span className="rounded-sm bg-surface-inverse/80 px-3 py-1 text-xs text-accent">
-                              {isVi ? 'Xem trước 3D' : '3D preview'}
+                              Xem trước 3D
                             </span>
                           </button>
 
@@ -1151,7 +1125,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             variant="secondary"
                             size="sm"
                             className="absolute top-2 right-2 z-sticky shadow-e1"
-                            aria-label={isBookmarked ? (isVi ? 'Bỏ yêu thích' : 'Remove from favorites') : (isVi ? 'Yêu thích bản vẽ' : 'Add to favorites')}
+                            aria-label={isBookmarked ? ('Bỏ yêu thích') : ('Yêu thích bản vẽ')}
                             aria-pressed={isBookmarked}
                             onClick={(e) => toggleBookmark(product.id, e)}
                             leadingIcon={<Icon name={isBookmarked ? 'favorite' : 'favorite_border'} size={20} fill={isBookmarked ? 'currentColor' : 'none'} className={isBookmarked ? 'text-danger' : 'text-fg-muted'} />}
@@ -1181,7 +1155,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                               </span>
                             ) : (
                               <span className="shrink-0 text-xs text-fg-muted">
-                                {isVi ? 'Chưa có đánh giá' : 'No reviews'}
+                                Chưa có đánh giá
                               </span>
                             )}
                           </div>
@@ -1191,19 +1165,19 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             <span className="flex min-w-0 items-center gap-1.5">
                               <Icon name="layers" size={14} className="shrink-0" aria-hidden="true" />
                               <span className="truncate" title={`Vật liệu: ${materialLabel(product)}`}>
-                                {isVi ? 'Vật liệu' : 'Material'}: {materialLabel(product)}
+                                Vật liệu: {materialLabel(product)}
                               </span>
                             </span>
                             <span className="flex min-w-0 items-center gap-1.5">
                               <Icon name="category" size={14} className="shrink-0" aria-hidden="true" />
                               <span className="truncate">
-                                {isVi ? 'Định dạng' : 'Format'}: {product.cadFormat || EMPTY_VALUE}
+                                Định dạng: {product.cadFormat || EMPTY_VALUE}
                               </span>
                             </span>
                             <span className="col-span-2 flex min-w-0 items-center gap-1.5">
                               <Icon name="straighten" size={14} className="shrink-0" aria-hidden="true" />
                               <span className="truncate">
-                                {isVi ? 'Kích thước' : 'Dimensions'}: {product.specs?.dimensions || EMPTY_VALUE}
+                                Kích thước: {product.specs?.dimensions || EMPTY_VALUE}
                               </span>
                             </span>
                           </div>
@@ -1213,7 +1187,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             <div className="flex items-baseline justify-between gap-2 font-sans">
                               <div className="min-w-0">
                                 <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                                  {isVi ? 'Tệp CAD' : 'CAD file'}
+                                  Tệp CAD
                                 </span>
                                 <span className="font-mono text-sm font-semibold text-fg tabular-nums">
                                   {formatVnd(product.priceDigital, numberLocale)}
@@ -1221,7 +1195,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                               </div>
                               <div className="min-w-0 text-right">
                                 <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                                  {isVi ? 'In từ' : 'Print from'}
+                                  In từ
                                 </span>
                                 <span className="font-mono text-sm font-semibold text-fg tabular-nums">
                                   {formatVnd(product.pricePhysical, numberLocale)}
@@ -1232,7 +1206,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             <p className="flex min-w-0 items-center gap-1.5 text-xs text-fg-muted" title={licenseLabel(product.licenseType)}>
                               <Icon name="license" size={14} className="shrink-0" aria-hidden="true" />
                               <span className="truncate">
-                                {isVi ? 'Giấy phép' : 'License'}: {licenseLabel(product.licenseType)}
+                                Giấy phép: {licenseLabel(product.licenseType)}
                               </span>
                             </p>
 
@@ -1248,19 +1222,19 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                                   onNavigate('product_detail', { product });
                                 }}
                               >
-                                {isVi ? 'Xem & tải tệp' : 'View & Download'}
+                                {'Xem & tải tệp'}
                               </Button>
 
                               <Button
                                 iconOnly
                                 variant="secondary"
                                 size="md"
-                                aria-label={isVi ? `Đặt in 3D: ${product.name}` : `Print 3D: ${product.name}`}
+                                aria-label={`Đặt in 3D: ${product.name}`}
                                 onClick={(e) => handleOpenPhysicalConfig(product, e)}
                                 disabled={!(isNum(product.pricePhysical) && product.pricePhysical > 0)}
                                 title={isNum(product.pricePhysical) && product.pricePhysical > 0
-                                  ? (isVi ? 'Cấu hình đặt in 3D nhanh' : 'Quick 3D print config')
-                                  : (isVi ? 'Người bán không mở bán kênh in vật lý.' : 'Not available as a physical print.')}
+                                  ? ('Cấu hình đặt in 3D nhanh')
+                                  : ('Người bán không mở bán kênh in vật lý.')}
                                 leadingIcon={<Icon name="precision_manufacturing" size={18} className="text-fg" />}
                               />
                             </div>
@@ -1280,9 +1254,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                       leadingIcon={<Icon name="expand_more" size={18} />}
                       onClick={() => setVisibleCount((prev) => prev + 12)}
                     >
-                      {isVi
-                        ? `Xem thêm (${filteredProducts.length - visibleCount} bản vẽ CAD)`
-                        : `Load More (${filteredProducts.length - visibleCount} CAD models)`}
+                      {`Xem thêm (${filteredProducts.length - visibleCount} bản vẽ CAD)`}
                     </Button>
                   </div>
                 )}
@@ -1294,32 +1266,28 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                   <table className="w-full text-left text-sm font-sans">
                     <thead className="bg-surface-muted text-xs uppercase tracking-wider text-fg-subtle border-b border-line">
                       <tr>
-                        <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Linh kiện CAD' : 'CAD Part'}</th>
-                        <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Danh mục' : 'Category'}</th>
-                        <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Kích thước' : 'Dimensions'}</th>
+                        <th className="h-10 px-4 text-left font-semibold">Linh kiện CAD</th>
+                        <th className="h-10 px-4 text-left font-semibold">Danh mục</th>
+                        <th className="h-10 px-4 text-left font-semibold">Kích thước</th>
                         <th className="h-10 px-4 text-left font-semibold">
                           <span className="inline-flex items-center gap-1">
-                            {isVi ? 'Thời gian in' : 'Print time'}
-                            <InfoTip label={isVi ? 'Ô "—" ở cột này nghĩa là gì?' : 'What does "—" in this column mean?'}>
-                              {isVi
-                                ? 'Người bán chưa khai thời gian in cho bản vẽ này. Ô để trống hiện — thay vì một con số đoán hộ.'
-                                : 'The seller has not declared a print time for this model. The cell renders — instead of a guessed number.'}
+                            Thời gian in
+                            <InfoTip label={'Ô "—" ở cột này nghĩa là gì?'}>
+                              Người bán chưa khai thời gian in cho bản vẽ này. Ô để trống hiện — thay vì một con số đoán hộ.
                             </InfoTip>
                           </span>
                         </th>
                         <th className="h-10 px-4 text-left font-semibold">
                           <span className="inline-flex items-center gap-1">
-                            {isVi ? 'Giấy phép' : 'License'}
-                            <InfoTip label={isVi ? 'Giấy phép hiển thị thế nào?' : 'How is the licence shown?'}>
-                              {isVi
-                                ? 'Giấy phép đọc từ trường license_type của sản phẩm. Người bán chưa khai thì ghi rõ "— (người bán chưa khai báo)" — không tự gán giấy phép Thương mại.'
-                                : 'Read from the product license_type field. When the seller has not declared one it reads "— (seller has not declared)" — never defaulted to Commercial.'}
+                            Giấy phép
+                            <InfoTip label="Giấy phép hiển thị thế nào?">
+                              Giấy phép đọc từ trường license_type của sản phẩm. Người bán chưa khai thì ghi rõ "— (người bán chưa khai báo)" — không tự gán giấy phép Thương mại.
                             </InfoTip>
                           </span>
                         </th>
-                        <th className="h-10 px-4 text-right font-semibold">{isVi ? 'Giá tệp CAD' : 'CAD License'}</th>
-                        <th className="h-10 px-4 text-right font-semibold">{isVi ? 'Giá in từ...' : 'Print From...'}</th>
-                        <th className="h-10 px-4 text-right font-semibold">{isVi ? 'Thao tác' : 'Actions'}</th>
+                        <th className="h-10 px-4 text-right font-semibold">Giá tệp CAD</th>
+                        <th className="h-10 px-4 text-right font-semibold">Giá in từ...</th>
+                        <th className="h-10 px-4 text-right font-semibold">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line-subtle">
@@ -1383,10 +1351,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                                   iconOnly
                                   variant="secondary"
                                   size="sm"
-                                  aria-label={isVi ? `Xem trước 3D: ${product.name}` : `3D preview: ${product.name}`}
+                                  aria-label={`Xem trước 3D: ${product.name}`}
                                   leadingIcon={<Icon name="3d_rotation" size={18} />}
                                   onClick={(e) => handleOpen3DPreview(product, e)}
-                                  title={isVi ? 'Xem trước 3D' : '3D preview'}
+                                  title="Xem trước 3D"
                                 />
                                 <Button
                                   variant="secondary"
@@ -1395,10 +1363,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                                   onClick={(e) => handleOpenPhysicalConfig(product, e)}
                                   disabled={!(isNum(product.pricePhysical) && product.pricePhysical > 0)}
                                   title={isNum(product.pricePhysical) && product.pricePhysical > 0
-                                    ? (isVi ? 'Cấu hình đặt in 3D nhanh' : 'Quick 3D print config')
-                                    : (isVi ? 'Người bán không mở bán kênh in vật lý.' : 'The seller does not sell this product as a physical print.')}
+                                    ? ('Cấu hình đặt in 3D nhanh')
+                                    : ('Người bán không mở bán kênh in vật lý.')}
                                 >
-                                  {isVi ? 'Đặt in 3D' : 'Print 3D'}
+                                  Đặt in 3D
                                 </Button>
                                 <Button
                                   variant="primary"
@@ -1407,12 +1375,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                                   onClick={(e) => handleQuickAddDigital(product, e)}
                                   disabled={!(isNum(product.priceDigital) && product.priceDigital > 0)}
                                   title={isNum(product.priceDigital) && product.priceDigital > 0
-                                    ? (isVi ? 'Thêm tệp CAD vào giỏ hàng' : 'Add CAD license to cart')
-                                    : (isVi ? 'Người bán không mở bán kênh tệp số.' : 'The seller does not sell this product as a CAD file.')}
+                                    ? ('Thêm tệp CAD vào giỏ hàng')
+                                    : ('Người bán không mở bán kênh tệp số.')}
                                 >
                                   {isNum(product.priceDigital) && product.priceDigital > 0
-                                    ? (isVi ? 'Tải CAD' : 'Buy CAD')
-                                    : (isVi ? 'Không bán tệp số' : 'File not sold')}
+                                    ? ('Tải CAD')
+                                    : ('Không bán tệp số')}
                                 </Button>
                               </div>
                             </td>
@@ -1435,17 +1403,15 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           open={mobileFilterOpen}
           side="bottom"
           onClose={() => setMobileFilterOpen(false)}
-          title={isVi ? 'Bộ lọc bản vẽ' : 'Filter models'}
-          description={isVi
-            ? `Đang có ${filteredProducts.length} / ${catalogProducts.length} bản vẽ khớp điều kiện`
-            : `${filteredProducts.length} / ${catalogProducts.length} models match`}
+          title="Bộ lọc bản vẽ"
+          description={`Đang có ${filteredProducts.length} / ${catalogProducts.length} bản vẽ khớp điều kiện`}
           footer={
             <div className="flex items-center gap-2">
               <Button variant="secondary" size="md" className="flex-1" onClick={resetFilters}>
-                {isVi ? 'Xóa lọc' : 'Reset'}
+                Xóa lọc
               </Button>
               <Button variant="primary" size="md" className="flex-1" onClick={() => setMobileFilterOpen(false)}>
-                {isVi ? `Xem ${filteredProducts.length} kết quả` : `Show ${filteredProducts.length}`}
+                {`Xem ${filteredProducts.length} kết quả`}
               </Button>
             </div>
           }

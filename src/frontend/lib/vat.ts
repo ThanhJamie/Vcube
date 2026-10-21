@@ -82,19 +82,15 @@ export function vatLabel(rate: number | null): string | null {
  * Câu nói TRUNG THỰC khi chưa cấu hình `vat_percent`: thay cho dòng VAT bị ẩn.
  * Dùng chung ở mọi màn hình để không nơi nào tự bịa một tỉ lệ.
  */
-export function vatNotConfiguredLabel(isVi: boolean): string {
-  return isVi
-    ? `VAT chưa được cấu hình — đơn chưa được cộng thuế (${VAT_CONFIG_PATH}).`
-    : `VAT is not configured — no tax is added to this order (${VAT_CONFIG_PATH}).`;
+export function vatNotConfiguredLabel(): string {
+  return `VAT chưa được cấu hình — đơn chưa được cộng thuế (${VAT_CONFIG_PATH}).`;
 }
 
 /**
  * Câu nhỏ dưới tổng tiền. Chỉ nhắc tỉ lệ khi ĐÃ cấu hình — chưa cấu hình thì nói thẳng
  * là chưa cấu hình thay vì hứa "VAT là dòng riêng" như thể có một dòng thật.
  */
-export function vatTotalNote(isVi: boolean, rate: number | null): string {
-  if (rate === null) return vatNotConfiguredLabel(isVi);
-  return isVi
-    ? 'Giá niêm yết chưa gồm VAT • VAT là dòng riêng'
-    : 'Prices exclude VAT • VAT shown separately';
+export function vatTotalNote(rate: number | null): string {
+  if (rate === null) return vatNotConfiguredLabel();
+  return 'Giá niêm yết chưa gồm VAT • VAT là dòng riêng';
 }

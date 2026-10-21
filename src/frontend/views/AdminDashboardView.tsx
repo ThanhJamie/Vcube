@@ -9,7 +9,6 @@ import {
   InkiriCostFormulaConfig,
   AccessoryItem
 } from '../types';
-import { useLanguage } from '../context/LanguageContext';
 import {
   AdminNavSection,
   buildAdminNavGroups,
@@ -112,8 +111,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onNavigate,
   onShowToast,
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
   const { section: routeSection } = useParams<{ section?: string }>();
   const navigate = useNavigate();
 
@@ -163,113 +160,113 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   // `id`/route giữ nguyên — chỉ đổi chuỗi hiển thị nên deep-link `/admin/<id>` không đổi.
   const sectionBreadcrumbs: Record<string, { group: string; title: string; icon: string }> = {
     overview: {
-      group: isVi ? 'Tổng quan' : 'Overview',
-      title: isVi ? 'Bảng Điều Khiển Trung Tâm' : 'Dashboard Overview',
+      group: 'Tổng quan',
+      title: 'Bảng Điều Khiển Trung Tâm',
       icon: 'dashboard'
     },
     'group0-overview': {
-      group: isVi ? 'Tổng quan' : 'Overview',
-      title: isVi ? 'Bảng Điều Khiển Trung Tâm' : 'Dashboard Overview',
+      group: 'Tổng quan',
+      title: 'Bảng Điều Khiển Trung Tâm',
       icon: 'dashboard'
     },
     partners: {
-      group: isVi ? 'Xưởng in & Thiết bị' : 'Workshops & Fleet',
-      title: isVi ? 'Mạng Lưới Xưởng In Đối Tác (MES)' : 'Workshop Partner MES Network',
+      group: 'Xưởng in & Thiết bị',
+      title: 'Mạng Lưới Xưởng In Đối Tác (MES)',
       icon: 'factory'
     },
     workshops: {
-      group: isVi ? 'Xưởng in & Thiết bị' : 'Workshops & Fleet',
-      title: isVi ? 'Mạng Lưới Xưởng In Đối Tác (MES)' : 'Workshop Partner MES Network',
+      group: 'Xưởng in & Thiết bị',
+      title: 'Mạng Lưới Xưởng In Đối Tác (MES)',
       icon: 'factory'
     },
     machines: {
-      group: isVi ? 'Xưởng in & Thiết bị' : 'Workshops & Fleet',
-      title: isVi ? 'Đội Máy In 3D FDM / SLA' : '3D Printer Fleet',
+      group: 'Xưởng in & Thiết bị',
+      title: 'Đội Máy In 3D FDM / SLA',
       icon: 'print'
     },
     designers: {
-      group: isVi ? 'Nhà thiết kế' : 'Designers',
-      title: isVi ? 'Quản Trị Nhà Thiết Kế 3D & Bản Quyền' : '3D Designers & Intellectual Property',
+      group: 'Nhà thiết kế',
+      title: 'Quản Trị Nhà Thiết Kế 3D & Bản Quyền',
       icon: 'draw'
     },
     users: {
-      group: isVi ? 'Khách hàng' : 'Customers',
-      title: isVi ? 'Quản Trị Khách Hàng & Hồ Sơ KYC' : 'Customer Profiles & KYC',
+      group: 'Khách hàng',
+      title: 'Quản Trị Khách Hàng & Hồ Sơ KYC',
       icon: 'manage_accounts'
     },
     customers: {
-      group: isVi ? 'Khách hàng' : 'Customers',
-      title: isVi ? 'Quản Trị Khách Hàng & Hồ Sơ KYC' : 'Customer Profiles & KYC',
+      group: 'Khách hàng',
+      title: 'Quản Trị Khách Hàng & Hồ Sơ KYC',
       icon: 'manage_accounts'
     },
     pricing: {
-      group: isVi ? 'Danh mục & Định giá' : 'Catalog & Pricing',
-      title: isVi ? 'Cấu Hình Định Giá & Chi Phí Inkiri v3.4' : 'Inkiri Pricing & Cost Engine Setup',
+      group: 'Danh mục & Định giá',
+      title: 'Cấu Hình Định Giá & Chi Phí Inkiri v3.4',
       icon: 'tune'
     },
     'pricing-engine': {
-      group: isVi ? 'Danh mục & Định giá' : 'Catalog & Pricing',
-      title: isVi ? 'Cấu Hình Định Giá & Chi Phí Inkiri v3.4' : 'Inkiri Pricing & Cost Engine Setup',
+      group: 'Danh mục & Định giá',
+      title: 'Cấu Hình Định Giá & Chi Phí Inkiri v3.4',
       icon: 'tune'
     },
     'pricing-setup': {
-      group: isVi ? 'Danh mục & Định giá' : 'Catalog & Pricing',
-      title: isVi ? 'Cấu Hình Định Giá Inkiri' : 'Inkiri Pricing Setup',
+      group: 'Danh mục & Định giá',
+      title: 'Cấu Hình Định Giá Inkiri',
       icon: 'tune'
     },
     'cost-rules': {
-      group: isVi ? 'Danh mục & Định giá' : 'Catalog & Pricing',
-      title: isVi ? 'Quy Tắc Chi Phí Inkiri' : 'Inkiri Cost Rules',
+      group: 'Danh mục & Định giá',
+      title: 'Quy Tắc Chi Phí Inkiri',
       icon: 'tune'
     },
     materials: {
-      group: isVi ? 'Danh mục & Định giá' : 'Catalog & Pricing',
-      title: isVi ? 'Danh Mục Nhựa & Resin' : 'Filaments & Resins',
+      group: 'Danh mục & Định giá',
+      title: 'Danh Mục Nhựa & Resin',
       icon: 'layers'
     },
     hardware: {
-      group: isVi ? 'Danh mục & Định giá' : 'Catalog & Pricing',
-      title: isVi ? 'Phụ Kiện, Ốc Cấy & Nam Châm' : 'Hardware & Fasteners',
+      group: 'Danh mục & Định giá',
+      title: 'Phụ Kiện, Ốc Cấy & Nam Châm',
       icon: 'extension'
     },
     'quote-calc': {
-      group: isVi ? 'Danh mục & Định giá' : 'Catalog & Pricing',
-      title: isVi ? 'Báo Giá Dự Toán BOM Kỹ Thuật' : 'BOM Quote Calculator',
+      group: 'Danh mục & Định giá',
+      title: 'Báo Giá Dự Toán BOM Kỹ Thuật',
       icon: 'calculate'
     },
     queue: {
-      group: isVi ? 'Vận hành sản xuất' : 'Production Operations',
-      title: isVi ? 'Hàng Đợi Chế Tác & Kanban 8 Nấc' : '8-Stage MES Production Queue',
+      group: 'Vận hành sản xuất',
+      title: 'Hàng Đợi Chế Tác & Kanban 8 Nấc',
       icon: 'precision_manufacturing'
     },
     orders: {
-      group: isVi ? 'Vận hành sản xuất' : 'Production Operations',
-      title: isVi ? 'Đơn Hàng & Điều Phối Trạm In' : 'Orders & Workshop Dispatch',
+      group: 'Vận hành sản xuất',
+      title: 'Đơn Hàng & Điều Phối Trạm In',
       icon: 'receipt_long'
     },
     inventory: {
-      group: isVi ? 'Vận hành sản xuất' : 'Production Operations',
-      title: isVi ? 'Kho Vật Liệu & Vị Trí Kệ' : 'Warehouse Inventory & Bins',
+      group: 'Vận hành sản xuất',
+      title: 'Kho Vật Liệu & Vị Trí Kệ',
       icon: 'shelves'
     },
     products: {
-      group: isVi ? 'CỬA HÀNG & HỆ THỐNG' : 'STOREFRONT & SYSTEM',
-      title: isVi ? 'Sản Phẩm & Danh Mục 3D' : 'Products & Catalog',
+      group: 'CỬA HÀNG & HỆ THỐNG',
+      title: 'Sản Phẩm & Danh Mục 3D',
       icon: 'inventory_2'
     },
     storefront: {
-      group: isVi ? 'CỬA HÀNG & HỆ THỐNG' : 'STOREFRONT & SYSTEM',
-      title: isVi ? 'Cấu Hình Trang Chủ & Dải Quảng Cáo' : 'Storefront & Banner CMS',
+      group: 'CỬA HÀNG & HỆ THỐNG',
+      title: 'Cấu Hình Trang Chủ & Dải Quảng Cáo',
       icon: 'storefront'
     },
     seo: {
-      group: isVi ? 'CỬA HÀNG & HỆ THỐNG' : 'STOREFRONT & SYSTEM',
-      title: isVi ? 'Quản Trị SEO Toàn Diện' : 'SEO & Search Engine Metadata',
+      group: 'CỬA HÀNG & HỆ THỐNG',
+      title: 'Quản Trị SEO Toàn Diện',
       icon: 'travel_explore'
     },
     settings: {
-      group: isVi ? 'CỬA HÀNG & HỆ THỐNG' : 'STOREFRONT & SYSTEM',
-      title: isVi ? 'Cài Đặt Xưởng In & Pháp Nhân' : 'Workshop Settings',
+      group: 'CỬA HÀNG & HỆ THỐNG',
+      title: 'Cài Đặt Xưởng In & Pháp Nhân',
       icon: 'settings'
     }
   };
@@ -289,7 +286,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   };
 
   const navQuery = navSearch.trim().toLowerCase();
-  const navGroups = buildAdminNavGroups(isVi, counts);
+  const navGroups = buildAdminNavGroups(counts);
   const filteredNavGroups = navQuery
     ? navGroups
         .map((group) => ({
@@ -328,7 +325,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         {/* Mỗi panel được bọc riêng: một panel lỗi chỉ thay đúng panel đó, không trắng cả console. */}
         {(activeSection === 'overview' || activeSection === 'group0-overview') && (
           <PanelErrorBoundary
-            label={isVi ? 'Bảng điều khiển tổng quan' : 'Overview dashboard'}
+            label="Bảng điều khiển tổng quan"
             resetKey={activeSection}
           >
             <Group0OverviewPanel
@@ -346,7 +343,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         {/* Xưởng in & thiết bị */}
         {(activeSection === 'workshops' || activeSection === 'partners' || activeSection === 'machines') && (
           <PanelErrorBoundary
-            label={isVi ? 'Xưởng in & thiết bị' : 'Workshops & fleet'}
+            label={'Xưởng in & thiết bị'}
             resetKey={activeSection}
           >
             <Group1WorkshopsPanel
@@ -362,7 +359,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         {/* Nhà thiết kế & bản quyền */}
         {activeSection === 'designers' && (
           <PanelErrorBoundary
-            label={isVi ? 'Nhà thiết kế & bản quyền' : 'Designers & IP rights'}
+            label={'Nhà thiết kế & bản quyền'}
             resetKey={activeSection}
           >
             <Group2DesignersPanel
@@ -375,7 +372,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         {/* Khách hàng & KYC */}
         {(activeSection === 'users' || activeSection === 'customers') && (
           <PanelErrorBoundary
-            label={isVi ? 'Khách hàng & hồ sơ KYC' : 'Customers & KYC'}
+            label={'Khách hàng & hồ sơ KYC'}
             resetKey={activeSection}
           >
             <Group3CustomersPanel
@@ -394,7 +391,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           activeSection === 'hardware' ||
           activeSection === 'quote-calc') && (
           <PanelErrorBoundary
-            label={isVi ? 'Danh mục & định giá' : 'Catalog & pricing'}
+            label={'Danh mục & định giá'}
             resetKey={activeSection}
           >
             <Group4PricingEnginePanel
@@ -426,7 +423,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             inventory = Kho Vật Liệu & Vị Trí Kệ (WarehouseInventoryPanel) */}
         {(activeSection === 'queue' || activeSection === 'orders') && (
           <PanelErrorBoundary
-            label={isVi ? 'Vận hành sản xuất' : 'Production operations'}
+            label="Vận hành sản xuất"
             resetKey={activeSection}
           >
             <Group5ProductionPanel
@@ -441,7 +438,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {activeSection === 'inventory' && (
           <PanelErrorBoundary
-            label={isVi ? 'Kho vật liệu' : 'Warehouse inventory'}
+            label="Kho vật liệu"
             resetKey={activeSection}
           >
             <WarehouseInventoryPanel
@@ -457,7 +454,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         {/* STOREFRONT, CONTENT & SYSTEM CMS */}
         {activeSection === 'products' && (
           <PanelErrorBoundary
-            label={isVi ? 'Sản phẩm & danh mục' : 'Products & catalog'}
+            label={'Sản phẩm & danh mục'}
             resetKey={activeSection}
           >
             <AdminProductsPanel
@@ -472,7 +469,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {activeSection === 'storefront' && (
           <PanelErrorBoundary
-            label={isVi ? 'Cấu hình cửa hàng' : 'Storefront CMS'}
+            label="Cấu hình cửa hàng"
             resetKey={activeSection}
           >
             <AdminStorefrontPanel
@@ -485,7 +482,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {activeSection === 'seo' && (
           <PanelErrorBoundary
-            label={isVi ? 'Quản trị SEO' : 'SEO metadata'}
+            label="Quản trị SEO"
             resetKey={activeSection}
           >
             <AdminSeoPanel
@@ -498,7 +495,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {activeSection === 'settings' && (
           <PanelErrorBoundary
-            label={isVi ? 'Cài đặt xưởng in' : 'Workshop settings'}
+            label="Cài đặt xưởng in"
             resetKey={activeSection}
           >
             <AdminSettingsPanel
@@ -515,14 +512,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       collapsed={isNavCollapsed}
       mobileOpen={isMobileNavOpen}
       onMobileOpenChange={setIsMobileNavOpen}
-      navLabel={isVi ? 'Điều hướng quản trị' : 'Admin navigation'}
+      navLabel="Điều hướng quản trị"
       sidebar={
         <div className="flex h-full min-h-0 flex-col bg-canvas">
           {/* Tìm nhanh mục điều hướng — giữ nguyên tính năng của AdminSidebar cũ. */}
           <div className="shrink-0 border-b border-line px-2 py-2">
             <Field
               id="admin-nav-search"
-              label={isVi ? 'Tìm mục điều hướng' : 'Find a section'}
+              label="Tìm mục điều hướng"
               hideLabel
             >
               {(control) => (
@@ -535,13 +532,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   className="rounded-full"
                   value={navSearch}
                   onChange={(e) => setNavSearch(e.target.value)}
-                  placeholder={isVi ? 'Tìm mục (kho, máy in, giá…)' : 'Find a section…'}
+                  placeholder="Tìm mục (kho, máy in, giá…)"
                 />
               )}
             </Field>
             {navQuery && filteredNavGroups.length === 0 ? (
               <p className="px-1 pt-2 text-xs text-fg-muted">
-                {isVi ? 'Không có mục nào khớp từ khoá.' : 'No sections matched.'}
+                Không có mục nào khớp từ khoá.
               </p>
             ) : null}
           </div>
@@ -549,14 +546,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           <SideNav
             variant="pill"
             className="min-h-0 flex-1"
-            label={isVi ? 'Điều hướng quản trị' : 'Admin navigation'}
+            label="Điều hướng quản trị"
             collapsed={isNavCollapsed}
             onCollapsedChange={setIsNavCollapsed}
             activeId={activeSection}
             onSelect={(id) => handleSelectSection(id as AdminNavSection)}
             footer={
               <span className="block truncate px-1 text-center text-xs text-fg-muted">
-                {isVi ? 'Bảng quản trị VCUBE' : 'VCUBE admin console'}
+                Bảng quản trị VCUBE
               </span>
             }
             groups={sideNavGroups}
@@ -570,7 +567,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               iconOnly
               variant="ghost"
               size="sm"
-              aria-label={isVi ? 'Mở điều hướng' : 'Open navigation'}
+              aria-label="Mở điều hướng"
               aria-expanded={isMobileNavOpen}
               onClick={openNav}
               className="lg:hidden"
@@ -588,7 +585,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <span className="hidden min-w-0 flex-col leading-tight sm:flex">
                 <span className="truncate text-sm font-semibold tracking-tight text-fg">VCUBE</span>
                 <span className="truncate text-xs text-fg-subtle">
-                  {isVi ? 'Hệ điều hành xưởng in' : 'Admin & Production OS'}
+                  Hệ điều hành xưởng in
                 </span>
               </span>
             </span>
@@ -609,7 +606,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     leadingIcon={<Icon name="request_quote" size={16} />}
                     onClick={() => handleSelectSection('quote-calc')}
                   >
-                    {isVi ? 'Báo giá BOM' : 'Quick quote'}
+                    Báo giá BOM
                   </Button>
                 </span>
               ) : null}
@@ -619,7 +616,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 leadingIcon={<Icon name="storefront" size={16} />}
                 onClick={() => onNavigate('home')}
               >
-                {isVi ? 'Về cửa hàng' : 'Storefront'}
+                Về cửa hàng
               </Button>
             </>
           }

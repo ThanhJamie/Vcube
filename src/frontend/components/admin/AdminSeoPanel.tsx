@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { SiteContentConfig } from '../../types';
-import { useLanguage } from '../../context/LanguageContext';
 import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
 
 interface AdminSeoPanelProps {
@@ -14,8 +13,6 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
   onUpdateSiteContent,
   onShowToast,
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   const [localContent, setLocalContent] = useState<SiteContentConfig>({ ...siteContent });
   const [activeTab, setActiveTab] = useState<'meta' | 'serp' | 'social' | 'schema'>('meta');
@@ -68,10 +65,10 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
       const res = await onUpdateSiteContent(localContent);
       if (!res || res.success) {
         setIsSaved(true);
-        onShowToast(isVi ? 'Đã lưu cấu hình SEO thành công!' : 'Saved SEO & Metadata settings successfully!');
+        onShowToast('Đã lưu cấu hình SEO thành công!');
       } else {
         setIsSaved(false);
-        onShowToast(isVi ? `KHÔNG lưu được: ${res.error || 'lỗi không xác định'}` : `Could not save: ${res.error || 'unknown error'}`);
+        onShowToast(`KHÔNG lưu được: ${res.error || 'lỗi không xác định'}`);
       }
     } finally {
       setIsSaving(false);
@@ -95,12 +92,10 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-fg mt-2 flex items-center gap-2">
             <Icon name="search" size={24} className="text-primary" />
-            {isVi ? 'Quản Trị SEO Toàn Diện' : 'Search Engine Optimization (SEO) & Metadata'}
+            Quản Trị SEO Toàn Diện
           </h2>
           <p className="text-xs text-fg-subtle mt-1 max-w-2xl">
-            {isVi
-              ? 'Tùy chỉnh thẻ tiêu đề & mô tả, xem trước kết quả tìm kiếm Google, cấu hình thẻ chia sẻ mạng xã hội và dữ liệu có cấu trúc Schema.org.'
-              : 'Configure Meta tags, live preview Google search snippets, customize social share cards, and validate Schema.org JSON-LD.'}
+            {'Tùy chỉnh thẻ tiêu đề & mô tả, xem trước kết quả tìm kiếm Google, cấu hình thẻ chia sẻ mạng xã hội và dữ liệu có cấu trúc Schema.org.'}
           </p>
         </div>
 
@@ -108,22 +103,22 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
           {!isSaved && !isSaving && (
             <span className="text-xs font-medium text-warning flex items-center gap-1">
               <Icon name="warning" size={14} />
-              {isVi ? 'Chưa lưu' : 'Unsaved'}
+              Chưa lưu
             </span>
           )}
           <Button
             variant={isSaved ? 'secondary' : 'primary'}
             loading={isSaving}
-            loadingLabel={isVi ? 'Đang lưu…' : 'Saving…'}
+            loadingLabel="Đang lưu…"
             leadingIcon={<Icon name="save" size={16} />}
             onClick={handleSave}
             disabled={isSaved}
           >
             {isSaving
-              ? (isVi ? 'Đang lưu…' : 'Saving…')
+              ? ('Đang lưu…')
               : isSaved
-              ? (isVi ? 'Đã Lưu SEO' : 'All Changes Saved')
-              : (isVi ? 'Lưu Cấu Hình SEO' : 'Save SEO Config')}
+              ? ('Đã Lưu SEO')
+              : ('Lưu Cấu Hình SEO')}
           </Button>
         </div>
       </div>
@@ -141,7 +136,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
           }`}
         >
           <Icon name="title" size={16} />
-          <span>{isVi ? 'Thẻ Tiêu Đề & Từ Khoá' : 'Meta Tags & Keywords'}</span>
+          <span>{'Thẻ Tiêu Đề & Từ Khoá'}</span>
         </button>
 
         <button
@@ -155,7 +150,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
           }`}
         >
           <Icon name="travel_explore" size={16} />
-          <span>{isVi ? 'Mô Phỏng Kết Quả Tìm Kiếm' : 'Google SERP Simulator'}</span>
+          <span>Mô Phỏng Kết Quả Tìm Kiếm</span>
         </button>
 
         <button
@@ -169,7 +164,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
           }`}
         >
           <Icon name="share" size={16} />
-          <span>{isVi ? 'Thẻ Chia Sẻ Mạng Xã Hội' : 'Social Sharing Cards'}</span>
+          <span>Thẻ Chia Sẻ Mạng Xã Hội</span>
         </button>
 
         <button
@@ -183,7 +178,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
           }`}
         >
           <Icon name="schema" size={16} />
-          <span>{isVi ? 'Schema.org & Robots' : 'Schema & Robots'}</span>
+          <span>{'Schema.org & Robots'}</span>
         </button>
       </div>
 
@@ -365,7 +360,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
                   <Icon name="verified" size={20} className="text-positive" />
                   Chỉ Số Tối Ưu Hóa
                 </h3>
-                <span className="font-mono text-sm font-semibold text-fg-muted" title={isVi ? 'Chưa có công cụ thu thập/đo chỉ số tối ưu' : 'No on-page crawler configured'}>—</span>
+                <span className="font-mono text-sm font-semibold text-fg-muted" title="Chưa có công cụ thu thập/đo chỉ số tối ưu">—</span>
               </div>
 
               <div className="space-y-3 text-xs">
@@ -619,7 +614,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium text-fg">Sơ Đồ Trang XML Tự Động</span>
                 <span className="rounded-sm bg-surface px-2 py-0.5 font-mono text-xs font-medium text-fg-muted">
-                  {isVi ? 'Chưa kiểm tra' : 'Not checked'}
+                  Chưa kiểm tra
                 </span>
               </div>
               <div className="flex justify-end">

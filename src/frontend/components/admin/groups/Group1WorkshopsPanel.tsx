@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useWorkshopAdminStore } from '../../../../stores/useWorkshopAdminStore';
-import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { WorkshopProfile, WorkshopMachine, WorkshopMaterial, WorkshopPartner, PrinterProfile } from '../../../../types';
 import { getPricingGlobalSettings } from '../../../../backend/services/settingsService';
@@ -62,8 +61,6 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   onNavigateSection,
   section
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   const tabFromSection = (s?: string): 'workshops' | 'fleet' | 'materials' | 'partners' =>
     s === 'machines' ? 'fleet' : s === 'partners' ? 'partners' : 'workshops';
@@ -133,11 +130,11 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     } catch (err: any) {
       // Lỗi thật ⇒ KHÔNG hiện 0 như thể bảng rỗng, KHÔNG rơi về fixture.
       setFleetPrinters(null);
-      setFleetError(err?.message || (isVi ? 'lỗi không xác định' : 'unknown error'));
+      setFleetError(err?.message || ('lỗi không xác định'));
     } finally {
       setIsFleetLoading(false);
     }
-  }, [isVi, onUpdatePrinters]);
+  }, [onUpdatePrinters]);
 
   useEffect(() => {
     void loadFleet();
@@ -154,9 +151,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     const result = await dbService.savePrinter(printer);
     if (!result.success) {
       onShowToast?.(
-        isVi
-          ? `Lưu máy in thất bại: ${result.error || 'lỗi không xác định'}`
-          : `Failed to save printer: ${result.error || 'unknown error'}`
+        `Lưu máy in thất bại: ${result.error || 'lỗi không xác định'}`
       );
       return false;
     }
@@ -171,9 +166,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   ) => {
     await persistPrinter(
       { ...printer, status },
-      isVi
-        ? `Đã lưu trạng thái máy ${printer.name}: ${status}`
-        : `Saved printer ${printer.name}: ${status}`
+      `Đã lưu trạng thái máy ${printer.name}: ${status}`
     );
   };
 
@@ -192,14 +185,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       setPartners(Array.isArray(rows) ? rows : []);
     } catch (err: any) {
       onShowToast?.(
-        isVi
-          ? `Không tải được danh sách đối tác: ${err?.message || 'lỗi không xác định'}`
-          : `Failed to load workshop partners: ${err?.message || 'unknown error'}`
+        `Không tải được danh sách đối tác: ${err?.message || 'lỗi không xác định'}`
       );
     } finally {
       setIsPartnersLoading(false);
     }
-  }, [isVi, onShowToast]);
+  }, [onShowToast]);
 
   useEffect(() => {
     void loadPartners();
@@ -234,9 +225,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       onShowToast?.(successMessage);
     } else {
       onShowToast?.(
-        isVi
-          ? `Lưu đối tác thất bại: ${result.error || 'lỗi không xác định'}`
-          : `Failed to save partner: ${result.error || 'unknown error'}`
+        `Lưu đối tác thất bại: ${result.error || 'lỗi không xác định'}`
       );
     }
   };
@@ -245,9 +234,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     const nextStatus: WorkshopPartner['status'] = partner.status === 'active' ? 'busy' : 'active';
     void persistPartner(
       { ...partner, status: nextStatus },
-      isVi
-        ? `Đã cập nhật trạng thái đối tác ${partner.name}: ${nextStatus}`
-        : `Updated partner ${partner.name}: ${nextStatus}`
+      `Đã cập nhật trạng thái đối tác ${partner.name}: ${nextStatus}`
     );
   };
 
@@ -256,7 +243,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     if (!partnerDraft) return;
     if (!partnerDraft.name.trim() || !partnerDraft.address.trim()) {
       onShowToast?.(
-        isVi ? 'Vui lòng nhập tên xưởng và địa chỉ' : 'Please enter workshop name and address'
+        'Vui lòng nhập tên xưởng và địa chỉ'
       );
       return;
     }
@@ -264,12 +251,8 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     void persistPartner(
       partnerDraft,
       isNew
-        ? isVi
-          ? `Đã thêm đối tác xưởng vào mạng lưới: ${partnerDraft.name}`
-          : `Added workshop partner: ${partnerDraft.name}`
-        : isVi
-        ? `Đã lưu đối tác xưởng: ${partnerDraft.name}`
-        : `Saved workshop partner: ${partnerDraft.name}`
+        ? `Đã thêm đối tác xưởng vào mạng lưới: ${partnerDraft.name}`
+        : `Đã lưu đối tác xưởng: ${partnerDraft.name}`
     );
     setPartnerDraft(null);
   };
@@ -380,20 +363,14 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     const res = await setWorkshopVerifiedStatus(id, status);
     if (!res.success) {
       onShowToast?.(
-        isVi
-          ? `Cập nhật trạng thái xưởng thất bại: ${res.error || 'lỗi không xác định'}`
-          : `Failed to update workshop status: ${res.error || 'unknown error'}`
+        `Cập nhật trạng thái xưởng thất bại: ${res.error || 'lỗi không xác định'}`
       );
       return;
     }
     onShowToast?.(
       status === 'Verified'
-        ? isVi
-          ? `Đã ghi trạng thái Đã duyệt cho xưởng: ${name}`
-          : `Stored Verified status for workshop: ${name}`
-        : isVi
-        ? `Đã ghi trạng thái Tạm đình chỉ cho xưởng: ${name}`
-        : `Stored Suspended status for workshop: ${name}`
+        ? `Đã ghi trạng thái Đã duyệt cho xưởng: ${name}`
+        : `Đã ghi trạng thái Tạm đình chỉ cho xưởng: ${name}`
     );
   };
 
@@ -408,7 +385,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const handleCreateWorkshop = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkshopForm.workshopName || !newWorkshopForm.address) {
-      onShowToast?.(isVi ? 'Vui lòng điền tên xưởng và địa chỉ' : 'Please provide workshop name and address');
+      onShowToast?.('Vui lòng điền tên xưởng và địa chỉ');
       return;
     }
     const res = await addWorkshop({
@@ -423,14 +400,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     });
     if (!res.success) {
       onShowToast?.(
-        isVi
-          ? `Tạo xưởng thất bại: ${res.error || 'lỗi không xác định'}`
-          : `Failed to create workshop: ${res.error || 'unknown error'}`
+        `Tạo xưởng thất bại: ${res.error || 'lỗi không xác định'}`
       );
       return; // giữ modal để không mất dữ liệu đã nhập
     }
     setIsAddWorkshopModalOpen(false);
-    onShowToast?.(isVi ? 'Đã ghi xưởng in mới vào workshop_profiles!' : 'Saved new workshop to workshop_profiles!');
+    onShowToast?.('Đã ghi xưởng in mới vào workshop_profiles!');
     setNewWorkshopForm({
       workshopName: '',
       address: '',
@@ -446,7 +421,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const handleCreateMachine = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMachineForm.machineName.trim()) {
-      onShowToast?.(isVi ? 'Vui lòng nhập tên máy in' : 'Please enter printer name');
+      onShowToast?.('Vui lòng nhập tên máy in');
       return;
     }
     // `printer_fleet.id` là text PK KHÔNG có default ⇒ phải tự sinh id.
@@ -469,7 +444,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
 
     const ok = await persistPrinter(
       printer,
-      isVi ? 'Đã ghi máy in mới vào bảng printer_fleet!' : 'Saved new printer to printer_fleet!'
+      'Đã ghi máy in mới vào bảng printer_fleet!'
     );
     if (!ok) return; // lỗi thật đã được báo qua toast, giữ modal để không mất dữ liệu đã nhập
 
@@ -487,7 +462,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const handleCreateMaterial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMaterialForm.materialName) {
-      onShowToast?.(isVi ? 'Vui lòng nhập tên vật liệu' : 'Please enter material name');
+      onShowToast?.('Vui lòng nhập tên vật liệu');
       return;
     }
     addMaterial(newMaterialForm);
@@ -495,9 +470,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     // ⚠️ NÓI THẬT: chưa có hàm service nào ghi tồn kho theo xưởng, nên bản ghi này CHỈ nằm
     // trong bộ nhớ màn hình và mất khi tải lại — không được báo như đã lưu vào DB.
     onShowToast?.(
-      isVi
-        ? 'Bản ghi vật liệu CHỈ nằm trong bộ nhớ màn hình: chưa có hàm ghi DB cho tồn kho theo xưởng nên sẽ mất khi tải lại.'
-        : 'Material record is IN-MEMORY only: no DB write function exists for per-workshop inventory, so it is lost on reload.'
+      'Bản ghi vật liệu CHỈ nằm trong bộ nhớ màn hình: chưa có hàm ghi DB cho tồn kho theo xưởng nên sẽ mất khi tải lại.'
     );
   };
 
@@ -505,7 +478,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const materialColumns = useMemo<DataTableColumn<WorkshopMaterial>[]>(() => [
     {
       key: 'materialName',
-      header: isVi ? 'Vật liệu' : 'Material',
+      header: 'Vật liệu',
       value: (m) => m.materialName,
       render: (mat) => (
         <div className="flex items-center gap-2.5">
@@ -517,45 +490,45 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         </div>
       ),
     },
-    { key: 'materialType', header: isVi ? 'Loại' : 'Type', value: (m) => m.materialType, render: (mat) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted border border-line rounded-sm font-medium text-xs">{mat.materialType}</span> },
+    { key: 'materialType', header: 'Loại', value: (m) => m.materialType, render: (mat) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted border border-line rounded-sm font-medium text-xs">{mat.materialType}</span> },
     {
       key: 'workshop',
-      header: isVi ? 'Xưởng giữ kho' : 'Workshop',
+      header: 'Xưởng giữ kho',
       value: (m) => m.workshopId,
       render: (mat) => {
         const ws = workshops.find((w) => w.id === mat.workshopId);
         return <span className="text-fg-muted font-medium">{ws ? `${ws.workshopName} (${ws.region})` : '—'}</span>;
       },
     },
-    { key: 'pricePerKg', header: isVi ? 'Đơn giá/kg' : 'Price/kg', numeric: true, value: (m) => m.pricePerKg, render: (mat) => <span className="font-semibold text-fg">{formatVnd(mat.pricePerKg)}</span> },
+    { key: 'pricePerKg', header: 'Đơn giá/kg', numeric: true, value: (m) => m.pricePerKg, render: (mat) => <span className="font-semibold text-fg">{formatVnd(mat.pricePerKg)}</span> },
     {
       key: 'currentStockGrams',
-      header: isVi ? 'Tồn kho hiện tại' : 'Current stock',
+      header: 'Tồn kho hiện tại',
       numeric: true,
       value: (m) => m.currentStockGrams,
       render: (mat) => (
         <div>
           <div className="font-bold text-fg">{mat.currentStockGrams}g</div>
-          <div className="text-xs text-fg-subtle">{isVi ? 'Ngưỡng min' : 'Min'}: {numOrEmpty(mat.lowStockThresholdGrams, 'g')}</div>
+          <div className="text-xs text-fg-subtle">Ngưỡng min: {numOrEmpty(mat.lowStockThresholdGrams, 'g')}</div>
         </div>
       ),
     },
     {
       key: 'stockStatus',
-      header: isVi ? 'Trạng thái' : 'Status',
+      header: 'Trạng thái',
       value: (m) => m.stockStatus,
       render: (mat) => (
         <Badge
           variant={mat.stockStatus === 'Tracking' ? 'success' : mat.stockStatus === 'LowStock' ? 'warning' : 'danger'}
           dot
         >
-          {mat.stockStatus === 'Tracking' ? (isVi ? 'Đầy đủ' : 'In Stock') : mat.stockStatus === 'LowStock' ? (isVi ? 'Sắp hết' : 'Low Stock') : (isVi ? 'Hết hàng' : 'Out of Stock')}
+          {mat.stockStatus === 'Tracking' ? ('Đầy đủ') : mat.stockStatus === 'LowStock' ? ('Sắp hết') : ('Hết hàng')}
         </Badge>
       ),
     },
     {
       key: 'actions',
-      header: isVi ? 'Điều chỉnh nhanh' : 'Quick adjust',
+      header: 'Điều chỉnh nhanh',
       align: 'right',
       render: (mat) => (
         <div className="flex items-center justify-end gap-1.5">
@@ -579,25 +552,25 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi, workshops, updateMaterialStock]);
+  ], [workshops, updateMaterialStock]);
 
   /** Cột bảng đối tác xưởng (tab Đối tác) dùng primitive `DataTable`. */
   const partnerColumns = useMemo<DataTableColumn<WorkshopPartner>[]>(() => [
     {
       key: 'name',
-      header: isVi ? 'Đối tác / Địa chỉ' : 'Partner / Address',
+      header: 'Đối tác / Địa chỉ',
       value: (p) => p.name || '',
       render: (p) => (
         <div>
-          <div className="font-bold text-fg">{p.name || (isVi ? '(chưa đặt tên)' : '(unnamed)')}</div>
+          <div className="font-bold text-fg">{p.name || ('(chưa đặt tên)')}</div>
           <div className="text-xs text-fg-subtle line-clamp-1">{p.address || '—'}</div>
         </div>
       ),
     },
-    { key: 'region', header: isVi ? 'Vùng' : 'Region', value: (p) => p.region, render: (p) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted border border-line rounded-sm font-medium text-xs uppercase">{p.region}</span> },
+    { key: 'region', header: 'Vùng', value: (p) => p.region, render: (p) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted border border-line rounded-sm font-medium text-xs uppercase">{p.region}</span> },
     {
       key: 'contact',
-      header: isVi ? 'Liên hệ' : 'Contact',
+      header: 'Liên hệ',
       value: (p) => p.contactPerson || '',
       render: (p) => (
         <div>
@@ -608,7 +581,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     },
     {
       key: 'tech',
-      header: isVi ? 'Công nghệ' : 'Tech',
+      header: 'Công nghệ',
       render: (p) => (
         <div className="flex flex-wrap gap-1">
           {(p.supportedTechnologies || []).map((tech) => (
@@ -619,7 +592,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     },
     {
       key: 'printers',
-      header: isVi ? 'Máy / Hàng đợi' : 'Printers / Queue',
+      header: 'Máy / Hàng đợi',
       value: (p) => p.activePrintersCount,
       render: (p) => (
         <div className="text-fg-muted">
@@ -631,7 +604,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     { key: 'sla', header: 'SLA', numeric: true, value: (p) => p.slaRating, render: (p) => <span className="font-semibold text-fg">{p.slaRating > 0 ? `${p.slaRating} / 5.0` : '—'}</span> },
     {
       key: 'status',
-      header: isVi ? 'Trạng thái' : 'Status',
+      header: 'Trạng thái',
       value: (p) => p.status,
       render: (p) => (
         <Badge
@@ -644,7 +617,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     },
     {
       key: 'actions',
-      header: isVi ? 'Thao tác' : 'Actions',
+      header: 'Thao tác',
       align: 'right',
       render: (p) => (
         <div className="flex items-center justify-end gap-1.5">
@@ -653,20 +626,20 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             size="sm"
             onClick={() => handleTogglePartnerStatus(p)}
           >
-            {p.status === 'active' ? (isVi ? 'Giảm tải' : 'Throttle') : isVi ? 'Nhận đơn' : 'Activate'}
+            {p.status === 'active' ? ('Giảm tải') : 'Nhận đơn'}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setPartnerDraft({ ...p })}
           >
-            {isVi ? 'Sửa' : 'Edit'}
+            Sửa
           </Button>
         </div>
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi]);
+  ], []);
 
   return (
     <div className="space-y-6">
@@ -674,16 +647,14 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-6 rounded-lg border border-line">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="technical">{isVi ? 'Xưởng in & Thiết bị' : 'Workshops & Fleet'}</Badge>
+            <Badge variant="technical">{'Xưởng in & Thiết bị'}</Badge>
             <h2 className="text-xl font-bold text-fg tracking-tight">
-              {isVi ? 'Quản Trị Mạng Lưới Xưởng In & Đội Máy' : 'Workshops & Fleet Network Hub'}
+              {'Quản Trị Mạng Lưới Xưởng In & Đội Máy'}
             </h2>
           </div>
           <div className="mt-1">
-            <InfoTip label={isVi ? 'Mục này quản trị những gì?' : 'What does this hub manage?'}>
-              {isVi
-                ? 'Điều phối xưởng in 3 miền Bắc - Trung - Nam, thanh tra hiệu suất máy in real-time và kiểm soát tồn kho nhựa.'
-                : 'Orchestrate regional workshops across North, Central, and South Vietnam, inspect fleet real-time, and monitor materials.'}
+            <InfoTip label="Mục này quản trị những gì?">
+              Điều phối xưởng in 3 miền Bắc - Trung - Nam, thanh tra hiệu suất máy in real-time và kiểm soát tồn kho nhựa.
             </InfoTip>
           </div>
         </div>
@@ -699,7 +670,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             }`}
           >
             <Icon name="home_work" size={18} />
-            {isVi ? 'Danh Sách Xưởng' : 'Workshops'}
+            Danh Sách Xưởng
           </button>
           <button
             onClick={() => setActiveTab('fleet')}
@@ -710,7 +681,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             }`}
           >
             <Icon name="precision_manufacturing" size={18} />
-            {isVi ? 'Đội Máy' : 'Fleet Inspector'}
+            Đội Máy
           </button>
           <button
             onClick={() => setActiveTab('materials')}
@@ -721,7 +692,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             }`}
           >
             <Icon name="inventory_2" size={18} />
-            {isVi ? 'Tồn Kho Nhựa' : 'Materials'}
+            Tồn Kho Nhựa
             {stats.lowStockMaterialsCount > 0 && (
               <Badge variant="danger" size="sm">
                 {stats.lowStockMaterialsCount}
@@ -737,7 +708,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             }`}
           >
             <Icon name="handshake" size={18} />
-            {isVi ? 'Đối Tác (DB)' : 'Partners (DB)'}
+            Đối Tác (DB)
             {partners.length > 0 && (
               <Badge variant="technical" size="sm">
                 {partners.length}
@@ -750,56 +721,56 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       {/* KPI Cards Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tổng Xưởng' : 'Total Hubs'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Tổng Xưởng</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">
             {workshopsError ? '—' : workshopsLoading ? '…' : stats.totalWorkshops}
           </div>
           <div className="text-xs text-positive font-medium mt-0.5">
             {workshopsError
-              ? isVi ? 'Lỗi đọc workshop_profiles' : 'workshop_profiles read failed'
-              : `${stats.verifiedCount} ${isVi ? 'Đã duyệt' : 'Verified'}`}
+              ? 'Lỗi đọc workshop_profiles'
+              : `${stats.verifiedCount} ${'Đã duyệt'}`}
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Chờ Duyệt' : 'Pending Review'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Chờ Duyệt</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">{workshopsError ? '—' : stats.pendingCount}</div>
           <div className="text-xs text-warning font-medium mt-0.5">
             {workshopsError
-              ? isVi ? 'Xem lỗi ở tab Danh Sách Xưởng' : 'See the Workshops tab error'
-              : isVi ? 'Cần phê duyệt' : 'Action needed'}
+              ? 'Xem lỗi ở tab Danh Sách Xưởng'
+              : 'Cần phê duyệt'}
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tổng Máy In' : 'Fleet Size'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Tổng Máy In</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">
             {fleetError ? '—' : fleetPrinters === null ? '…' : fleetCounts.total}
           </div>
           <div className="text-xs text-fg-subtle font-medium mt-0.5">
             {fleetError
-              ? isVi ? 'Lỗi đọc printer_fleet' : 'printer_fleet read failed'
-              : isVi ? 'Bảng printer_fleet' : 'printer_fleet table'}
+              ? 'Lỗi đọc printer_fleet'
+              : 'Bảng printer_fleet'}
           </div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Máy Rảnh' : 'Printers Idle'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Máy Rảnh</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">
             {fleetError ? '—' : fleetPrinters === null ? '…' : fleetCounts.free}
           </div>
-          <div className="text-xs text-positive font-medium mt-0.5">{isVi ? 'Sẵn sàng nhận lệnh' : 'Available now'}</div>
+          <div className="text-xs text-positive font-medium mt-0.5">Sẵn sàng nhận lệnh</div>
         </div>
 
         <div className="bg-surface p-4 rounded-lg border border-line-subtle">
-          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Đang In' : 'Printing Now'}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Đang In</div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">
             {fleetError ? '—' : fleetPrinters === null ? '…' : fleetCounts.busy}
           </div>
           <div className="text-xs text-info font-medium mt-0.5">
             {fleetError || fleetPrinters === null || fleetCounts.total === 0
               ? '—'
-              : `${Math.round((fleetCounts.busy / fleetCounts.total) * 100)}% ${isVi ? 'công suất' : 'load'}`}
+              : `${Math.round((fleetCounts.busy / fleetCounts.total) * 100)}% ${'công suất'}`}
           </div>
         </div>
 
@@ -808,11 +779,11 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             như một khẳng định thật. */}
         <div className="p-4 rounded-lg border border-line-subtle bg-surface">
           <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-            {isVi ? 'Cảnh Báo Nhựa' : 'Low Stock Alert'}
+            Cảnh Báo Nhựa
           </div>
           <div className="text-2xl font-bold tabular-nums text-fg mt-1">—</div>
           <div className="text-xs font-medium mt-0.5 text-fg-subtle">
-            {isVi ? 'Chưa nối nguồn tồn kho' : 'Inventory source not wired'}
+            Chưa nối nguồn tồn kho
           </div>
         </div>
       </div>
@@ -825,7 +796,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               {/* Region Filter */}
               <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
-                <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Khu vực:' : 'Region:'}</span>
+                <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">Khu vực:</span>
                 {(['all', 'Bắc', 'Trung', 'Nam'] as const).map((r) => (
                   <button
                     key={r}
@@ -836,14 +807,14 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
-                    {r === 'all' ? (isVi ? 'Tất cả' : 'All') : r}
+                    {r === 'all' ? ('Tất cả') : r}
                   </button>
                 ))}
               </div>
 
               {/* Status Filter */}
               <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
-                <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Trạng thái:' : 'Status:'}</span>
+                <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">Trạng thái:</span>
                 {(['all', 'Verified', 'Pending', 'Suspended'] as const).map((s) => (
                   <button
                     key={s}
@@ -854,7 +825,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
-                    {s === 'all' ? (isVi ? 'Tất cả' : 'All') : s}
+                    {s === 'all' ? ('Tất cả') : s}
                   </button>
                 ))}
               </div>
@@ -865,8 +836,8 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
                 <Input
                   type="text"
-                  aria-label={isVi ? 'Tìm tên xưởng, địa chỉ, sđt' : 'Search workshop'}
-                  placeholder={isVi ? 'Tìm tên xưởng, địa chỉ, sđt...' : 'Search workshop...'}
+                  aria-label="Tìm tên xưởng, địa chỉ, sđt"
+                  placeholder="Tìm tên xưởng, địa chỉ, sđt..."
                   value={filters.searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-8"
@@ -880,7 +851,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 onClick={() => setIsAddWorkshopModalOpen(true)}
                 className="shrink-0"
               >
-                {isVi ? 'Thêm Xưởng In' : 'Add Workshop'}
+                Thêm Xưởng In
               </Button>
             </div>
           </div>
@@ -890,7 +861,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           {workshopsLoading && workshops.length === 0 && workshopsError === null && (
             <div
               role="status"
-              aria-label={isVi ? 'Đang tải danh sách xưởng từ workshop_profiles...' : 'Loading workshops from workshop_profiles...'}
+              aria-label="Đang tải danh sách xưởng từ workshop_profiles..."
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
               {[0, 1].map((i) => (
@@ -905,11 +876,11 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               <Icon name="error" size={24} className="text-danger mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-semibold text-danger text-sm">
-                  {isVi ? 'Không đọc được bảng workshop_profiles' : 'Could not read the workshop_profiles table'}
+                  Không đọc được bảng workshop_profiles
                 </h4>
                 <p className="text-xs text-danger mt-1 font-mono break-all">{workshopsError}</p>
                 <Button variant="secondary" size="sm" className="mt-2" onClick={() => void loadWorkshops()}>
-                  {isVi ? 'Thử lại' : 'Retry'}
+                  Thử lại
                 </Button>
               </div>
             </div>
@@ -919,15 +890,11 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           {workshopsError === null && !workshopsLoading && filteredWorkshops.length === 0 && (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có xưởng in nào' : 'No workshop yet'}
+              title="Chưa có xưởng in nào"
               description={
                 workshops.length === 0
-                  ? isVi
-                    ? 'Bảng workshop_profiles chưa có bản ghi nào.'
-                    : 'The workshop_profiles table has no row yet.'
-                  : isVi
-                  ? 'Không có bản ghi xưởng in nào khớp bộ lọc khu vực/trạng thái hiện tại.'
-                  : 'No workshop record matches the current region/status filter.'
+                  ? 'Bảng workshop_profiles chưa có bản ghi nào.'
+                  : 'Không có bản ghi xưởng in nào khớp bộ lọc khu vực/trạng thái hiện tại.'
               }
               icon={<Icon name="factory" size={20} className="text-primary" />}
               action={
@@ -937,7 +904,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   leadingIcon={<Icon name="add_circle" size={18} />}
                   onClick={() => setIsAddWorkshopModalOpen(true)}
                 >
-                  {isVi ? 'Thêm Xưởng In' : 'Add workshop'}
+                  Thêm Xưởng In
                 </Button>
               }
             />
@@ -981,10 +948,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                             dot
                           >
                             {w.verifiedStatus === 'Verified'
-                              ? '● ' + (isVi ? 'Đã duyệt' : 'Verified')
+                              ? '● ' + ('Đã duyệt')
                               : w.verifiedStatus === 'Pending'
-                              ? '⏳ ' + (isVi ? 'Chờ duyệt' : 'Pending')
-                              : '✕ ' + (isVi ? 'Đình chỉ' : 'Suspended')}
+                              ? '⏳ ' + ('Chờ duyệt')
+                              : '✕ ' + ('Đình chỉ')}
                           </Badge>
                         </div>
                         <h3 className="font-bold text-fg text-base mt-2 line-clamp-1">{w.workshopName}</h3>
@@ -998,15 +965,15 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     {/* Machine summary mini badges */}
                     <div className="grid grid-cols-3 gap-2 mt-4 p-3 bg-surface-muted rounded-md text-center">
                       <div>
-                        <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Tổng máy' : 'Total'}</div>
+                        <div className="text-xs text-fg-subtle font-semibold uppercase">Tổng máy</div>
                         <div className="text-base font-bold tabular-nums text-fg">{numOrEmpty(w.totalMachines)}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Rảnh' : 'Free'}</div>
+                        <div className="text-xs text-fg-subtle font-semibold uppercase">Rảnh</div>
                         <div className="text-base font-bold tabular-nums text-fg">—</div>
                       </div>
                       <div>
-                        <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Đang In' : 'Busy'}</div>
+                        <div className="text-xs text-fg-subtle font-semibold uppercase">Đang In</div>
                         <div className="text-base font-bold tabular-nums text-fg">{numOrEmpty(w.activeMachinesNow)}</div>
                       </div>
                     </div>
@@ -1014,16 +981,16 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     {/* Rates & Contact */}
                     <div className="mt-3 space-y-1 text-xs text-fg-muted">
                       <div className="flex justify-between">
-                        <span className="text-fg-subtle">{isVi ? 'Đơn giá điện:' : 'Power rate:'}</span>
+                        <span className="text-fg-subtle">Đơn giá điện:</span>
                         <span className="font-semibold text-fg-muted">{vndOrEmpty(w.electricityRateOverride)}/kWh</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-fg-subtle">{isVi ? 'Nhân công vận hành:' : 'Labor rate:'}</span>
+                        <span className="text-fg-subtle">Nhân công vận hành:</span>
                         <span className="font-semibold text-fg-muted">{vndOrEmpty(w.laborRateOverride)}/h</span>
                       </div>
                       {w.contactPhone && (
                         <div className="flex justify-between pt-1 border-t border-line-subtle">
-                          <span className="text-fg-subtle">{isVi ? 'Đường dây nóng:' : 'Contact:'}</span>
+                          <span className="text-fg-subtle">Đường dây nóng:</span>
                           <span className="font-mono text-fg-muted">{w.contactPhone}</span>
                         </div>
                       )}
@@ -1040,7 +1007,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         leadingIcon={<Icon name="check_circle" size={16} />}
                         onClick={() => handleApprove(w.id, w.workshopName)}
                       >
-                        {isVi ? 'Phê Duyệt Xưởng Này' : 'Approve Workshop'}
+                        Phê Duyệt Xưởng Này
                       </Button>
                     ) : w.verifiedStatus === 'Verified' ? (
                       <div className="flex items-center gap-2 w-full">
@@ -1051,15 +1018,15 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                           leadingIcon={<Icon name="view_timeline" size={16} />}
                           onClick={() => setActiveTab('fleet')}
                         >
-                          {isVi ? 'Xem Đội Máy' : 'View Fleet'}
+                          Xem Đội Máy
                         </Button>
                         <Button
                           variant="danger-ghost"
                           size="sm"
                           onClick={() => handleSuspend(w.id, w.workshopName)}
-                          title={isVi ? 'Đình chỉ xưởng' : 'Suspend workshop'}
+                          title="Đình chỉ xưởng"
                         >
-                          {isVi ? 'Đình Chỉ' : 'Suspend'}
+                          Đình Chỉ
                         </Button>
                       </div>
                     ) : (
@@ -1070,7 +1037,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         leadingIcon={<Icon name="replay" size={16} />}
                         onClick={() => void handleSetWorkshopStatus(w.id, 'Verified', w.workshopName)}
                       >
-                        {isVi ? 'Khôi Phục Hoạt Động' : 'Reactivate'}
+                        Khôi Phục Hoạt Động
                       </Button>
                     )}
                   </div>
@@ -1089,7 +1056,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface p-4 rounded-lg border border-line">
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
-                <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Trạng thái máy:' : 'Printer Status:'}</span>
+                <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">Trạng thái máy:</span>
                 {(['all', 'Free', 'Busy', 'Maintenance'] as const).map((s) => (
                   <button
                     key={s}
@@ -1101,20 +1068,18 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     }`}
                   >
                     {s === 'all'
-                      ? (isVi ? 'Tất cả' : 'All')
+                      ? ('Tất cả')
                       : s === 'Free'
-                      ? (isVi ? 'Rảnh' : 'Idle')
+                      ? ('Rảnh')
                       : s === 'Busy'
-                      ? (isVi ? 'Đang In' : 'Printing')
-                      : (isVi ? 'Bảo Trì' : 'Maintenance')}
+                      ? ('Đang In')
+                      : ('Bảo Trì')}
                   </button>
                 ))}
               </div>
 
               <span className="text-xs text-fg-subtle">
-                {isVi
-                  ? 'Nguồn: bảng printer_fleet (đội máy toàn hệ thống)'
-                  : 'Source: printer_fleet (global fleet)'}
+                Nguồn: bảng printer_fleet (đội máy toàn hệ thống)
               </span>
             </div>
 
@@ -1126,7 +1091,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 onClick={() => void loadFleet()}
                 disabled={isFleetLoading}
               >
-                {isVi ? 'Tải Lại' : 'Reload'}
+                Tải Lại
               </Button>
 
               <Button
@@ -1135,7 +1100,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 leadingIcon={<Icon name="add" size={16} />}
                 onClick={() => setIsAddMachineModalOpen(true)}
               >
-                {isVi ? 'Biên Chế Máy Mới' : 'Register Printer'}
+                Biên Chế Máy Mới
               </Button>
             </div>
           </div>
@@ -1143,9 +1108,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           {/* Đang tải */}
           {isFleetLoading && fleetPrinters === null && (
             <div className="bg-surface p-6 rounded-lg border border-line-subtle text-center text-sm text-fg-muted">
-              {isVi
-                ? 'Đang tải đội máy in từ bảng printer_fleet...'
-                : 'Loading printer fleet from printer_fleet...'}
+              Đang tải đội máy in từ bảng printer_fleet...
             </div>
           )}
 
@@ -1155,13 +1118,11 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               <Icon name="error" size={24} className="text-danger mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-semibold text-danger text-sm">
-                  {isVi
-                    ? 'Không đọc được đội máy in từ bảng printer_fleet'
-                    : 'Could not read the printer fleet from printer_fleet'}
+                  Không đọc được đội máy in từ bảng printer_fleet
                 </h4>
                 <p className="text-xs text-danger mt-1 font-mono break-all">{fleetError}</p>
                 <Button variant="secondary" size="sm" className="mt-2" onClick={() => void loadFleet()}>
-                  {isVi ? 'Thử lại' : 'Retry'}
+                  Thử lại
                 </Button>
               </div>
             </div>
@@ -1171,15 +1132,11 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           {!isFleetLoading && fleetError === null && fleetPrinters !== null && filteredPrinters.length === 0 && (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có máy in nào' : 'No printer yet'}
+              title="Chưa có máy in nào"
               description={
                 fleetStatusFilter !== 'all'
-                  ? isVi
-                    ? 'Không có máy in nào khớp bộ lọc trạng thái hiện tại.'
-                    : 'No printer matches the current status filter.'
-                  : isVi
-                  ? 'Bảng printer_fleet chưa có bản ghi nào.'
-                  : 'The printer_fleet table has no row yet.'
+                  ? 'Không có máy in nào khớp bộ lọc trạng thái hiện tại.'
+                  : 'Bảng printer_fleet chưa có bản ghi nào.'
               }
               icon={<Icon name="print" size={20} className="text-primary" />}
               action={
@@ -1189,7 +1146,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   leadingIcon={<Icon name="add" size={18} />}
                   onClick={() => setIsAddMachineModalOpen(true)}
                 >
-                  {isVi ? 'Biên Chế Máy Mới' : 'Register printer'}
+                  Biên Chế Máy Mới
                 </Button>
               }
             />
@@ -1210,10 +1167,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 depPerHour != null && elecPerHour != null ? depPerHour + elecPerHour : null;
               const statusLabel =
                 p.status === 'Printing'
-                  ? isVi ? 'Đang In' : 'Printing'
+                  ? 'Đang In'
                   : p.status === 'Maintenance'
-                  ? isVi ? 'Bảo Trì' : 'Maintenance'
-                  : isVi ? 'Rảnh' : 'Idle';
+                  ? 'Bảo Trì'
+                  : 'Rảnh';
               const volumeText =
                 p.bedDimensions &&
                 p.bedDimensions.x != null &&
@@ -1248,7 +1205,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     </div>
 
                     <div className="text-right">
-                      <span className="text-xs font-mono text-fg-subtle block">{isVi ? 'Khổ in (mm)' : 'Volume'}</span>
+                      <span className="text-xs font-mono text-fg-subtle block">Khổ in (mm)</span>
                       <span className="text-xs font-mono font-bold text-fg-muted">{volumeText ?? '—'}</span>
                     </div>
                   </div>
@@ -1256,7 +1213,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   {/* Hourly Cost Breakdown Card */}
                   <div className="mt-4 p-3 bg-surface-muted rounded-md border border-line-subtle space-y-2">
                     <div className="text-xs font-semibold uppercase text-fg-muted tracking-wider flex items-center justify-between">
-                      <span>{isVi ? 'Định Mức Chi Phí Vận Hành' : 'Operational Cost Engine'}</span>
+                      <span>Định Mức Chi Phí Vận Hành</span>
                       <span className="font-mono font-bold tabular-nums text-fg">
                         {totalHourlyCost != null ? `${formatVnd(totalHourlyCost)}/h` : '—'}
                       </span>
@@ -1265,7 +1222,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-line-subtle text-xs">
                       <div>
                         <div className="text-xs text-fg-subtle font-medium">
-                          {isVi ? 'Khấu hao máy/giờ:' : 'Depreciation/h:'}
+                          Khấu hao máy/giờ:
                         </div>
                         <div className="font-bold text-fg font-mono tabular-nums">
                           {depPerHour != null ? `${formatVnd(depPerHour)}/h` : '—'}
@@ -1273,15 +1230,13 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         <div className="text-xs text-fg-subtle">
                           {m.purchasePrice != null && m.lifetimeHours
                             ? `(${formatVnd(m.purchasePrice)} / ${m.lifetimeHours}h)`
-                            : isVi
-                            ? '(chưa khai giá mua / tuổi thọ)'
-                            : '(purchase price / lifetime not recorded)'}
+                            : '(chưa khai giá mua / tuổi thọ)'}
                         </div>
                       </div>
 
                       <div>
                         <div className="text-xs text-fg-subtle font-medium">
-                          {isVi ? 'Tiền điện máy/giờ:' : 'Electricity/h:'}
+                          Tiền điện máy/giờ:
                         </div>
                         <div className="font-bold text-fg font-mono tabular-nums">
                           {elecPerHour != null ? `${formatVnd(elecPerHour)}/h` : '—'}
@@ -1290,12 +1245,8 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                           {m.avgPowerKW != null && electricityRateVnd != null
                             ? `(${m.avgPowerKW} kW × ${formatVnd(electricityRateVnd)})`
                             : electricityRateVnd == null
-                            ? isVi
-                              ? '(chưa cấu hình giá điện trong pricing_global_settings)'
-                              : '(electricity rate not configured)'
-                            : isVi
-                            ? '(chưa khai công suất)'
-                            : '(power not recorded)'}
+                            ? '(chưa cấu hình giá điện trong pricing_global_settings)'
+                            : '(chưa khai công suất)'}
                         </div>
                       </div>
                     </div>
@@ -1314,8 +1265,8 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         }
                       >
                         {p.status === 'Printing'
-                          ? isVi ? 'Đặt Rảnh (Idle)' : 'Set Idle'
-                          : isVi ? 'Đặt Bận (Printing)' : 'Set Printing'}
+                          ? 'Đặt Rảnh (Idle)'
+                          : 'Đặt Bận (Printing)'}
                       </Button>
                       <Button
                         iconOnly
@@ -1324,8 +1275,8 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         onClick={() =>
                           void handleSetPrinterStatus(p, p.status === 'Maintenance' ? 'Idle' : 'Maintenance')
                         }
-                        title={isVi ? 'Chuyển sang bảo trì' : 'Toggle maintenance'}
-                        aria-label={isVi ? 'Chuyển sang bảo trì' : 'Toggle maintenance'}
+                        title="Chuyển sang bảo trì"
+                        aria-label="Chuyển sang bảo trì"
                       >
                         <Icon name="build" size={14} />
                       </Button>
@@ -1348,14 +1299,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               <Icon name="warning" size={28} className="text-danger mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-semibold text-danger text-sm">
-                  {isVi
-                    ? `Cảnh Báo: Có ${lowStockList.length} cuộn/loại vật liệu đang dưới ngưỡng an toàn!`
-                    : `Alert: ${lowStockList.length} material spools are below safe stock threshold!`}
+                  {`Cảnh Báo: Có ${lowStockList.length} cuộn/loại vật liệu đang dưới ngưỡng an toàn!`}
                 </h4>
                 <p className="text-xs text-danger mt-1">
-                  {isVi
-                    ? 'Cần nhập bổ sung ngay để không gián đoạn các đơn hàng in 3D đang dispatch tới xưởng.'
-                    : 'Restock immediately to prevent dispatch bottlenecks across network workshops.'}
+                  Cần nhập bổ sung ngay để không gián đoạn các đơn hàng in 3D đang dispatch tới xưởng.
                 </p>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {lowStockList.map((m) => (
@@ -1374,9 +1321,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           {/* Material inventory table controls */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 rounded-lg border border-line">
             <div className="text-xs text-fg-subtle font-medium">
-              {isVi
-                ? 'Danh sách tồn kho CHƯA nối nguồn DB: `workshop_materials` bị RLS giới hạn theo xưởng và bảng danh mục `materials` không có cột tồn kho theo xưởng — nên bảng dưới đây không phải số liệu thật.'
-                : 'The inventory list has NO DB source yet: `workshop_materials` is RLS-scoped per workshop and the `materials` catalogue has no per-workshop stock column, so the table below is not real data.'}
+              Danh sách tồn kho CHƯA nối nguồn DB: `workshop_materials` bị RLS giới hạn theo xưởng và bảng danh mục `materials` không có cột tồn kho theo xưởng — nên bảng dưới đây không phải số liệu thật.
             </div>
 
             <Button
@@ -1386,7 +1331,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               onClick={() => setIsAddMaterialModalOpen(true)}
               className="shrink-0"
             >
-              {isVi ? 'Thêm Cuộn Nhựa / Resin' : 'Add Material SKU'}
+              Thêm Cuộn Nhựa / Resin
             </Button>
           </div>
 
@@ -1395,11 +1340,9 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             {materials.length === 0 ? (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa nối nguồn tồn kho' : 'Inventory source not wired'}
+              title="Chưa nối nguồn tồn kho"
               description={
-                isVi
-                  ? 'Đây KHÔNG phải "kho rỗng": màn này chưa có hàm service nào đọc tồn kho theo xưởng, nên không hiển thị số liệu thay thế.'
-                  : 'This is NOT "empty stock": no service function reads per-workshop inventory yet, so no substitute numbers are shown.'
+                'Đây KHÔNG phải "kho rỗng": màn này chưa có hàm service nào đọc tồn kho theo xưởng, nên không hiển thị số liệu thay thế.'
               }
               icon={<Icon name="layers" size={20} className="text-primary" />}
               action={
@@ -1409,7 +1352,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   leadingIcon={<Icon name="add" size={18} />}
                   onClick={() => setIsAddMaterialModalOpen(true)}
                 >
-                  {isVi ? 'Thêm Cuộn Nhựa / Resin' : 'Add material SKU'}
+                  Thêm Cuộn Nhựa / Resin
                 </Button>
               }
             />
@@ -1418,8 +1361,8 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               columns={materialColumns}
               rows={materials}
               getRowId={(row) => row.id}
-              caption={isVi ? 'Tồn kho vật liệu theo xưởng' : 'Material stock by workshop'}
-              tableLabel={isVi ? 'Tồn kho vật liệu theo xưởng' : 'Material stock by workshop'}
+              caption="Tồn kho vật liệu theo xưởng"
+              tableLabel="Tồn kho vật liệu theo xưởng"
               defaultSort={[{ key: 'materialName', direction: 'asc' }]}
             />
             )}
@@ -1433,10 +1376,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           open
           onClose={() => setIsAddWorkshopModalOpen(false)}
           size="lg"
-          title={isVi ? 'Thêm Xưởng In Mới Vào Mạng Lưới' : 'Register New Partner Workshop'}
+          title="Thêm Xưởng In Mới Vào Mạng Lưới"
         >
             <form onSubmit={handleCreateWorkshop} className="mt-4 space-y-4">
-              <Field label={isVi ? 'Tên xưởng in:' : 'Workshop Name:'} optionalLabel={null}>
+              <Field label="Tên xưởng in:" optionalLabel={null}>
                 {(control) => (
                   <Input
                     {...control}
@@ -1450,7 +1393,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               </Field>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label={isVi ? 'Khu vực (Miền):' : 'Region:'} optionalLabel={null}>
+                <Field label="Khu vực (Miền):" optionalLabel={null}>
                   {(control) => (
                     <Select
                       {...control}
@@ -1463,7 +1406,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     </Select>
                   )}
                 </Field>
-                <Field label={isVi ? 'Trạng thái ban đầu:' : 'Initial Status:'} optionalLabel={null}>
+                <Field label="Trạng thái ban đầu:" optionalLabel={null}>
                   {(control) => (
                     <Select
                       {...control}
@@ -1477,7 +1420,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 </Field>
               </div>
 
-              <Field label={isVi ? 'Địa chỉ xưởng:' : 'Address:'} optionalLabel={null}>
+              <Field label="Địa chỉ xưởng:" optionalLabel={null}>
                 {(control) => (
                   <Input
                     {...control}
@@ -1491,7 +1434,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               </Field>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label={isVi ? 'Số điện thoại:' : 'Phone:'} optionalLabel={null}>
+                <Field label="Số điện thoại:" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
@@ -1502,7 +1445,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     />
                   )}
                 </Field>
-                <Field label={isVi ? 'Email liên hệ:' : 'Email:'} optionalLabel={null}>
+                <Field label="Email liên hệ:" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
@@ -1516,13 +1459,13 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label={isVi ? 'Giá điện riêng (VNĐ/kWh):' : 'Electricity Rate (VND/kWh):'} optionalLabel={null}>
+                <Field label="Giá điện riêng (VNĐ/kWh):" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
                       type="number"
                       numeric
-                      placeholder={isVi ? 'Chưa khai ⇒ để trống' : 'Not set ⇒ leave empty'}
+                      placeholder="Chưa khai ⇒ để trống"
                       value={newWorkshopForm.electricityRateOverride ?? ''}
                       onChange={(e) =>
                         setNewWorkshopForm({
@@ -1533,13 +1476,13 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     />
                   )}
                 </Field>
-                <Field label={isVi ? 'Công nhân công (VNĐ/giờ):' : 'Labor Rate (VND/h):'} optionalLabel={null}>
+                <Field label="Công nhân công (VNĐ/giờ):" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
                       type="number"
                       numeric
-                      placeholder={isVi ? 'Chưa khai ⇒ để trống' : 'Not set ⇒ leave empty'}
+                      placeholder="Chưa khai ⇒ để trống"
                       value={newWorkshopForm.laborRateOverride ?? ''}
                       onChange={(e) =>
                         setNewWorkshopForm({
@@ -1558,10 +1501,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   variant="secondary"
                   onClick={() => setIsAddWorkshopModalOpen(false)}
                 >
-                  {isVi ? 'Hủy Bỏ' : 'Cancel'}
+                  Hủy Bỏ
                 </Button>
                 <Button type="submit" variant="primary">
-                  {isVi ? 'Lưu & Khởi Tạo Xưởng' : 'Save Workshop'}
+                  {'Lưu & Khởi Tạo Xưởng'}
                 </Button>
               </div>
             </form>
@@ -1574,10 +1517,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           open
           onClose={() => setIsAddMachineModalOpen(false)}
           size="md"
-          title={isVi ? 'Thêm Máy In Vào printer_fleet' : 'Add Printer to printer_fleet'}
+          title="Thêm Máy In Vào printer_fleet"
         >
             <form onSubmit={handleCreateMachine} className="mt-4 space-y-4">
-              <Field label={isVi ? 'Tên máy in:' : 'Machine Name:'} optionalLabel={null}>
+              <Field label="Tên máy in:" optionalLabel={null}>
                 {(control) => (
                   <Input
                     {...control}
@@ -1590,12 +1533,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 )}
               </Field>
 
-              <Field label={isVi ? 'Hãng / dòng máy:' : 'Brand / model:'} optionalLabel={null}>
+              <Field label="Hãng / dòng máy:" optionalLabel={null}>
                 {(control) => (
                   <Input
                     {...control}
                     type="text"
-                    placeholder={isVi ? 'Để trống nếu chưa rõ' : 'Leave empty if unknown'}
+                    placeholder="Để trống nếu chưa rõ"
                     value={newMachineForm.brand}
                     onChange={(e) => setNewMachineForm({ ...newMachineForm, brand: e.target.value })}
                   />
@@ -1603,7 +1546,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               </Field>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label={isVi ? 'Công nghệ in:' : 'Technology:'} optionalLabel={null}>
+                <Field label="Công nghệ in:" optionalLabel={null}>
                   {(control) => (
                     <Select
                       {...control}
@@ -1616,14 +1559,14 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     </Select>
                   )}
                 </Field>
-                <Field label={isVi ? 'Công suất chạy (kW):' : 'Avg Power (kW):'} optionalLabel={null}>
+                <Field label="Công suất chạy (kW):" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
                       type="number"
                       step="0.01"
                       numeric
-                      placeholder={isVi ? 'Chưa đo ⇒ để trống' : 'Not measured ⇒ leave empty'}
+                      placeholder="Chưa đo ⇒ để trống"
                       value={newMachineForm.avgPowerKW ?? ''}
                       onChange={(e) =>
                         setNewMachineForm({
@@ -1637,13 +1580,13 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label={isVi ? 'Giá mua máy (VNĐ):' : 'Purchase Price:'} optionalLabel={null}>
+                <Field label="Giá mua máy (VNĐ):" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
                       type="number"
                       numeric
-                      placeholder={isVi ? 'Chưa có ⇒ để trống' : 'Unknown ⇒ leave empty'}
+                      placeholder="Chưa có ⇒ để trống"
                       value={newMachineForm.purchasePrice ?? ''}
                       onChange={(e) =>
                         setNewMachineForm({
@@ -1654,13 +1597,13 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     />
                   )}
                 </Field>
-                <Field label={isVi ? 'Tuổi thọ khấu hao (giờ):' : 'Lifetime (Hours):'} optionalLabel={null}>
+                <Field label="Tuổi thọ khấu hao (giờ):" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
                       type="number"
                       numeric
-                      placeholder={isVi ? 'Chưa có ⇒ để trống' : 'Unknown ⇒ leave empty'}
+                      placeholder="Chưa có ⇒ để trống"
                       value={newMachineForm.lifetimeHours ?? ''}
                       onChange={(e) =>
                         setNewMachineForm({
@@ -1674,9 +1617,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               </div>
 
               <p className="text-xs text-fg-subtle">
-                {isVi
-                  ? 'Bảng printer_fleet không gắn với một xưởng cụ thể, nên không có ô chọn xưởng. Ô số để trống nghĩa là CHƯA ĐO — hệ thống ghi NULL, không điền số mặc định.'
-                  : 'printer_fleet is not bound to a specific workshop, so there is no workshop field. Empty numeric fields are stored as NULL, never as a made-up default.'}
+                Bảng printer_fleet không gắn với một xưởng cụ thể, nên không có ô chọn xưởng. Ô số để trống nghĩa là CHƯA ĐO — hệ thống ghi NULL, không điền số mặc định.
               </p>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-line-subtle">
@@ -1685,10 +1626,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   variant="secondary"
                   onClick={() => setIsAddMachineModalOpen(false)}
                 >
-                  {isVi ? 'Đóng' : 'Cancel'}
+                  Đóng
                 </Button>
                 <Button type="submit" variant="primary">
-                  {isVi ? 'Ghi Vào DB' : 'Save to DB'}
+                  Ghi Vào DB
                 </Button>
               </div>
             </form>
@@ -1701,10 +1642,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           open
           onClose={() => setIsAddMaterialModalOpen(false)}
           size="md"
-          title={isVi ? 'Thêm Cuộn Nhựa / Vật Liệu Mới' : 'Add Material SKU'}
+          title="Thêm Cuộn Nhựa / Vật Liệu Mới"
         >
             <form onSubmit={handleCreateMaterial} className="mt-4 space-y-4">
-              <Field label={isVi ? 'Xưởng lưu kho:' : 'Workshop:'} optionalLabel={null}>
+              <Field label="Xưởng lưu kho:" optionalLabel={null}>
                 {(control) => (
                   <Select
                     {...control}
@@ -1718,7 +1659,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 )}
               </Field>
 
-              <Field label={isVi ? 'Tên vật liệu:' : 'Material Name:'} optionalLabel={null}>
+              <Field label="Tên vật liệu:" optionalLabel={null}>
                 {(control) => (
                   <Input
                     {...control}
@@ -1732,7 +1673,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               </Field>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label={isVi ? 'Họ nhựa:' : 'Polymer Type:'} optionalLabel={null}>
+                <Field label="Họ nhựa:" optionalLabel={null}>
                   {(control) => (
                     <Select
                       {...control}
@@ -1748,7 +1689,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     </Select>
                   )}
                 </Field>
-                <Field label={isVi ? 'Đơn giá/kg (VNĐ):' : 'Price/kg:'} optionalLabel={null}>
+                <Field label="Đơn giá/kg (VNĐ):" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
@@ -1762,7 +1703,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label={isVi ? 'Tồn kho ban đầu (grams):' : 'Stock (g):'} optionalLabel={null}>
+                <Field label="Tồn kho ban đầu (grams):" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
@@ -1773,7 +1714,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     />
                   )}
                 </Field>
-                <Field label={isVi ? 'Ngưỡng cảnh báo (grams):' : 'Threshold (g):'} optionalLabel={null}>
+                <Field label="Ngưỡng cảnh báo (grams):" optionalLabel={null}>
                   {(control) => (
                     <Input
                       {...control}
@@ -1792,10 +1733,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   variant="secondary"
                   onClick={() => setIsAddMaterialModalOpen(false)}
                 >
-                  {isVi ? 'Đóng' : 'Cancel'}
+                  Đóng
                 </Button>
                 <Button type="submit" variant="primary">
-                  {isVi ? 'Lưu Cuộn Nhựa' : 'Save Material'}
+                  Lưu Cuộn Nhựa
                 </Button>
               </div>
             </form>
@@ -1807,9 +1748,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 rounded-lg border border-line">
             <div className="text-xs text-fg-subtle font-medium">
-              {isVi
-                ? `Đối tác xưởng đọc/ghi trực tiếp bảng workshop_partners trên Supabase: ${partners.length} bản ghi.`
-                : `Workshop partners read/written directly to the Supabase workshop_partners table: ${partners.length} rows.`}
+              {`Đối tác xưởng đọc/ghi trực tiếp bảng workshop_partners trên Supabase: ${partners.length} bản ghi.`}
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
@@ -1820,7 +1759,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 onClick={() => void loadPartners()}
                 disabled={isPartnersLoading}
               >
-                {isVi ? 'Tải Lại' : 'Reload'}
+                Tải Lại
               </Button>
 
               <Button
@@ -1829,7 +1768,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                 leadingIcon={<Icon name="add_business" size={16} />}
                 onClick={() => setPartnerDraft(emptyPartnerDraft())}
               >
-                {isVi ? 'Thêm Đối Tác' : 'Add Partner'}
+                Thêm Đối Tác
               </Button>
             </div>
           </div>
@@ -1838,12 +1777,8 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             {!isPartnersLoading && partners.length === 0 ? (
             <EmptyState
               size="sm"
-              title={isVi ? 'Chưa có đối tác xưởng nào' : 'No workshop partner yet'}
-              description={
-                isVi
-                  ? 'Bảng workshop_partners chưa có bản ghi nào để hiển thị.'
-                  : 'The workshop_partners table has no row to show.'
-              }
+              title="Chưa có đối tác xưởng nào"
+              description="Bảng workshop_partners chưa có bản ghi nào để hiển thị."
               icon={<Icon name="handshake" size={20} className="text-primary" />}
               action={
                 <Button
@@ -1852,7 +1787,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   leadingIcon={<Icon name="add_business" size={18} />}
                   onClick={() => setPartnerDraft(emptyPartnerDraft())}
                 >
-                  {isVi ? 'Thêm Đối Tác' : 'Add partner'}
+                  Thêm Đối Tác
                 </Button>
               }
             />
@@ -1862,14 +1797,14 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               rows={partners}
               getRowId={(row) => row.id}
               loading={isPartnersLoading && partners.length === 0}
-              caption={isVi ? 'Đối tác xưởng in' : 'Workshop partners'}
-              tableLabel={isVi ? 'Đối tác xưởng in' : 'Workshop partners'}
+              caption="Đối tác xưởng in"
+              tableLabel="Đối tác xưởng in"
               defaultSort={[{ key: 'name', direction: 'asc' }]}
               emptyState={
                 <EmptyState
                   live
-                  title={isVi ? 'Chưa có đối tác xưởng nào' : 'No workshop partners yet'}
-                  description={isVi ? 'Thêm đối tác xưởng để bắt đầu điều phối đơn.' : 'Add a workshop partner to start dispatching orders.'}
+                  title="Chưa có đối tác xưởng nào"
+                  description="Thêm đối tác xưởng để bắt đầu điều phối đơn."
                 />
               }
             />
@@ -1884,16 +1819,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               size="lg"
               title={
                 partners.some((p) => p.id === partnerDraft.id)
-                  ? isVi
-                    ? `Cấu hình đối tác: ${partnerDraft.name}`
-                    : `Configure partner: ${partnerDraft.name}`
-                  : isVi
-                  ? 'Thêm đối tác xưởng mới'
-                  : 'Add new workshop partner'
+                  ? `Cấu hình đối tác: ${partnerDraft.name}`
+                  : 'Thêm đối tác xưởng mới'
               }
             >
                 <form onSubmit={handleSubmitPartner} className="mt-4 space-y-4">
-                  <Field label={isVi ? 'Tên xưởng / trạm MES *' : 'Workshop name *'} optionalLabel={null}>
+                  <Field label="Tên xưởng / trạm MES *" optionalLabel={null}>
                     {(control) => (
                       <Input
                         {...control}
@@ -1906,7 +1837,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   </Field>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field label={isVi ? 'Vùng:' : 'Region:'} optionalLabel={null}>
+                    <Field label="Vùng:" optionalLabel={null}>
                       {(control) => (
                         <Select
                           {...control}
@@ -1915,13 +1846,13 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                             setPartnerDraft({ ...partnerDraft, region: e.target.value as WorkshopPartner['region'] })
                           }
                         >
-                          <option value="hanoi">{isVi ? 'Miền Bắc (Hà Nội)' : 'North (Hanoi)'}</option>
-                          <option value="danang">{isVi ? 'Miền Trung (Đà Nẵng)' : 'Central (Da Nang)'}</option>
-                          <option value="hcm">{isVi ? 'Miền Nam (TP.HCM)' : 'South (HCMC)'}</option>
+                          <option value="hanoi">Miền Bắc (Hà Nội)</option>
+                          <option value="danang">Miền Trung (Đà Nẵng)</option>
+                          <option value="hcm">Miền Nam (TP.HCM)</option>
                         </Select>
                       )}
                     </Field>
-                    <Field label={isVi ? 'Trạng thái:' : 'Status:'} optionalLabel={null}>
+                    <Field label="Trạng thái:" optionalLabel={null}>
                       {(control) => (
                         <Select
                           {...control}
@@ -1930,15 +1861,15 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                             setPartnerDraft({ ...partnerDraft, status: e.target.value as WorkshopPartner['status'] })
                           }
                         >
-                          <option value="active">{isVi ? 'Sẵn sàng' : 'Active'}</option>
-                          <option value="busy">{isVi ? 'Đang bận' : 'Busy'}</option>
-                          <option value="offline">{isVi ? 'Ngoại tuyến' : 'Offline'}</option>
+                          <option value="active">Sẵn sàng</option>
+                          <option value="busy">Đang bận</option>
+                          <option value="offline">Ngoại tuyến</option>
                         </Select>
                       )}
                     </Field>
                   </div>
 
-                  <Field label={isVi ? 'Địa chỉ *' : 'Address *'} optionalLabel={null}>
+                  <Field label="Địa chỉ *" optionalLabel={null}>
                     {(control) => (
                       <Input
                         {...control}
@@ -1951,7 +1882,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   </Field>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field label={isVi ? 'Người phụ trách:' : 'Contact person:'} optionalLabel={null}>
+                    <Field label="Người phụ trách:" optionalLabel={null}>
                       {(control) => (
                         <Input
                           {...control}
@@ -1961,7 +1892,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         />
                       )}
                     </Field>
-                    <Field label={isVi ? 'Đường dây nóng:' : 'Phone:'} optionalLabel={null}>
+                    <Field label="Đường dây nóng:" optionalLabel={null}>
                       {(control) => (
                         <Input
                           {...control}
@@ -1973,7 +1904,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     </Field>
                   </div>
 
-                  <Field label={isVi ? 'Email:' : 'Email:'} optionalLabel={null}>
+                  <Field label="Email:" optionalLabel={null}>
                     {(control) => (
                       <Input
                         {...control}
@@ -1985,7 +1916,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   </Field>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <Field label={isVi ? 'Máy đang chạy:' : 'Active printers:'} optionalLabel={null}>
+                    <Field label="Máy đang chạy:" optionalLabel={null}>
                       {(control) => (
                         <Input
                           {...control}
@@ -1999,7 +1930,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         />
                       )}
                     </Field>
-                    <Field label={isVi ? 'Máy rảnh:' : 'Idle printers:'} optionalLabel={null}>
+                    <Field label="Máy rảnh:" optionalLabel={null}>
                       {(control) => (
                         <Input
                           {...control}
@@ -2013,7 +1944,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         />
                       )}
                     </Field>
-                    <Field label={isVi ? 'Điểm SLA:' : 'SLA rating:'} optionalLabel={null}>
+                    <Field label="Điểm SLA:" optionalLabel={null}>
                       {(control) => (
                         <Input
                           {...control}
@@ -2031,7 +1962,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
 
                   <div>
                     <label className="block text-sm font-medium text-fg mb-1.5">
-                      {isVi ? 'Công nghệ hỗ trợ:' : 'Supported technologies:'}
+                      Công nghệ hỗ trợ:
                     </label>
                     <div className="flex items-center gap-4 pt-1">
                       {(['FDM', 'SLA', 'SLS'] as const).map((tech) => (
@@ -2063,10 +1994,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                       variant="secondary"
                       onClick={() => setPartnerDraft(null)}
                     >
-                      {isVi ? 'Hủy Bỏ' : 'Cancel'}
+                      Hủy Bỏ
                     </Button>
                     <Button type="submit" variant="primary">
-                      {isVi ? 'Lưu Vào Supabase' : 'Save to Supabase'}
+                      Lưu Vào Supabase
                     </Button>
                   </div>
                 </form>

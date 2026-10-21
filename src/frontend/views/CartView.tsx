@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { CartItem, VatLine } from '../../types';
-import { useLanguage } from '../context/LanguageContext';
 import { useCartStore } from '../stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
@@ -25,8 +24,6 @@ export const CartView: React.FC<CartViewProps> = ({
   onShowToast,
   siteContent
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   // P0: mã giảm giá sống trong store để KHÔNG mất khi sang /checkout.
   const appliedDiscount = useCartStore((s) => s.appliedDiscount);
@@ -73,15 +70,11 @@ export const CartView: React.FC<CartViewProps> = ({
     const code = promoCode.trim().toUpperCase();
     if (!code) return;
     setPromoMessage({
-      text: isVi
-        ? `Không xác thực được mã "${code}": hệ thống chưa có danh sách khuyến mãi nào để đối chiếu, nên không khoản giảm giá nào được áp dụng.`
-        : `Cannot validate "${code}": there is no promotions source to check against, so no discount is applied.`,
+      text: `Không xác thực được mã "${code}": hệ thống chưa có danh sách khuyến mãi nào để đối chiếu, nên không khoản giảm giá nào được áp dụng.`,
       isError: true
     });
     // Phản hồi ngay cạnh ô nhập lẫn ở toast: mã KHÔNG được áp dụng, và vì sao.
-    onShowToast(isVi
-      ? 'Mã ưu đãi không được áp dụng: hệ thống chưa có nguồn khuyến mãi để xác thực.'
-      : 'Promo code not applied: no promotions source exists to validate it.');
+    onShowToast('Mã ưu đãi không được áp dụng: hệ thống chưa có nguồn khuyến mãi để xác thực.');
   };
 
   // Khoản giảm giá do các mã cứng cũ vẫn nằm trong store (persist `vcube_cart_store`) nên vẫn
@@ -91,13 +84,11 @@ export const CartView: React.FC<CartViewProps> = ({
     if (useCartStore.getState().appliedDiscount > 0) {
       clearAppliedDiscount();
       setPromoMessage({
-        text: isVi
-          ? 'Khoản giảm giá đang ghi trên đơn không có nguồn xác thực trong hệ thống nên đã được gỡ bỏ.'
-          : 'The discount previously applied had no verifiable source, so it has been removed.',
+        text: 'Khoản giảm giá đang ghi trên đơn không có nguồn xác thực trong hệ thống nên đã được gỡ bỏ.',
         isError: true
       });
     }
-  }, [clearAppliedDiscount, isVi]);
+  }, [clearAppliedDiscount]);
 
   // EMPTY CART STATE
   if (cart.length === 0) {
@@ -105,24 +96,22 @@ export const CartView: React.FC<CartViewProps> = ({
       <div className="flex items-center justify-center bg-canvas px-4 py-16 sm:px-6 sm:py-24">
         {/* A11Y-09: nhánh giỏ trống là màn duy nhất của `/cart` không có heading cấp 1.
             `sr-only` (absolute) nên không đổi layout; EmptyState giữ nguyên title dạng chữ. */}
-        <h1 className="sr-only">{isVi ? 'Giỏ Hàng' : 'Shopping Cart'}</h1>
+        <h1 className="sr-only">Giỏ Hàng</h1>
         <EmptyState
           bordered
           className="w-full max-w-md bg-surface"
           icon={<Icon name="shopping_cart" size={22} />}
-          title={isVi ? 'Giỏ hàng của bạn đang trống' : 'Your cart is empty'}
+          title="Giỏ hàng của bạn đang trống"
           description={
             <>
-              {isVi
-                ? 'Chưa có bản vẽ kỹ thuật CAD hoặc linh kiện in 3D nào được chọn. Hãy khám phá kho thư viện cơ khí tuyển chọn của VCUBE.'
-                : 'No CAD files or 3D printed parts added yet. Explore the curated mechanical catalog.'}
+              Chưa có bản vẽ kỹ thuật CAD hoặc linh kiện in 3D nào được chọn. Hãy khám phá kho thư viện cơ khí tuyển chọn của VCUBE.
               <span className="mt-2 block">
                 <button
                   type="button"
                   onClick={() => onNavigate('tool_3d')}
                   className="cursor-pointer rounded-sm text-sm font-medium text-fg underline underline-offset-4 transition-colors duration-200 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {isVi ? 'Báo Giá Mesh STL' : 'Instant Quote STL'}
+                  Báo Giá Mesh STL
                 </button>
               </span>
             </>
@@ -134,7 +123,7 @@ export const CartView: React.FC<CartViewProps> = ({
               leadingIcon={<Icon name="explore" size={18} />}
               onClick={() => onNavigate('explore')}
             >
-              {isVi ? 'Khám Phá Bản Vẽ CAD' : 'Explore CAD Catalog'}
+              Khám Phá Bản Vẽ CAD
             </Button>
           }
         />
@@ -154,9 +143,9 @@ export const CartView: React.FC<CartViewProps> = ({
               <span className="uppercase">Kiểm tra danh mục đặt hàng</span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-fg sm:text-3xl">
-              {isVi ? 'Giỏ Hàng & Cấu Hình Đơn' : 'Shopping Cart & Manifest'}
+              {'Giỏ Hàng & Cấu Hình Đơn'}
               <span className="ml-2 font-mono text-lg font-normal text-fg-subtle">
-                ({cart.reduce((a, b) => a + b.quantity, 0)} {isVi ? 'mục' : 'items'})
+                ({cart.reduce((a, b) => a + b.quantity, 0)} mục)
               </span>
             </h1>
           </div>
@@ -167,7 +156,7 @@ export const CartView: React.FC<CartViewProps> = ({
             leadingIcon={<Icon name="arrow_back" size={18} />}
             onClick={() => onNavigate('explore')}
           >
-            {isVi ? 'Tiếp tục chọn bản vẽ' : 'Continue Shopping'}
+            Tiếp tục chọn bản vẽ
           </Button>
         </div>
 
@@ -179,16 +168,14 @@ export const CartView: React.FC<CartViewProps> = ({
                 <Icon name="local_shipping" size={18} className="shrink-0 text-fg-muted" />
                 {remainingForFreeShip > 0 ? (
                   <span className="text-fg-muted">
-                    {isVi ? 'Mua thêm ' : 'Add '}
+                    {'Mua thêm '}
                     <Money as="strong" value={remainingForFreeShip} size="sm" className="font-mono font-semibold text-fg" />
-                    {isVi ? ' để được MIỄN PHÍ VẬN CHUYỂN toàn quốc!' : ' for FREE SHIPPING!'}
+                    {' để được MIỄN PHÍ VẬN CHUYỂN toàn quốc!'}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 font-semibold text-positive">
                     <Icon name="verified" size={16} />
-                    {isVi
-                      ? 'Đủ điều kiện MIỄN PHÍ GIAO HÀNG toàn quốc (đơn từ '
-                      : `FREE SHIPPING UNLOCKED (orders from `}
+                    {'Đủ điều kiện MIỄN PHÍ GIAO HÀNG toàn quốc (đơn từ '}
                     <Money value={freeShippingThreshold} size="sm" className="font-mono font-semibold text-positive" />
                     )!
                   </span>
@@ -216,11 +203,11 @@ export const CartView: React.FC<CartViewProps> = ({
                   <div className="flex items-center gap-2">
                     <Icon name="folder_zip" size={18} className="text-fg-muted" />
                     <h2 className="text-lg font-bold tracking-tight text-fg">
-                      {isVi ? 'Bản Quyền Tệp CAD Kỹ Thuật' : 'Digital CAD Files'} ({digitalItems.length})
+                      Bản Quyền Tệp CAD Kỹ Thuật ({digitalItems.length})
                     </h2>
                   </div>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg-muted">
-                    {isVi ? 'Tệp số • Không phí vận chuyển' : 'Digital • No shipping fee'}
+                    Tệp số • Không phí vận chuyển
                   </span>
                 </div>
 
@@ -249,7 +236,7 @@ export const CartView: React.FC<CartViewProps> = ({
                       <div className="flex w-full shrink-0 items-center justify-between gap-3 border-t border-line-subtle pt-3 sm:w-auto sm:gap-6 sm:border-t-0 sm:pt-0">
                         <div className="min-w-0 text-right">
                           <Money value={item.price} size="base" className="block whitespace-nowrap font-mono font-semibold text-fg" />
-                          <span className="text-xs text-fg-subtle">{isVi ? 'Giá một tệp' : 'Per file'}</span>
+                          <span className="text-xs text-fg-subtle">Giá một tệp</span>
                         </div>
 
                         <Button
@@ -275,11 +262,11 @@ export const CartView: React.FC<CartViewProps> = ({
                   <div className="flex items-center gap-2">
                     <Icon name="precision_manufacturing" size={18} className="text-fg-muted" />
                     <h2 className="text-lg font-bold tracking-tight text-fg">
-                      {isVi ? 'Sản Phẩm In 3D Gia Công Vật Lý' : 'Physical 3D Prints'} ({physicalItems.length})
+                      Sản Phẩm In 3D Gia Công Vật Lý ({physicalItems.length})
                     </h2>
                   </div>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg-muted">
-                    {isVi ? 'Đo kiểm theo thoả thuận' : 'Inspection on agreement'}
+                    Đo kiểm theo thoả thuận
                   </span>
                 </div>
 
@@ -331,7 +318,7 @@ export const CartView: React.FC<CartViewProps> = ({
                           <button
                             type="button"
                             onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                            aria-label={isVi ? `Giảm số lượng ${item.name}` : `Decrease quantity of ${item.name}`}
+                            aria-label={`Giảm số lượng ${item.name}`}
                             className="touch-target-btn cursor-pointer select-none px-3 py-1.5 font-mono text-xs font-semibold text-fg transition-colors duration-200 hover:bg-surface-muted active:scale-[0.97] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             -
@@ -344,7 +331,7 @@ export const CartView: React.FC<CartViewProps> = ({
                           <button
                             type="button"
                             onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                            aria-label={isVi ? `Tăng số lượng ${item.name}` : `Increase quantity of ${item.name}`}
+                            aria-label={`Tăng số lượng ${item.name}`}
                             className="touch-target-btn cursor-pointer select-none px-3 py-1.5 font-mono text-xs font-semibold text-fg transition-colors duration-200 hover:bg-surface-muted active:scale-[0.97] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             +
@@ -380,7 +367,7 @@ export const CartView: React.FC<CartViewProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor="cart-promo-code" className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-fg-muted">
                   <Icon name="confirmation_number" size={16} />
-                  {isVi ? 'Mã Giảm Giá / Ưu Đãi Doanh Nghiệp' : 'Promo Voucher'}
+                  Mã Giảm Giá / Ưu Đãi Doanh Nghiệp
                 </label>
                 {appliedDiscount > 0 && (
                   <span className="font-mono text-xs font-semibold text-positive">
@@ -396,7 +383,7 @@ export const CartView: React.FC<CartViewProps> = ({
                     type="text"
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value)}
-                    placeholder={isVi ? 'Nhập mã ưu đãi...' : 'Enter promo code...'}
+                    placeholder="Nhập mã ưu đãi..."
                     className="font-mono uppercase"
                   />
                 </div>
@@ -406,16 +393,14 @@ export const CartView: React.FC<CartViewProps> = ({
                   size="md"
                   onClick={() => handleApplyPromo()}
                 >
-                  {isVi ? 'Áp dụng' : 'Apply'}
+                  Áp dụng
                 </Button>
               </div>
 
               {/* KHÔNG còn "mã gợi ý": các mã cũ (VCUBE10 / TECH3D / VN3DHUN) không có
                   nguồn nào trong schema nên không được quảng cáo như mã thật. */}
               <p className="pt-1 text-xs leading-relaxed text-fg-subtle">
-                {isVi
-                  ? 'Hệ thống chưa có danh sách khuyến mãi để đối chiếu: mọi mã đều bị từ chối và không mã nào thay đổi số tiền phải trả.'
-                  : 'No promotions list exists to check against: every code is refused and none changes the amount due.'}
+                Hệ thống chưa có danh sách khuyến mãi để đối chiếu: mọi mã đều bị từ chối và không mã nào thay đổi số tiền phải trả.
               </p>
 
               {promoMessage && (
@@ -430,7 +415,7 @@ export const CartView: React.FC<CartViewProps> = ({
           <div className="lg:col-span-4">
             <Card variant="soft" padding="lg" className="space-y-6 lg:sticky lg:top-24">
               <h2 className="border-b border-line-subtle pb-4 text-lg font-bold tracking-tight text-fg">
-                {isVi ? 'Tóm Tắt Đơn Hàng' : 'Order Summary'}
+                Tóm Tắt Đơn Hàng
               </h2>
 
               <div className="space-y-3 text-sm text-fg-muted">
@@ -459,9 +444,9 @@ export const CartView: React.FC<CartViewProps> = ({
                   </div>
                   <span className={`text-right font-mono tabular-nums ${shippingFee === 0 ? 'font-semibold text-positive' : 'font-semibold text-fg'}`}>
                     {physicalItems.length === 0 ? (
-                      isVi ? 'Không áp dụng' : 'N/A'
+                      'Không áp dụng'
                     ) : shippingFee === 0 ? (
-                      isVi ? 'Miễn phí' : 'Free'
+                      'Miễn phí'
                     ) : (
                       <Money value={shippingFee} size="base" className="font-mono font-semibold tabular-nums" />
                     )}
@@ -482,12 +467,12 @@ export const CartView: React.FC<CartViewProps> = ({
                   </div>
                 ) : pricingError ? (
                   <p className="text-xs leading-relaxed text-danger">
-                    {isVi ? `Không đọc được cấu hình VAT: ${pricingError}` : `Could not read VAT config: ${pricingError}`}
+                    {`Không đọc được cấu hình VAT: ${pricingError}`}
                   </p>
                 ) : pricingLoading && pricingGlobal === null ? (
-                  <p className="text-xs leading-relaxed text-fg-subtle">{isVi ? 'Đang đọc cấu hình VAT…' : 'Loading VAT configuration…'}</p>
+                  <p className="text-xs leading-relaxed text-fg-subtle">Đang đọc cấu hình VAT…</p>
                 ) : (
-                  <p className="text-xs leading-relaxed text-fg-subtle">{vatNotConfiguredLabel(isVi)}</p>
+                  <p className="text-xs leading-relaxed text-fg-subtle">{vatNotConfiguredLabel()}</p>
                 )}
 
                 <div className="flex items-baseline justify-between gap-4 border-t border-line-subtle pt-4">
@@ -495,7 +480,7 @@ export const CartView: React.FC<CartViewProps> = ({
                   <div className="text-right">
                     <Money value={totalAmount} size="heading" className="block font-mono tabular-nums text-right text-fg" />
                     <span className="block text-xs text-fg-subtle">
-                      {vatTotalNote(isVi, vatRate)}
+                      {vatTotalNote(vatRate)}
                     </span>
                   </div>
                 </div>
@@ -509,7 +494,7 @@ export const CartView: React.FC<CartViewProps> = ({
                 onClick={() => onNavigate('checkout')}
                 trailingIcon={<Icon name="arrow_forward" size={18} />}
               >
-                <span>{isVi ? 'TIẾN HÀNH THANH TOÁN' : 'PROCEED TO CHECKOUT'}</span>
+                <span>TIẾN HÀNH THANH TOÁN</span>
               </Button>
 
               {/* Guarantee badges */}
@@ -520,7 +505,7 @@ export const CartView: React.FC<CartViewProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <Icon name="verified" size={16} className="shrink-0 text-fg-muted" />
-                  <span>{isVi ? 'In lại miễn phí nếu lỗi kỹ thuật thuộc VCUBE (theo điều khoản)' : 'Free reprint for VCUBE-caused defects (per terms)'}</span>
+                  <span>In lại miễn phí nếu lỗi kỹ thuật thuộc VCUBE (theo điều khoản)</span>
                 </div>
               </div>
             </Card>

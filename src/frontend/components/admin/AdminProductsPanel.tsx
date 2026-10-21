@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Product, ProductStatus } from '../../types';
 import { CATEGORIES } from '../../data/mockData';
-import { useLanguage } from '../../context/LanguageContext';
 import { dbService } from '../../../backend/supabase/database';
 import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
@@ -93,8 +92,6 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
   onDeleteProduct,
   onShowToast,
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
@@ -117,37 +114,35 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
     // tên trường, thay vì âm thầm ghi một giá / nội dung bịa vào bảng `products`.
     const name = newProductForm.name?.trim() || '';
     if (!name) {
-      onShowToast(isVi ? 'Vui lòng nhập tên sản phẩm' : 'Please enter product name');
+      onShowToast('Vui lòng nhập tên sản phẩm');
       return;
     }
 
     const imageUrl = newProductForm.images?.[0]?.trim() || '';
     if (!imageUrl) {
       onShowToast(
-        isVi
-          ? 'Vui lòng nhập URL ảnh sản phẩm — hệ thống không tự chèn ảnh mẫu'
-          : 'Please enter the product image URL — no placeholder image is inserted'
+        'Vui lòng nhập URL ảnh sản phẩm — hệ thống không tự chèn ảnh mẫu'
       );
       return;
     }
 
     const pricePhysical = newProductForm.pricePhysical;
     if (pricePhysical === undefined || !Number.isFinite(pricePhysical)) {
-      onShowToast(isVi ? 'Vui lòng nhập Giá Bản In (VNĐ)' : 'Please enter the physical print price (VND)');
+      onShowToast('Vui lòng nhập Giá Bản In (VNĐ)');
       return;
     }
     if (pricePhysical < 0) {
-      onShowToast(isVi ? 'Giá Bản In không được là số âm' : 'Physical print price cannot be negative');
+      onShowToast('Giá Bản In không được là số âm');
       return;
     }
 
     const priceDigital = newProductForm.priceDigital;
     if (priceDigital === undefined || !Number.isFinite(priceDigital)) {
-      onShowToast(isVi ? 'Vui lòng nhập Giá Tệp STL (VNĐ)' : 'Please enter the STL file price (VND)');
+      onShowToast('Vui lòng nhập Giá Tệp STL (VNĐ)');
       return;
     }
     if (priceDigital < 0) {
-      onShowToast(isVi ? 'Giá Tệp STL không được là số âm' : 'STL file price cannot be negative');
+      onShowToast('Giá Tệp STL không được là số âm');
       return;
     }
 
@@ -183,7 +178,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
 
     onAddProduct(created);
     setIsNewProductModalOpen(false);
-    onShowToast(isVi ? `Đã thêm sản phẩm "${created.name}" vào hệ thống` : `Added product "${created.name}"`);
+    onShowToast(`Đã thêm sản phẩm "${created.name}" vào hệ thống`);
     setNewProductForm({ ...EMPTY_NEW_PRODUCT_FORM });
     setNewProductFeaturesText('');
   };
@@ -198,28 +193,28 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
     // Chỉ khi admin gõ đúng số 0 thì 0 mới được lưu (0 là cấu hình thật: kênh không bán).
     const pricePhysical = editingProduct.pricePhysical;
     if (pricePhysical === undefined || !Number.isFinite(pricePhysical)) {
-      onShowToast(isVi ? 'Vui lòng nhập Giá Bản In Vật Lý (VNĐ)' : 'Please enter the physical print price (VND)');
+      onShowToast('Vui lòng nhập Giá Bản In Vật Lý (VNĐ)');
       return;
     }
     if (pricePhysical < 0) {
-      onShowToast(isVi ? 'Giá Bản In Vật Lý không được là số âm' : 'Physical print price cannot be negative');
+      onShowToast('Giá Bản In Vật Lý không được là số âm');
       return;
     }
 
     const priceDigital = editingProduct.priceDigital;
     if (priceDigital === undefined || !Number.isFinite(priceDigital)) {
-      onShowToast(isVi ? 'Vui lòng nhập Giá Tệp STL Số (VNĐ)' : 'Please enter the STL file price (VND)');
+      onShowToast('Vui lòng nhập Giá Tệp STL Số (VNĐ)');
       return;
     }
     if (priceDigital < 0) {
-      onShowToast(isVi ? 'Giá Tệp STL Số không được là số âm' : 'STL file price cannot be negative');
+      onShowToast('Giá Tệp STL Số không được là số âm');
       return;
     }
 
     // Chỉ tới đây mới ghi xuống DB: hai giá là số admin ĐÃ nhập (0 cũng là số thật).
     onUpdateProduct({ ...editingProduct, pricePhysical, priceDigital });
     setEditingProduct(null);
-    onShowToast(isVi ? `Đã cập nhật sản phẩm "${editingProduct.name}"` : `Updated product "${editingProduct.name}"`);
+    onShowToast(`Đã cập nhật sản phẩm "${editingProduct.name}"`);
   };
 
   const [pendingDeleteProduct, setPendingDeleteProduct] = useState<Product | null>(null);
@@ -241,7 +236,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
   const productColumns = useMemo<DataTableColumn<Product>[]>(() => [
     {
       key: 'name',
-      header: isVi ? 'Ảnh & Sản Phẩm' : 'Image & Product',
+      header: 'Ảnh & Sản Phẩm',
       value: (p) => p.name,
       render: (prod) => {
         const imageUrl = realProductImageUrl(prod.images);
@@ -252,7 +247,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
             ) : (
               <div
                 className="w-11 h-11 rounded-md border border-line-subtle bg-surface-muted text-fg-muted flex items-center justify-center shrink-0"
-                title={isVi ? 'Chưa có ảnh' : 'No image'}
+                title="Chưa có ảnh"
               >
                 <Icon name="image" size={16} />
               </div>
@@ -272,66 +267,66 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
     },
     {
       key: 'sku',
-      header: isVi ? 'Mã SKU' : 'SKU',
+      header: 'Mã SKU',
       render: (prod) =>
-        prod.sku || <span className="text-fg-subtle" title="Chưa có mã SKU">{isVi ? 'Chưa có mã' : 'No SKU'}</span>,
+        prod.sku || <span className="text-fg-subtle" title="Chưa có mã SKU">Chưa có mã</span>,
     },
     {
       key: 'category',
-      header: isVi ? 'Danh Mục' : 'Category',
+      header: 'Danh Mục',
       value: (p) => p.category,
       render: (prod) => <span className="capitalize">{prod.category}</span>,
     },
     {
       key: 'pricePhysical',
-      header: isVi ? 'Giá Bản In (Vật Lý)' : 'Physical price',
+      header: 'Giá Bản In (Vật Lý)',
       numeric: true,
       value: (p) => p.pricePhysical,
       render: (prod) => formatCurrency(prod.pricePhysical),
     },
     {
       key: 'priceDigital',
-      header: isVi ? 'Giá Tệp (STL)' : 'File price (STL)',
+      header: 'Giá Tệp (STL)',
       numeric: true,
       value: (p) => p.priceDigital,
       render: (prod) => formatCurrency(prod.priceDigital),
     },
     {
       key: 'readiness',
-      header: isVi ? 'Chuẩn Sẵn Sàng In' : 'Readiness',
+      header: 'Chuẩn Sẵn Sàng In',
       value: (p) => p.productionReadiness || 'ready_to_print',
       render: (prod) => {
         const readiness = prod.productionReadiness || 'ready_to_print';
         if (readiness === 'ready_to_print') {
           return (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-positive/20 bg-positive-tint px-2.5 py-1 text-xs font-medium text-positive">
-              ✓ {isVi ? 'Sẵn Sàng In' : 'Ready'}
+              ✓ Sẵn Sàng In
             </span>
           );
         }
         if (readiness === 'missing_profile') {
           return (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/20 bg-warning-tint px-2.5 py-1 text-xs font-medium text-warning">
-              ⚠ {isVi ? 'Thiếu hồ sơ cắt lớp' : 'Missing profile'}
+              ⚠ Thiếu hồ sơ cắt lớp
             </span>
           );
         }
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info-tint px-2.5 py-1 text-xs font-medium text-info">
-            {isVi ? 'Cần duyệt CAD' : 'CAD review needed'}
+            Cần duyệt CAD
           </span>
         );
       },
     },
     {
       key: 'status',
-      header: isVi ? 'Trạng Thái' : 'Status',
+      header: 'Trạng Thái',
       value: (p) => (p.status || 'published').toLowerCase(),
       render: (prod) => {
         const status = (prod.status || 'published').toLowerCase();
         return (
           <select
-            value={status} aria-label={isVi ? `Trạng thái ${prod.name}` : `Status for ${prod.name}`}
+            value={status} aria-label={`Trạng thái ${prod.name}`}
             onChange={(e) => {
               const nextStatus = e.target.value as ProductStatus;
               onUpdateProduct({ ...prod, status: nextStatus });
@@ -344,16 +339,16 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                 : 'bg-surface-muted text-fg-muted border-line-control'
             }`}
           >
-            <option value="published">{isVi ? '● Đang bán' : '● Published'}</option>
-            <option value="draft">{isVi ? '◌ Bản nháp' : '◌ Draft'}</option>
-            <option value="archived">{isVi ? '✖ Lưu trữ' : '✖ Archived'}</option>
+            <option value="published">● Đang bán</option>
+            <option value="draft">◌ Bản nháp</option>
+            <option value="archived">✖ Lưu trữ</option>
           </select>
         );
       },
     },
     {
       key: 'actions',
-      header: isVi ? 'Thao Tác' : 'Actions',
+      header: 'Thao Tác',
       align: 'right',
       render: (prod) => (
         <div className="flex items-center justify-end gap-1.5">
@@ -362,8 +357,8 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
             variant="ghost"
             size="sm"
             onClick={() => setEditingProduct({ ...prod })}
-            aria-label={isVi ? `Sửa ${prod.name}` : `Edit ${prod.name}`}
-            title={isVi ? 'Sửa sản phẩm' : 'Edit product'}
+            aria-label={`Sửa ${prod.name}`}
+            title="Sửa sản phẩm"
           >
             <Icon name="edit" size={16} />
           </Button>
@@ -372,8 +367,8 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
             variant="danger-ghost"
             size="sm"
             onClick={() => handleDeleteProductConfirm(prod)}
-            aria-label={isVi ? `Xoá ${prod.name}` : `Delete ${prod.name}`}
-            title={isVi ? 'Xóa sản phẩm' : 'Delete product'}
+            aria-label={`Xoá ${prod.name}`}
+            title="Xóa sản phẩm"
           >
             <Icon name="delete" size={16} />
           </Button>
@@ -381,35 +376,33 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [isVi]);
+  ], []);
 
   return (
     <div className="space-y-6">
       <ConfirmDialog
         open={pendingDeleteProduct !== null}
         tone="danger"
-        title={isVi ? 'Xoá sản phẩm' : 'Delete product'}
+        title="Xoá sản phẩm"
         description={
           pendingDeleteProduct
-            ? (isVi
-                ? `Bạn có chắc chắn muốn xoá sản phẩm "${pendingDeleteProduct.name}"? Hành động này không hoàn tác được.`
-                : `Are you sure you want to delete "${pendingDeleteProduct.name}"? This cannot be undone.`)
+            ? (`Bạn có chắc chắn muốn xoá sản phẩm "${pendingDeleteProduct.name}"? Hành động này không hoàn tác được.`)
             : ''
         }
-        confirmLabel={isVi ? 'Xoá sản phẩm' : 'Delete'}
-        cancelLabel={isVi ? 'Huỷ' : 'Cancel'}
+        confirmLabel="Xoá sản phẩm"
+        cancelLabel="Huỷ"
         onCancel={() => setPendingDeleteProduct(null)}
         onConfirm={() => {
           if (!pendingDeleteProduct) return;
           onDeleteProduct(pendingDeleteProduct.id);
-          onShowToast(isVi ? `Đã xóa sản phẩm "${pendingDeleteProduct.name}"` : `Deleted "${pendingDeleteProduct.name}"`);
+          onShowToast(`Đã xóa sản phẩm "${pendingDeleteProduct.name}"`);
           setPendingDeleteProduct(null);
         }}
       />
       {/* Header & Add Button Bar */}
       <div className="flex flex-col items-stretch justify-between gap-4 rounded-lg border border-line-subtle bg-surface p-4 md:flex-row md:items-end">
         <div className="w-full max-w-md">
-          <Field id="admin-products-search" label={isVi ? 'Tìm sản phẩm' : 'Search products'} hideLabel optionalLabel={null}>
+          <Field id="admin-products-search" label="Tìm sản phẩm" hideLabel optionalLabel={null}>
             {(control) => (
               <div className="relative">
                 <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
@@ -417,7 +410,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   {...control}
                   type="search"
                   size="sm"
-                  placeholder={isVi ? 'Tìm theo tên sản phẩm, SKU...' : 'Search by name, SKU...'}
+                  placeholder="Tìm theo tên sản phẩm, SKU..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   className="pl-9"
@@ -430,7 +423,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
         <div className="flex flex-wrap items-center justify-end gap-2">
           {/* Category Filter */}
           <div className="w-full sm:w-44">
-            <Field id="admin-products-category" label={isVi ? 'Lọc theo danh mục' : 'Filter by category'} hideLabel optionalLabel={null}>
+            <Field id="admin-products-category" label="Lọc theo danh mục" hideLabel optionalLabel={null}>
               {(control) => (
                 <Select
                   {...control}
@@ -438,7 +431,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   value={productCategoryFilter}
                   onChange={(e) => setProductCategoryFilter(e.target.value)}
                 >
-                  <option value="all">{isVi ? 'Tất Cả Danh Mục' : 'All Categories'}</option>
+                  <option value="all">Tất Cả Danh Mục</option>
                   {CATEGORIES.filter(c => c.id !== 'all').map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -449,7 +442,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
 
           {/* Production Readiness Filter */}
           <div className="w-full sm:w-44">
-            <Field id="admin-products-readiness" label={isVi ? 'Lọc theo chuẩn in' : 'Filter by readiness'} hideLabel optionalLabel={null}>
+            <Field id="admin-products-readiness" label="Lọc theo chuẩn in" hideLabel optionalLabel={null}>
               {(control) => (
                 <Select
                   {...control}
@@ -457,10 +450,10 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                   value={readinessFilter}
                   onChange={(e) => setReadinessFilter(e.target.value)}
                 >
-                  <option value="all">{isVi ? 'Tất Cả Chuẩn In' : 'All Readiness'}</option>
-                  <option value="ready_to_print">{isVi ? 'Sẵn sàng in' : 'Ready to print'}</option>
-                  <option value="missing_profile">{isVi ? '⚠ Thiếu hồ sơ cắt lớp' : '⚠ Missing Profile'}</option>
-                  <option value="cad_review_needed">{isVi ? '🔧 Cần duyệt CAD' : '🔧 CAD Review Needed'}</option>
+                  <option value="all">Tất Cả Chuẩn In</option>
+                  <option value="ready_to_print">Sẵn sàng in</option>
+                  <option value="missing_profile">⚠ Thiếu hồ sơ cắt lớp</option>
+                  <option value="cad_review_needed">🔧 Cần duyệt CAD</option>
                 </Select>
               )}
             </Field>
@@ -472,7 +465,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
             leadingIcon={<Icon name="add_circle" size={16} />}
             onClick={() => setIsNewProductModalOpen(true)}
           >
-            {isVi ? 'Thêm Sản Phẩm Mới' : 'Add New Product'}
+            Thêm Sản Phẩm Mới
           </Button>
         </div>
       </div>
@@ -482,14 +475,14 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
         columns={productColumns}
         rows={filteredProducts}
         getRowId={(row) => row.id}
-        caption={isVi ? 'Danh sách sản phẩm' : 'Product list'}
-        tableLabel={isVi ? 'Danh sách sản phẩm' : 'Product list'}
+        caption="Danh sách sản phẩm"
+        tableLabel="Danh sách sản phẩm"
         defaultSort={[{ key: 'name', direction: 'asc' }]}
         emptyState={
           <EmptyState
             live
-            title={isVi ? 'Không tìm thấy sản phẩm nào phù hợp' : 'No products found'}
-            description={isVi ? 'Thử xoá từ khoá hoặc đổi bộ lọc danh mục / chuẩn in.' : 'Clear the search or change the category / readiness filter.'}
+            title="Không tìm thấy sản phẩm nào phù hợp"
+            description="Thử xoá từ khoá hoặc đổi bộ lọc danh mục / chuẩn in."
           />
         }
       />
@@ -500,7 +493,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
           open
           onClose={() => setEditingProduct(null)}
           size="lg"
-          title={isVi ? 'Chỉnh Sửa Thông Tin Sản Phẩm' : 'Edit Product'}
+          title="Chỉnh Sửa Thông Tin Sản Phẩm"
         >
             <form onSubmit={handleSaveEditProduct} className="space-y-5">
               <Field label="Tên sản phẩm *" required requiredMark="" optionalLabel={null}>
@@ -626,7 +619,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
           open
           onClose={() => setIsNewProductModalOpen(false)}
           size="lg"
-          title={isVi ? 'Thêm Sản Phẩm & Bản In Mới' : 'Add New Product'}
+          title={'Thêm Sản Phẩm & Bản In Mới'}
         >
             <form onSubmit={handleSaveNewProduct} className="space-y-5">
               <Field label="Tên sản phẩm *" required requiredMark="" optionalLabel={null}>
@@ -648,7 +641,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     <Input
                       {...control}
                       type="text"
-                      placeholder={isVi ? 'Để trống nếu chưa có mã' : 'Leave empty if none'}
+                      placeholder="Để trống nếu chưa có mã"
                       value={newProductForm.sku}
                       onChange={(e) => setNewProductForm({ ...newProductForm, sku: e.target.value })}
                       className="font-mono"
@@ -679,7 +672,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                       min={0}
                       aria-required="true"
                       numeric
-                      placeholder={isVi ? 'Bắt buộc — nhập giá bản in' : 'Required — enter print price'}
+                      placeholder="Bắt buộc — nhập giá bản in"
                       value={newProductForm.pricePhysical ?? ''}
                       onChange={(e) => setNewProductForm({ ...newProductForm, pricePhysical: parseMoneyInput(e.target.value) })}
                     />
@@ -693,7 +686,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                       min={0}
                       aria-required="true"
                       numeric
-                      placeholder={isVi ? 'Bắt buộc — nhập giá tệp STL' : 'Required — enter STL file price'}
+                      placeholder="Bắt buộc — nhập giá tệp STL"
                       value={newProductForm.priceDigital ?? ''}
                       onChange={(e) => setNewProductForm({ ...newProductForm, priceDigital: parseMoneyInput(e.target.value) })}
                     />
@@ -717,7 +710,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     rows={3}
                     value={newProductFeaturesText}
                     onChange={(e) => setNewProductFeaturesText(e.target.value)}
-                    placeholder={isVi ? 'Để trống nếu chưa xác nhận được tính năng nào' : 'Leave empty if none confirmed'}
+                    placeholder="Để trống nếu chưa xác nhận được tính năng nào"
                     className="w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring aria-invalid:border-danger"
                   />
                 )}

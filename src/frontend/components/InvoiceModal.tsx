@@ -326,7 +326,7 @@ const InvoiceModalBody: React.FC<InvoiceModalBodyProps> = ({
                 ) : (
                   <p className="font-sans text-xs leading-relaxed text-fg-subtle">
                     {liveVatRate === null
-                      ? vatNotConfiguredLabel(true)
+                      ? vatNotConfiguredLabel()
                       : 'Đơn này không ghi nhận dòng VAT — hoá đơn chỉ in số tiền đã ghi trên đơn.'}
                   </p>
                 )}

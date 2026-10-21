@@ -1,6 +1,5 @@
 import React from 'react';
 import { CartItem } from '../../types';
-import { useLanguage } from '../context/LanguageContext';
 import { useCartStore } from '../stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
@@ -27,8 +26,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onNavigate,
   siteContent
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   // Mã giảm giá đọc từ store
   const appliedDiscount = useCartStore((st) => st.appliedDiscount);
@@ -77,7 +74,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       showCloseButton={false}
       bodyClassName="flex min-h-0 flex-1 flex-col"
       panelClassName="font-sans"
-      aria-label={isVi ? 'Giỏ hàng' : 'Cart'}
+      aria-label="Giỏ hàng"
     >
       {/*
         CC-01 (B) — BẪY StrictMode: trước đây `if (!isOpen) return null` khiến `<Modal>` chỉ
@@ -92,7 +89,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <div className="flex min-w-0 items-center gap-2">
               <Icon name="shopping_cart" size={20} className="shrink-0 text-fg-muted" />
               <h2 className="truncate text-base font-semibold tracking-tight text-fg">
-                {isVi ? 'Giỏ Hàng Chế Tác' : 'Cart & Slicing Queue'}
+                Giỏ Hàng Chế Tác
               </h2>
               <span className="rounded-full bg-primary px-2.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-primary-fg">
                 {totalItemsCount}
@@ -117,12 +114,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <span className="flex items-center gap-1.5 font-semibold text-info">
                   <Icon name="local_shipping" size={16} className="shrink-0" />
                   {isFreeShipping ? (
-                    isVi ? 'Đã đạt miễn phí vận chuyển!' : 'Free Shipping Unlocked!'
+                    'Đã đạt miễn phí vận chuyển!'
                   ) : (
                     <>
-                      {isVi ? 'Thêm ' : 'Add '}
+                      {'Thêm '}
                       <Money value={remainingForFreeShip} size="sm" className="font-mono font-semibold text-info" />
-                      {isVi ? ' để được miễn phí vận chuyển' : ' for Free Shipping'}
+                      {' để được miễn phí vận chuyển'}
                     </>
                   )}
                 </span>
@@ -143,12 +140,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <EmptyState
                 size="sm"
                 icon={<Icon name="remove_shopping_cart" size={20} />}
-                title={isVi ? 'Giỏ hàng đang trống' : 'Your cart is empty'}
-                description={
-                  isVi
-                    ? 'Chọn mẫu 3D từ sàn VCUBE hoặc tải tệp CAD lên để báo giá ngay.'
-                    : 'Explore our 3D CAD catalog or upload your custom model to request a quote.'
-                }
+                title="Giỏ hàng đang trống"
+                description="Chọn mẫu 3D từ sàn VCUBE hoặc tải tệp CAD lên để báo giá ngay."
                 action={
                   <Button
                     variant="primary"
@@ -159,7 +152,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       onNavigate('explore');
                     }}
                   >
-                    {isVi ? 'Khám Phá Bản Vẽ' : 'Browse Catalog'}
+                    Khám Phá Bản Vẽ
                   </Button>
                 }
               />
@@ -237,7 +230,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             <button
                               type="button"
                               onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                              aria-label={isVi ? `Giảm số lượng ${item.name}` : `Decrease quantity of ${item.name}`}
+                              aria-label={`Giảm số lượng ${item.name}`}
                               className="flex min-h-11 min-w-11 cursor-pointer select-none items-center justify-center text-xs text-fg-muted transition-colors duration-200 hover:bg-surface-muted hover:text-fg active:scale-[0.97] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               -
@@ -248,7 +241,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             <button
                               type="button"
                               onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                              aria-label={isVi ? `Tăng số lượng ${item.name}` : `Increase quantity of ${item.name}`}
+                              aria-label={`Tăng số lượng ${item.name}`}
                               className="flex min-h-11 min-w-11 cursor-pointer select-none items-center justify-center text-xs text-fg-muted transition-colors duration-200 hover:bg-surface-muted hover:text-fg active:scale-[0.97] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               +
@@ -275,15 +268,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               {/* Order Breakdown Summary */}
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between gap-3 text-fg-muted">
-                  <span>{isVi ? 'Tạm tính' : 'Subtotal'}:</span>
+                  <span>Tạm tính:</span>
                   <Money value={subtotal} size="base" className="font-mono font-semibold tabular-nums text-right text-fg" />
                 </div>
                 {physicalItems.length > 0 && (
                   <div className="flex items-center justify-between gap-3 text-fg-muted">
-                    <span>{isVi ? 'Vận chuyển' : 'Shipping'}:</span>
+                    <span>Vận chuyển:</span>
                     <span className={`text-right font-mono tabular-nums ${isFreeShipping ? 'font-semibold text-positive' : 'text-fg'}`}>
                       {isFreeShipping ? (
-                        isVi ? 'MIỄN PHÍ' : 'FREE'
+                        'MIỄN PHÍ'
                       ) : (
                         <Money value={shippingFee} size="base" className="font-mono tabular-nums" />
                       )}
@@ -292,7 +285,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 )}
                 {appliedDiscount > 0 && (
                   <div className="flex items-center justify-between gap-3 font-semibold text-positive">
-                    <span>{isVi ? 'Giảm giá ưu đãi' : 'Discount'}:</span>
+                    <span>Giảm giá ưu đãi:</span>
                     <span className="text-right font-mono tabular-nums">- <Money value={appliedDiscount} size="base" className="font-mono text-positive" /></span>
                   </div>
                 )}
@@ -303,19 +296,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
                 ) : pricingError ? (
                   <p className="text-xs leading-relaxed text-danger">
-                    {isVi ? `Không đọc được cấu hình VAT: ${pricingError}` : `Could not read VAT config: ${pricingError}`}
+                    {`Không đọc được cấu hình VAT: ${pricingError}`}
                   </p>
                 ) : pricingLoading && pricingGlobal === null ? (
-                  <p className="text-xs leading-relaxed text-fg-subtle">{isVi ? 'Đang đọc cấu hình VAT…' : 'Loading VAT configuration…'}</p>
+                  <p className="text-xs leading-relaxed text-fg-subtle">Đang đọc cấu hình VAT…</p>
                 ) : (
-                  <p className="text-xs leading-relaxed text-fg-subtle">{vatNotConfiguredLabel(isVi)}</p>
+                  <p className="text-xs leading-relaxed text-fg-subtle">{vatNotConfiguredLabel()}</p>
                 )}
                 <div className="flex items-baseline justify-between gap-3 border-t border-line-subtle pt-4 text-fg">
-                  <span className="text-lg font-bold">{isVi ? 'Tổng thanh toán' : 'Total'}:</span>
+                  <span className="text-lg font-bold">Tổng thanh toán:</span>
                   <div className="text-right">
                     <Money value={totalAmount} size="heading" className="block font-mono tabular-nums text-right text-fg" />
                     <span className="block text-xs text-fg-subtle">
-                      {vatTotalNote(isVi, vatRate)}
+                      {vatTotalNote(vatRate)}
                     </span>
                   </div>
                 </div>
@@ -330,7 +323,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   onClick={handleCheckout}
                   leadingIcon={<Icon name="lock" size={16} />}
                 >
-                  <span>{isVi ? 'Tiến Hành Đặt Hàng' : 'Proceed to Checkout'}</span>
+                  <span>Tiến Hành Đặt Hàng</span>
                 </Button>
 
                 <Button
@@ -340,7 +333,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   onClick={handleGoToCart}
                   leadingIcon={<Icon name="open_in_new" size={16} />}
                 >
-                  <span>{isVi ? 'Xem Toàn Bộ Giỏ Hàng' : 'View Full Cart Details'}</span>
+                  <span>Xem Toàn Bộ Giỏ Hàng</span>
                 </Button>
               </div>
             </div>

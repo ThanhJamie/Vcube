@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { MATERIALS_CATALOG } from '../../data/mockData';
 import { ThreeModelViewer } from './LazyThreeModelViewer';
-import { useLanguage } from '../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber } from '@frontend/lib/format';
 import { Button, Icon, Modal } from '@frontend/ui';
 
@@ -157,9 +156,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
   onNavigate,
   onShowToast
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
-  const locale = isVi ? 'vi-VN' : 'en-US';
+  const locale = 'vi-VN';
 
   const [selectedMaterial, setSelectedMaterial] = useState<string>('PLA Tough');
   const [selectedColor, setSelectedColor] = useState<{ name: string; hex: string; available?: boolean }>({
@@ -254,12 +251,8 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
       // Nêu ĐÍCH DANH kênh không bán — KHÔNG nói "chưa khai báo": DB gộp NULL thành 0 nên
       // "chưa khai" là khẳng định không kiểm chứng được.
       onShowToast?.(orderType === 'digital'
-        ? (isVi
-            ? `Sản phẩm "${product.name}" không mở bán kênh tệp số (giá tệp số không lớn hơn 0) nên chưa thể mua.`
-            : `"${product.name}" is not sold as a CAD file (its CAD price is not greater than 0), so it cannot be purchased.`)
-        : (isVi
-            ? 'Người bán không mở bán kênh in vật lý cho sản phẩm này (price_physical không lớn hơn 0) nên chưa thể đặt in.'
-            : 'The seller does not sell this product as a physical print (price_physical is not greater than 0), so it cannot be ordered yet.'));
+        ? (`Sản phẩm "${product.name}" không mở bán kênh tệp số (giá tệp số không lớn hơn 0) nên chưa thể mua.`)
+        : ('Người bán không mở bán kênh in vật lý cho sản phẩm này (price_physical không lớn hơn 0) nên chưa thể đặt in.'));
       return;
     }
 
@@ -285,9 +278,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
     onAddToCart(item);
     if (onShowToast) {
       onShowToast(
-        isVi
-          ? `Đã thêm ${quantity}x ${orderType === 'digital' ? 'tệp CAD' : 'Linh kiện in 3D'} "${product.name}" vào giỏ hàng!`
-          : `Added ${quantity}x ${orderType === 'digital' ? 'CAD File' : 'Printed Part'} "${product.name}" to cart!`
+        `Đã thêm ${quantity}x ${orderType === 'digital' ? 'tệp CAD' : 'Linh kiện in 3D'} "${product.name}" vào giỏ hàng!`
       );
     }
     onClose();
@@ -316,9 +307,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
         </div>
 
         <p className="mt-2 text-center font-mono text-xs text-fg-muted">
-          {isVi
-            ? 'Mô hình minh họa theo danh mục — không phải tệp CAD gốc của sản phẩm.'
-            : 'Category-based illustrative model — not the product’s original CAD file.'}
+          Mô hình minh họa theo danh mục — không phải tệp CAD gốc của sản phẩm.
         </p>
 
         {/* Bottom Metrology Stats Strip */}
@@ -353,11 +342,11 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
             </span>
             {ratingValue !== null && reviewsCount !== null && reviewsCount > 0 ? (
               <span className="text-xs text-warning font-bold flex items-center gap-1 tabular-nums">
-                ★ {ratingValue} ({formatNumber(reviewsCount, { locale, maximumFractionDigits: 0 })} {isVi ? 'đánh giá' : 'reviews'})
+                ★ {ratingValue} ({formatNumber(reviewsCount, { locale, maximumFractionDigits: 0 })} đánh giá)
               </span>
             ) : (
               <span className="text-xs text-fg-muted font-mono">
-                {isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
+                Chưa có đánh giá
               </span>
             )}
           </div>
@@ -366,7 +355,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
             {product.name}
           </h2>
           <p className="text-xs text-fg-muted font-mono mt-0.5">
-            {isVi ? 'Kỹ sư thiết kế:' : 'Designed by:'} <strong className="text-fg">{product.designer}</strong>
+            Kỹ sư thiết kế: <strong className="text-fg">{product.designer}</strong>
           </p>
 
           <p className="text-sm text-fg-muted mt-2 line-clamp-2 leading-relaxed">
@@ -387,7 +376,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
             >
               <div className="flex items-center gap-1">
                 <Icon name="download" size={16} />
-                <span className="text-xs">{isVi ? 'Tải tệp CAD' : 'Buy CAD'}</span>
+                <span className="text-xs">Tải tệp CAD</span>
               </div>
               <span className={`text-xs mt-0.5 font-semibold tabular-nums ${orderType === 'digital' ? 'text-fg' : 'text-fg-muted'}`}>
                 {vnd(digitalPrice, locale)}
@@ -406,7 +395,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
             >
               <div className="flex items-center gap-1">
                 <Icon name="precision_manufacturing" size={16} />
-                <span className="text-xs">{isVi ? 'In 3D Vật Lý' : 'Print 3D'}</span>
+                <span className="text-xs">In 3D Vật Lý</span>
               </div>
               <span className={`text-xs mt-0.5 font-semibold tabular-nums ${orderType === 'physical' ? 'text-fg' : 'text-fg-muted'}`}>
                 {vnd(physicalTotal, locale)}
@@ -419,7 +408,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
             <div className="mt-3.5 space-y-2 text-xs bg-surface-muted p-3.5 rounded-lg border border-line font-mono">
               <div className="flex items-center justify-between text-xs text-fg-muted">
                 <span>Định dạng tệp:</span>
-                <strong className="text-fg">{product.cadFormat || (isVi ? '— (người bán chưa khai báo)' : '— (not declared)')}</strong>
+                <strong className="text-fg">{product.cadFormat || ('— (người bán chưa khai báo)')}</strong>
               </div>
               <div className="flex items-center justify-between text-xs text-fg-muted">
                 <span>Bản quyền:</span>
@@ -457,7 +446,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
               {/* Đơn giá nhựa THẬT đã khai (đ/g) + minh bạch: giá bán KHÔNG gồm chênh lệch vật liệu */}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-fg-muted">
-                  {isVi ? 'Đơn giá nhựa đã khai:' : 'Declared material rate:'}
+                  Đơn giá nhựa đã khai:
                 </span>
                 <strong className="text-fg">
                   {materialPricePerGram === null
@@ -466,9 +455,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
                 </strong>
               </div>
               <p className="text-xs text-fg-muted leading-relaxed">
-                {isVi
-                  ? 'Giá in theo giá niêm yết của sản phẩm — chưa gồm chênh lệch vật liệu (xưởng xác nhận khi báo giá).'
-                  : 'The print price is the product list price — material price differences are not included (the workshop confirms them in the quote).'}
+                Giá in theo giá niêm yết của sản phẩm — chưa gồm chênh lệch vật liệu (xưởng xác nhận khi báo giá).
               </p>
 
               {/* Color Swatches picker syncing to 3D Canvas */}
@@ -494,7 +481,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
                     ))
                   ) : (
                     <span className="text-xs text-fg-muted font-mono">
-                      {isVi ? 'Người bán chưa khai màu' : 'No colors declared'}
+                      Người bán chưa khai màu
                     </span>
                   )}
                 </div>
@@ -556,21 +543,19 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
             title={channelSold
               ? undefined
               : orderType === 'digital'
-                ? (isVi ? 'Người bán không mở bán kênh tệp số.' : 'The seller does not sell this product as a CAD file.')
-                : (isVi ? 'Người bán không mở bán kênh in vật lý.' : 'The seller does not sell this product as a physical print.')}
+                ? ('Người bán không mở bán kênh tệp số.')
+                : ('Người bán không mở bán kênh in vật lý.')}
             className="w-full sm:flex-1 font-mono text-xs uppercase tracking-wider"
             leadingIcon={<Icon name="shopping_bag" size={16} />}
           >
             <span>
               {orderType === 'digital'
                 ? digitalPrice === null
-                ? (isVi ? 'Không bán tệp số' : 'File not sold')
-                : (isVi ? 'Thêm tệp CAD vào giỏ' : 'Add CAD to Cart')
+                ? ('Không bán tệp số')
+                : ('Thêm tệp CAD vào giỏ')
                 : physicalTotal === null
-                ? (isVi ? 'Không bán bản in 3D' : 'Print not sold')
-                : (isVi
-                    ? `Đặt In 3D (${vnd(physicalTotal, locale)})`
-                    : `Order 3D Print (${vnd(physicalTotal, locale)})`)}
+                ? ('Không bán bản in 3D')
+                : (`Đặt In 3D (${vnd(physicalTotal, locale)})`)}
             </span>
           </Button>
 
@@ -584,12 +569,12 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
               }}
               className="font-mono text-xs uppercase tracking-wider"
               leadingIcon={<Icon name="tune" size={16} />}
-              title={isVi ? 'Khắc tên / Tùy biến tham số' : 'Personalize dimensions'}
+              title="Khắc tên / Tùy biến tham số"
               /* A11Y-10: nhãn chữ bị `hidden sm:inline` ⇒ ở <640px tên chỉ còn từ `title`,
                  không đáng tin với AT/chạm. aria-label giữ tên ổn định ở mọi breakpoint. */
-              aria-label={isVi ? 'Tuỳ biến 3D & khắc laser' : 'Customize 3D & laser engraving'}
+              aria-label={'Tuỳ biến 3D & khắc laser'}
             >
-              <span className="hidden sm:inline">{isVi ? 'Tùy Biến' : 'Customize'}</span>
+              <span className="hidden sm:inline">Tùy Biến</span>
             </Button>
           )}
         </div>

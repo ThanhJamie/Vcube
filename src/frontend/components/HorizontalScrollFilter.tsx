@@ -10,7 +10,7 @@ import { Button, Icon } from '@frontend/ui';
  *   thuật `.nav-fade-right` mà W1 đã dùng. Mask không phải màu palette nên không phạm luật
  *   "không gradient" của DESIGN-LANGUAGE §1.
  * - Nút cuộn là `Button` icon-only (vùng bấm ≥44px dưới `md`), `aria-label` tiếng Việt (D0).
- * - VI-only: bỏ nhánh `isVi ? … : …` chết vì `LanguageContext` đã khoá `vi`.
+ * - VI-only: không còn nhánh EN (LanguageContext đã khoá `vi`; Phase 2a đã xoá codemod nhánh chết).
  * - `prefers-reduced-motion`: bỏ cuộn mượt bằng `motion-reduce:scroll-auto`.
  */
 

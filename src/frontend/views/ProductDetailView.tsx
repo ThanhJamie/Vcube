@@ -6,7 +6,6 @@ import { ThreeModelViewer } from '../components/LazyThreeModelViewer';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { MaterialTechnicalAdvisory } from '../components/material/MaterialTechnicalAdvisory';
 import { SEOHead } from '../components/SEOHead';
-import { useLanguage } from '../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber } from '@frontend/lib/format';
 import { Icon, Button, Card, EmptyState, InfoTip, Badge, KeyValue, ProgressBar } from '@frontend/ui';
 
@@ -54,9 +53,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   onNavigate,
   onShowToast
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
-  const locale = isVi ? 'vi-VN' : 'en-US';
+  const locale = 'vi-VN';
 
   const materialsList = materials && materials.length > 0 ? materials : MATERIALS_CATALOG;
   /**
@@ -176,15 +173,13 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     onAddToCart(item);
     setTimeout(() => {
       setIsAdding(false);
-      onShowToast(isVi ? `Đã thêm ${quantity}x "${product.name}" vào đơn hàng!` : `Added ${quantity}x "${product.name}" to cart!`);
+      onShowToast(`Đã thêm ${quantity}x "${product.name}" vào đơn hàng!`);
     }, 200);
   };
 
   const handleAddDigital = () => {
     if (digitalPrice === null) {
-      onShowToast(isVi
-        ? `Bản vẽ "${product.name}" không mở bán kênh tệp số (giá tệp số không lớn hơn 0) nên chưa thể mua.`
-        : `"${product.name}" is not sold as a CAD file (its CAD price is not greater than 0), so it cannot be purchased.`);
+      onShowToast(`Bản vẽ "${product.name}" không mở bán kênh tệp số (giá tệp số không lớn hơn 0) nên chưa thể mua.`);
       return;
     }
     const item: CartItem = {
@@ -205,7 +200,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     };
 
     onAddToCart(item);
-    onShowToast(isVi ? `Đã thêm tệp 3D "${product.name}" vào giỏ hàng!` : `Added 3D CAD file "${product.name}" to cart!`);
+    onShowToast(`Đã thêm tệp 3D "${product.name}" vào giỏ hàng!`);
   };
 
   const modelGeometryType = product.id.includes('gear')
@@ -224,7 +219,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     { label: 'Thời Gian In Dự Kiến', value: product.printTime || EMPTY_VALUE, numeric: true },
     { label: 'Định Dạng Tệp Nguồn', value: product.cadFormat || EMPTY_VALUE },
     { label: 'Loại Giấy Phép', value: product.licenseType || LICENSE_UNSET },
-    { label: isVi ? 'Dung Sai Lắp Ghép' : 'Fit tolerance', value: isVi ? 'Chưa có hồ sơ đo kiểm' : 'No inspection record' },
+    { label: 'Dung Sai Lắp Ghép', value: 'Chưa có hồ sơ đo kiểm' },
   ];
 
   const tabButtonClass = (active: boolean) =>
@@ -239,7 +234,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     <div className="min-h-dvh bg-canvas pb-28 text-fg lg:pb-12">
       <SEOHead
         title={product.name}
-        description={product.description || (isVi ? `Chi tiết mô hình CAD và thông số in 3D ${product.name} tại VCUBE.` : `Specifications and 3D printing details for ${product.name} at VCUBE.`)}
+        description={product.description || (`Chi tiết mô hình CAD và thông số in 3D ${product.name} tại VCUBE.`)}
         image={product.thumbnailUrl || imageList[0]}
         url={typeof window !== 'undefined' ? window.location.href : undefined}
         type="product"
@@ -308,7 +303,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 variant="secondary"
                 onClick={() => {
                   setIsBookmarked(!isBookmarked);
-                  onShowToast(isBookmarked ? (isVi ? 'Đã bỏ lưu bản vẽ' : 'Removed from bookmarks') : (isVi ? 'Đã lưu bản vẽ vào mục yêu thích!' : 'Bookmarked!'));
+                  onShowToast(isBookmarked ? ('Đã bỏ lưu bản vẽ') : ('Đã lưu bản vẽ vào mục yêu thích!'));
                 }}
                 title="Lưu bản vẽ"
                 leadingIcon={
@@ -320,7 +315,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   />
                 }
               >
-                <span className="font-mono">{isBookmarked ? (isVi ? 'Đã lưu' : 'Saved') : (isVi ? 'Lưu' : 'Save')}</span>
+                <span className="font-mono">{isBookmarked ? ('Đã lưu') : ('Lưu')}</span>
               </Button>
 
               <Button
@@ -328,7 +323,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 variant="secondary"
                 onClick={() => {
                   navigator.clipboard?.writeText(window.location.href);
-                  onShowToast(isVi ? 'Đã sao chép liên kết sản phẩm!' : 'Copied link to clipboard!');
+                  onShowToast('Đã sao chép liên kết sản phẩm!');
                 }}
                 title="Chia sẻ liên kết sản phẩm"
                 leadingIcon={<Icon name="share" size={16} />}
@@ -353,7 +348,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 </span>
               ) : (
                 <span className="font-mono text-xs text-fg-muted">
-                  {isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
+                  Chưa có đánh giá
                 </span>
               )}
             </div>
@@ -465,7 +460,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         <div className="flex flex-col items-center gap-2 px-6 text-center">
                           <Icon name="photo_library" size={28} className="text-fg-subtle" aria-hidden="true" />
                           <span className="font-mono text-xs text-fg-muted">
-                            {isVi ? 'Người bán chưa tải ảnh lên' : 'Seller has not uploaded images'}
+                            Người bán chưa tải ảnh lên
                           </span>
                         </div>
                       )}
@@ -483,7 +478,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                             key={img}
                             type="button"
                             onClick={() => setSelectedImageIndex(idx)}
-                            aria-label={isVi ? `Xem ảnh ${idx + 1}` : `View image ${idx + 1}`}
+                            aria-label={`Xem ảnh ${idx + 1}`}
                             aria-pressed={selectedImageIndex === idx}
                             className={`h-18 w-18 shrink-0 cursor-pointer overflow-hidden rounded-md border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                               selectedImageIndex === idx
@@ -561,7 +556,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         iconOnly
                         size="sm"
                         variant="ghost"
-                        aria-label={isVi ? 'Giảm số lượng' : 'Decrease quantity'}
+                        aria-label="Giảm số lượng"
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
                         leadingIcon={<Minus size={16} aria-hidden="true" />}
                       />
@@ -572,7 +567,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         iconOnly
                         size="sm"
                         variant="ghost"
-                        aria-label={isVi ? 'Tăng số lượng' : 'Increase quantity'}
+                        aria-label="Tăng số lượng"
                         onClick={() => setQuantity(quantity + 1)}
                         leadingIcon={<Icon name="add" size={16} />}
                       />
@@ -611,30 +606,22 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   {/* Lý do kênh bị khoá — luôn hiển thị (kể cả mobile, nơi CTA nằm ở thanh dưới) */}
                   {digitalPrice === null && (
                     <p className="text-xs leading-relaxed text-danger">
-                      {isVi
-                        ? 'Người bán không mở bán kênh tệp số cho sản phẩm này (price_digital không lớn hơn 0) nên chưa thể mua.'
-                        : 'The seller does not sell this product as a CAD file (price_digital is not greater than 0), so it cannot be purchased yet.'}
+                      Người bán không mở bán kênh tệp số cho sản phẩm này (price_digital không lớn hơn 0) nên chưa thể mua.
                     </p>
                   )}
                   {physicalPrice === null && (
                     <p className="text-xs leading-relaxed text-danger">
-                      {isVi
-                        ? 'Người bán không mở bán kênh in vật lý cho sản phẩm này (price_physical không lớn hơn 0) nên chưa thể đặt in.'
-                        : 'The seller does not sell this product as a physical print (price_physical is not greater than 0), so it cannot be ordered yet.'}
+                      Người bán không mở bán kênh in vật lý cho sản phẩm này (price_physical không lớn hơn 0) nên chưa thể đặt in.
                     </p>
                   )}
                   {materialBlocked && physicalPrice !== null && (
                     <p className="text-xs leading-relaxed text-danger">
-                      {isVi
-                        ? 'Chưa chọn được vật liệu vì người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in.'
-                        : 'No material can be selected because the seller has not declared supported materials, so the print cannot be ordered.'}
+                      Chưa chọn được vật liệu vì người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in.
                     </p>
                   )}
 
                   <p className="text-xs leading-relaxed text-fg-muted">
-                    {isVi
-                      ? 'Đơn giá in theo giá niêm yết của sản phẩm — chưa gồm chênh lệch vật liệu (xưởng xác nhận khi báo giá).'
-                      : 'The print price is the product list price — material price differences are not included (the workshop confirms them in the quote).'}
+                    Đơn giá in theo giá niêm yết của sản phẩm — chưa gồm chênh lệch vật liệu (xưởng xác nhận khi báo giá).
                   </p>
 
                   <Button
@@ -651,11 +638,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   <div className="grid grid-cols-2 gap-2 border-t border-line-subtle pt-4 font-mono text-xs text-fg-muted">
                     <div className="flex items-center gap-1.5">
                       <Icon name="verified" size={16} className="shrink-0 text-primary" />
-                      <span>{isVi ? 'Dung sai theo thoả thuận' : 'Tolerance as agreed'}</span>
+                      <span>Dung sai theo thoả thuận</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Icon name="local_shipping" size={16} className="shrink-0 text-primary" />
-                      <span>{isVi ? 'Giao toàn quốc' : 'Nationwide delivery'}</span>
+                      <span>Giao toàn quốc</span>
                     </div>
                   </div>
                 </Card>
@@ -712,9 +699,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     </div>
                     {declaredMaterials.length === 0 ? (
                       <p className="text-xs leading-relaxed text-danger">
-                        {isVi
-                          ? 'Người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in — hệ thống không tự gán một vật liệu thay thế.'
-                          : 'The seller has not declared supported materials, so this print cannot be ordered — no substitute material is assigned automatically.'}
+                        Người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in — hệ thống không tự gán một vật liệu thay thế.
                       </p>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
@@ -741,7 +726,6 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   {/* Khuyến nghị kỹ thuật cho vật liệu cao cấp (R3) */}
                   <MaterialTechnicalAdvisory
                     materialName={selectedMaterial}
-                    isVi={isVi}
                   />
 
                   {/* 2. Color Swatches Picker — `rounded-full` GIỮ (đúng hình dạng ô màu tròn) */}
@@ -757,7 +741,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     </div>
                     {colorOptions.length === 0 ? (
                       <p className="text-xs text-fg-muted">
-                        {isVi ? 'Người bán chưa khai báo màu sắc.' : 'The seller has not declared colours.'}
+                        Người bán chưa khai báo màu sắc.
                       </p>
                     ) : (
                       <div className="flex flex-wrap items-center gap-2.5">
@@ -829,9 +813,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         <p className="mt-1.5 flex items-start gap-1.5 text-xs text-danger">
                           <Icon name="error" size={16} className="mt-0.5 shrink-0" />
                           <span>
-                            {isVi
-                              ? 'Chưa cấu hình phí khắc laser (customEngravingFee) nên chưa thể đặt khắc. Quản trị viên nhập ở /admin, mục Cấu hình giá.'
-                              : 'The laser engraving fee (customEngravingFee) is not configured, so engraving cannot be ordered yet. An admin can set it in /admin, Pricing configuration.'}
+                            Chưa cấu hình phí khắc laser (customEngravingFee) nên chưa thể đặt khắc. Quản trị viên nhập ở /admin, mục Cấu hình giá.
                           </span>
                         </p>
                       )}
@@ -846,7 +828,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <Card variant="soft" padding="lg">
             <div
               role="tablist"
-              aria-label={isVi ? 'Nội dung chi tiết sản phẩm' : 'Product detail sections'}
+              aria-label="Nội dung chi tiết sản phẩm"
               className="nav-fade-right mb-6 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-line bg-surface-muted p-1 scrollbar-none"
             >
               <button
@@ -858,7 +840,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 onClick={() => setActiveTab('desc')}
                 className={tabButtonClass(activeTab === 'desc')}
               >
-                {isVi ? 'Tổng quan & Kết cấu' : 'Overview & Features'}
+                {'Tổng quan & Kết cấu'}
               </button>
               <button
                 type="button"
@@ -869,7 +851,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 onClick={() => setActiveTab('specs')}
                 className={tabButtonClass(activeTab === 'specs')}
               >
-                {isVi ? 'Thông số & Dung sai' : 'Specs & Tolerances'}
+                {'Thông số & Dung sai'}
               </button>
               <button
                 type="button"
@@ -880,7 +862,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 onClick={() => setActiveTab('reviews')}
                 className={tabButtonClass(activeTab === 'reviews')}
               >
-                {showRating ? (isVi ? `Đánh giá (${reviewsCountLabel})` : `Reviews (${reviewsCountLabel})`) : (isVi ? 'Đánh giá' : 'Reviews')}
+                {showRating ? (`Đánh giá (${reviewsCountLabel})`) : ('Đánh giá')}
               </button>
               <button
                 type="button"
@@ -891,7 +873,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 onClick={() => setActiveTab('slicing')}
                 className={tabButtonClass(activeTab === 'slicing')}
               >
-                {isVi ? 'Hồ sơ in & cắt lớp' : 'Slicing Profiles'}
+                {'Hồ sơ in & cắt lớp'}
               </button>
             </div>
 
@@ -908,10 +890,10 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 </div>
                 <div>
                   <span className="mb-3 block font-mono text-xs font-bold uppercase tracking-wider text-fg-muted">
-                    {isVi ? 'Đặc tính kết cấu kỹ thuật' : 'Engineering Characteristics'}
+                    Đặc tính kết cấu kỹ thuật
                   </span>
                   {(product.features || []).length === 0 ? (
-                    <p className="text-xs text-fg-muted">{isVi ? 'Người bán chưa khai đặc tính kết cấu.' : 'The seller has not declared engineering characteristics.'}</p>
+                    <p className="text-xs text-fg-muted">Người bán chưa khai đặc tính kết cấu.</p>
                   ) : (
                     <ul className="space-y-2.5 text-xs text-fg">
                       {(product.features || []).map((f, i) => (
@@ -933,9 +915,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <p className="flex items-center gap-1.5 text-xs text-fg-muted">
                   <Icon name="info" size={16} className="shrink-0" />
                   <span>
-                    {isVi
-                      ? 'Ô nào người bán chưa khai thì hiện dấu gạch, hệ thống không tự đoán.'
-                      : 'Fields the seller has not declared show a dash — nothing is guessed.'}
+                    Ô nào người bán chưa khai thì hiện dấu gạch, hệ thống không tự đoán.
                   </span>
                 </p>
               </div>
@@ -962,26 +942,22 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         ))}
                       </div>
                       <span className="mt-1 block font-mono text-xs uppercase tabular-nums text-fg-muted">
-                        {reviewsCountLabel} {isVi ? 'đánh giá' : 'reviews'}
+                        {reviewsCountLabel} đánh giá
                       </span>
                     </div>
                     <p className="max-w-md text-xs leading-relaxed text-fg-muted">
-                      {isVi
-                        ? 'Điểm trung bình chỉ tính các đánh giá đến từ đơn hàng thật trên VCUBE. Bản vẽ chưa phát sinh đơn sẽ không có điểm.'
-                        : 'The average only counts reviews that come from real VCUBE orders. A design without orders has no score.'}
+                      Điểm trung bình chỉ tính các đánh giá đến từ đơn hàng thật trên VCUBE. Bản vẽ chưa phát sinh đơn sẽ không có điểm.
                     </p>
                   </div>
                 ) : (
                   <EmptyState
                     size="sm"
                     icon={<Icon name="chat" size={20} />}
-                    title={isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
-                    description={isVi ? 'Bản vẽ này chưa có đánh giá nào từ đơn hàng thật.' : 'This design has no reviews from real orders yet.'}
+                    title="Chưa có đánh giá"
+                    description="Bản vẽ này chưa có đánh giá nào từ đơn hàng thật."
                     action={
-                      <InfoTip label={isVi ? 'Vì sao chưa có đánh giá?' : 'Why no reviews yet?'}>
-                        {isVi
-                          ? 'VCUBE chỉ hiển thị đánh giá đến từ đơn hàng thật, nên bản vẽ chưa phát sinh đơn sẽ không có điểm.'
-                          : 'VCUBE only shows reviews that come from real orders, so a design without orders has no score.'}
+                      <InfoTip label="Vì sao chưa có đánh giá?">
+                        VCUBE chỉ hiển thị đánh giá đến từ đơn hàng thật, nên bản vẽ chưa phát sinh đơn sẽ không có điểm.
                       </InfoTip>
                     }
                   />
@@ -995,29 +971,27 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             {activeTab === 'slicing' && (
               <div role="tabpanel" id="pdp-panel-slicing" aria-labelledby="pdp-tab-slicing" className="space-y-3 font-mono text-xs">
                 <div className="rounded-md border border-line-subtle bg-surface-muted p-3.5 text-fg-muted">
-                  {isVi
-                    ? 'Thông số cắt lớp ở cấp sản phẩm. Nhiệt độ đùn/bàn in phụ thuộc vật liệu & máy cụ thể — xưởng xác nhận khi báo giá.'
-                    : 'Product-level slicing parameters. Extruder/bed temperatures depend on the specific material and machine — the workshop confirms them in the quote.'}
+                  {'Thông số cắt lớp ở cấp sản phẩm. Nhiệt độ đùn/bàn in phụ thuộc vật liệu & máy cụ thể — xưởng xác nhận khi báo giá.'}
                 </div>
                 <div className="space-y-1.5 rounded-lg bg-surface-muted p-4 tabular-nums">
                   <div className="flex justify-between gap-3">
-                    <span className="text-fg-muted">{isVi ? 'Độ phân giải lớp:' : 'Layer resolution:'}</span>
+                    <span className="text-fg-muted">Độ phân giải lớp:</span>
                     <span className="font-bold text-fg">{product.specs?.resolution || EMPTY_VALUE}</span>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span className="text-fg-muted">{isVi ? 'Độ đặc mặc định:' : 'Default infill:'}</span>
+                    <span className="text-fg-muted">Độ đặc mặc định:</span>
                     <span className="font-bold text-fg">{product.specs?.infillDefault || EMPTY_VALUE}</span>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span className="text-fg-muted">{isVi ? 'Công nghệ gia công:' : 'Technology:'}</span>
+                    <span className="text-fg-muted">Công nghệ gia công:</span>
                     <span className="font-bold text-fg">{product.specs?.technology || EMPTY_VALUE}</span>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span className="text-fg-muted">{isVi ? 'Kích thước phủ bì:' : 'Overall size:'}</span>
+                    <span className="text-fg-muted">Kích thước phủ bì:</span>
                     <span className="font-bold text-fg">{product.specs?.dimensions || EMPTY_VALUE}</span>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span className="text-fg-muted">{isVi ? 'Nhiệt độ đùn / bàn in:' : 'Extruder / bed temp:'}</span>
+                    <span className="text-fg-muted">Nhiệt độ đùn / bàn in:</span>
                     <span className="font-bold text-fg-muted">{EMPTY_VALUE}</span>
                   </div>
                 </div>
@@ -1033,10 +1007,10 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-bold tracking-tight text-fg">
-                    {isVi ? 'Linh Kiện Thường Được In Cùng' : 'Frequently Co-Printed Parts'}
+                    Linh Kiện Thường Được In Cùng
                   </h3>
                   <p className="font-mono text-xs text-fg-muted">
-                    {isVi ? 'Các module cơ khí và phụ kiện cùng hệ sinh thái thiết kế' : 'Compatible mechanical modules & accessories'}
+                    Các module cơ khí và phụ kiện cùng hệ sinh thái thiết kế
                   </p>
                 </div>
                 <Button
@@ -1046,7 +1020,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   onClick={() => onNavigate('explore')}
                   trailingIcon={<Icon name="arrow_forward" size={16} />}
                 >
-                  <span>{isVi ? 'Xem tất cả' : 'View all'}</span>
+                  <span>Xem tất cả</span>
                 </Button>
               </div>
 
@@ -1095,7 +1069,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="block font-mono text-xs uppercase text-fg-muted">
-              {isVi ? 'Tổng đặt in' : 'Print total'}
+              Tổng đặt in
             </span>
             <span className="block truncate font-mono text-base font-bold tabular-nums text-fg">
               {vnd(orderTotal, locale)}
@@ -1107,7 +1081,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               variant="secondary"
               onClick={handleAddDigital}
               disabled={digitalPrice === null}
-              title={isVi ? 'Mua tệp CAD' : 'Buy CAD file'}
+              title="Mua tệp CAD"
               leadingIcon={<Icon name="download" size={16} />}
             >
               <span>Tệp CAD</span>
@@ -1118,7 +1092,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               disabled={isAdding || purchaseBlocked}
               leadingIcon={<Icon name="precision_manufacturing" size={16} />}
             >
-              <span>{isAdding ? 'Đang xử lý…' : (isVi ? 'Đặt in 3D' : 'Order print')}</span>
+              <span>{isAdding ? 'Đang xử lý…' : ('Đặt in 3D')}</span>
             </Button>
           </div>
         </div>

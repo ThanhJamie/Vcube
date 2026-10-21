@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { Button, Card, Field, Icon, Input } from '@frontend/ui';
 import { ENABLE_GOOGLE_OAUTH } from '../components/AuthModal';
 
@@ -12,8 +11,6 @@ interface RegisterViewProps {
 export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
   const navigate = useNavigate();
   const { signUpWithEmail, signInWithGoogle } = useAuth();
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -41,7 +38,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
 
     if (len === 0) {
       return {
-        label: isVi ? 'Chưa nhập' : 'Empty',
+        label: 'Chưa nhập',
         labelClass: 'text-fg-subtle',
         bar1: 'bg-line-subtle',
         bar2: 'bg-line-subtle',
@@ -50,7 +47,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
     }
     if (len < 6) {
       return {
-        label: isVi ? 'Mức độ: YẾU' : 'WEAK',
+        label: 'Mức độ: YẾU',
         labelClass: 'text-danger font-bold',
         bar1: 'bg-danger',
         bar2: 'bg-line-subtle',
@@ -59,7 +56,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
     }
     if (len < 10 || (!hasNumber && !hasSpecial)) {
       return {
-        label: isVi ? 'Mức độ: TRUNG BÌNH' : 'MEDIUM',
+        label: 'Mức độ: TRUNG BÌNH',
         labelClass: 'text-warning font-bold',
         bar1: 'bg-warning',
         bar2: 'bg-warning',
@@ -67,7 +64,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
       };
     }
     return {
-      label: isVi ? 'Mức độ: MẠNH' : 'STRONG',
+      label: 'Mức độ: MẠNH',
       labelClass: 'text-positive font-bold',
       bar1: 'bg-positive',
       bar2: 'bg-positive',
@@ -84,22 +81,22 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
     setAwaitingEmailConfirm(false);
 
     if (!email.trim() || !password) {
-      setErrorMessage(isVi ? 'Vui lòng điền đầy đủ email và mật khẩu.' : 'Please enter email and password.');
+      setErrorMessage('Vui lòng điền đầy đủ email và mật khẩu.');
       return;
     }
 
     if (password.length < 6) {
-      setErrorMessage(isVi ? 'Mật khẩu phải có ít nhất 6 ký tự.' : 'Password must be at least 6 characters.');
+      setErrorMessage('Mật khẩu phải có ít nhất 6 ký tự.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setErrorMessage(isVi ? 'Mật khẩu xác nhận không khớp.' : 'Passwords do not match.');
+      setErrorMessage('Mật khẩu xác nhận không khớp.');
       return;
     }
 
     if (!termsAgreed) {
-      setErrorMessage(isVi ? 'Vui lòng đồng ý với Điều khoản dịch vụ & Chính sách bảo mật.' : 'Please accept terms of service.');
+      setErrorMessage('Vui lòng đồng ý với Điều khoản dịch vụ & Chính sách bảo mật.');
       return;
     }
 
@@ -116,9 +113,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
       );
       if (result.hasSession) {
         setSuccessMessage(
-          isVi
-            ? 'Đăng ký thành công — bạn đã được đăng nhập. Đang chuyển hướng...'
-            : 'Registration successful — you are now signed in. Redirecting...'
+          'Đăng ký thành công — bạn đã được đăng nhập. Đang chuyển hướng...'
         );
         setTimeout(() => {
           if (onNavigate) {
@@ -130,13 +125,11 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
       } else {
         setAwaitingEmailConfirm(true);
         setSuccessMessage(
-          isVi
-            ? 'Đã gửi yêu cầu đăng ký — kiểm tra email để xác nhận rồi đăng nhập.'
-            : 'Sign-up request submitted — check your email to confirm, then sign in.'
+          'Đã gửi yêu cầu đăng ký — kiểm tra email để xác nhận rồi đăng nhập.'
         );
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || (isVi ? 'Đăng ký không thành công. Vui lòng thử lại.' : 'Registration failed. Please try again.'));
+      setErrorMessage(err?.message || ('Đăng ký không thành công. Vui lòng thử lại.'));
     } finally {
       setIsLoading(false);
     }
@@ -149,7 +142,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
       await signInWithGoogle();
       navigate('/');
     } catch (err: any) {
-      setErrorMessage(err?.message || (isVi ? 'Không thể kết nối Google OAuth.' : 'Google OAuth failed.'));
+      setErrorMessage(err?.message || ('Không thể kết nối Google OAuth.'));
     } finally {
       setIsGoogleLoading(false);
     }
@@ -168,7 +161,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             Trung tâm VCUBE
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-fg">
-            {isVi ? 'Đăng Ký Tài Khoản' : 'Create Account'}
+            Đăng Ký Tài Khoản
           </h1>
         </div>
 
@@ -193,12 +186,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             <Icon name="info" size={16} className="mt-0.5 shrink-0 text-info" />
             <div className="space-y-0.5 font-medium leading-relaxed">
               <p className="font-semibold">
-                {isVi ? 'Chọn loại tài khoản phù hợp.' : 'Choose the account type that fits.'}
+                Chọn loại tài khoản phù hợp.
               </p>
               <p>
-                {isVi
-                  ? 'Khách hàng dùng để mua và đặt in. Tác giả 3D có thêm hồ sơ tác giả ở trạng thái chờ VCUBE duyệt để đăng bán mẫu 3D. Quyền cuối cùng được đọc từ hồ sơ trên máy chủ.'
-                  : 'Customers buy and order prints. Designers also get a creator profile in Pending state for VCUBE to review before selling 3D models. The final role is read from the server-side profile (user_profiles.role).'}
+                Khách hàng dùng để mua và đặt in. Tác giả 3D có thêm hồ sơ tác giả ở trạng thái chờ VCUBE duyệt để đăng bán mẫu 3D. Quyền cuối cùng được đọc từ hồ sơ trên máy chủ.
               </p>
             </div>
           </div>
@@ -207,7 +198,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             {/* T58 — lựa chọn loại tài khoản (chỉ Khách hàng / Nhà thiết kế) */}
             <div>
               <span id="signup-role-label" className="mb-2 block text-sm font-medium text-fg">
-                {isVi ? 'Loại tài khoản *' : 'Account type *'}
+                Loại tài khoản *
               </span>
               <div
                 role="group"
@@ -225,7 +216,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                   }`}
                 >
                   <Icon name="person" size={16} />
-                  <span>{isVi ? 'Khách hàng' : 'Customer'}</span>
+                  <span>Khách hàng</span>
                 </button>
                 <button
                   type="button"
@@ -238,14 +229,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                   }`}
                 >
                   <Icon name="design_services" size={16} />
-                  <span>{isVi ? 'Tác giả 3D' : 'Designer'}</span>
+                  <span>Tác giả 3D</span>
                 </button>
               </div>
             </div>
 
             {/* Full Name and Email */}
             <div className="grid grid-cols-1 gap-4">
-              <Field label={isVi ? 'Họ và tên *' : 'Full Name *'} required>
+              <Field label="Họ và tên *" required>
                 {(control) => (
                   <div className="relative">
                     <Icon
@@ -259,14 +250,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                       autoComplete="name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder={isVi ? 'Nguyễn Văn Minh' : 'Nguyen Van Minh'}
+                      placeholder="Nguyễn Văn Minh"
                       className="pl-10"
                     />
                   </div>
                 )}
               </Field>
 
-              <Field label={isVi ? 'Địa chỉ Email *' : 'Email Address *'} required>
+              <Field label="Địa chỉ Email *" required>
                 {(control) => (
                   <div className="relative">
                     <Icon
@@ -291,7 +282,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             {/* Password & Confirm Password */}
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <Field label={isVi ? 'Mật khẩu *' : 'Password *'} required>
+                <Field label="Mật khẩu *" required>
                   {(control) => (
                     <div className="relative">
                       <Icon
@@ -325,7 +316,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                 {password.length > 0 && (
                   <div className="mt-2 space-y-1" role="status" aria-label={`Độ mạnh mật khẩu: ${strength.label}`}>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-fg-subtle">{isVi ? 'Độ mạnh mật khẩu:' : 'Strength:'}</span>
+                      <span className="font-medium text-fg-subtle">Độ mạnh mật khẩu:</span>
                       <span className={strength.labelClass}>{strength.label}</span>
                     </div>
                     <div className="grid h-1.5 grid-cols-3 gap-1.5">
@@ -338,13 +329,11 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
               </div>
 
               <Field
-                label={isVi ? 'Xác nhận lại mật khẩu *' : 'Confirm Password *'}
+                label="Xác nhận lại mật khẩu *"
                 required
                 error={
                   confirmPassword && confirmPassword !== password
-                    ? isVi
-                      ? 'Mật khẩu xác nhận không khớp.'
-                      : 'Passwords do not match.'
+                    ? 'Mật khẩu xác nhận không khớp.'
                     : null
                 }
               >
@@ -382,14 +371,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                   className="mt-0.5 size-4 cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
                 <span className="text-sm leading-relaxed text-fg-muted">
-                  {isVi ? (
+                  {(
                     <>
                       Tôi đồng ý với{' '}
                       <strong className="font-semibold text-fg">Điều khoản dịch vụ</strong> và{' '}
                       <strong className="font-semibold text-fg">Chính sách bảo mật</strong> của VCUBE.
                     </>
-                  ) : (
-                    'I agree to the Terms of Service and Data Privacy Policy of VCUBE.'
                   )}
                 </span>
               </label>
@@ -404,10 +391,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
               className="mt-2"
               disabled={confirmPassword !== '' && confirmPassword !== password}
               loading={isLoading}
-              loadingLabel={isVi ? 'Đang khởi tạo tài khoản...' : 'Creating Account...'}
+              loadingLabel="Đang khởi tạo tài khoản..."
               trailingIcon={<Icon name="arrow_forward" size={16} />}
             >
-              {isVi ? 'Đăng Ký Tài Khoản' : 'Sign Up'}
+              Đăng Ký Tài Khoản
             </Button>
 
             {awaitingEmailConfirm && !isLoading && (
@@ -416,7 +403,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-md border border-line-control bg-surface text-base font-medium text-fg transition-colors duration-200 hover:border-fg-subtle hover:bg-surface-muted"
               >
                 <Icon name="login" size={16} />
-                <span>{isVi ? 'Đã xác nhận email — Đăng nhập' : 'Email confirmed — Sign in'}</span>
+                <span>Đã xác nhận email — Đăng nhập</span>
               </Link>
             )}
 
@@ -429,7 +416,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                   <div className="w-full border-t border-line-subtle"></div>
                 </div>
                 <span className="relative bg-surface px-3 text-xs text-fg-subtle uppercase">
-                  {isVi ? 'Hoặc đăng ký nhanh qua' : 'Or quick register with'}
+                  Hoặc đăng ký nhanh qua
                 </span>
               </div>
 
@@ -462,7 +449,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                   </svg>
                 }
               >
-                {isVi ? 'Đăng ký với Google' : 'Sign up with Google'}
+                Đăng ký với Google
               </Button>
               </>
             )}
@@ -471,12 +458,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
           {/* Switch to Login */}
           <div className="mt-6 border-t border-line-subtle pt-6 text-center">
             <p className="text-sm text-fg-muted">
-              {isVi ? 'Đã có tài khoản VCUBE?' : 'Already have a VCUBE account?'}{' '}
+              Đã có tài khoản VCUBE?{' '}
               <Link
                 to="/auth/login"
                 className="ml-1 inline-flex items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
               >
-                <span>{isVi ? 'Đăng Nhập' : 'Sign In'}</span>
+                <span>Đăng Nhập</span>
                 <Icon name="arrow_forward" size={16} />
               </Link>
             </p>

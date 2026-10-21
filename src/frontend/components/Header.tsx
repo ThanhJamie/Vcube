@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCartDrawer,
 }) => {
   const { user, profile, role, isLoggedIn, logout } = useAuth();
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickSearchQuery, setQuickSearchQuery] = useState('');
   const navRef = useRef<HTMLElement | null>(null);
@@ -54,22 +54,22 @@ export const Header: React.FC<HeaderProps> = ({
   // Navigation Items - dynamically filtered by login status and user role.
   // P1: KHÔNG gắn chip jargon `CREATOR`/`FORGE` lên nav storefront (Đợt 8, 16-dot8-briefs §P1.3).
   const navItems = [
-    { id: 'explore', label: t('navExplore', 'Khám Phá', 'Marketplace'), icon: 'storefront' },
-    { id: 'tool_3d', label: t('navLab3D', 'Báo Giá In 3D', '3D Quoting'), icon: 'view_in_ar' },
-    ...(isLoggedIn ? [{ id: 'my_orders', label: t('navOrders', 'Đơn Hàng', 'Orders'), icon: 'receipt_long' }] : []),
+    { id: 'explore', label: t('navExplore', 'Khám Phá'), icon: 'storefront' },
+    { id: 'tool_3d', label: t('navLab3D', 'Báo Giá In 3D'), icon: 'view_in_ar' },
+    ...(isLoggedIn ? [{ id: 'my_orders', label: t('navOrders', 'Đơn Hàng'), icon: 'receipt_long' }] : []),
     ...(isLoggedIn && (roleName === 'lab' || roleName === 'workshop' || roleName === 'admin') ? [{
       id: 'lab',
-      label: t('navPrintLab', 'Xưởng in', 'Print Lab'),
+      label: t('navPrintLab', 'Xưởng in'),
       icon: 'precision_manufacturing',
     }] : []),
     ...(isLoggedIn && (role === 'designer' || role === 'admin') ? [{
       id: 'designer',
-      label: t('navDesignerStudio', 'Xưởng thiết kế', 'Designer Studio'),
+      label: t('navDesignerStudio', 'Xưởng thiết kế'),
       icon: 'design_services',
     }] : []),
     ...(isLoggedIn && role === 'admin' ? [{
       id: 'admin',
-      label: t('navAdmin', 'Quản trị hệ thống', 'Admin Console'),
+      label: t('navAdmin', 'Quản trị hệ thống'),
       icon: 'admin_panel_settings',
     }] : []),
   ];
@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
     if (delta < 0 || delta + active.offsetWidth > nav.clientWidth) {
       nav.scrollLeft = Math.max(0, nav.scrollLeft + delta - 12);
     }
-  }, [currentScreen, language, isLoggedIn, role]);
+  }, [currentScreen, isLoggedIn, role]);
 
   /** Drawer mobile: đóng bằng Escape (a11y — drawer trước đây không có đường thoát bàn phím). */
   useEffect(() => {
@@ -148,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({
     setMobileMenuOpen(false);
   };
 
-  const searchPlaceholder = t('searchPlaceholder', 'Tìm linh kiện, STL...', 'Search parts, STL...');
+  const searchPlaceholder = t('searchPlaceholder', 'Tìm linh kiện, STL...');
 
   return (
     <>
@@ -437,7 +437,7 @@ export const Header: React.FC<HeaderProps> = ({
                       if (onOpenAuth) onOpenAuth('account');
                     }}
                   >
-                    {t('switchAccount', 'Tài Khoản & Thông Tin', 'Account & Details')}
+                    {t('switchAccount', 'Tài Khoản & Thông Tin')}
                   </Button>
                   <Button
                     fullWidth
@@ -448,7 +448,7 @@ export const Header: React.FC<HeaderProps> = ({
                       logout();
                     }}
                   >
-                    {t('signOut', 'Đăng Xuất Khỏi Thiết Bị', 'Sign Out')}
+                    {t('signOut', 'Đăng Xuất Khỏi Thiết Bị')}
                   </Button>
                 </>
               ) : (
