@@ -13,7 +13,7 @@ interface PresetPalettePanelProps {
 
 const PRESET_PALETTE_THEMES: { name: string; description: string; colors: { name: string; hex: string }[] }[] = [
   {
-    name: 'Theme 1: Cyber Teal & Neon (Bambu Default)',
+    name: 'Bộ 1: Xanh teal & neon (mặc định Bambu)',
     description: 'Tone màu hiện đại, nổi bật cho mô hình cơ khí & art',
     colors: [
       { name: 'Xanh Cyan Kỹ Thuật', hex: '#00d2ff' },
@@ -23,7 +23,7 @@ const PRESET_PALETTE_THEMES: { name: string; description: string; colors: { name
     ]
   },
   {
-    name: 'Theme 2: Dragon Fire / Ruby Red',
+    name: 'Bộ 2: Lửa rồng / đỏ ruby',
     description: 'Tone màu rực rỡ phong cách rồng / sinh vật huyền bí',
     colors: [
       { name: 'Đỏ Ruby Đậm', hex: '#dc2626' },
@@ -33,7 +33,7 @@ const PRESET_PALETTE_THEMES: { name: string; description: string; colors: { name
     ]
   },
   {
-    name: 'Theme 3: Forest Jade & Gold',
+    name: 'Bộ 3: Ngọc bích & vàng',
     description: 'Phong cách rồng ngọc bích, thiên nhiên cao cấp',
     colors: [
       { name: 'Ngọc Bích Jade', hex: '#10b981' },
@@ -43,7 +43,7 @@ const PRESET_PALETTE_THEMES: { name: string; description: string; colors: { name
     ]
   },
   {
-    name: 'Theme 4: Stealth Obsidian & Silver',
+    name: 'Bộ 4: Đen nhám & bạc',
     description: 'Màu kim loại công nghiệp xám titan và đen nhám',
     colors: [
       { name: 'Đen Huyền Bí', hex: '#0f172a' },
@@ -174,29 +174,29 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
   };
 
   return (
-    <div className="bg-surface rounded-lg p-5 sm:p-6 space-y-6">
+    <div className="rounded-lg border border-line bg-surface p-4 sm:p-5 space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-subtle pb-4">
         <div>
-          <span className="font-sans text-xs uppercase tracking-widest text-primary font-bold block">
-            Bóc Tách & Hoán Đổi Bảng Màu // AMS Multi-Color Palettes
+          <span className="font-sans text-xs uppercase tracking-wider text-fg-muted font-semibold block">
+            BÓC TÁCH & HOÁN ĐỔI BẢNG MÀU // BẢNG MÀU ĐA MÀU AMS
           </span>
-          <h3 className="font-bold text-base sm:text-lg text-fg flex items-center gap-2 mt-0.5">
+          <h3 className="font-semibold text-base tracking-tight text-fg flex items-center gap-2 mt-0.5">
             <Icon name="palette" size={20} className="text-primary" />
-            Danh Sách Bảng Màu (Palettes Trong File) & Chuyển Đổi Màu Sắc
+            Danh sách bảng màu trong tệp & chuyển đổi màu sắc
           </h3>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-1 text-xs font-tech uppercase tracking-wider font-bold bg-primary text-primary-fg rounded-sm">
-            {slicerPreset?.software || (format === '3MF' ? '3MF AMS Multi-Color' : `${format} Palette`)}
+            {slicerPreset?.software || (format === '3MF' ? '3MF · AMS đa màu' : `Bảng màu ${format}`)}
           </span>
         </div>
       </div>
 
       {/* Selected Part Quick Assignment Banner */}
       {selectedPart ? (
-        <div className="bg-primary-tint border border-primary/30 p-3 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="bg-primary-tint border border-line p-3 rounded-md flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
             <Icon name="ads_click" size={18} className="text-primary" />
             <span>
@@ -206,32 +206,33 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
           <span className="text-xs font-sans text-fg-muted">Bấm vào thẻ màu bên dưới để áp dụng trực tiếp</span>
         </div>
       ) : (
-        <div className="bg-canvas border border-line-subtle p-3 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs text-fg-muted">
+        <div className="bg-surface-muted border border-line-subtle p-3 rounded-md flex flex-wrap items-center justify-between gap-2 text-xs text-fg-muted">
           <div className="flex items-center gap-2">
-            <Icon name="info" size={18} className="text-fg-subtle" />
-            <span>Chọn 1 chi tiết (Part) trong tab "Cấu Trúc Part" để gán riêng, hoặc dùng nút <strong>"Đổi Cho Tất Cả"</strong> / <strong>"Hoán Đổi Slot"</strong> ở dưới.</span>
+            <Icon name="info" size={18} className="text-fg-muted" />
+            <span>Chọn 1 chi tiết trong tab cấu trúc chi tiết để gán riêng, hoặc dùng nút <strong>"Đổi Cho Tất Cả"</strong> / <strong>"Hoán Đổi Slot"</strong> ở dưới.</span>
           </div>
         </div>
       )}
 
       {/* QUICK PRESET THEMES CHANGER */}
-      <div className="bg-surface-muted p-4 rounded-lg space-y-3">
+      <div className="bg-surface-muted border border-line-subtle p-4 rounded-lg space-y-3">
         <div className="flex items-center justify-between">
           <span className="font-sans text-xs font-bold uppercase tracking-wider text-fg-muted flex items-center gap-1.5">
             <Icon name="auto_awesome" size={18} className="text-primary" />
-            Chuyển Đổi Nhanh Bộ Màu Sắc Toàn Diện (Palette Themes):
+            Chuyển đổi nhanh bộ màu sắc toàn diện:
           </span>
           <span className="text-xs font-tech text-fg-muted">
-            1-Click Batch Color Switch
+            Đổi toàn bộ bảng màu một chạm
           </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {PRESET_PALETTE_THEMES.map((theme, tIdx) => (
-            <div
+            <button
               key={tIdx}
+              type="button"
               onClick={() => handleApplyTheme(theme)}
-              className="p-3 bg-surface hover:bg-primary-tint/40 border border-line-subtle hover:border-primary/60 rounded-lg cursor-pointer transition-all flex items-center justify-between gap-3 shadow-e0 group"
+              className="p-3 bg-surface hover:bg-surface-muted border border-line-subtle hover:border-line-control rounded-md cursor-pointer transition-colors flex items-center justify-between gap-3 group text-left w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <div className="min-w-0">
                 <div className="font-bold text-xs text-fg group-hover:text-primary transition-colors truncate">
@@ -248,12 +249,12 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
                   <span
                     key={cIdx}
                     style={{ backgroundColor: c.hex }}
-                    className="w-4 h-4 rounded-full border border-line-control block shadow-e0"
+                    className="w-4 h-4 rounded-full border border-line block"
                     title={c.name}
                   />
                 ))}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -263,7 +264,7 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
         <div className="flex items-center justify-between">
           <h4 className="font-sans text-xs font-bold uppercase tracking-wider text-fg-muted flex items-center gap-1.5">
             <Icon name="format_color_fill" size={18} className="text-primary" />
-            Các Khay Nhựa / Palette Slots Trong File ({currentPalettes.length} Slots):
+            Các khay nhựa / khe màu trong tệp ({currentPalettes.length} khe):
           </h4>
           <span className="text-xs font-tech text-fg-muted">
             {slicerPreset?.palettes && slicerPreset.palettes.length > 0
@@ -279,27 +280,28 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
             return (
               <div
                 key={palIdx}
-                className={`p-4 border rounded-lg bg-surface transition-all space-y-3 shadow-e1 ${
-                  isUsedInSelected ? 'border-primary ring-1 ring-primary/30' : 'border-line-subtle hover:border-primary/40'
+                className={`p-4 border rounded-md bg-surface transition-colors space-y-3 ${
+                  isUsedInSelected ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-surface' : 'border-line-subtle hover:border-line-control'
                 }`}
               >
                 {/* Header Row: Swatch & Name & Custom Color Picker */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="relative group">
-                      <label className="cursor-pointer block" title="Nhấn để đổi màu cho khay này">
+                      <label className="cursor-pointer block rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2" title="Nhấn để đổi màu cho khay này">
                         <span
                           style={{ backgroundColor: pal.colorHex }}
-                          className="w-10 h-10 rounded-md border border-line-control block shadow-e1 group-hover:scale-105 transition-transform"
+                          className="w-10 h-10 rounded-md border border-line block transition-colors"
                         />
                         <input
                           type="color"
                           value={pal.colorHex}
+                          aria-label={`Chọn màu cho khay ${pal.name}`}
                           onChange={(e) => handleEditSlotColor(palIdx, e.target.value)}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                         />
                       </label>
-                      <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-surface-inverse text-on-inverse font-tech text-xs font-bold rounded-full flex items-center justify-center pointer-events-none">
+                      <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary text-primary-fg font-mono text-xs font-bold rounded-full flex items-center justify-center pointer-events-none">
                         T{pal.index ?? '—'}
                       </span>
                     </div>
@@ -314,13 +316,13 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
                     </div>
                   </div>
 
-                  <span className="px-2 py-0.5 text-xs font-tech font-bold uppercase rounded-sm bg-surface-muted text-fg">
+                  <span className="px-2 py-0.5 text-xs font-mono font-bold uppercase rounded-full bg-surface-muted text-fg-muted border border-line">
                     {pal.materialType || 'PLA'}
                   </span>
                 </div>
 
                 {/* Specs: Weight, Length, Density */}
-                <div className="grid grid-cols-3 gap-2 text-xs bg-surface-muted p-2 rounded-sm font-tech">
+                <div className="grid grid-cols-3 gap-2 text-xs bg-surface-muted p-2 rounded-md font-mono tabular-nums">
                   <div>
                     <span className="text-xs text-fg-muted block font-sans">Tiêu hao</span>
                     <strong>{typeof pal.usedGrams === 'number' && Number.isFinite(pal.usedGrams) ? `${pal.usedGrams} g` : '—'}</strong>
@@ -330,13 +332,14 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
                     <strong>{typeof pal.usedMeters === 'number' && Number.isFinite(pal.usedMeters) ? `${pal.usedMeters} m` : '—'}</strong>
                   </div>
                   <div>
-                    <span className="text-xs text-fg-muted block font-sans">Đổi Slot</span>
+                    <span className="text-xs text-fg-muted block font-sans">Đổi khe màu</span>
                     <div className="flex items-center gap-1 mt-0.5">
                       <button
                         type="button"
                         onClick={() => handleSwapSlots(palIdx, (palIdx - 1 + currentPalettes.length) % currentPalettes.length)}
                         title="Hoán đổi màu với slot trước"
-                        className="px-1.5 py-0.2 bg-surface border border-line-control hover:bg-surface-muted rounded-sm text-xs font-bold"
+                        aria-label={`Chuyển khay ${pal.name} lên trước`}
+                        className="inline-flex h-7 w-7 max-md:size-11 items-center justify-center bg-surface border border-line-control hover:bg-surface-muted rounded-sm text-xs font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
                         ◀
                       </button>
@@ -344,7 +347,8 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
                         type="button"
                         onClick={() => handleSwapSlots(palIdx, (palIdx + 1) % currentPalettes.length)}
                         title="Hoán đổi màu với slot sau"
-                        className="px-1.5 py-0.2 bg-surface border border-line-control hover:bg-surface-muted rounded-sm text-xs font-bold"
+                        aria-label={`Chuyển khay ${pal.name} ra sau`}
+                        className="inline-flex h-7 w-7 max-md:size-11 items-center justify-center bg-surface border border-line-control hover:bg-surface-muted rounded-sm text-xs font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
                         ▶
                       </button>
@@ -357,24 +361,24 @@ export const PresetPalettePanel: React.FC<PresetPalettePanelProps> = ({
                   <button
                     type="button"
                     onClick={() => handleApplyColorToAll(pal.colorHex, pal.name)}
-                    className="text-xs font-sans font-bold text-fg-muted hover:text-primary underline flex items-center gap-0.5 cursor-pointer"
+                    className="text-xs font-medium text-fg-muted hover:text-fg underline flex items-center gap-0.5 cursor-pointer max-md:min-h-11 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     <Icon name="format_paint" size={18} />
-                    Đổi Cho Toàn Bộ Part
+                    Đổi cho toàn bộ chi tiết
                   </button>
 
                   {selectedPartId && (
                     <button
                       type="button"
                       onClick={() => onChangeColor(selectedPartId, pal.colorHex, pal.name)}
-                      className={`px-3 py-1 text-xs font-sans font-bold uppercase tracking-wider rounded-sm transition-colors flex items-center gap-1 cursor-pointer ${
+                      className={`h-8 max-md:min-h-11 px-3 text-xs font-medium rounded-md transition-colors flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                         isUsedInSelected
                           ? 'bg-primary text-primary-fg'
-                          : 'bg-surface-muted hover:bg-line-subtle border border-line-control text-fg'
+                          : 'bg-surface hover:bg-surface-muted border border-line-control text-fg'
                       }`}
                     >
                       <Icon name={isUsedInSelected ? 'check' : 'colorize'} size={18} />
-                      {isUsedInSelected ? 'Đang Dùng' : 'Áp Dụng Cho Part Đang Chọn'}
+                      {isUsedInSelected ? 'Đang dùng' : 'Áp dụng cho chi tiết đang chọn'}
                     </button>
                   )}
                 </div>

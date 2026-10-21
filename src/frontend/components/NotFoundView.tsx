@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
-import { Icon } from '@frontend/ui';
+import { Button, Icon } from '@frontend/ui';
 
 export const NotFoundView: React.FC = () => {
   const navigate = useNavigate();
@@ -9,20 +9,20 @@ export const NotFoundView: React.FC = () => {
   const isVi = language === 'vi';
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center p-6 bg-surface-muted">
-      <div className="max-w-md w-full bg-surface rounded-lg shadow-e3 p-8 text-center space-y-6">
-        <div className="w-20 h-20 bg-danger-tint border border-danger/30 text-danger rounded-lg flex items-center justify-center mx-auto shadow-e0">
-          <Icon name="travel_explore" size={36} />
+    <div className="min-h-dvh grid place-items-center bg-canvas p-6">
+      <div className="w-full max-w-md rounded-xl border border-line bg-surface p-8 text-center space-y-6">
+        <div className="mx-auto grid size-14 place-items-center rounded-md border border-danger/20 bg-danger-tint text-danger">
+          <Icon name="travel_explore" size={28} />
         </div>
 
         <div className="space-y-2">
-          <span className="font-tech text-xs text-danger uppercase tracking-widest font-bold block">
-            ERROR 404 • ROUTE NOT FOUND
+          <span className="font-tech text-xs text-danger uppercase tracking-wider font-semibold block">
+            LỖI 404 • KHÔNG TÌM THẤY ĐƯỜNG DẪN
           </span>
-          <h2 className="font-display text-2xl font-bold text-fg">
+          <h1 className="text-2xl font-bold tracking-tight text-fg">
             {isVi ? 'Không Tìm Thấy Trang Yêu Cầu' : 'Page Not Found'}
-          </h2>
-          <p className="text-xs text-fg-muted font-sans leading-relaxed">
+          </h1>
+          <p className="text-sm text-fg-muted font-sans leading-relaxed">
             {isVi
               ? 'Đường dẫn bạn vừa truy cập không tồn tại hoặc đã được chuyển sang phân hệ khác trong hệ thống VCUBE.'
               : 'The URL or route you requested does not exist or has been relocated to another workspace in the VCUBE platform.'}
@@ -30,21 +30,23 @@ export const NotFoundView: React.FC = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
-          <button
+          <Button
+            size="lg"
+            className="flex-1"
             onClick={() => navigate('/')}
-            className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-e2 flex items-center justify-center gap-2 cursor-pointer"
+            leadingIcon={<Icon name="home" size={16} />}
           >
-            <Icon name="home" size={18} />
             {isVi ? 'Về Trang Chủ' : 'Return Home'}
-          </button>
-          
-          <button
+          </Button>
+
+          <Button
+            size="lg"
+            variant="secondary"
             onClick={() => navigate('/explore')}
-            className="py-3 px-4 border border-line hover:bg-canvas text-fg text-xs font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            leadingIcon={<Icon name="storefront" size={16} />}
           >
-            <Icon name="storefront" size={18} />
             {isVi ? 'Khám Phá' : 'Marketplace'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

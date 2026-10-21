@@ -956,3 +956,14 @@ Các claim kỹ thuật trong board đã được rà trực tiếp. Kết quả
 - **Review chéo:** 4 hạng mục PASS-WITH-NITS; durability là finding chính (đã vá).
 - **Remaining W2:** **T20** (tách `designer_payout_info` — cần cập nhật `seed-sample-data.mjs` + cổng H trước khi drop cột) và **T25** (storage scheme `cad/<uid|guest>/<uuid>/…` + hardening `uploadCadFile`).
 - **Thứ tự áp cho `H`:** áp `20261012090000` (SEC-02) → **deploy client T21 ngay** (view phải tồn tại) → áp `20261012100000`, `20261012130000` (preflight realtime) → chạy `verify-rls.mjs` + probe.
+
+### C.4 W2b (T20/T25) + W3 khởi động (2026-09-24)
+
+- **T20 DONE (draft 2 pha)** — pha 1 `20261013090000_sec01_payout_table.sql`: bảng `designer_payout_info` + RLS owner/admin, backfill, RPC `get_my_payout_info`/`admin_get_designer_payout` trỏ bảng mới, thêm `upsert_my_payout_info`; đã siết `revoke all … from public, anon, authenticated` → `grant select,insert,update` (không DELETE). Code: seed ghi bảng mới; store bỏ đọc cột bank, thêm `loadPayoutInfo()` (chưa wire UI). Pha 2 `20261013100000_drop_designer_bank_columns.sql` **H-gated**, chưa áp.
+- **T25 DONE (draft)** — policy `vcube_cad_files_cad_owner_rw` cho `cad/<uid>/…` + chặn `..`/segment rỗng; harden `uploadCadFile` (basename, allowlist ext, uuid, contentType, cần ownerId). Guest path hoãn (cần service-role/signed upload).
+- **Review chéo T20/T25: PASS-WITH-NITS** → đã vá: revoke authenticated, probe `designer_payout_info` (SKIP tới khi áp), traversal guard.
+- **Durability**: `harden` thêm `vcube_cad_files_cad_owner_rw` vào `v_ok` + section 8.3; generator gồm 2 migration W2b (KHÔNG gồm file drop); regenerate `apply_all_manual.sql`.
+- **Manifest**: đăng ký `doc-freshness` (advisory) → `npm run check` nay **17 gate, RC=0**.
+- **W3 đã xong (không phụ thuộc DB):** **T27** (`gen-routes-doc.mjs` → `_routes.generated.md`, 30 route, byte-stable), **T10** (runbook: bỏ `user_metadata`, date-stamp, §11 nhật ký áp migration), **T12** (seeds doc: chain mới + unwired), **T11** (`schema-notes.md`), **T28** (`check-doc-freshness.mjs`).
+- **W3 còn lại:** **T26** (sinh `schema.md` — chạy sau khi áp W2b để phản ánh đúng DB) và **T13** (rls-policies.md — sau khi áp W2b).
+- **Bundle áp W2b:** `docs/runbooks/w2b-2026-09-24.sql` (payout pha 1 + storage; **không** gồm drop cột). Thứ tự: áp bundle → deploy client → verify → (sau) áp `20261013100000` drop cột.

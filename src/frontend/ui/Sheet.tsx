@@ -3,21 +3,18 @@
  * `<dialog>` + `showModal()` của `Modal` (nên thừa hưởng top-layer, inert, focus trap,
  * Esc, click backdrop theo toạ độ và khoá scroll body có đếm tham chiếu).
  *
- * - `side='bottom'`: panel dán đáy, bo góc trên (14px), cao tối đa 85dvh (mặc định mobile).
+ * - `side='bottom'`: panel dán đáy, bo góc trên (20px), cao tối đa 85dvh (mặc định mobile).
  * - `side='right'`: panel dán phải, cao full, rộng tối đa `max-w-md` (side panel).
  * - `side='left'`: panel dán trái, rộng tối đa `max-w-xs` — dùng cho `SideNav` mobile
- *   của `AppShell` (thêm 2026-09-20).
+ *   của `AppShell`.
  *
  * Dùng cho: giỏ hàng, mobile nav, bộ lọc nâng cao, chi tiết hàng trên mobile.
- * Việc chuyển call site (CartDrawer, mobile drawer của Header) thuộc A3/A4 — Phase 2
- * KHÔNG sửa call site.
  */
 
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { Modal } from './Modal';
 import type { ModalSize } from './Modal';
-import type { Tone } from './tone';
 
 export type SheetSide = 'bottom' | 'left' | 'right';
 
@@ -30,8 +27,6 @@ export interface SheetProps {
   children?: ReactNode;
   footer?: ReactNode;
   size?: ModalSize;
-  /** Bề mặt panel: `light` (mặc định) hoặc `chrome` (console tối). */
-  tone?: Tone;
   className?: string;
   panelClassName?: string;
   showCloseButton?: boolean;
@@ -50,7 +45,6 @@ export function Sheet({
   children,
   footer,
   size = 'md',
-  tone = 'light',
   className,
   panelClassName,
   showCloseButton = true,
@@ -65,7 +59,6 @@ export function Sheet({
       onClose={onClose}
       placement={side}
       size={size}
-      tone={tone}
       title={title}
       description={description}
       footer={footer}
@@ -80,10 +73,7 @@ export function Sheet({
       {side === 'bottom' ? (
         <div
           aria-hidden="true"
-          className={cn(
-            'mx-auto mb-3 h-1 w-10 rounded-full',
-            tone === 'chrome' ? 'bg-chrome-fg-muted' : 'bg-line',
-          )}
+          className={cn('mx-auto mb-3 h-1 w-10 rounded-full bg-line')}
         />
       ) : null}
       {children}

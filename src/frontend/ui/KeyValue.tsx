@@ -92,7 +92,7 @@ export function KeyValue({
         'grid gap-block',
         gridClass,
         variant === 'panel' &&
-          'gap-0 overflow-hidden rounded-md border border-line-subtle bg-surface',
+          'gap-0 overflow-hidden rounded-lg border border-line-subtle bg-surface',
         className,
       )}
     >

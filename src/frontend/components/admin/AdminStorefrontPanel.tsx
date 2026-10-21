@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SiteContentConfig } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
-import { Icon, InfoTip } from '@frontend/ui';
+import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
 
 interface AdminStorefrontPanelProps {
   siteContent: SiteContentConfig;
@@ -27,6 +27,13 @@ const parseShippingInput = (raw: string): number | undefined => {
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
+
+/** Textarea chưa có primitive riêng — dùng đúng recipe §3.3 của `Input`. */
+const TEXTAREA_CLASS = [
+  'w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg leading-relaxed',
+  'placeholder:text-fg-subtle transition-colors duration-200 ease-out motion-reduce:transition-none',
+  'focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring aria-invalid:border-danger',
+].join(' ');
 
 export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
   siteContent,
@@ -102,7 +109,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
       const res = await onUpdateSiteContent(localContent);
       if (!res || res.success) {
         setIsSaved(true);
-        onShowToast(isVi ? 'Đã lưu cấu hình giao diện Landing Page & Storefront!' : 'Saved Landing Page & Storefront CMS settings!');
+        onShowToast(isVi ? 'Đã lưu cấu hình giao diện trang chủ & cửa hàng!' : 'Saved Landing Page & Storefront CMS settings!');
       } else {
         setIsSaved(false);
         onShowToast(isVi ? `KHÔNG lưu được: ${res.error || 'lỗi không xác định'}` : `Could not save: ${res.error || 'unknown error'}`);
@@ -113,22 +120,22 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="bg-surface p-5 sm:p-6 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-e1">
+      <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 bg-primary/10 text-primary font-mono text-xs font-bold rounded-md border border-primary/30 uppercase tracking-widest">
-              LANDING PAGE CMS // STOREFRONT
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-0.5 bg-primary-tint text-fg font-mono text-xs font-semibold rounded-sm border border-line uppercase tracking-wider">
+              CẤU HÌNH TRANG CHỦ // GIAO DIỆN CỬA HÀNG
             </span>
             <span className="text-xs text-fg-subtle">Quản lý 100% nội dung hiển thị trên trang chủ</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-fg mt-1.5 flex items-center gap-2">
+          <h2 className="text-2xl font-bold tracking-tight text-fg mt-2 flex items-center gap-2">
             <Icon name="tune" size={24} className="text-primary" />
-            {isVi ? 'Quản Trị Nội Dung Landing Page VCUBE' : 'Landing Page Dynamic Content CMS'}
+            {isVi ? 'Quản Trị Nội Dung Trang Chủ VCUBE' : 'Landing Page Dynamic Content CMS'}
           </h2>
           <div className="mt-1">
-            <InfoTip label="Landing Page CMS sửa được những gì?">
+            <InfoTip label="Cấu hình trang chủ sửa được những gì?">
               Tùy chỉnh linh hoạt mọi văn bản, tiêu đề, thông số đo kiểm, quy trình xưởng và cam kết sản xuất trên
               trang chủ.
             </InfoTip>
@@ -137,244 +144,289 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
         <div className="flex items-center gap-3 shrink-0">
           {!isSaved && !isSaving && (
-            <span className="text-xs font-bold text-warning flex items-center gap-1">
+            <span className="text-xs font-medium text-warning flex items-center gap-1">
               <Icon name="warning" size={14} />
               {isVi ? 'Chưa lưu' : 'Unsaved'}
             </span>
           )}
-          <button
+          <Button
+            variant={isSaved ? 'secondary' : 'primary'}
+            loading={isSaving}
+            loadingLabel={isVi ? 'Đang lưu…' : 'Saving…'}
+            leadingIcon={<Icon name="save" size={16} />}
             onClick={handleSave}
-            disabled={isSaved || isSaving}
-            className={`px-5 py-2.5 text-xs font-bold rounded-lg uppercase tracking-wider transition-colors flex items-center gap-2 shadow-e2 cursor-pointer disabled:cursor-not-allowed ${
-              isSaved
-                ? 'bg-line-subtle text-fg-muted shadow-none'
-                : 'bg-primary hover:bg-primary-hover text-primary-fg shadow-primary/25'
-            }`}
+            disabled={isSaved}
           >
-            <Icon name="save" size={18} />
             {isSaving
               ? (isVi ? 'Đang lưu…' : 'Saving…')
               : isSaved
               ? (isVi ? 'Đã Lưu Nội Dung' : 'All Changes Saved')
               : (isVi ? 'Lưu Thay Đổi Ngay' : 'Save Changes Now')}
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-line">
+      {/* Tab Navigation — segmented §3.6 */}
+      <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-md border border-line bg-surface-muted p-1">
         <button
+          type="button"
           onClick={() => setActiveTab('hero')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+          aria-pressed={activeTab === 'hero'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'hero'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="view_carousel" size={18} />
-          <span>Hero & Chỉ Số Đo Kiểm</span>
+          <Icon name="view_carousel" size={16} />
+          <span>Khối Đầu Trang & Chỉ Số Đo Kiểm</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('announcement')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+          aria-pressed={activeTab === 'announcement'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'announcement'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="campaign" size={18} />
-          <span>Banner Đầu Trang</span>
+          <Icon name="campaign" size={16} />
+          <span>Dải Thông Báo Đầu Trang</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('workflow')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+          aria-pressed={activeTab === 'workflow'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'workflow'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="precision_manufacturing" size={18} />
+          <Icon name="precision_manufacturing" size={16} />
           <span>Quy Trình Xưởng 3 Bước</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('estimator')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+          aria-pressed={activeTab === 'estimator'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'estimator'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="calculate" size={18} />
-          <span>Bộ Tính Giá Nhanh (Estimator)</span>
+          <Icon name="calculate" size={16} />
+          <span>Bộ Tính Giá Nhanh</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('facilities')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+          aria-pressed={activeTab === 'facilities'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'facilities'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="domain" size={18} />
+          <Icon name="domain" size={16} />
           <span>{isVi ? 'Đối Tác & Cơ Sở Xưởng' : 'Partners & Facilities'}</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('customIdea')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+          aria-pressed={activeTab === 'customIdea'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'customIdea'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="design_services" size={18} />
-          <span>{isVi ? 'Dịch Vụ Custom 3D' : 'Custom 3D Service'}</span>
+          <Icon name="design_services" size={16} />
+          <span>{isVi ? 'Dịch Vụ CAD Theo Yêu Cầu' : 'Custom 3D Service'}</span>
         </button>
       </div>
 
       {/* Tab 1: Hero Section */}
       {activeTab === 'hero' && (
-        <div className="bg-surface rounded-lg p-6 shadow-e1 space-y-6 animate-in fade-in duration-200">
+        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
           <div className="border-b border-line-subtle pb-4">
-            <h3 className="font-bold text-base text-fg flex items-center gap-2">
-              <Icon name="view_carousel" size={24} className="text-primary" />
-              Cấu Hình Khối Hero Section Chính
+            <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
+              <Icon name="view_carousel" size={22} className="text-fg-muted" />
+              Cấu Hình Khối Đầu Trang Chính
             </h3>
-            <p className="text-xs text-fg-subtle mt-0.5">
+            <p className="text-xs text-fg-subtle mt-1">
               Chỉnh sửa các câu thông điệp chủ đạo, nút hành động và 3 thẻ thông số chất lượng của nền tảng.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Badge Trên Cùng Của Hero</label>
-              <input
-                type="text"
-                value={localContent.heroBadge || ''}
-                onChange={(e) => handleChange('heroBadge', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg font-mono text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                placeholder="VD: VCUBE PRECISION ANTHOLOGY // 2026"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Huy Hiệu Trên Cùng Của Khối Đầu Trang" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.heroBadge || ''}
+                  onChange={(e) => handleChange('heroBadge', e.target.value)}
+                  className="font-mono"
+                  placeholder="VD: TUYỂN TẬP CHẾ TÁC CHÍNH XÁC VCUBE 2026"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Tiêu Đề Dòng 1 (Headline Line 1)</label>
-              <input
-                type="text"
-                value={localContent.heroHeadlineLine1 || ''}
-                onChange={(e) => handleChange('heroHeadlineLine1', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg font-bold text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                placeholder="VD: CHẾ TÁC CƠ KHÍ"
-              />
-            </div>
+            <Field label="Tiêu Đề Dòng 1" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.heroHeadlineLine1 || ''}
+                  onChange={(e) => handleChange('heroHeadlineLine1', e.target.value)}
+                  placeholder="VD: CHẾ TÁC CƠ KHÍ"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Tiêu Đề Nhấn Mạnh (Headline Highlight - Màu Teal)</label>
-              <input
-                type="text"
-                value={localContent.heroHeadlineHighlight || ''}
-                onChange={(e) => handleChange('heroHeadlineHighlight', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg font-bold text-xs text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                placeholder="VD: IN 3D CÔNG NGHIỆP CHÍNH XÁC"
-              />
-            </div>
+            <Field label="Tiêu Đề Nhấn Mạnh (Màu Teal)" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.heroHeadlineHighlight || ''}
+                  onChange={(e) => handleChange('heroHeadlineHighlight', e.target.value)}
+                  placeholder="VD: IN 3D CÔNG NGHIỆP CHÍNH XÁC"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="font-bold text-fg">Đoạn Văn Miêu Tả Phụ (Hero Subheadline)</label>
-              <textarea
-                rows={3}
-                value={localContent.heroSubheadline || ''}
-                onChange={(e) => handleChange('heroSubheadline', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary leading-relaxed"
-                placeholder="Mô tả tóm tắt dịch vụ, năng lực sản xuất và tiêu chuẩn dung sai..."
-              />
-            </div>
+            <Field label="Đoạn Văn Miêu Tả Phụ" className="md:col-span-2" optionalLabel={null}>
+              {(control) => (
+                <textarea
+                  {...control}
+                  rows={3}
+                  value={localContent.heroSubheadline || ''}
+                  onChange={(e) => handleChange('heroSubheadline', e.target.value)}
+                  className={TEXTAREA_CLASS}
+                  placeholder="Mô tả tóm tắt dịch vụ, năng lực sản xuất và tiêu chuẩn dung sai..."
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Nút Bấm Chính (Primary CTA Text)</label>
-              <input
-                type="text"
-                value={localContent.heroCtaQuoteText || ''}
-                onChange={(e) => handleChange('heroCtaQuoteText', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                placeholder="Báo Giá File 3D Tức Thì"
-              />
-            </div>
+            <Field label="Nhãn Nút Chính" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.heroCtaQuoteText || ''}
+                  onChange={(e) => handleChange('heroCtaQuoteText', e.target.value)}
+                  placeholder="Báo Giá Tệp 3D Tức Thì"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Nút Bấm Phụ (Secondary CTA Text)</label>
-              <input
-                type="text"
-                value={localContent.heroCtaCatalogText || ''}
-                onChange={(e) => handleChange('heroCtaCatalogText', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                placeholder="Khám Phá Kho Mẫu CAD"
-              />
-            </div>
+            <Field label="Nhãn Nút Phụ" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.heroCtaCatalogText || ''}
+                  onChange={(e) => handleChange('heroCtaCatalogText', e.target.value)}
+                  placeholder="Khám Phá Kho Mẫu CAD"
+                />
+              )}
+            </Field>
           </div>
 
-          <div className="border-t border-line-subtle pt-4">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-primary mb-3 flex items-center gap-1.5">
+          <div className="border-t border-line-subtle pt-6">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-fg-muted mb-3 flex items-center gap-1.5">
               <Icon name="straighten" size={16} />
-              3 Thẻ Thông Số Đo Kiểm Kỹ Thuật (Hero Metrics Strip)
+              3 Thẻ Thông Số Đo Kiểm Kỹ Thuật
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-3 bg-canvas border border-line rounded-lg space-y-2">
-                <label className="font-bold text-fg block">Chỉ số 1: Nhãn &amp; Giá trị</label>
-                <input
-                  type="text"
-                  value={localContent.heroMetric1Label || ''}
-                  onChange={(e) => handleChange('heroMetric1Label', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs"
-                  placeholder="Nhãn: Dung sai"
-                />
-                <input
-                  type="text"
-                  value={localContent.heroMetric1Value || ''}
-                  onChange={(e) => handleChange('heroMetric1Value', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs font-mono font-bold text-primary"
-                  placeholder="Giá trị: nhập mức dung sai đã cam kết"
-                />
+              <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-3">
+                <p className="text-sm font-medium text-fg">Chỉ số 1: Nhãn &amp; Giá trị</p>
+                <Field label="Nhãn chỉ số 1" hideLabel optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={localContent.heroMetric1Label || ''}
+                      onChange={(e) => handleChange('heroMetric1Label', e.target.value)}
+                      placeholder="Nhãn: Dung sai"
+                    />
+                  )}
+                </Field>
+                <Field label="Giá trị chỉ số 1" hideLabel optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={localContent.heroMetric1Value || ''}
+                      onChange={(e) => handleChange('heroMetric1Value', e.target.value)}
+                      className="font-mono font-semibold"
+                      placeholder="Giá trị: nhập mức dung sai đã cam kết"
+                    />
+                  )}
+                </Field>
               </div>
 
-              <div className="p-3 bg-canvas border border-line rounded-lg space-y-2">
-                <label className="font-bold text-fg block">Chỉ số 2: Nhãn &amp; Giá trị</label>
-                <input
-                  type="text"
-                  value={localContent.heroMetric2Label || ''}
-                  onChange={(e) => handleChange('heroMetric2Label', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs"
-                  placeholder="Nhãn: Thời gian giao"
-                />
-                <input
-                  type="text"
-                  value={localContent.heroMetric2Value || ''}
-                  onChange={(e) => handleChange('heroMetric2Value', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs font-mono font-bold text-fg"
-                  placeholder="Giá trị: nhập thời gian bàn giao thực tế"
-                />
+              <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-3">
+                <p className="text-sm font-medium text-fg">Chỉ số 2: Nhãn &amp; Giá trị</p>
+                <Field label="Nhãn chỉ số 2" hideLabel optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={localContent.heroMetric2Label || ''}
+                      onChange={(e) => handleChange('heroMetric2Label', e.target.value)}
+                      placeholder="Nhãn: Thời gian giao"
+                    />
+                  )}
+                </Field>
+                <Field label="Giá trị chỉ số 2" hideLabel optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={localContent.heroMetric2Value || ''}
+                      onChange={(e) => handleChange('heroMetric2Value', e.target.value)}
+                      className="font-mono font-semibold"
+                      placeholder="Giá trị: nhập thời gian bàn giao thực tế"
+                    />
+                  )}
+                </Field>
               </div>
 
-              <div className="p-3 bg-canvas border border-line rounded-lg space-y-2">
-                <label className="font-bold text-fg block">Chỉ số 3: Nhãn &amp; Giá trị</label>
-                <input
-                  type="text"
-                  value={localContent.heroMetric3Label || ''}
-                  onChange={(e) => handleChange('heroMetric3Label', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs"
-                  placeholder="Nhãn: Tiêu chuẩn"
-                />
-                <input
-                  type="text"
-                  value={localContent.heroMetric3Value || ''}
-                  onChange={(e) => handleChange('heroMetric3Value', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs font-mono font-bold text-fg"
-                  placeholder="Giá trị: nhập tiêu chuẩn/quy trình đang áp dụng"
-                />
+              <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-3">
+                <p className="text-sm font-medium text-fg">Chỉ số 3: Nhãn &amp; Giá trị</p>
+                <Field label="Nhãn chỉ số 3" hideLabel optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={localContent.heroMetric3Label || ''}
+                      onChange={(e) => handleChange('heroMetric3Label', e.target.value)}
+                      placeholder="Nhãn: Tiêu chuẩn"
+                    />
+                  )}
+                </Field>
+                <Field label="Giá trị chỉ số 3" hideLabel optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={localContent.heroMetric3Value || ''}
+                      onChange={(e) => handleChange('heroMetric3Value', e.target.value)}
+                      className="font-mono font-semibold"
+                      placeholder="Giá trị: nhập tiêu chuẩn/quy trình đang áp dụng"
+                    />
+                  )}
+                </Field>
               </div>
             </div>
             <div className="flex justify-end pt-2">
@@ -385,22 +437,26 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
             </div>
           </div>
 
-          <div className="border-t border-line-subtle pt-4 space-y-2">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-primary flex items-center gap-1.5">
+          <div className="border-t border-line-subtle pt-6 space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-fg-muted flex items-center gap-1.5">
               <Icon name="straighten" size={16} />
               Dải Dung Sai Cam Kết (toleranceSpec)
             </h4>
-            <label className="font-bold text-fg block text-xs" htmlFor="storefront-tolerance-spec">
-              Dung sai cam kết — hiển thị ở dải dung sai trang chủ và chân trang
-            </label>
-            <input
+            <Field
               id="storefront-tolerance-spec"
-              type="text"
-              value={localContent.toleranceSpec || ''}
-              onChange={(e) => handleChange('toleranceSpec', e.target.value)}
-              className="w-full p-2.5 border border-line-control rounded-lg text-xs"
-              placeholder="VD: Đo kiểm kích thước theo bản vẽ thoả thuận"
-            />
+              label="Dung sai cam kết — hiển thị ở dải dung sai trang chủ và chân trang"
+              optionalLabel={null}
+            >
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.toleranceSpec || ''}
+                  onChange={(e) => handleChange('toleranceSpec', e.target.value)}
+                  placeholder="VD: Đo kiểm kích thước theo bản vẽ thoả thuận"
+                />
+              )}
+            </Field>
             <div className="flex justify-end">
               <InfoTip label="Để trống dung sai cam kết thì sao?">
                 Để trống ⇒ trang chủ/chân trang hiện &ldquo;Chưa cấu hình&rdquo; và KHÔNG hiện một con số đoán.
@@ -412,188 +468,203 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
       {/* Tab 2: Top Announcement */}
       {activeTab === 'announcement' && (
-        <div className="bg-surface rounded-lg p-6 shadow-e1 space-y-5 animate-in fade-in duration-200">
+        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
           <div className="border-b border-line-subtle pb-4">
-            <h3 className="font-bold text-base text-fg flex items-center gap-2">
-              <Icon name="campaign" size={24} className="text-primary" />
-              Thanh Thông Báo &amp; Chiến Dịch Đầu Trang (Top Announcement Bar)
+            <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
+              <Icon name="campaign" size={22} className="text-fg-muted" />
+              Thanh Thông Báo &amp; Chiến Dịch Đầu Trang
             </h3>
-            <p className="text-xs text-fg-subtle mt-0.5">
+            <p className="text-xs text-fg-subtle mt-1">
               Cấu hình dải thông báo khuyến mại, sự kiện quốc khánh hoặc tin tức khẩn cấp hiển thị trên cùng website.
             </p>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-canvas rounded-lg border border-line">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-line-subtle bg-surface-muted p-4">
             <div>
-              <p className="font-bold text-xs text-fg">Bật / Tắt Thanh Thông Báo</p>
-              <p className="text-xs text-fg-subtle">
-                Cho phép dải banner xuất hiện trên đỉnh của mọi trang. CHƯA CẤU HÌNH ⇒ công tắc
-                đang TẮT và banner KHÔNG hiển thị (Header và trang chủ chỉ hiện khi giá trị này
+              <p className="text-sm font-medium text-fg">Bật / Tắt Thanh Thông Báo</p>
+              <p className="text-xs text-fg-subtle mt-1">
+                Cho phép dải thông báo xuất hiện trên đỉnh của mọi trang. CHƯA CẤU HÌNH ⇒ công tắc
+                đang TẮT và dải thông báo KHÔNG hiển thị (phần đầu trang và trang chủ chỉ hiện khi giá trị này
                 được bật).
               </p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label className="relative inline-flex shrink-0 cursor-pointer items-center">
               <input
-                type="checkbox"
-                checked={localContent.announcementActive === true}
+                type="checkbox" checked={localContent.announcementActive === true}
                 onChange={(e) => handleChange('announcementActive', e.target.checked)}
-                className="sr-only peer"
+                aria-label={isVi ? 'Bật / Tắt Thanh Thông Báo' : 'Enable / disable announcement bar'}
+                className="peer sr-only"
               />
-              <div className="w-11 h-6 bg-line-subtle peer-focus:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-line after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-line after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div className="h-6 w-11 rounded-full bg-line-control transition-colors duration-200 peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring motion-reduce:transition-none after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-line after:bg-surface after:transition-all after:content-[''] peer-checked:after:translate-x-full motion-reduce:after:transition-none"></div>
             </label>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Huy Hiệu (Badge Chiến Dịch)</label>
-              <input
-                type="text"
-                value={localContent.announcementBadge || ''}
-                onChange={(e) => handleChange('announcementBadge', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold text-primary"
-                placeholder="Nhập huy hiệu chiến dịch (để trống thì ẩn)"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Huy Hiệu Chiến Dịch" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.announcementBadge || ''}
+                  onChange={(e) => handleChange('announcementBadge', e.target.value)}
+                  placeholder="Nhập huy hiệu chiến dịch (để trống thì ẩn)"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Nội Dung Nút Hành Động (CTA Button)</label>
-              <input
-                type="text"
-                value={localContent.announcementActionText || ''}
-                onChange={(e) => handleChange('announcementActionText', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
-                placeholder="VD: Xem sản phẩm trong bộ sưu tập"
-              />
-            </div>
+            <Field label="Nội Dung Nút Hành Động" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.announcementActionText || ''}
+                  onChange={(e) => handleChange('announcementActionText', e.target.value)}
+                  placeholder="VD: Xem sản phẩm trong bộ sưu tập"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="font-bold text-fg">Nội Dung Thông Điệp Chi Tiết</label>
-              <input
-                type="text"
-                value={localContent.announcementText || ''}
-                onChange={(e) => handleChange('announcementText', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs"
-                placeholder="Nhập thông điệp thông báo..."
-              />
-            </div>
+            <Field label="Nội Dung Thông Điệp Chi Tiết" className="md:col-span-2" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.announcementText || ''}
+                  onChange={(e) => handleChange('announcementText', e.target.value)}
+                  placeholder="Nhập thông điệp thông báo..."
+                />
+              )}
+            </Field>
           </div>
         </div>
       )}
 
       {/* Tab 3: Workflow */}
       {activeTab === 'workflow' && (
-        <div className="bg-surface rounded-lg p-6 shadow-e1 space-y-6 animate-in fade-in duration-200">
+        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
           <div className="border-b border-line-subtle pb-4">
-            <h3 className="font-bold text-base text-fg flex items-center gap-2">
-              <Icon name="precision_manufacturing" size={24} className="text-primary" />
-              Khối Quy Trình Chế Tác Xưởng 3 Bước (3-Step Workshop Workflow)
+            <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
+              <Icon name="precision_manufacturing" size={22} className="text-fg-muted" />
+              Khối Quy Trình Chế Tác Xưởng 3 Bước
             </h3>
-            <p className="text-xs text-fg-subtle mt-0.5">
-              Giới thiệu quy trình sản xuất chuyên nghiệp từ khâu tải file, cắt lớp đến kiểm định chất lượng xuất xưởng.
+            <p className="text-xs text-fg-subtle mt-1">
+              Giới thiệu quy trình sản xuất chuyên nghiệp từ khâu tải tệp, cắt lớp đến kiểm định chất lượng xuất xưởng.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Badge Khối Quy Trình</label>
-              <input
-                type="text"
-                value={localContent.workflowBadge || ''}
-                onChange={(e) => handleChange('workflowBadge', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg font-mono text-xs text-primary"
-                placeholder="CHRONICLE // QUY TRÌNH XƯỞNG"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Huy Hiệu Khối Quy Trình" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.workflowBadge || ''}
+                  onChange={(e) => handleChange('workflowBadge', e.target.value)}
+                  className="font-mono"
+                  placeholder="QUY TRÌNH XƯỞNG"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Tiêu Đề Khối Quy Trình</label>
-              <input
-                type="text"
-                value={localContent.workflowTitle || ''}
-                onChange={(e) => handleChange('workflowTitle', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg font-bold text-xs"
-                placeholder="Quy Trình Gia Công 3 Bước Chuẩn Xác"
-              />
-            </div>
+            <Field label="Tiêu Đề Khối Quy Trình" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.workflowTitle || ''}
+                  onChange={(e) => handleChange('workflowTitle', e.target.value)}
+                  placeholder="Quy Trình Gia Công 3 Bước Chuẩn Xác"
+                />
+              )}
+            </Field>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Phase 1 */}
-            <div className="p-4 bg-canvas border border-line rounded-lg space-y-3 text-xs">
+            <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-4">
               <div className="flex items-center justify-between border-b border-line-subtle pb-2">
-                <span className="font-mono text-xs font-bold text-primary uppercase">PHASE 01</span>
-                <span className="font-bold text-fg-subtle font-mono">01</span>
+                <span className="font-mono text-xs font-semibold uppercase text-fg-muted">GIAI ĐOẠN 01</span>
+                <span className="font-mono text-xs font-medium text-fg-subtle">01</span>
               </div>
-              <div className="space-y-1">
-                <label className="font-bold text-fg">Tên Bước 1</label>
-                <input
-                  type="text"
-                  value={localContent.workflowStep1Title || ''}
-                  onChange={(e) => handleChange('workflowStep1Title', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs font-bold"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-bold text-fg">Mô Tả Bước 1</label>
-                <textarea
-                  rows={3}
-                  value={localContent.workflowStep1Desc || ''}
-                  onChange={(e) => handleChange('workflowStep1Desc', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs leading-relaxed"
-                />
-              </div>
+              <Field label="Tên Bước 1" optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    value={localContent.workflowStep1Title || ''}
+                    onChange={(e) => handleChange('workflowStep1Title', e.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label="Mô Tả Bước 1" optionalLabel={null}>
+                {(control) => (
+                  <textarea
+                    {...control}
+                    rows={3}
+                    value={localContent.workflowStep1Desc || ''}
+                    onChange={(e) => handleChange('workflowStep1Desc', e.target.value)}
+                    className={TEXTAREA_CLASS}
+                  />
+                )}
+              </Field>
             </div>
 
             {/* Phase 2 */}
-            <div className="p-4 bg-canvas border border-line rounded-lg space-y-3 text-xs">
+            <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-4">
               <div className="flex items-center justify-between border-b border-line-subtle pb-2">
-                <span className="font-mono text-xs font-bold text-primary uppercase">PHASE 02</span>
-                <span className="font-bold text-fg-subtle font-mono">02</span>
+                <span className="font-mono text-xs font-semibold uppercase text-fg-muted">GIAI ĐOẠN 02</span>
+                <span className="font-mono text-xs font-medium text-fg-subtle">02</span>
               </div>
-              <div className="space-y-1">
-                <label className="font-bold text-fg">Tên Bước 2</label>
-                <input
-                  type="text"
-                  value={localContent.workflowStep2Title || ''}
-                  onChange={(e) => handleChange('workflowStep2Title', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs font-bold"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-bold text-fg">Mô Tả Bước 2</label>
-                <textarea
-                  rows={3}
-                  value={localContent.workflowStep2Desc || ''}
-                  onChange={(e) => handleChange('workflowStep2Desc', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs leading-relaxed"
-                />
-              </div>
+              <Field label="Tên Bước 2" optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    value={localContent.workflowStep2Title || ''}
+                    onChange={(e) => handleChange('workflowStep2Title', e.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label="Mô Tả Bước 2" optionalLabel={null}>
+                {(control) => (
+                  <textarea
+                    {...control}
+                    rows={3}
+                    value={localContent.workflowStep2Desc || ''}
+                    onChange={(e) => handleChange('workflowStep2Desc', e.target.value)}
+                    className={TEXTAREA_CLASS}
+                  />
+                )}
+              </Field>
             </div>
 
             {/* Phase 3 */}
-            <div className="p-4 bg-canvas border border-line rounded-lg space-y-3 text-xs">
+            <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-4">
               <div className="flex items-center justify-between border-b border-line-subtle pb-2">
-                <span className="font-mono text-xs font-bold text-primary uppercase">PHASE 03</span>
-                <span className="font-bold text-fg-subtle font-mono">03</span>
+                <span className="font-mono text-xs font-semibold uppercase text-fg-muted">GIAI ĐOẠN 03</span>
+                <span className="font-mono text-xs font-medium text-fg-subtle">03</span>
               </div>
-              <div className="space-y-1">
-                <label className="font-bold text-fg">Tên Bước 3</label>
-                <input
-                  type="text"
-                  value={localContent.workflowStep3Title || ''}
-                  onChange={(e) => handleChange('workflowStep3Title', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs font-bold"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-bold text-fg">Mô Tả Bước 3</label>
-                <textarea
-                  rows={3}
-                  value={localContent.workflowStep3Desc || ''}
-                  onChange={(e) => handleChange('workflowStep3Desc', e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs leading-relaxed"
-                />
-              </div>
+              <Field label="Tên Bước 3" optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    value={localContent.workflowStep3Title || ''}
+                    onChange={(e) => handleChange('workflowStep3Title', e.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label="Mô Tả Bước 3" optionalLabel={null}>
+                {(control) => (
+                  <textarea
+                    {...control}
+                    rows={3}
+                    value={localContent.workflowStep3Desc || ''}
+                    onChange={(e) => handleChange('workflowStep3Desc', e.target.value)}
+                    className={TEXTAREA_CLASS}
+                  />
+                )}
+              </Field>
             </div>
           </div>
         </div>
@@ -601,195 +672,218 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
       {/* Tab 4: Estimator */}
       {activeTab === 'estimator' && (
-        <div className="bg-surface rounded-lg p-6 shadow-e1 space-y-5 animate-in fade-in duration-200">
+        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
           <div className="border-b border-line-subtle pb-4">
-            <h3 className="font-bold text-base text-fg flex items-center gap-2">
-              <Icon name="calculate" size={24} className="text-primary" />
-              Khối Ước Tính Giá &amp; Mô Phỏng Lát Cắt Trực Tiếp (Live Estimator)
+            <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
+              <Icon name="calculate" size={22} className="text-fg-muted" />
+              Khối Ước Tính Giá &amp; Mô Phỏng Lát Cắt Trực Tiếp
             </h3>
-            <p className="text-xs text-fg-subtle mt-0.5">
+            <p className="text-xs text-fg-subtle mt-1">
               Nội dung tiêu đề và các cam kết kỹ thuật hiển thị trên công cụ tính chi phí in nhanh.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Badge Bộ Tính Giá</label>
-              <input
-                type="text"
-                value={localContent.estimatorBadge || ''}
-                onChange={(e) => handleChange('estimatorBadge', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg font-mono text-xs text-primary"
-                placeholder="VCUBE FAST ESTIMATOR // LIVE QUOTE"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Huy Hiệu Bộ Tính Giá" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.estimatorBadge || ''}
+                  onChange={(e) => handleChange('estimatorBadge', e.target.value)}
+                  className="font-mono"
+                  placeholder="BỘ TÍNH GIÁ NHANH VCUBE // BÁO GIÁ TRỰC TIẾP"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Tiêu Đề Khối Ước Tính</label>
-              <input
-                type="text"
-                value={localContent.estimatorTitle || ''}
-                onChange={(e) => handleChange('estimatorTitle', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg font-bold text-xs"
-                placeholder="Mô Phỏng & Ước Tính Chi Phí In 3D Trực Tiếp"
-              />
-            </div>
+            <Field label="Tiêu Đề Khối Ước Tính" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.estimatorTitle || ''}
+                  onChange={(e) => handleChange('estimatorTitle', e.target.value)}
+                  placeholder="Mô Phỏng & Ước Tính Chi Phí In 3D Trực Tiếp"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="font-bold text-fg">Mô Tả Phụ</label>
-              <input
-                type="text"
-                value={localContent.estimatorSubtitle || ''}
-                onChange={(e) => handleChange('estimatorSubtitle', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs"
-                placeholder="Chọn vật liệu kỹ thuật, độ đặc infill và kích cỡ mẫu..."
-              />
-            </div>
+            <Field label="Mô Tả Phụ" className="md:col-span-2" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.estimatorSubtitle || ''}
+                  onChange={(e) => handleChange('estimatorSubtitle', e.target.value)}
+                  placeholder="Chọn vật liệu kỹ thuật, độ đặc và kích cỡ mẫu..."
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Quyền Lợi / Cam Kết 1</label>
-              <input
-                type="text"
-                value={localContent.estimatorBenefit1 || ''}
-                onChange={(e) => handleChange('estimatorBenefit1', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs"
-                placeholder="Tự động tính toán theo tỉ trọng vật liệu g/cm³"
-              />
-            </div>
+            <Field label="Quyền Lợi / Cam Kết 1" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.estimatorBenefit1 || ''}
+                  onChange={(e) => handleChange('estimatorBenefit1', e.target.value)}
+                  placeholder="Tự động tính toán theo tỉ trọng vật liệu g/cm³"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Quyền Lợi / Cam Kết 2</label>
-              <input
-                type="text"
-                value={localContent.estimatorBenefit2 || ''}
-                onChange={(e) => handleChange('estimatorBenefit2', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs"
-                placeholder="Miễn phí gọt support & rửa cồn siêu âm UV"
-              />
-            </div>
+            <Field label="Quyền Lợi / Cam Kết 2" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.estimatorBenefit2 || ''}
+                  onChange={(e) => handleChange('estimatorBenefit2', e.target.value)}
+                  placeholder="Miễn phí gọt vật liệu đỡ & rửa cồn siêu âm UV"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="font-bold text-fg">Nút Kêu Gọi Hành Động (CTA Button Text)</label>
-              <input
-                type="text"
-                value={localContent.estimatorCtaText || ''}
-                onChange={(e) => handleChange('estimatorCtaText', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
-                placeholder="Tải File STL Lên Để Báo Giá Chi Tiết →"
-              />
-            </div>
+            <Field label="Nút Kêu Gọi Hành Động" className="md:col-span-2" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.estimatorCtaText || ''}
+                  onChange={(e) => handleChange('estimatorCtaText', e.target.value)}
+                  placeholder="Tải Tệp STL Lên Để Báo Giá Chi Tiết →"
+                />
+              )}
+            </Field>
           </div>
         </div>
       )}
 
       {/* Tab 5: Facilities, Partners & Shipping */}
       {activeTab === 'facilities' && (
-        <div className="bg-surface rounded-lg p-6 shadow-e1 space-y-6 animate-in fade-in duration-200">
+        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
           <div className="border-b border-line-subtle pb-4">
-            <h3 className="font-bold text-base text-fg flex items-center gap-2">
-              <Icon name="domain" size={24} className="text-primary" />
+            <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
+              <Icon name="domain" size={22} className="text-fg-muted" />
               Đối Tác Tin Cậy, Cơ Sở Xưởng &amp; Vận Chuyển
             </h3>
-            <p className="text-xs text-fg-subtle mt-0.5">
-              Cấu hình dải logo đối tác, địa chỉ xưởng và chính sách phí ship.
+            <p className="text-xs text-fg-subtle mt-1">
+              Cấu hình dải logo đối tác, địa chỉ xưởng và chính sách phí vận chuyển.
             </p>
           </div>
 
-          <div className="space-y-4 text-xs">
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Tiêu Đề Dải Đối Tác (Trust Partners Banner Title)</label>
-              <input
-                type="text"
-                value={localContent.trustPartnersTitle || ''}
-                onChange={(e) => handleChange('trustPartnersTitle', e.target.value)}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
-                placeholder="Được Tin Cậy Bởi Các Đơn Vị R&D & Xưởng Cơ Khí"
-              />
-            </div>
+          <div className="space-y-4">
+            <Field label="Tiêu Đề Dải Đối Tác" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.trustPartnersTitle || ''}
+                  onChange={(e) => handleChange('trustPartnersTitle', e.target.value)}
+                  placeholder="Được Tin Cậy Bởi Các Đơn Vị R&D & Xưởng Cơ Khí"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">Danh Sách Đối Tác (Cách nhau bằng dấu phẩy)</label>
-              <input
-                type="text"
-                value={Array.isArray(localContent.trustPartnersList) ? localContent.trustPartnersList.join(', ') : ''}
-                onChange={(e) => handleChange('trustPartnersList', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono"
-                placeholder="BK ROBOTICS LAB, FPT HI-TECH INNOVATION, VNU AEROSPACE LAB, ..."
-              />
-              <p className="text-xs text-fg-subtle">Mỗi đơn vị sẽ được tự động hiển thị dưới dạng một chip công nghệ trên trang chủ.</p>
-            </div>
+            <Field label="Danh Sách Đối Tác (Cách nhau bằng dấu phẩy)"
+              hint="Mỗi đơn vị sẽ được tự động hiển thị dưới dạng một chip công nghệ trên trang chủ."
+              optionalLabel={null}
+            >
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={Array.isArray(localContent.trustPartnersList) ? localContent.trustPartnersList.join(', ') : ''}
+                  onChange={(e) => handleChange('trustPartnersList', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                  className="font-mono"
+                  placeholder="BK ROBOTICS LAB, FPT HI-TECH INNOVATION, VNU AEROSPACE LAB, ..."
+                />
+              )}
+            </Field>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div className="space-y-1.5">
-                <label className="font-bold text-fg">Địa Chỉ Xưởng Hà Nội</label>
-                <input
-                  type="text"
-                  value={localContent.hanoiWorkshopAddress || ''}
-                  onChange={(e) => handleChange('hanoiWorkshopAddress', e.target.value)}
-                  className="w-full p-2.5 border border-line-control rounded-lg text-xs"
-                />
-              </div>
+              <Field label="Địa Chỉ Xưởng Hà Nội" optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    value={localContent.hanoiWorkshopAddress || ''}
+                    onChange={(e) => handleChange('hanoiWorkshopAddress', e.target.value)}
+                  />
+                )}
+              </Field>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-fg">Địa Chỉ Xưởng TP. Hồ Chí Minh</label>
-                <input
-                  type="text"
-                  value={localContent.hcmWorkshopAddress || ''}
-                  onChange={(e) => handleChange('hcmWorkshopAddress', e.target.value)}
-                  className="w-full p-2.5 border border-line-control rounded-lg text-xs"
-                />
-              </div>
+              <Field label="Địa Chỉ Xưởng TP. Hồ Chí Minh" optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    value={localContent.hcmWorkshopAddress || ''}
+                    onChange={(e) => handleChange('hcmWorkshopAddress', e.target.value)}
+                  />
+                )}
+              </Field>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-fg">Hotline Kỹ Thuật</label>
-                <input
-                  type="text"
-                  value={localContent.hotline || ''}
-                  onChange={(e) => handleChange('hotline', e.target.value)}
-                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono"
-                />
-              </div>
+              <Field label="Đường Dây Nóng Kỹ Thuật" optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    value={localContent.hotline || ''}
+                    onChange={(e) => handleChange('hotline', e.target.value)}
+                    className="font-mono"
+                  />
+                )}
+              </Field>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-fg">Email Tiếp Nhận Hồ Sơ CAD</label>
-                <input
-                  type="email"
-                  value={localContent.contactEmail || ''}
-                  onChange={(e) => handleChange('contactEmail', e.target.value)}
-                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono"
-                />
-              </div>
+              <Field label="Email Tiếp Nhận Hồ Sơ CAD" optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="email"
+                    value={localContent.contactEmail || ''}
+                    onChange={(e) => handleChange('contactEmail', e.target.value)}
+                    className="font-mono"
+                  />
+                )}
+              </Field>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-fg">Ngưỡng Miễn Phí Vận Chuyển (VNĐ)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={shippingInputValue(localContent.freeShippingThreshold)}
-                  onChange={(e) => handleShippingChange('freeShippingThreshold', e.target.value)}
-                  placeholder={isVi ? 'Chưa cấu hình' : 'Not configured'}
-                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono font-bold"
-                />
-                <p className="text-xs text-fg-muted">
-                  Để trống = CHƯA cấu hình (ô hiển thị trống, hệ thống không tự điền số mặc định).
-                  Nhập 0 nghĩa là mọi đơn đều được miễn phí vận chuyển.
-                </p>
-              </div>
+              <Field label="Ngưỡng Miễn Phí Vận Chuyển (VNĐ)"
+                hint="Để trống = CHƯA cấu hình (ô hiển thị trống, hệ thống không tự điền số mặc định). Nhập 0 nghĩa là mọi đơn đều được miễn phí vận chuyển."
+                optionalLabel={null}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="number"
+                    min={0}
+                    numeric
+                    value={shippingInputValue(localContent.freeShippingThreshold)}
+                    onChange={(e) => handleShippingChange('freeShippingThreshold', e.target.value)}
+                    placeholder={isVi ? 'Chưa cấu hình' : 'Not configured'}
+                    className="font-mono"
+                  />
+                )}
+              </Field>
 
-              <div className="space-y-1.5">
-                <label className="font-bold text-fg">Phí Vận Chuyển Tiêu Chuẩn (VNĐ)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={shippingInputValue(localContent.standardShippingFee)}
-                  onChange={(e) => handleShippingChange('standardShippingFee', e.target.value)}
-                  placeholder={isVi ? 'Chưa cấu hình' : 'Not configured'}
-                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono font-bold"
-                />
-                <p className="text-xs text-fg-muted">
-                  Để trống = CHƯA cấu hình. Nhập 0 nghĩa là không thu phí vận chuyển.
-                </p>
-              </div>
+              <Field label="Phí Vận Chuyển Tiêu Chuẩn (VNĐ)"
+                hint="Để trống = CHƯA cấu hình. Nhập 0 nghĩa là không thu phí vận chuyển."
+                optionalLabel={null}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="number"
+                    min={0}
+                    numeric
+                    value={shippingInputValue(localContent.standardShippingFee)}
+                    onChange={(e) => handleShippingChange('standardShippingFee', e.target.value)}
+                    placeholder={isVi ? 'Chưa cấu hình' : 'Not configured'}
+                    className="font-mono"
+                  />
+                )}
+              </Field>
             </div>
           </div>
         </div>
@@ -797,24 +891,24 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
       {/* Tab 6: Custom 3D Model by Idea Section */}
       {activeTab === 'customIdea' && (
-        <div className="bg-surface rounded-lg p-6 shadow-e1 space-y-6 animate-in fade-in duration-200">
+        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
           <div className="border-b border-line-subtle pb-4">
-            <h3 className="font-bold text-base text-fg flex items-center gap-2">
-              <Icon name="design_services" size={24} className="text-primary" />
-              {isVi ? 'Cấu Hình Dịch Vụ Custom 3D & Dựng Mô Hình Từ Ý Tưởng' : 'Custom 3D CAD Modeling & Idea Service CMS'}
+            <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
+              <Icon name="design_services" size={22} className="text-fg-muted" />
+              {isVi ? 'Cấu Hình Dịch Vụ CAD Theo Yêu Cầu & Dựng Mô Hình Từ Ý Tưởng' : 'Custom 3D CAD Modeling & Idea Service CMS'}
             </h3>
-            <p className="text-xs text-fg-subtle mt-0.5">
+            <p className="text-xs text-fg-subtle mt-1">
               {isVi
-                ? 'Tùy chỉnh tiêu đề, thông điệp, quy trình 3 giai đoạn và banner của khối dịch vụ thiết kế theo yêu cầu trên Landing Page.'
+                ? 'Tùy chỉnh tiêu đề, thông điệp, quy trình 3 giai đoạn và dải quảng cáo của khối dịch vụ thiết kế theo yêu cầu trên trang chủ.'
                 : 'Customize headline, narrative, 3-stage process workflow, and promotional banner for the custom CAD modeling service on the Landing Page.'}
             </p>
           </div>
 
           {/* Active Toggle */}
-          <div className="flex items-center justify-between p-4 bg-surface-muted rounded-lg border border-line-subtle">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-line-subtle bg-surface-muted p-4">
             <div>
-              <span className="font-bold text-fg text-xs block">
-                {isVi ? 'Bật hiển thị Section trên Trang chủ' : 'Enable Section on Landing Page'}
+              <span className="text-sm font-medium text-fg block">
+                {isVi ? 'Bật hiển thị khối trên trang chủ' : 'Enable Section on Landing Page'}
               </span>
               <span className="text-xs text-fg-muted">
                 {isVi
@@ -826,157 +920,175 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
               type="checkbox"
               checked={localContent.customIdeaActive !== false}
               onChange={(e) => handleChange('customIdeaActive', e.target.checked)}
-              className="size-5 rounded border-line-control text-primary focus:ring-primary cursor-pointer"
+              aria-label={isVi ? 'Bật hiển thị khối trên trang chủ' : 'Enable Section on Landing Page'}
+              className="size-5 shrink-0 cursor-pointer rounded-sm border border-line-control accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
           {/* Section Headlines */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">{isVi ? 'Badge Trên Cùng' : 'Top Badge'}</label>
-              <input
-                type="text"
-                value={localContent.customIdeaBadge || ''}
-                onChange={(e) => handleChange('customIdeaBadge', e.target.value)}
-                placeholder="CUSTOM CAD // THEO Ý TƯỞNG"
-                className="w-full p-2.5 border border-line-control rounded-lg font-mono text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label={isVi ? 'Huy Hiệu Trên Cùng' : 'Top Badge'} optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.customIdeaBadge || ''}
+                  onChange={(e) => handleChange('customIdeaBadge', e.target.value)}
+                  placeholder="CAD THEO YÊU CẦU // THEO Ý TƯỞNG"
+                  className="font-mono"
+                />
+              )}
+            </Field>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-fg">{isVi ? 'Nút Kêu Gọi Hành Động (CTA Text)' : 'CTA Button Label'}</label>
-              <input
-                type="text"
-                value={localContent.customIdeaCtaText || ''}
-                onChange={(e) => handleChange('customIdeaCtaText', e.target.value)}
-                placeholder={isVi ? 'Đăng Ký Dịch Vụ Custom Từ Ý Tưởng' : 'Submit Custom 3D Idea'}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-              />
-            </div>
+            <Field label={isVi ? 'Nút Kêu Gọi Hành Động' : 'CTA Button Label'} optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.customIdeaCtaText || ''}
+                  onChange={(e) => handleChange('customIdeaCtaText', e.target.value)}
+                  placeholder={isVi ? 'Đăng Ký Dịch Vụ Thiết Kế Từ Ý Tưởng' : 'Submit Custom 3D Idea'}
+                />
+              )}
+            </Field>
 
-            <div className="md:col-span-2 space-y-1.5">
-              <label className="font-bold text-fg">{isVi ? 'Tiêu Đề Chính Section' : 'Main Section Headline'}</label>
-              <input
-                type="text"
-                value={localContent.customIdeaTitle || ''}
-                onChange={(e) => handleChange('customIdeaTitle', e.target.value)}
-                placeholder={isVi ? 'Biến Ý Tưởng Thành Bản Vẽ CAD 3D & Sản Phẩm Thực Tế' : 'Transform Concept Ideas into Precision 3D CAD & Physical Prototypes'}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-              />
-            </div>
+            <Field label={isVi ? 'Tiêu Đề Chính Khối' : 'Main Section Headline'} className="md:col-span-2" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.customIdeaTitle || ''}
+                  onChange={(e) => handleChange('customIdeaTitle', e.target.value)}
+                  placeholder={isVi ? 'Biến Ý Tưởng Thành Bản Vẽ CAD 3D & Sản Phẩm Thực Tế' : 'Transform Concept Ideas into Precision 3D CAD & Physical Prototypes'}
+                />
+              )}
+            </Field>
 
-            <div className="md:col-span-2 space-y-1.5">
-              <label className="font-bold text-fg">{isVi ? 'Mô Tả Phụ (Subtitle)' : 'Subtitle Description'}</label>
-              <textarea
-                rows={2}
-                value={localContent.customIdeaSubtitle || ''}
-                onChange={(e) => handleChange('customIdeaSubtitle', e.target.value)}
-                placeholder={isVi ? 'Bạn chưa có file CAD 3D? Chỉ cần phác thảo sơ bộ hoặc bài toán thực tế, đội ngũ kỹ sư VCUBE sẽ dựng mô hình CAD chuẩn kỹ thuật và gia công mẫu thử nghiệm bàn giao tận tay.' : 'No 3D CAD file yet? Provide preliminary sketches or functional criteria, and VCUBE engineers will build engineering-grade CAD models and deliver physical prototypes.'}
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-              />
-            </div>
+            <Field label={isVi ? 'Mô Tả Phụ' : 'Subtitle Description'} className="md:col-span-2" optionalLabel={null}>
+              {(control) => (
+                <textarea
+                  {...control}
+                  rows={2}
+                  value={localContent.customIdeaSubtitle || ''}
+                  onChange={(e) => handleChange('customIdeaSubtitle', e.target.value)}
+                  placeholder={isVi ? 'Bạn chưa có tệp CAD 3D? Chỉ cần phác thảo sơ bộ hoặc bài toán thực tế, đội ngũ kỹ sư VCUBE sẽ dựng mô hình CAD chuẩn kỹ thuật và gia công mẫu thử nghiệm bàn giao tận tay.' : 'No 3D CAD file yet? Provide preliminary sketches or functional criteria, and VCUBE engineers will build engineering-grade CAD models and deliver physical prototypes.'}
+                  className={TEXTAREA_CLASS}
+                />
+              )}
+            </Field>
 
-            <div className="md:col-span-2 space-y-1.5">
-              <label className="font-bold text-fg">{isVi ? 'Đường Dẫn Ảnh Banner Đại Diện (Image URL)' : 'Banner Image URL'}</label>
-              <input
-                type="text"
-                value={localContent.customIdeaImageUrl || ''}
-                onChange={(e) => handleChange('customIdeaImageUrl', e.target.value)}
-                placeholder="Dán URL ảnh (https://…)"
-                className="w-full p-2.5 border border-line-control rounded-lg text-xs font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-              />
-            </div>
+            <Field label={isVi ? 'Đường Dẫn Ảnh Đại Diện (URL)' : 'Banner Image URL'} className="md:col-span-2" optionalLabel={null}>
+              {(control) => (
+                <Input
+                  {...control}
+                  type="text"
+                  value={localContent.customIdeaImageUrl || ''}
+                  onChange={(e) => handleChange('customIdeaImageUrl', e.target.value)}
+                  placeholder="Dán URL ảnh (https://…)"
+                  className="font-mono"
+                />
+              )}
+            </Field>
           </div>
 
           {/* 3-Stage Process Configuration */}
-          <div className="border-t border-line-subtle pt-5 space-y-4">
-            <h4 className="font-bold text-xs uppercase tracking-wider text-primary font-mono">
+          <div className="border-t border-line-subtle pt-6 space-y-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-fg-muted font-mono">
               {isVi ? 'CẤU HÌNH QUY TRÌNH 3 GIAI ĐOẠN' : '3-STAGE WORKFLOW CONFIGURATION'}
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Step 1 */}
-              <div className="p-4 rounded-lg bg-surface-muted border border-line space-y-3">
-                <div className="flex items-center gap-2 text-primary font-mono font-bold">
-                  <span className="px-2 py-0.5 rounded bg-primary-tint border border-primary/20">01</span>
+              <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-4">
+                <div className="flex items-center gap-2 font-mono font-semibold text-fg">
+                  <span className="rounded-sm border border-line bg-surface px-2 py-0.5">01</span>
                   <span>{isVi ? 'Giai Đoạn 1' : 'Stage 1'}</span>
                 </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-fg block">{isVi ? 'Tiêu đề' : 'Title'}</label>
-                  <input
-                    type="text"
-                    value={localContent.customIdeaStep1Title || ''}
-                    onChange={(e) => handleChange('customIdeaStep1Title', e.target.value)}
-                    placeholder={isVi ? 'Tiếp Nhận Ý Tưởng & Phác Thảo' : 'Idea Intake & Concept Sketching'}
-                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-fg block">{isVi ? 'Nội dung mô tả' : 'Description'}</label>
-                  <textarea
-                    rows={3}
-                    value={localContent.customIdeaStep1Desc || ''}
-                    onChange={(e) => handleChange('customIdeaStep1Desc', e.target.value)}
-                    placeholder={isVi ? 'Cung cấp bản vẽ tay, ảnh chụp mẫu vật hoặc mô tả bài toán công năng. Kỹ sư tiếp nhận, phân tích tính khả thi DFM và lập phương án sơ bộ.' : 'Submit preliminary hand sketches, physical photos, or functional criteria. Engineers assess DFM feasibility and establish design briefs.'}
-                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
+                <Field label={isVi ? 'Tiêu đề' : 'Title'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={localContent.customIdeaStep1Title || ''}
+                      onChange={(e) => handleChange('customIdeaStep1Title', e.target.value)}
+                      placeholder={isVi ? 'Tiếp Nhận Ý Tưởng & Phác Thảo' : 'Idea Intake & Concept Sketching'}
+                    />
+                  )}
+                </Field>
+                <Field label={isVi ? 'Nội dung mô tả' : 'Description'} optionalLabel={null}>
+                  {(control) => (
+                    <textarea
+                      {...control}
+                      rows={3}
+                      value={localContent.customIdeaStep1Desc || ''}
+                      onChange={(e) => handleChange('customIdeaStep1Desc', e.target.value)}
+                      placeholder={isVi ? 'Cung cấp bản vẽ tay, ảnh chụp mẫu vật hoặc mô tả bài toán công năng. Kỹ sư tiếp nhận, phân tích tính khả thi DFM và lập phương án sơ bộ.' : 'Submit preliminary hand sketches, physical photos, or functional criteria. Engineers assess DFM feasibility and establish design briefs.'}
+                      className={TEXTAREA_CLASS}
+                    />
+                  )}
+                </Field>
               </div>
 
               {/* Step 2 */}
-              <div className="p-4 rounded-lg bg-surface-muted border border-line space-y-3">
-                <div className="flex items-center gap-2 text-primary font-mono font-bold">
-                  <span className="px-2 py-0.5 rounded bg-primary-tint border border-primary/20">02</span>
+              <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-4">
+                <div className="flex items-center gap-2 font-mono font-semibold text-fg">
+                  <span className="rounded-sm border border-line bg-surface px-2 py-0.5">02</span>
                   <span>{isVi ? 'Giai Đoạn 2' : 'Stage 2'}</span>
                 </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-fg block">{isVi ? 'Tiêu đề' : 'Title'}</label>
-                  <input
-                    type="text"
-                    value={localContent.customIdeaStep2Title || ''}
-                    onChange={(e) => handleChange('customIdeaStep2Title', e.target.value)}
-                    placeholder={isVi ? 'Thiết Kế CAD 3D Chuẩn Kỹ Thuật' : 'Parametric 3D CAD Modeling'}
-                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-fg block">{isVi ? 'Nội dung mô tả' : 'Description'}</label>
-                  <textarea
-                    rows={3}
-                    value={localContent.customIdeaStep2Desc || ''}
-                    onChange={(e) => handleChange('customIdeaStep2Desc', e.target.value)}
-                    placeholder={isVi ? 'Mô hình hoá tham số B-Rep trên phần mềm cơ khí chuyên nghiệp, kiểm tra lắp ghép dung sai ren cấy và tối ưu cho công nghệ in 3D.' : 'Parametric B-Rep solid modeling, tolerance assembly fit checks, and Design for Additive Manufacturing (DFAM) optimization.'}
-                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
+                <Field label={isVi ? 'Tiêu đề' : 'Title'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={localContent.customIdeaStep2Title || ''}
+                      onChange={(e) => handleChange('customIdeaStep2Title', e.target.value)}
+                      placeholder={isVi ? 'Thiết Kế CAD 3D Chuẩn Kỹ Thuật' : 'Parametric 3D CAD Modeling'}
+                    />
+                  )}
+                </Field>
+                <Field label={isVi ? 'Nội dung mô tả' : 'Description'} optionalLabel={null}>
+                  {(control) => (
+                    <textarea
+                      {...control}
+                      rows={3}
+                      value={localContent.customIdeaStep2Desc || ''}
+                      onChange={(e) => handleChange('customIdeaStep2Desc', e.target.value)}
+                      placeholder={isVi ? 'Mô hình hoá tham số B-Rep trên phần mềm cơ khí chuyên nghiệp, kiểm tra lắp ghép dung sai ren cấy và tối ưu cho công nghệ in 3D.' : 'Parametric B-Rep solid modeling, tolerance assembly fit checks, and Design for Additive Manufacturing (DFAM) optimization.'}
+                      className={TEXTAREA_CLASS}
+                    />
+                  )}
+                </Field>
               </div>
 
               {/* Step 3 */}
-              <div className="p-4 rounded-lg bg-surface-muted border border-line space-y-3">
-                <div className="flex items-center gap-2 text-primary font-mono font-bold">
-                  <span className="px-2 py-0.5 rounded bg-primary-tint border border-primary/20">03</span>
+              <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-4">
+                <div className="flex items-center gap-2 font-mono font-semibold text-fg">
+                  <span className="rounded-sm border border-line bg-surface px-2 py-0.5">03</span>
                   <span>{isVi ? 'Giai Đoạn 3' : 'Stage 3'}</span>
                 </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-fg block">{isVi ? 'Tiêu đề' : 'Title'}</label>
-                  <input
-                    type="text"
-                    value={localContent.customIdeaStep3Title || ''}
-                    onChange={(e) => handleChange('customIdeaStep3Title', e.target.value)}
-                    placeholder={isVi ? 'In Mẫu Thử Nghiệm & Bàn Giao' : 'Rapid Prototyping & Handover'}
-                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-fg block">{isVi ? 'Nội dung mô tả' : 'Description'}</label>
-                  <textarea
-                    rows={3}
-                    value={localContent.customIdeaStep3Desc || ''}
-                    onChange={(e) => handleChange('customIdeaStep3Desc', e.target.value)}
-                    placeholder={isVi ? 'Gia công mẫu thử 1:1 bằng vật liệu kỹ thuật thực tế, đo kiểm kích thước và bàn giao bộ tệp nguồn gốc kèm quyền sở hữu bản quyền.' : '1:1 rapid physical prototyping, precision dimensional validation, and complete handover of native CAD files with commercial IP rights.'}
-                    className="w-full p-2 border border-line-control rounded bg-surface text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
+                <Field label={isVi ? 'Tiêu đề' : 'Title'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={localContent.customIdeaStep3Title || ''}
+                      onChange={(e) => handleChange('customIdeaStep3Title', e.target.value)}
+                      placeholder={isVi ? 'In Mẫu Thử Nghiệm & Bàn Giao' : 'Rapid Prototyping & Handover'}
+                    />
+                  )}
+                </Field>
+                <Field label={isVi ? 'Nội dung mô tả' : 'Description'} optionalLabel={null}>
+                  {(control) => (
+                    <textarea
+                      {...control}
+                      rows={3}
+                      value={localContent.customIdeaStep3Desc || ''}
+                      onChange={(e) => handleChange('customIdeaStep3Desc', e.target.value)}
+                      placeholder={isVi ? 'Gia công mẫu thử 1:1 bằng vật liệu kỹ thuật thực tế, đo kiểm kích thước và bàn giao bộ tệp nguồn gốc kèm quyền sở hữu bản quyền.' : '1:1 rapid physical prototyping, precision dimensional validation, and complete handover of native CAD files with commercial IP rights.'}
+                      className={TEXTAREA_CLASS}
+                    />
+                  )}
+                </Field>
               </div>
             </div>
           </div>

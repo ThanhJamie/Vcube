@@ -1,6 +1,18 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { useLanguage } from '../context/LanguageContext';
-import { Icon } from '@frontend/ui';
+import { Button, Icon } from '@frontend/ui';
+
+/**
+ * HorizontalScrollFilter — dải chip lọc cuộn ngang (W2 storefront).
+ *
+ * v3 "Soft Studio":
+ * - Bỏ 2 lớp gradient phủ `from-surface` (chúng giả định nền luôn là `surface`; trên `canvas`
+ *   hoặc card soft sẽ lộ vệt màu) → thay bằng **mask-image** trên chính khung cuộn, cùng kỹ
+ *   thuật `.nav-fade-right` mà W1 đã dùng. Mask không phải màu palette nên không phạm luật
+ *   "không gradient" của DESIGN-LANGUAGE §1.
+ * - Nút cuộn là `Button` icon-only (vùng bấm ≥44px dưới `md`), `aria-label` tiếng Việt (D0).
+ * - VI-only: bỏ nhánh `isVi ? … : …` chết vì `LanguageContext` đã khoá `vi`.
+ * - `prefers-reduced-motion`: bỏ cuộn mượt bằng `motion-reduce:scroll-auto`.
+ */
 
 interface HorizontalScrollFilterProps {
   children: React.ReactNode;
@@ -8,13 +20,16 @@ interface HorizontalScrollFilterProps {
   scrollStep?: number;
 }
 
+const FADE_LEFT = 'linear-gradient(to right, transparent 0, #000 40px)';
+const FADE_RIGHT = 'linear-gradient(to left, transparent 0, #000 40px)';
+const FADE_BOTH =
+  'linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%)';
+
 export const HorizontalScrollFilter: React.FC<HorizontalScrollFilterProps> = ({
   children,
   className = '',
   scrollStep = 260
 }) => {
-  const { language } = useLanguage();
-  const isVi = language === 'vi';
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -51,54 +66,48 @@ export const HorizontalScrollFilter: React.FC<HorizontalScrollFilterProps> = ({
     scrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
   };
 
+  /** Mask chỉ bật ở phía còn nội dung — affordance thay cho thanh cuộn bị ẩn. */
+  const fadeMask = !canScrollLeft && !canScrollRight
+    ? undefined
+    : canScrollLeft && canScrollRight
+      ? FADE_BOTH
+      : canScrollLeft
+        ? FADE_LEFT
+        : FADE_RIGHT;
+
   return (
-    <div className={`relative group/scroll ${className}`}>
-      {/* Left Chevron Button - safely inset to prevent clipping on overflow wrappers */}
+    <div className={`relative group/scroll min-w-0 ${className}`}>
       {canScrollLeft && (
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          iconOnly
+          aria-label="Cuộn sang trái"
           onClick={() => handleScroll('left')}
-          className="absolute left-1 top-1/2 -translate-y-1/2 z-panel w-8 h-8 rounded-full bg-surface/95 border border-line shadow-e2 hover:shadow-e2 flex items-center justify-center text-fg hover:bg-canvas transition-all cursor-pointer backdrop-blur-xs active:scale-95 shrink-0"
-          aria-label={isVi ? "Cuộn sang trái" : "Scroll left"}
+          className="absolute left-1 top-1/2 z-panel -translate-y-1/2 shadow-e2"
         >
           <Icon name="chevron_left" size={20} className="leading-none" />
-        </button>
+        </Button>
       )}
 
-      {/* Left Gradient Fade Mask */}
-      <div
-        className={`absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-surface via-surface/80 to-transparent pointer-events-none z-sticky transition-opacity duration-200 ${
-          canScrollLeft ? 'opacity-100' : 'opacity-0'
-        }`}
-      />
-
-      {/* Main Horizontal Scrollable Container with adequate padding */}
       <div
         ref={scrollRef}
-        className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1 px-3 sm:px-4 flex-nowrap"
+        style={fadeMask ? { maskImage: fadeMask, WebkitMaskImage: fadeMask } : undefined}
+        className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth px-1 py-1 flex-nowrap motion-reduce:scroll-auto"
       >
         {children}
       </div>
 
-      {/* Right Gradient Fade Mask */}
-      <div
-        className={`absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-surface via-surface/80 to-transparent pointer-events-none z-sticky transition-opacity duration-200 ${
-          canScrollRight ? 'opacity-100' : 'opacity-0'
-        }`}
-      />
-
-      {/* Right Chevron Button - safely inset to prevent clipping on overflow wrappers */}
       {canScrollRight && (
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          iconOnly
+          aria-label="Cuộn sang phải"
           onClick={() => handleScroll('right')}
-          className="absolute right-1 top-1/2 -translate-y-1/2 z-panel w-8 h-8 rounded-full bg-surface/95 border border-line shadow-e2 hover:shadow-e2 flex items-center justify-center text-fg hover:bg-canvas transition-all cursor-pointer backdrop-blur-xs active:scale-95 shrink-0"
-          aria-label={isVi ? "Cuộn sang phải" : "Scroll right"}
+          className="absolute right-1 top-1/2 z-panel -translate-y-1/2 shadow-e2"
         >
           <Icon name="chevron_right" size={20} className="leading-none" />
-        </button>
+        </Button>
       )}
     </div>
   );
 };
-

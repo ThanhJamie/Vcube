@@ -11,7 +11,7 @@ import { Order } from '../../../types';
 import { dbService } from '../../../../backend/supabase/database';
 import { useLanguage } from '../../../context/LanguageContext';
 import { EMPTY_VALUE, formatNumber } from '../../../lib/format';
-import { Button, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
+import { Badge, Button, EmptyState, Field, Icon, InfoTip, Input, Modal, Select, Skeleton } from '@frontend/ui';
 
 /** Mục menu đang mở panel này (`/admin/queue` hoặc `/admin/orders`) — quyết định tab mặc định. */
 export type ProductionPanelSection = 'queue' | 'orders';
@@ -300,12 +300,12 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
   const renderOrdersGate = (emptyTitle: string, emptyDescription: string) => {
     if (loadError) {
       return (
-        <div className="bg-danger-tint border border-danger/30 rounded-lg p-4 space-y-2">
-          <div className="flex items-center gap-2 text-danger font-bold text-sm">
+        <div className="bg-danger-tint border border-danger/20 rounded-lg p-4 space-y-2">
+          <div className="flex items-center gap-2 text-danger font-semibold text-sm">
             <Icon name="error" size={20} className="text-danger" />
             {isVi ? 'Không tải được đơn hàng từ Supabase' : 'Could not load orders from Supabase'}
           </div>
-          <p className="text-xs font-tech text-danger break-all">{loadError}</p>
+          <p className="text-xs font-mono text-danger break-all">{loadError}</p>
           <Button variant="secondary" size="sm" onClick={() => void loadOrders()}>
             {isVi ? 'Thử lại' : 'Retry'}
           </Button>
@@ -314,9 +314,14 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
     }
     if (isLoading && orders === null) {
       return (
-        <div className="bg-surface border border-line-subtle rounded-lg p-8 flex flex-col items-center gap-2 text-fg-muted text-xs font-tech">
-          <Icon name="sync" size={28} className="animate-spin motion-reduce:animate-none text-primary" />
-          <span>{isVi ? 'ĐANG TẢI ĐƠN HÀNG THẬT TỪ SUPABASE…' : 'LOADING REAL ORDERS FROM SUPABASE…'}</span>
+        <div
+          role="status"
+          aria-label={isVi ? 'ĐANG TẢI ĐƠN HÀNG THẬT TỪ SUPABASE…' : 'LOADING REAL ORDERS FROM SUPABASE…'}
+          className="flex flex-col gap-3.5 overflow-hidden md:flex-row"
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} variant="rect" height="18rem" rounded="lg" className="w-full md:w-[260px] md:shrink-0" />
+          ))}
         </div>
       );
     }
@@ -341,22 +346,22 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
   return (
     <div className="space-y-6">
       {/* 1. Header Bar with MES Telemetry Summary */}
-      <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1">
+      <div className="bg-surface p-5 sm:p-6 rounded-lg border border-line shadow-e0">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 bg-primary/10 text-primary font-tech text-xs font-bold rounded-md border border-primary/20 uppercase tracking-wider">
+              <span className="px-2.5 py-0.5 bg-primary-tint text-primary font-mono text-xs font-semibold rounded-sm border border-primary/20 uppercase tracking-wider">
                 VẬN HÀNH SẢN XUẤT
               </span>
             </div>
-            <h2 className="text-lg font-bold text-fg mt-1.5 flex items-center gap-2.5">
+            <h2 className="text-lg font-bold tracking-tight text-fg mt-1.5 flex items-center gap-2.5">
               <Icon name="precision_manufacturing" size={24} className="text-primary" />
               {activeTab === 'dispatcher'
                 ? isVi
                   ? 'Đơn Hàng & Điều Phối Trạm In'
                   : 'Orders & Workshop Dispatch'
                 : isVi
-                ? 'Hàng Đợi Chế Tác: Kanban 8 Nấc & Geo-Dispatcher'
+                ? 'Hàng Đợi Chế Tác: Bảng Kanban 8 Nấc & Điều Phối Trạm'
                 : 'MES Production: 8-Stage Kanban & Geo-Dispatcher'}
             </h2>
             <div className="mt-0.5">
@@ -370,93 +375,100 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
 
           {/* Quick Metrics Badges */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <div className="px-3.5 py-2 bg-canvas border border-line-subtle rounded-lg flex items-center gap-2">
+            <div className="px-3.5 py-2 bg-surface border border-line rounded-lg flex items-center gap-2">
               <Icon name="format_list_bulleted" size={20} className="text-fg-subtle" />
               <div>
-                <div className="text-xs font-tech uppercase text-fg-subtle font-bold">Tổng Đơn Hàng Đợi</div>
-                <div className="text-sm font-bold text-fg">{ordersReady ? `${totalJobs} jobs` : EMPTY_VALUE}</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Tổng Đơn Hàng Đợi</div>
+                <div className="text-sm font-semibold font-mono tabular-nums text-fg">{ordersReady ? `${totalJobs} jobs` : EMPTY_VALUE}</div>
               </div>
             </div>
 
-            <div className="px-3.5 py-2 bg-positive-tint border border-positive/30 rounded-lg flex items-center gap-2">
+            <div className="px-3.5 py-2 bg-surface border border-line rounded-lg flex items-center gap-2">
               <Icon name="print" size={20} className="text-positive" />
               <div>
-                <div className="text-xs font-tech uppercase text-positive font-bold">Đang Chạy Máy</div>
-                <div className="text-sm font-bold text-positive">
+                <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Đang Chạy Máy</div>
+                <div className="text-sm font-semibold font-mono tabular-nums text-fg">
                   {ordersReady ? `${printingCount} máy in` : EMPTY_VALUE}
                 </div>
               </div>
             </div>
 
-            <div className="px-3.5 py-2 bg-warning-tint border border-warning/30 rounded-lg flex items-center gap-2">
+            <div className="px-3.5 py-2 bg-surface border border-line rounded-lg flex items-center gap-2">
               <Icon name="share_location" size={20} className="text-warning" />
               <div>
-                <div className="text-xs font-tech uppercase text-warning font-bold">Chưa Phân Bổ</div>
-                <div className="text-sm font-bold text-warning">
+                <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Chưa Phân Bổ</div>
+                <div className="text-sm font-semibold font-mono tabular-nums text-fg">
                   {ordersReady ? `${suggestedDispatchCount} đơn` : EMPTY_VALUE}
                 </div>
               </div>
             </div>
 
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
+              leadingIcon={<Icon name="refresh" size={16} />}
               onClick={() => void loadOrders()}
               disabled={isLoading}
-              className="px-3 py-2 text-xs font-semibold text-fg-muted hover:text-fg hover:bg-surface-muted disabled:opacity-50 disabled:cursor-not-allowed rounded-lg border border-line-subtle transition-colors flex items-center gap-1 cursor-pointer"
               title={isVi ? 'Đọc lại đơn từ Supabase' : 'Reload orders from Supabase'}
             >
-              <Icon name="refresh" size={16} />
               {isVi ? 'Tải lại' : 'Reload'}
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Navigation Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-4 border-t border-line-subtle">
-          <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg">
+          <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-line bg-surface-muted p-1">
             <button
+              type="button"
               onClick={() => setActiveTab('kanban')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+              aria-pressed={activeTab === 'kanban'}
+              className={`px-3 py-1.5 max-md:min-h-11 text-sm font-medium rounded-sm transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 activeTab === 'kanban'
-                  ? 'bg-surface text-primary shadow-e1'
+                  ? 'bg-surface text-fg font-semibold shadow-e1'
                   : 'text-fg-muted hover:text-fg'
               }`}
             >
               <Icon name="view_kanban" size={16} />
               {isVi ? 'Bảng Kanban 8 Nấc' : '8-Stage Kanban'}
-              <span className="text-xs px-1.5 py-0.2 bg-line-subtle text-fg-muted rounded-full font-tech">
+              <span className="text-xs px-1.5 py-0.5 bg-surface border border-line text-fg-muted rounded-full font-mono tabular-nums">
                 {ordersReady ? filteredJobs.length : EMPTY_VALUE}
               </span>
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('dispatcher')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+              aria-pressed={activeTab === 'dispatcher'}
+              className={`px-3 py-1.5 max-md:min-h-11 text-sm font-medium rounded-sm transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 activeTab === 'dispatcher'
-                  ? 'bg-surface text-primary shadow-e1'
+                  ? 'bg-surface text-fg font-semibold shadow-e1'
                   : 'text-fg-muted hover:text-fg'
               }`}
             >
               <Icon name="hub" size={16} />
               {isVi ? 'Danh Sách Đơn & Điều Phối' : 'Orders & Dispatch'}
               {ordersReady && suggestedDispatchCount > 0 && (
-                <span className="text-xs px-1.5 py-0.2 bg-warning-tint text-warning rounded-full font-tech">
+                <span className="text-xs px-1.5 py-0.5 bg-warning-tint border border-warning/20 text-warning rounded-full font-mono tabular-nums">
                   {suggestedDispatchCount}
                 </span>
               )}
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('fleet')}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+              aria-pressed={activeTab === 'fleet'}
+              className={`px-3 py-1.5 max-md:min-h-11 text-sm font-medium rounded-sm transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 activeTab === 'fleet'
-                  ? 'bg-surface text-primary shadow-e1'
+                  ? 'bg-surface text-fg font-semibold shadow-e1'
                   : 'text-fg-muted hover:text-fg'
               }`}
             >
               <Icon name="factory" size={16} />
-              {isVi ? 'Trạm Xưởng & Fleet Máy' : 'Workshop Fleet'}
-              <span className="text-xs px-1.5 py-0.2 bg-line-subtle text-fg-muted rounded-full font-tech">
-                {workshops.length} Hubs
+              {isVi ? 'Trạm Xưởng & Đội Máy' : 'Workshop Fleet'}
+              <span className="text-xs px-1.5 py-0.5 bg-surface border border-line text-fg-muted rounded-full font-mono tabular-nums">
+                {workshops.length} trạm
               </span>
             </button>
           </div>
@@ -465,33 +477,40 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             {/* Search Input */}
             <div className="relative">
-              <input
+              <Input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label={isVi ? 'Tìm mã đơn, khách hàng, vật liệu' : 'Search orders'}
                 placeholder={isVi ? 'Tìm mã đơn, khách hàng, vật liệu...' : 'Search orders...'}
-                className="pl-8 pr-3 py-1.5 bg-canvas border border-line-subtle rounded-lg text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary focus:bg-surface w-48 sm:w-64"
+                className="pl-8 pr-9 w-48 sm:w-64"
               />
-              <Icon name="search" size={16} className="text-fg-subtle absolute left-2.5 top-2 pointer-events-none" />
+              <Icon name="search" size={16} className="text-fg-subtle absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               {searchQuery && (
-                <button aria-label="Xoá tìm kiếm"
+                <Button
+                  iconOnly
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Xoá tìm kiếm"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1.5 text-fg-subtle hover:text-fg-muted p-0.5"
+                  className="absolute right-0 top-1/2 -translate-y-1/2"
                 >
                   <Icon name="close" size={14} />
-                </button>
+                </Button>
               )}
             </div>
 
             {/* Region Filter — vùng miền suy từ địa chỉ thật; đơn không suy được nằm ở "Toàn Quốc" */}
-            <div className="flex items-center gap-1 bg-canvas border border-line-subtle rounded-lg p-0.5 text-xs font-medium">
+            <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line rounded-md p-1 text-sm">
               {(['all', 'Bắc', 'Trung', 'Nam'] as const).map((reg) => (
                 <button
                   key={reg}
+                  type="button"
                   onClick={() => setActiveRegionFilter(reg)}
-                  className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                  aria-pressed={activeRegionFilter === reg}
+                  className={`px-3 py-1.5 max-md:min-h-11 rounded-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     activeRegionFilter === reg
-                      ? 'bg-primary text-primary-fg font-bold shadow-e1'
+                      ? 'bg-surface text-fg font-semibold shadow-e1'
                       : 'text-fg-muted hover:text-fg'
                   }`}
                 >
@@ -501,10 +520,11 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
             </div>
 
             {/* Workshop Filter */}
-            <select
+            <Select
               value={activeWorkshopFilter}
               onChange={(e) => setActiveWorkshopFilter(e.target.value)}
-              className="px-3 py-1.5 bg-canvas border border-line-subtle rounded-lg text-xs text-fg-muted font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+              aria-label={isVi ? 'Lọc đơn theo trạm xưởng (MES)' : 'Filter orders by MES hub'}
+              className="w-full sm:w-52"
             >
               <option value="all">{isVi ? 'Tất cả trạm MES' : 'All MES hubs'}</option>
               {workshops.map((w) => (
@@ -512,7 +532,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   {w.name} ({w.region})
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
       </div>
@@ -539,16 +559,16 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
               <span>Hiển thị {filteredJobs.length} / {jobs.length} đơn</span>
             </div>
 
-            {/* Kanban 8 Columns Horizontal Scroll Container */}
-            <div className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-300">
-              <div className="flex items-start gap-3.5 min-w-[2100px]">
+            {/* Kanban 8 Columns — desktop: hàng ngang cuộn; <md: danh sách nấc dọc (UI-021, không tràn ngang 390) */}
+            <div className="pb-4 md:overflow-x-auto">
+              <div className="flex flex-col items-stretch gap-3.5 md:min-w-[2100px] md:flex-row md:items-start">
                 {KANBAN_STAGES.map((stage) => {
                   const stageJobs = filteredJobs.filter((j) => j.stageIndex === stage.index);
 
                   return (
                     <div
                       key={stage.key}
-                      className="w-[260px] shrink-0 bg-surface-muted/80 border border-line-subtle rounded-lg p-3 flex flex-col max-h-[780px]"
+                      className="flex w-full flex-col rounded-lg border border-line-subtle bg-surface-muted/50 p-3 md:w-[260px] md:max-h-[780px] md:shrink-0"
                     >
                       {/* Column Header */}
                       <div className="pb-2.5 mb-2 border-b border-line-subtle flex items-center justify-between">
@@ -557,24 +577,24 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                             <Icon name={stage.icon} size={16} />
                           </div>
                           <div className="min-w-0">
-                            <h3 className="text-xs font-bold text-fg truncate">
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-fg-muted truncate">
                               {isVi ? stage.shortVi : stage.key}
                             </h3>
-                            <p className="text-xs text-fg-subtle truncate">{stage.role}</p>
+                            <p className="text-xs text-fg-subtle truncate">{stage.role.replace('Sale Hub', 'Kinh doanh').replace('Slicing', 'cắt lớp').replace('Farm', 'xưởng in')}</p>
                           </div>
                         </div>
 
-                        <span className={`text-xs font-tech font-bold px-2 py-0.5 rounded-full ${
-                          stageJobs.length > 0 ? 'bg-surface text-fg border border-line shadow-e0' : 'bg-line-subtle text-fg-muted'
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full tabular-nums ${
+                          stageJobs.length > 0 ? 'bg-surface text-fg-muted border border-line' : 'bg-surface-muted text-fg-subtle border border-line-subtle'
                         }`}>
                           {stageJobs.length}
                         </span>
                       </div>
 
                       {/* Column Job Cards List */}
-                      <div className="flex-1 overflow-y-auto space-y-2.5 pr-0.5 scrollbar-thin scrollbar-thumb-slate-300">
+                      <div className="flex-1 overflow-y-auto space-y-2.5 pr-0.5">
                         {stageJobs.length === 0 ? (
-                          <div className="py-8 text-center text-fg-subtle text-xs border border-dashed border-line-subtle rounded-lg">
+                          <div className="py-8 text-center text-fg-subtle text-sm border border-dashed border-line-subtle rounded-lg">
                             <Icon name="inbox" size={24} className="block mb-1 text-fg-subtle" />
                             {isVi ? 'Không có đơn ở nấc này' : 'Empty stage'}
                           </div>
@@ -582,31 +602,31 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                           stageJobs.map((job) => (
                             <div
                               key={job.id}
-                              className="bg-surface border border-line-subtle rounded-lg p-3 shadow-e0 hover:shadow-e1 hover:border-primary/40 transition-all text-xs space-y-2 group"
+                              className="bg-surface border border-line rounded-md p-3 shadow-e0 hover:shadow-e1 transition-all duration-300 text-xs space-y-2 group"
                             >
                               {/* Card Top: Order Number & Priority */}
                               <div className="flex items-center justify-between">
-                                <span className="font-tech font-bold text-xs text-primary flex items-center gap-1">
+                                <span className="font-mono font-bold text-xs text-primary flex items-center gap-1">
                                   {job.orderNumber}
                                 </span>
 
                                 <div className="flex items-center gap-1">
                                   {/* Region Tag */}
-                                  <span className={`text-xs font-tech font-bold px-1.5 py-0.2 rounded-sm ${
+                                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded-sm border ${
                                     job.region === 'Bắc'
-                                      ? 'bg-info-tint text-info border border-info/30'
+                                      ? 'bg-info-tint text-info border-info/20'
                                       : job.region === 'Trung'
-                                      ? 'bg-positive-tint text-positive border border-positive/30'
+                                      ? 'bg-positive-tint text-positive border-positive/20'
                                       : job.region === 'Nam'
-                                      ? 'bg-info-tint text-info border border-info/30'
-                                      : 'bg-surface-muted text-fg-muted border border-line-subtle'
+                                      ? 'bg-info-tint text-info border-info/20'
+                                      : 'bg-surface-muted text-fg-muted border-line'
                                   }`}>
                                     {job.region === 'Chưa rõ' ? (isVi ? 'Chưa rõ khu vực' : 'Region unknown') : `Miền ${job.region}`}
                                   </span>
 
                                   {/* Priority Badge — `orders` chưa có cột ưu tiên nên không tự bật */}
                                   {job.priority === 'urgent' && (
-                                    <span className="text-xs font-tech font-bold px-1.5 py-0.2 rounded-sm bg-danger-tint text-danger border border-danger/30">
+                                    <span className="text-xs font-medium px-1.5 py-0.5 rounded-sm bg-danger-tint text-danger border border-danger/20">
                                       Hỏa tốc
                                     </span>
                                   )}
@@ -622,7 +642,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                               </div>
 
                               {/* Material & Specs */}
-                              <div className="flex items-center gap-1.5 text-xs text-fg-muted bg-canvas p-1.5 rounded-sm">
+                              <div className="flex items-center gap-1.5 text-xs text-fg-muted bg-surface-muted border border-line-subtle p-1.5 rounded-md">
                                 {job.colorHex && (
                                   <span
                                     className="w-2.5 h-2.5 rounded-full shrink-0 border border-line"
@@ -631,7 +651,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                                 )}
                                 <span className="truncate font-medium">{job.materialName ?? EMPTY_VALUE}</span>
                                 <span className="text-fg-subtle">|</span>
-                                <span className="font-tech font-semibold shrink-0">{numOrDash(job.totalGrams, 'g')}</span>
+                                <span className="font-mono font-semibold shrink-0">{numOrDash(job.totalGrams, 'g')}</span>
                               </div>
 
                               {/* Dispatch status & Assigned Machine */}
@@ -642,7 +662,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                                     <span className="truncate">{job.assignedWorkshopName}</span>
                                   </div>
                                 ) : (
-                                  <div className="flex items-center gap-1 text-warning bg-warning-tint px-1.5 py-0.5 rounded-sm border border-warning/30">
+                                  <div className="flex items-center gap-1 text-warning bg-warning-tint px-1.5 py-0.5 rounded-md border border-warning/20">
                                     <Icon name="warning" size={14} />
                                     <span>Chưa điều phối trạm xưởng</span>
                                   </div>
@@ -658,7 +678,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
 
                               {/* Progress bar — `orders.layer_progress` chưa báo ⇒ `—`, không vẽ 0% */}
                               <div>
-                                <div className="flex items-center justify-between text-xs text-fg-subtle mb-1 font-tech">
+                                <div className="flex items-center justify-between text-xs text-fg-subtle mb-1 font-mono">
                                   <span>Tiến độ nấc</span>
                                   <span className="font-bold text-fg">{numOrDash(job.layerProgress, '%')}</span>
                                 </div>
@@ -678,45 +698,50 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
 
                               {/* Operator Note preview (chỉ trong phiên) */}
                               {job.operatorNotes && (
-                                <p className="text-xs text-fg-muted italic bg-warning-tint/50 p-1 rounded-sm border border-warning/30 line-clamp-1">
+                                <p className="text-xs text-fg-muted italic bg-warning-tint p-1.5 rounded-md border border-warning/20 line-clamp-1">
                                   {job.operatorNotes}
                                 </p>
                               )}
 
                               {/* Card Action Controls */}
                               <div className="pt-2 border-t border-line-subtle flex items-center justify-between gap-1">
-                                <button
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  leadingIcon={<Icon name="info" size={14} />}
                                   onClick={() => {
                                     setSelectedJobId(job.id);
                                     setEditingJobNotes(job.operatorNotes);
                                     setQcNotesInput(job.qcNotes || '');
                                   }}
-                                  className="px-2 py-1 text-xs font-semibold text-fg-muted hover:text-primary hover:bg-canvas rounded-md transition-colors flex items-center gap-0.5 cursor-pointer"
                                 >
-                                  <Icon name="info" size={14} />
                                   Chi tiết
-                                </button>
+                                </Button>
 
                                 <div className="flex items-center gap-1">
                                   {stage.index > 0 && (
-                                    <button
-                                      onClick={() => handleRegress(job.id)}
-                                      className="p-1 text-fg-subtle hover:text-fg-muted hover:bg-surface-muted rounded-md transition-colors cursor-pointer"
+                                    <Button
+                                      iconOnly
+                                      variant="ghost"
+                                      size="sm"
+                                      aria-label="Lùi lại 1 nấc"
                                       title="Lùi lại 1 nấc"
+                                      onClick={() => handleRegress(job.id)}
                                     >
                                       <Icon name="arrow_back" size={16} />
-                                    </button>
+                                    </Button>
                                   )}
 
                                   {stage.index < KANBAN_STAGES.length - 1 && (
-                                    <button
-                                      onClick={() => handleAdvance(job.id)}
-                                      className="px-2.5 py-1 bg-primary hover:bg-primary-hover text-primary-fg rounded-md text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-e0"
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      trailingIcon={<Icon name="arrow_forward" size={14} />}
                                       title={`Chuyển sang: ${KANBAN_STAGES[stage.index + 1].shortVi}`}
+                                      onClick={() => handleAdvance(job.id)}
                                     >
-                                      <span>Tiếp</span>
-                                      <Icon name="arrow_forward" size={14} />
-                                    </button>
+                                      Tiếp
+                                    </Button>
                                   )}
                                 </div>
                               </div>
@@ -741,14 +766,14 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
             : 'No REAL order to allocate. This list is built from the orders table only — nothing is seeded.'
         ) ?? (
           <div className="space-y-4">
-            <div className="bg-warning-tint border border-warning/30 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="bg-warning-tint border border-warning/20 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-md bg-warning-tint text-warning flex items-center justify-center shrink-0 shadow-e1">
+                <div className="w-9 h-9 rounded-md bg-warning-tint text-warning flex items-center justify-center shrink-0 border border-warning/20">
                   <Icon name="share_location" size={24} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-warning">
-                    Phân Bổ Đơn Về Trạm Xưởng (Geo-Dispatch &amp; Fleet Allocation)
+                  <h3 className="text-sm font-semibold text-warning">
+                    Phân Bổ Đơn Về Trạm Xưởng
                   </h3>
                   <p className="text-xs text-warning mt-0.5">
                     {isVi
@@ -759,7 +784,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
               </div>
 
               <div className="shrink-0 flex items-center gap-2">
-                <span className="text-xs font-tech font-bold px-2.5 py-1 rounded-lg bg-surface text-warning border border-warning/30 shadow-e0">
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-surface text-warning border border-warning/20 tabular-nums">
                   {suggestedDispatchCount} đơn chưa phân bổ
                 </span>
               </div>
@@ -767,7 +792,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
 
             {/* Chưa có trạm in nào ⇒ không thể chốt phân bổ: nói thẳng, KHÔNG hiện nút "thành công giả" */}
             {workshops.length === 0 && (
-              <div className="bg-canvas border border-line-subtle rounded-lg p-3 text-xs text-fg-muted flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="bg-surface-muted border border-line rounded-md p-3 text-xs text-fg-muted flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="flex items-start gap-1.5">
                   <Icon name="info" size={16} className="text-primary shrink-0 mt-0.5" />
                   <span>
@@ -811,21 +836,21 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   return (
                     <div
                       key={job.id}
-                      className="bg-surface border border-line-subtle rounded-lg p-5 shadow-e1 transition-all space-y-4"
+                      className="bg-surface border border-line rounded-lg p-6 hover:shadow-e1 transition-all duration-300 space-y-4"
                     >
                       {/* Job Header */}
                       <div className="flex items-start justify-between gap-2 pb-3 border-b border-line-subtle">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-tech font-bold text-sm text-primary">{job.orderNumber}</span>
-                            <span className={`text-xs font-tech font-bold px-2 py-0.5 rounded-full ${
+                            <span className="font-mono font-semibold text-sm text-fg">{job.orderNumber}</span>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
                               job.region === 'Bắc'
-                                ? 'bg-info-tint text-info border border-info/30'
+                                ? 'bg-info-tint text-info border-info/20'
                                 : job.region === 'Trung'
-                                ? 'bg-positive-tint text-positive border border-positive/30'
+                                ? 'bg-positive-tint text-positive border-positive/20'
                                 : job.region === 'Nam'
-                                ? 'bg-info-tint text-info border border-info/30'
-                                : 'bg-surface-muted text-fg-muted border border-line-subtle'
+                                ? 'bg-info-tint text-info border-info/20'
+                                : 'bg-surface-muted text-fg-muted border-line'
                             }`}>
                               {job.region === 'Chưa rõ' ? (isVi ? 'Chưa rõ khu vực' : 'Region unknown') : `Khu vực: Miền ${job.region}`}
                             </span>
@@ -840,7 +865,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                         </div>
 
                         <div className="text-right shrink-0">
-                          <div className="text-xs font-tech font-bold text-fg">
+                          <div className="text-xs font-mono font-bold text-fg">
                             {numOrDash(job.totalGrams, 'g')} nhựa
                           </div>
                           <div className="text-xs text-fg-muted">
@@ -852,7 +877,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                       </div>
 
                       {/* Requirements summary */}
-                      <div className="bg-canvas p-3 rounded-lg text-xs space-y-1">
+                      <div className="bg-surface-muted p-3 rounded-md text-xs space-y-1">
                         <div className="font-semibold text-fg-muted flex items-center gap-1.5">
                           <Icon name="layers" size={16} className="text-primary" />
                           {job.itemsSummary ?? EMPTY_VALUE}
@@ -868,25 +893,25 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
 
                       {/* Allocation status — đề xuất chỉ có khi đã khai trạm in */}
                       {!hasWorkshop ? (
-                        <div className="bg-surface-muted border border-line-subtle rounded-lg p-3 text-xs text-fg-muted flex items-start gap-2">
+                        <div className="bg-surface-muted border border-line rounded-md p-3 text-xs text-fg-muted flex items-start gap-2">
                           <Icon name="info" size={16} className="text-primary shrink-0 mt-0.5" />
                           <span>{rec.matchReasons[0]}</span>
                         </div>
                       ) : (
-                        <div className="bg-canvas border border-positive/30 rounded-lg p-3.5 space-y-2.5">
+                        <div className="bg-surface-muted border border-positive/20 rounded-md p-4 space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-1.5 text-xs font-bold text-positive">
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-positive">
                               <Icon name="auto_awesome" size={18} className="text-positive" />
                               Đề Xuất Điều Phối (công thức trên dữ liệu đã khai)
                             </span>
-                            <span className="text-xs font-tech font-bold px-2 py-0.5 bg-positive-tint text-positive rounded-md shadow-e0">
-                              {rec.matchScore}% Match
+                            <span className="text-xs font-semibold px-2 py-0.5 bg-positive-tint text-positive border border-positive/20 rounded-md tabular-nums">
+                              {rec.matchScore}% khớp
                             </span>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                            <div className="bg-surface p-2.5 rounded-lg border border-positive/30">
-                              <div className="text-xs text-fg-muted uppercase font-tech">Trạm Xưởng Đề Xuất</div>
+                            <div className="bg-surface p-3 rounded-md border border-line">
+                              <div className="text-xs text-fg-muted uppercase tracking-wider font-semibold">Trạm Xưởng Đề Xuất</div>
                               <div className="font-bold text-fg flex items-center gap-1 mt-0.5 truncate">
                                 <Icon name="store" size={14} className="text-positive" />
                                 {rec.workshopName}
@@ -894,8 +919,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                               <div className="text-xs text-fg-muted mt-0.5">Khoảng cách ~{rec.distanceEstimateKm} km</div>
                             </div>
 
-                            <div className="bg-surface p-2.5 rounded-lg border border-positive/30">
-                              <div className="text-xs text-fg-muted uppercase font-tech">Máy In Trống Phù Hợp</div>
+                            <div className="bg-surface p-3 rounded-md border border-line">
+                              <div className="text-xs text-fg-muted uppercase tracking-wider font-semibold">Máy In Trống Phù Hợp</div>
                               <div className="font-bold text-fg flex items-center gap-1 mt-0.5 truncate">
                                 <Icon name="print" size={14} className="text-positive" />
                                 {rec.suggestedPrinterName || EMPTY_VALUE}
@@ -911,12 +936,12 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                           </div>
 
                           {/* Stock Check Badge */}
-                          <div className="flex items-center justify-between text-xs bg-surface px-2.5 py-1.5 rounded-lg border border-positive/30">
+                          <div className="flex items-center justify-between text-xs bg-surface px-3 py-2 rounded-md border border-line">
                             <span className="text-fg-muted flex items-center gap-1">
                               <Icon name="inventory" size={14} className="text-positive" />
                               Tồn kho nhựa xưởng:
                             </span>
-                            <span className="font-bold text-fg-muted">
+                            <span className="font-bold text-fg-muted font-mono tabular-nums">
                               {(rec.availableStockGrams / 1000).toFixed(1)} kg
                             </span>
                           </div>
@@ -963,10 +988,10 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {workshops.map((ws) => (
-              <div key={ws.id} className="bg-surface-subtle rounded-lg p-5 shadow-e1 space-y-4">
+              <div key={ws.id} className="bg-surface rounded-lg border border-line p-6 hover:shadow-e1 transition-all duration-300 space-y-4">
                 <div className="flex items-start justify-between pb-3 border-b border-line-subtle">
                   <div>
-                    <span className="text-xs font-tech font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-sm">
+                    <span className="text-xs font-mono font-medium px-2 py-0.5 bg-primary-tint text-primary border border-primary/20 rounded-sm">
                       KHU VỰC MIỀN {ws.region.toUpperCase()}
                     </span>
                     <h3 className="font-bold text-fg text-sm mt-1">{ws.name}</h3>
@@ -980,8 +1005,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                 {/* Machine Fleet Telemetry */}
                 <div>
                   <div className="flex items-center justify-between text-xs text-fg-muted mb-2">
-                    <span className="font-semibold">Đội máy in (Fleet)</span>
-                    <span className="font-tech text-positive font-bold">
+                    <span className="font-semibold">Đội máy in</span>
+                    <span className="font-mono text-positive font-bold">
                       {ws.freeMachines} máy rảnh / {ws.totalMachines} máy
                     </span>
                   </div>
@@ -990,7 +1015,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                     {ws.fleet.map((m) => (
                       <div
                         key={m.id}
-                        className="flex items-center justify-between p-2 bg-canvas rounded-lg text-xs border border-line-subtle"
+                        className="flex items-center justify-between p-2.5 bg-surface-muted rounded-md text-xs border border-line-subtle"
                       >
                         <div className="min-w-0 pr-2">
                           <div className="font-bold text-fg truncate">{m.name}</div>
@@ -998,21 +1023,16 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                         </div>
 
                         <div className="shrink-0 text-right">
-                          <span
-                            className={`text-xs font-tech font-bold px-2 py-0.5 rounded-full ${
-                              m.status === 'Free'
-                                ? 'bg-positive-tint text-positive border border-positive/30'
-                                : m.status === 'Busy'
-                                ? 'bg-info-tint text-info border border-info/30'
-                                : 'bg-danger-tint text-danger border border-danger/30'
-                            }`}
+                          <Badge
+                            variant={m.status === 'Free' ? 'success' : m.status === 'Busy' ? 'info' : 'danger'}
+                            dot
                           >
                             {m.status === 'Free'
                               ? 'Trống (Free)'
                               : m.status === 'Busy'
                               ? `Đang in (${numOrDash(m.progressPercent, '%')})`
                               : 'Bảo trì'}
-                          </span>
+                          </Badge>
                         </div>
                       </div>
                     ))}
@@ -1026,7 +1046,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                     {ws.materialsStock.map((mat, mIdx) => (
                       <span
                         key={mIdx}
-                        className="text-xs font-tech px-2 py-1 bg-surface-muted text-fg-muted rounded-lg flex items-center gap-1"
+                        className="text-xs font-mono px-2 py-1 bg-surface-muted border border-line-subtle text-fg-muted rounded-md flex items-center gap-1 tabular-nums"
                       >
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: mat.colorHex }} />
                         {mat.materialName}: <strong>{(mat.stockGrams / 1000).toFixed(1)}kg</strong>
@@ -1054,8 +1074,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
               </span>
               <span>
                 <span className="flex items-center gap-2">
-                  <span className="font-tech font-bold text-base text-primary">{selectedJob.orderNumber}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted text-fg-muted font-tech">
+                  <span className="font-mono font-bold tabular-nums text-base text-fg">{selectedJob.orderNumber}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-line text-fg-muted font-mono">
                     Nấc {selectedJob.stageIndex + 1}: {KANBAN_STAGES[selectedJob.stageIndex].shortVi}
                   </span>
                 </span>
@@ -1068,35 +1088,33 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
             <div className="space-y-5 text-xs">
               {/* Stage Progression Buttons — ghi xuống Supabase */}
               <div>
-                <label className="text-xs font-bold text-fg-muted uppercase tracking-wider block mb-2">
+                <p className="text-xs font-semibold text-fg-muted uppercase tracking-wider block mb-2">
                   Chuyển Nấc Trực Tiếp (ghi orders.status_stage_index xuống Supabase)
-                </label>
+                </p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {KANBAN_STAGES.map((s) => (
-                    <button
+                    <Button
                       key={s.key}
+                      variant={selectedJob.stageIndex === s.index ? 'primary' : 'secondary'}
+                      size="sm"
+                      className="justify-start gap-1.5"
                       onClick={() => handleSetStage(selectedJob.id, s.index)}
-                      className={`p-2 rounded-lg border text-left transition-colors cursor-pointer ${
-                        selectedJob.stageIndex === s.index
-                          ? 'bg-primary text-primary-fg border-primary font-bold shadow-e1'
-                          : 'bg-canvas hover:bg-surface-muted text-fg-muted border-line-subtle'
-                      }`}
                     >
-                      <div className="font-tech text-xs opacity-75">Nấc #{s.index + 1}</div>
-                      <div className="text-xs font-semibold truncate">{s.shortVi}</div>
-                    </button>
+                      <span className="font-mono text-xs opacity-75">Nấc #{s.index + 1}</span>
+                      <span className="truncate text-xs font-semibold">{s.shortVi}</span>
+                    </Button>
                   ))}
                 </div>
               </div>
 
               {/* Technical Specifications — cột nào `orders` không có thì `—` */}
-              <div className="bg-canvas p-4 rounded-lg border border-line-subtle grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-surface-muted p-4 rounded-md border border-line-subtle grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <span className="text-xs text-fg-muted uppercase font-tech">Vật Liệu</span>
+                  <span className="text-xs text-fg-muted uppercase tracking-wider font-semibold">Vật Liệu</span>
                   <div className="font-bold text-fg">{selectedJob.materialName ?? EMPTY_VALUE}</div>
                 </div>
                 <div>
-                  <span className="text-xs text-fg-muted uppercase font-tech">Màu Sắc</span>
+                  <span className="text-xs text-fg-muted uppercase tracking-wider font-semibold">Màu Sắc</span>
                   <div className="font-bold text-fg flex items-center gap-1.5 mt-0.5">
                     {selectedJob.colorHex && (
                       <span className="w-3 h-3 rounded-full border border-line" style={{ backgroundColor: selectedJob.colorHex }} />
@@ -1105,28 +1123,32 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   </div>
                 </div>
                 <div>
-                  <span className="text-xs text-fg-muted uppercase font-tech">Độ Dày Lớp In</span>
-                  <div className="font-bold text-fg">{numOrDash(selectedJob.layerHeightMm, ' mm')}</div>
+                  <span className="text-xs text-fg-muted uppercase tracking-wider font-semibold">Độ Dày Lớp In</span>
+                  <div className="font-bold text-fg font-mono tabular-nums">{numOrDash(selectedJob.layerHeightMm, ' mm')}</div>
                 </div>
                 <div>
-                  <span className="text-xs text-fg-muted uppercase font-tech">Độ Đặc (Infill)</span>
-                  <div className="font-bold text-fg">{numOrDash(selectedJob.infillPercent, '%')}</div>
+                  <span className="text-xs text-fg-muted uppercase tracking-wider font-semibold">Độ Đặc</span>
+                  <div className="font-bold text-fg font-mono tabular-nums">{numOrDash(selectedJob.infillPercent, '%')}</div>
                 </div>
               </div>
 
               {/* Operator Notes Box — CHỈ TRONG PHIÊN (orders không có cột ghi chú kỹ thuật) */}
               <div>
-                <label className="text-xs font-bold text-fg-muted block mb-1">
+                <label htmlFor="group5-job-notes" className="text-sm font-medium text-fg block mb-1.5">
                   Ghi chú Kỹ Thuật Viên / Trưởng Xưởng (chỉ trong phiên — chưa có cột DB):
                 </label>
                 <textarea
+                  id="group5-job-notes"
                   value={editingJobNotes}
                   onChange={(e) => setEditingJobNotes(e.target.value)}
                   rows={3}
-                  className="w-full p-3 bg-canvas border border-line-subtle rounded-lg text-xs focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+                  className="w-full p-3 bg-surface border border-line-control rounded-md text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring"
                   placeholder="Nhập hướng dẫn gá đặt, nhiệt độ bàn, dung sai thước kẹp..."
                 />
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="mt-2"
                   onClick={() => {
                     patchSession(selectedJob.id, { operatorNotes: editingJobNotes });
                     onShowToast?.(
@@ -1135,36 +1157,42 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                         : 'Note kept for THIS SESSION only (orders has no technician-note column).'
                     );
                   }}
-                  className="mt-2 px-3.5 py-1.5 bg-surface-inverse text-on-inverse rounded-lg font-bold text-xs hover:bg-surface-inverse transition-colors cursor-pointer"
                 >
                   Ghi Nhận Ghi Chú
-                </button>
+                </Button>
               </div>
 
               {/* QC Verification Section — CHỈ TRONG PHIÊN */}
-              <div className="bg-danger-tint/60 border border-danger/30 p-4 rounded-lg space-y-2">
+              <div className="bg-danger-tint border border-danger/20 p-4 rounded-md space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-danger flex items-center gap-1.5">
+                  <span className="font-semibold text-danger flex items-center gap-1.5">
                     <Icon name="verified" size={18} className="text-danger" />
                     Kiểm Định Đo Dung Sai &amp; QC (chỉ trong phiên)
                   </span>
-                  <span className={`text-xs font-tech font-bold px-2 py-0.5 rounded-sm ${
-                    selectedJob.qcInspectionPassed ? 'bg-positive-tint text-positive' : 'bg-surface-muted text-fg-muted'
+                  <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${
+                    selectedJob.qcInspectionPassed ? 'bg-positive-tint text-positive border-positive/20' : 'bg-surface-muted text-fg-muted border-line'
                   }`}>
                     {selectedJob.qcInspectionPassed ? 'ĐẠT TIÊU CHUẨN' : 'CHƯA PHÊ DUYỆT'}
                   </span>
                 </div>
 
-                <input
-                  type="text"
-                  value={qcNotesInput}
-                  onChange={(e) => setQcNotesInput(e.target.value)}
-                  placeholder="Kết quả đo kiểm / lý do không đạt..."
-                  className="w-full p-2.5 bg-surface border border-line-subtle rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                />
+                <Field label={isVi ? 'Kết quả đo kiểm QC' : 'QC inspection result'} hideLabel optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={qcNotesInput}
+                      onChange={(e) => setQcNotesInput(e.target.value)}
+                      placeholder="Kết quả đo kiểm / lý do không đạt..."
+                    />
+                  )}
+                </Field>
 
-                <div className="flex items-center gap-2">
-                  <button
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leadingIcon={<Icon name="check" size={14} />}
                     onClick={() => {
                       const note = qcNotesInput.trim();
                       if (!note) {
@@ -1178,13 +1206,14 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                           : 'QC pass kept for THIS SESSION only (no DB column for QC results).'
                       );
                     }}
-                    className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer shadow-e0"
                   >
-                    <Icon name="check" size={14} />
                     Xác nhận QC Đạt (Pass)
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
+                    variant="danger-ghost"
+                    size="sm"
+                    leadingIcon={<Icon name="close" size={14} />}
                     onClick={() => {
                       const note = qcNotesInput.trim();
                       if (!note) {
@@ -1198,19 +1227,17 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                           : 'Reprint flag kept for THIS SESSION only (no DB column for QC results).'
                       );
                     }}
-                    className="px-3 py-1.5 bg-danger-tint hover:bg-danger/20 text-danger font-bold rounded-lg text-xs flex items-center gap-1 cursor-pointer"
                   >
-                    <Icon name="close" size={14} />
                     Không đạt (In lại)
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-line-subtle bg-canvas flex items-center justify-between gap-2 rounded-b-lg">
+            <div className="p-4 border-t border-line bg-surface-muted flex items-center justify-between gap-2">
               <div className="text-xs text-fg-muted truncate">
-                Mã đơn (orders.id): <strong className="font-tech">{selectedJob.id}</strong>
+                Mã đơn (orders.id): <strong className="font-mono">{selectedJob.id}</strong>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {onNavigateTracking && (
@@ -1230,12 +1257,12 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                     {isVi ? 'Xem hành trình đơn' : 'View order tracking'}
                   </Button>
                 )}
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => setSelectedJobId(null)}
-                  className="px-4 py-2 bg-line-subtle hover:bg-line text-fg font-bold text-xs rounded-lg transition-colors cursor-pointer"
                 >
                   Đóng
-                </button>
+                </Button>
               </div>
             </div>
         </Modal>

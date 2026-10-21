@@ -48,23 +48,23 @@ const WarehouseInventoryPanel = React.lazy(() =>
 // High-tech Suspense Loading Skeleton
 const AdminPanelLoadingSkeleton: React.FC = () => (
   <div className="space-y-6 animate-pulse motion-reduce:animate-none p-2 sm:p-4">
-    <div className="bg-surface p-6 rounded-lg shadow-e1 space-y-3">
-      <div className="h-4 bg-line-subtle rounded-md w-1/4"></div>
-      <div className="h-8 bg-line-subtle rounded-md w-1/2"></div>
-      <div className="h-3 bg-line-subtle rounded-md w-3/4"></div>
+    <div className="space-y-3 rounded-lg border border-line-subtle bg-surface p-6">
+      <div className="h-4 w-1/4 rounded-md bg-surface-muted"></div>
+      <div className="h-8 w-1/2 rounded-md bg-surface-muted"></div>
+      <div className="h-3 w-3/4 rounded-md bg-surface-muted"></div>
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="bg-surface p-5 rounded-lg h-32 space-y-3">
-          <div className="h-3 bg-line-subtle rounded-sm w-1/2"></div>
-          <div className="h-7 bg-line-subtle rounded-sm w-3/4"></div>
-          <div className="h-2 bg-line-subtle rounded-sm w-full"></div>
+        <div key={i} className="h-32 space-y-3 rounded-lg border border-line-subtle bg-surface p-5">
+          <div className="h-3 w-1/2 rounded-sm bg-surface-muted"></div>
+          <div className="h-7 w-3/4 rounded-sm bg-surface-muted"></div>
+          <div className="h-2 w-full rounded-sm bg-surface-muted"></div>
         </div>
       ))}
     </div>
-    <div className="bg-surface p-6 rounded-lg h-80 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-2 text-fg-subtle text-xs font-tech">
-        <Icon name="sync" size={28} className="animate-spin motion-reduce:animate-none text-primary" />
+    <div className="flex h-80 items-center justify-center rounded-lg border border-line-subtle bg-surface p-6">
+      <div className="flex flex-col items-center gap-2 font-mono text-xs uppercase tracking-wider text-fg-subtle">
+        <Icon name="sync" size={28} className="animate-spin motion-reduce:animate-none text-fg-muted" />
         <span>ĐANG TẢI DỮ LIỆU BẢNG ĐIỀU KHIỂN...</span>
       </div>
     </div>
@@ -174,17 +174,17 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     },
     partners: {
       group: isVi ? 'Xưởng in & Thiết bị' : 'Workshops & Fleet',
-      title: isVi ? 'Mạng Lưới Xưởng In Đối Tác (MES Network)' : 'Workshop Partner MES Network',
+      title: isVi ? 'Mạng Lưới Xưởng In Đối Tác (MES)' : 'Workshop Partner MES Network',
       icon: 'factory'
     },
     workshops: {
       group: isVi ? 'Xưởng in & Thiết bị' : 'Workshops & Fleet',
-      title: isVi ? 'Mạng Lưới Xưởng In Đối Tác (MES Network)' : 'Workshop Partner MES Network',
+      title: isVi ? 'Mạng Lưới Xưởng In Đối Tác (MES)' : 'Workshop Partner MES Network',
       icon: 'factory'
     },
     machines: {
       group: isVi ? 'Xưởng in & Thiết bị' : 'Workshops & Fleet',
-      title: isVi ? 'Đội Máy In 3D FDM / SLA (Fleet)' : '3D Printer Fleet',
+      title: isVi ? 'Đội Máy In 3D FDM / SLA' : '3D Printer Fleet',
       icon: 'print'
     },
     designers: {
@@ -254,17 +254,17 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     },
     products: {
       group: isVi ? 'CỬA HÀNG & HỆ THỐNG' : 'STOREFRONT & SYSTEM',
-      title: isVi ? 'Sản Phẩm & Catalog 3D' : 'Products & Catalog',
+      title: isVi ? 'Sản Phẩm & Danh Mục 3D' : 'Products & Catalog',
       icon: 'inventory_2'
     },
     storefront: {
       group: isVi ? 'CỬA HÀNG & HỆ THỐNG' : 'STOREFRONT & SYSTEM',
-      title: isVi ? 'Cấu Hình Storefront & Banner' : 'Storefront & Banner CMS',
+      title: isVi ? 'Cấu Hình Trang Chủ & Dải Quảng Cáo' : 'Storefront & Banner CMS',
       icon: 'storefront'
     },
     seo: {
       group: isVi ? 'CỬA HÀNG & HỆ THỐNG' : 'STOREFRONT & SYSTEM',
-      title: isVi ? 'Quản Trị SEO & Metadata Toàn Diện' : 'SEO & Search Engine Metadata',
+      title: isVi ? 'Quản Trị SEO Toàn Diện' : 'SEO & Search Engine Metadata',
       icon: 'travel_explore'
     },
     settings: {
@@ -316,6 +316,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   }));
 
   const panelContent = (
+    <>
+      {/*
+        CC-06 (W5): console admin trước đây KHÔNG có heading cấp 1 nào (mọi panel tự dựng `<h2>`),
+        nên cấu trúc heading khác `/designer` + `/lab` (dùng `PageHeader` có `h1`). Thêm MỘT `h1`
+        `sr-only` theo đúng section đang mở (URL là nguồn sự thật, `currentMeta` đã bản địa hoá):
+        đủ 1 h1/trang cho screen reader, không đổi layout/density/visual của console.
+      */}
+      <h1 className="sr-only">{currentMeta.title}</h1>
       <Suspense fallback={<AdminPanelLoadingSkeleton />}>
         {/* Mỗi panel được bọc riêng: một panel lỗi chỉ thay đúng panel đó, không trắng cả console. */}
         {(activeSection === 'overview' || activeSection === 'group0-overview') && (
@@ -449,7 +457,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         {/* STOREFRONT, CONTENT & SYSTEM CMS */}
         {activeSection === 'products' && (
           <PanelErrorBoundary
-            label={isVi ? 'Sản phẩm & catalog' : 'Products & catalog'}
+            label={isVi ? 'Sản phẩm & danh mục' : 'Products & catalog'}
             resetKey={activeSection}
           >
             <AdminProductsPanel
@@ -464,7 +472,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {activeSection === 'storefront' && (
           <PanelErrorBoundary
-            label={isVi ? 'Cấu hình storefront' : 'Storefront CMS'}
+            label={isVi ? 'Cấu hình cửa hàng' : 'Storefront CMS'}
             resetKey={activeSection}
           >
             <AdminStorefrontPanel
@@ -499,31 +507,32 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </PanelErrorBoundary>
         )}
       </Suspense>
+    </>
   );
 
   return (
     <AppShell
-      chrome
       collapsed={isNavCollapsed}
       mobileOpen={isMobileNavOpen}
       onMobileOpenChange={setIsMobileNavOpen}
       navLabel={isVi ? 'Điều hướng quản trị' : 'Admin navigation'}
       sidebar={
-        <div className="flex h-full min-h-0 flex-col bg-chrome">
+        <div className="flex h-full min-h-0 flex-col bg-canvas">
           {/* Tìm nhanh mục điều hướng — giữ nguyên tính năng của AdminSidebar cũ. */}
-          <div className="shrink-0 border-b border-chrome-border px-2 py-2">
+          <div className="shrink-0 border-b border-line px-2 py-2">
             <Field
               id="admin-nav-search"
               label={isVi ? 'Tìm mục điều hướng' : 'Find a section'}
               hideLabel
-              tone="chrome"
             >
               {(control) => (
                 <Input
                   {...control}
                   type="search"
                   size="sm"
-                  tone="chrome"
+                  // CC-11: ô tìm kiếm dùng search pill (`rounded-full`, §3.3) như search storefront,
+                  // không còn 12px vuông như input thường. Chỉ search, không đổi control khác.
+                  className="rounded-full"
                   value={navSearch}
                   onChange={(e) => setNavSearch(e.target.value)}
                   placeholder={isVi ? 'Tìm mục (kho, máy in, giá…)' : 'Find a section…'}
@@ -531,22 +540,22 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               )}
             </Field>
             {navQuery && filteredNavGroups.length === 0 ? (
-              <p className="px-1 pt-2 text-xs text-chrome-fg-muted">
+              <p className="px-1 pt-2 text-xs text-fg-muted">
                 {isVi ? 'Không có mục nào khớp từ khoá.' : 'No sections matched.'}
               </p>
             ) : null}
           </div>
 
           <SideNav
+            variant="pill"
             className="min-h-0 flex-1"
             label={isVi ? 'Điều hướng quản trị' : 'Admin navigation'}
             collapsed={isNavCollapsed}
             onCollapsedChange={setIsNavCollapsed}
             activeId={activeSection}
             onSelect={(id) => handleSelectSection(id as AdminNavSection)}
-            tone="chrome"
             footer={
-              <span className="block truncate px-1 text-center text-xs text-chrome-fg-muted">
+              <span className="block truncate px-1 text-center text-xs text-fg-muted">
                 {isVi ? 'Bảng quản trị VCUBE' : 'VCUBE admin console'}
               </span>
             }
@@ -562,6 +571,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               variant="ghost"
               size="sm"
               aria-label={isVi ? 'Mở điều hướng' : 'Open navigation'}
+              aria-expanded={isMobileNavOpen}
               onClick={openNav}
               className="lg:hidden"
             >
@@ -570,7 +580,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           }
           brand={
             <span className="flex min-w-0 items-center gap-2">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-fg">
+              {/* CC-08: brand mark console = coral như mọi shell (`bg-brand text-fg`, D3), không
+                  phải ô đen `bg-primary`; console giữ `shadow-e0` (không dùng `shadow-soft`). */}
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-brand text-fg shadow-e0">
                 <Icon name="deployed_code" size={16} />
               </span>
               <span className="hidden min-w-0 flex-col leading-tight sm:flex">
@@ -582,7 +594,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </span>
           }
           breadcrumb={
-            <span className="truncate text-xs text-fg-muted">
+            <span className="truncate text-xs text-fg-subtle">
               VCUBE / {currentMeta.group} /{' '}
               <span className="font-medium text-fg">{currentMeta.title}</span>
             </span>
@@ -616,7 +628,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               aria-hidden="true"
               className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-fg"
             >
-              AD
+              QT
             </span>
           }
         />

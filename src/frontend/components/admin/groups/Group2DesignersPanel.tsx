@@ -3,7 +3,7 @@ import { useDesignerAdminStore, DesignerRow } from '../../../../stores/useDesign
 import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { AppUserProfile } from '../../../../types';
-import { Button, DataTable, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
+import { Badge, Button, DataTable, EmptyState, Field, Icon, InfoTip, Input, Modal, Skeleton } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 
 export interface Group2DesignersPanelProps {
@@ -12,11 +12,21 @@ export interface Group2DesignersPanelProps {
 }
 
 const BADGE_TIERS = [
-  { id: 'TopCreator', label: '👑 Top Creator', desc: 'Nhà sáng tạo xuất sắc' },
-  { id: 'VerifiedEngineer', label: '🛡️ Verified Engineer', desc: 'Kỹ sư cơ khí kiểm duyệt' },
-  { id: 'PioneerMaker', label: '🚀 Pioneer Maker', desc: 'Nghệ nhân tiên phong' },
-  { id: 'Standard', label: 'Tiêu Chuẩn', desc: 'Creator phổ thông' }
+  { id: 'TopCreator', label: '👑 Tác giả hàng đầu', desc: 'Nhà sáng tạo xuất sắc' },
+  { id: 'VerifiedEngineer', label: '🛡️ Kỹ sư đã kiểm duyệt', desc: 'Kỹ sư cơ khí kiểm duyệt' },
+  { id: 'PioneerMaker', label: '🚀 Nghệ nhân tiên phong', desc: 'Nghệ nhân tiên phong' },
+  { id: 'Standard', label: 'Tiêu Chuẩn', desc: 'Tác giả phổ thông' }
 ] as const;
+
+/** Nhãn VI cho `verifiedStatus` (giá trị enum DB) — không render thô ra UI. */
+const verifiedStatusLabel = (status: string | null | undefined): string =>
+  status === 'Verified'
+    ? 'Đã duyệt'
+    : status === 'Pending'
+      ? 'Chờ duyệt'
+      : status === 'Suspended'
+        ? 'Tạm đình chỉ'
+        : status || '—';
 
 export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
   onShowToast,
@@ -182,7 +192,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
     onShowToast?.(
       res.success
         ? isVi
-          ? `Đã đổi huy hiệu ${d.displayName} thành ${nextTier}`
+          ? `Đã đổi huy hiệu ${d.displayName} thành ${nextTier === 'TopCreator' ? 'Tác giả hàng đầu' : nextTier === 'VerifiedEngineer' ? 'Kỹ sư đã kiểm duyệt' : nextTier === 'PioneerMaker' ? 'Nghệ nhân tiên phong' : 'Tác giả tiêu chuẩn'}`
           : `Changed ${d.displayName} tier to ${nextTier}`
         : isVi
         ? `Đổi huy hiệu thất bại: ${res.error}`
@@ -194,7 +204,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
   const analyticsColumns = useMemo<DataTableColumn<DesignerRow>[]>(() => [
     {
       key: 'designer',
-      header: 'Designer',
+      header: 'Nhà thiết kế',
       value: (d) => d.displayName || d.id,
       render: (d) => (
         <div>
@@ -212,21 +222,19 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
     },
     { key: 'totalSales', header: 'total_sales', numeric: true, value: (d) => d.totalSales ?? 0, render: (d) => numOrDash(d.totalSales) },
     { key: 'rating', header: isVi ? 'Đánh giá' : 'Rating', numeric: true, value: (d) => d.rating ?? 0, render: (d) => numOrDash(d.rating) },
-    { key: 'verifiedStatus', header: isVi ? 'Xác thực' : 'Verified', value: (d) => d.verifiedStatus || '', render: (d) => <span className="text-fg-muted">{d.verifiedStatus || '—'}</span> },
+    { key: 'verifiedStatus', header: isVi ? 'Xác thực' : 'Verified', value: (d) => d.verifiedStatus || '', render: (d) => <span className="text-fg-muted">{verifiedStatusLabel(d.verifiedStatus)}</span> },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [isVi]);
 
   return (
     <div className="space-y-6">
       {/* Header & Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-5 rounded-lg border border-line-subtle shadow-e1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-6 rounded-lg border border-line">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-warning/10 text-warning">
-              Nhà thiết kế
-            </span>
-            <h2 className="text-xl font-black text-fg tracking-tight">
-              {isVi ? 'Quản Trị Nhà Thiết Kế & Bản Quyền (Designers Hub)' : 'Designers & IP Royalty Hub'}
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="technical">{isVi ? 'Nhà thiết kế' : 'Designers'}</Badge>
+            <h2 className="text-xl font-bold text-fg tracking-tight">
+              {isVi ? 'Quản Trị Nhà Thiết Kế & Bản Quyền' : 'Designers & IP Royalty Hub'}
             </h2>
           </div>
           <div className="mt-1">
@@ -239,23 +247,23 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-surface-muted rounded-lg">
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-line bg-surface-muted p-1">
           <button
             onClick={() => setActiveTab('designers')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
               activeTab === 'designers'
-                ? 'bg-surface text-primary shadow-e1'
+                ? 'bg-surface text-fg font-semibold shadow-e1'
                 : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="palette" size={18} />
-            {isVi ? 'Hồ Sơ Designers' : 'Designers'}
+            {isVi ? 'Hồ Sơ Nhà Thiết Kế' : 'Designers'}
           </button>
           <button
             onClick={() => setActiveTab('withdrawals')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
               activeTab === 'withdrawals'
-                ? 'bg-surface text-primary shadow-e1'
+                ? 'bg-surface text-fg font-semibold shadow-e1'
                 : 'text-fg-muted hover:text-fg'
             }`}
           >
@@ -264,70 +272,70 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
               activeTab === 'analytics'
-                ? 'bg-surface text-primary shadow-e1'
+                ? 'bg-surface text-fg font-semibold shadow-e1'
                 : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="query_stats" size={18} />
-            {isVi ? 'Doanh Thu & Sales' : 'Sales Stats'}
+            {isVi ? 'Doanh thu & bán hàng' : 'Sales Stats'}
           </button>
         </div>
       </div>
 
       {/* KPI Cards — mọi số đều từ `designer_profiles`; không có cột ⇒ '—' */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
-          <div className="text-xs font-bold uppercase text-fg-subtle">{isVi ? 'Tổng Designers' : 'Total Designers'}</div>
-          <div className="text-2xl font-black text-fg mt-1">{error ? '—' : isLoading ? '…' : stats.totalDesigners}</div>
-          <div className="text-xs text-fg-subtle font-semibold mt-0.5">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tổng Nhà Thiết Kế' : 'Total Designers'}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">{error ? '—' : isLoading ? '…' : stats.totalDesigners}</div>
+          <div className="text-xs text-fg-subtle font-medium mt-0.5">
             {error
               ? isVi ? 'Lỗi đọc designer_profiles' : 'designer_profiles read failed'
               : isVi ? 'Bảng designer_profiles' : 'designer_profiles table'}
           </div>
         </div>
 
-        <div className="bg-surface p-3.5 rounded-lg border border-warning/30 bg-warning-tint/20 shadow-e0">
-          <div className="text-xs font-bold uppercase text-warning">{isVi ? 'Top Creators' : 'Top Creators'}</div>
-          <div className="text-2xl font-black text-warning mt-1">{numOrDash(stats.topCreatorsCount)}</div>
-          <div className="text-xs text-warning font-semibold mt-0.5">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tác Giả Hàng Đầu' : 'Top Creators'}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">{numOrDash(stats.topCreatorsCount)}</div>
+          <div className="text-xs text-warning font-medium mt-0.5">
             {hasBadgeColumn ? (isVi ? 'Huy hiệu cao nhất' : 'Elite tier') : noBadgeTierNote}
           </div>
         </div>
 
-        <div className="bg-surface p-3.5 rounded-lg border border-info/30 bg-info-tint/20 shadow-e0">
-          <div className="text-xs font-bold uppercase text-info">{isVi ? 'Kỹ Sư CAD' : 'Verified Eng.'}</div>
-          <div className="text-2xl font-black text-info mt-1">{numOrDash(stats.verifiedEngineersCount)}</div>
-          <div className="text-xs text-info font-semibold mt-0.5">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Kỹ Sư CAD' : 'Verified Eng.'}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">{numOrDash(stats.verifiedEngineersCount)}</div>
+          <div className="text-xs text-info font-medium mt-0.5">
             {hasBadgeColumn ? (isVi ? 'Kỹ thuật chính xác' : 'Mechanical') : noBadgeTierNote}
           </div>
         </div>
 
-        <div className="bg-surface p-3.5 rounded-lg border border-info/30 bg-info-tint/20 shadow-e0">
-          <div className="text-xs font-bold uppercase text-info">{isVi ? 'Pioneer Makers' : 'Pioneers'}</div>
-          <div className="text-2xl font-black text-info mt-1">{numOrDash(stats.pioneerMakersCount)}</div>
-          <div className="text-xs text-info font-semibold mt-0.5">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tác giả tiên phong' : 'Pioneers'}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">{numOrDash(stats.pioneerMakersCount)}</div>
+          <div className="text-xs text-info font-medium mt-0.5">
             {hasBadgeColumn ? (isVi ? 'Tạo mẫu sáng tạo' : 'Artistic') : noBadgeTierNote}
           </div>
         </div>
 
-        <div className="bg-surface p-3.5 rounded-lg border border-positive/30 bg-positive-tint/20 shadow-e0">
-          <div className="text-xs font-bold uppercase text-positive">{isVi ? 'Royalties Ghi Nhận' : 'Royalties Recorded'}</div>
-          <div className="text-lg font-black text-positive mt-1 truncate">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Hoa hồng ghi nhận' : 'Royalties Recorded'}</div>
+          <div className="text-lg font-bold tabular-nums text-fg mt-1 truncate">
             {stats.totalRoyaltiesPaidVnd === null ? '—' : formatVnd(stats.totalRoyaltiesPaidVnd)}
           </div>
-          <div className="text-xs text-positive font-semibold mt-0.5">
+          <div className="text-xs text-positive font-medium mt-0.5">
             {stats.totalRoyaltiesPaidVnd === null
               ? isVi ? 'Bảng không có cột total_royalties_earned' : 'no total_royalties_earned column'
               : isVi ? 'Tổng theo hồ sơ' : 'From profiles'}
           </div>
         </div>
 
-        <div className="bg-surface p-3.5 rounded-lg border border-danger/30 bg-danger-tint/20 shadow-e0">
-          <div className="text-xs font-bold uppercase text-danger">{isVi ? 'Chờ Quyết Toán' : 'Pending Payout'}</div>
-          <div className="text-lg font-black text-danger mt-1 truncate">—</div>
-          <div className="text-xs text-danger font-semibold mt-0.5">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Chờ Quyết Toán' : 'Pending Payout'}</div>
+          <div className="text-lg font-bold tabular-nums text-fg mt-1 truncate">—</div>
+          <div className="text-xs text-danger font-medium mt-0.5">
             {isVi ? 'Chưa có nguồn dữ liệu chi trả' : 'No payout data source'}
           </div>
         </div>
@@ -337,42 +345,42 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
       {activeTab === 'designers' && (
         <div className="space-y-4">
           {/* Controls Bar */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-4 rounded-lg border border-line">
             <div className="flex flex-wrap items-center gap-2">
               {hasBadgeColumn ? (
-                <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs font-semibold">
+                <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
                   <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Huy hiệu:' : 'Badge Tier:'}</span>
                   {(['all', 'TopCreator', 'VerifiedEngineer', 'PioneerMaker', 'Standard'] as const).map((t) => (
                     <button
                       key={t}
                       onClick={() => setFilterBadgeTier(t)}
-                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                         filters.badgeTier === t
-                          ? 'bg-surface text-primary font-bold shadow-e0'
+                          ? 'bg-surface text-fg font-semibold shadow-e1'
                           : 'text-fg-muted hover:text-fg'
                       }`}
                     >
                       {t === 'all'
                         ? (isVi ? 'Tất cả' : 'All')
                         : t === 'TopCreator'
-                        ? '👑 Top Creator'
+                        ? '👑 Tác giả hàng đầu'
                         : t === 'VerifiedEngineer'
-                        ? '⚙️ Engineer'
+                        ? '⚙️ Kỹ sư'
                         : t === 'PioneerMaker'
-                        ? '🚀 Pioneer'
+                        ? '🚀 Tiên phong'
                         : (isVi ? 'Tiêu chuẩn' : 'Standard')}
                     </button>
                   ))}
                 </div>
               ) : (
-                <span className="text-xs text-fg-subtle bg-surface-muted px-2.5 py-1.5 rounded-lg">
+                <span className="text-xs text-fg-subtle bg-surface-muted border border-line px-2.5 py-1.5 rounded-md">
                   {isVi
                     ? `Không lọc/gán huy hiệu được: ${noBadgeTierNote}.`
                     : `Tier filter/assignment unavailable: ${noBadgeTierNote}.`}
                 </span>
               )}
 
-              <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs font-semibold">
+              <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
                 <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">
                   {isVi ? 'Xác thực:' : 'Verified:'}
                 </span>
@@ -380,13 +388,13 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                   <button
                     key={s}
                     onClick={() => setFilterVerifiedStatus(s)}
-                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                       filters.verifiedStatus === s
-                        ? 'bg-surface text-primary font-bold shadow-e0'
+                        ? 'bg-surface text-fg font-semibold shadow-e1'
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
-                    {s === 'all' ? (isVi ? 'Tất cả' : 'All') : s}
+                    {s === 'all' ? (isVi ? 'Tất cả' : 'All') : s === 'Verified' ? 'Đã duyệt' : 'Chờ duyệt'}
                   </button>
                 ))}
               </div>
@@ -394,28 +402,36 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
 
             <div className="flex items-center gap-2">
               <div className="relative w-full md:w-72">
-                <Icon name="search" size={16} className="absolute left-2.5 top-2 text-fg-subtle" />
-                <input
-                  type="text"
-                  placeholder={isVi ? 'Tìm tên designer, email...' : 'Search designer...'}
-                  value={filters.searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary focus:bg-surface"
-                />
+                <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
+                <Field label={isVi ? 'Tìm tên nhà thiết kế, email' : 'Search designer'} hideLabel optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      aria-label={isVi ? 'Tìm tên nhà thiết kế, email' : 'Search designer'}
+                      placeholder={isVi ? 'Tìm tên nhà thiết kế, email...' : 'Search designer...'}
+                      value={filters.searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8"
+                    />
+                  )}
+                </Field>
               </div>
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+                leadingIcon={<Icon name="sync" size={16} className={isLoading ? 'animate-spin motion-reduce:animate-none' : ''} />}
                 onClick={() => void loadDesigners()}
                 disabled={isLoading}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-60 shrink-0"
               >
-                <Icon name="sync" size={16} className={isLoading ? 'animate-spin motion-reduce:animate-none' : ''} />
                 {isVi ? 'Tải Lại' : 'Reload'}
-              </button>
+              </Button>
             </div>
           </div>
 
           {usersError !== null && (
-            <p className="text-xs text-warning bg-warning-tint border border-warning/30 rounded-lg px-3 py-2">
+            <p className="text-xs text-warning bg-warning-tint border border-warning/20 rounded-md px-3 py-2">
               {isVi
                 ? `Không ghép được hồ sơ người dùng (email/SĐT) từ user_profiles: ${usersError}`
                 : `Could not join user profiles (email/phone) from user_profiles: ${usersError}`}
@@ -424,26 +440,29 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
 
           {/* Đang tải */}
           {isLoading && designers.length === 0 && error === null && (
-            <div className="bg-surface p-6 rounded-lg border border-line-subtle shadow-e0 text-center text-xs text-fg-subtle">
-              {isVi ? 'Đang tải hồ sơ nhà thiết kế từ designer_profiles...' : 'Loading designer profiles from designer_profiles...'}
+            <div
+              role="status"
+              aria-label={isVi ? 'Đang tải hồ sơ nhà thiết kế từ designer_profiles...' : 'Loading designer profiles from designer_profiles...'}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+              {[0, 1].map((i) => (
+                <Skeleton key={i} variant="rect" height="11rem" rounded="lg" />
+              ))}
             </div>
           )}
 
           {/* LỖI THẬT */}
           {error !== null && (
-            <div role="alert" className="p-4 bg-danger-tint border border-danger/30 rounded-lg flex items-start gap-3">
+            <div role="alert" className="p-4 bg-danger-tint border border-danger/20 rounded-lg flex items-start gap-3">
               <Icon name="error" size={24} className="text-danger mt-0.5" />
               <div className="flex-1">
-                <h4 className="font-bold text-danger text-sm">
+                <h4 className="font-semibold text-danger text-sm">
                   {isVi ? 'Không đọc được bảng designer_profiles' : 'Could not read the designer_profiles table'}
                 </h4>
                 <p className="text-xs text-danger mt-1 font-mono break-all">{error}</p>
-                <button
-                  onClick={() => void loadDesigners()}
-                  className="mt-2 px-3 py-1 bg-surface border border-danger/30 text-danger text-xs font-bold rounded-lg cursor-pointer"
-                >
+                <Button variant="secondary" size="sm" className="mt-2" onClick={() => void loadDesigners()}>
                   {isVi ? 'Thử lại' : 'Retry'}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -464,7 +483,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
               icon={<Icon name="draw" size={20} className="text-primary" />}
               action={
                 <Button variant="secondary" size="sm" onClick={() => setActiveTab('analytics')}>
-                  {isVi ? 'Xem Doanh Thu Theo Designer' : 'View revenue by designer'}
+                  {isVi ? 'Xem Doanh Thu Theo Nhà Thiết Kế' : 'View revenue by designer'}
                 </Button>
               }
             />
@@ -477,7 +496,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
               return (
               <div
                 key={d.id}
-                className="bg-surface rounded-lg border border-line-subtle p-5 shadow-e0 hover:shadow-e1 transition-all flex flex-col justify-between"
+                className="bg-surface rounded-lg border border-line p-6 hover:shadow-e1 transition-all duration-300 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
@@ -486,12 +505,12 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                         <img
                           src={d.avatarUrl}
                           alt={d.displayName}
-                          className="w-13 h-13 rounded-full object-cover border-2 border-line-subtle shadow-e0 shrink-0"
+                          className="w-13 h-13 rounded-md object-cover border border-line shrink-0"
                         />
                       ) : (
                         <span
                           aria-hidden="true"
-                          className="w-13 h-13 rounded-full border-2 border-line-subtle bg-surface-muted text-fg-muted font-bold flex items-center justify-center shrink-0"
+                          className="w-13 h-13 rounded-md border border-line bg-surface-muted text-fg-muted font-semibold flex items-center justify-center shrink-0"
                         >
                           {(d.displayName || '?').charAt(0)}
                         </span>
@@ -500,69 +519,69 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h3 className="font-bold text-fg text-base">{d.displayName || '—'}</h3>
                           {d.badgeTier && (
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1 shadow-e0 ${
+                            <Badge
+                              variant={
                                 d.badgeTier === 'TopCreator'
-                                  ? 'bg-warning-tint text-warning border border-warning/30'
-                                  : d.badgeTier === 'VerifiedEngineer'
-                                  ? 'bg-info-tint text-info border border-info/30'
-                                  : d.badgeTier === 'PioneerMaker'
-                                  ? 'bg-info-tint text-info border border-info/30'
-                                  : 'bg-surface-muted text-fg-muted border border-line-subtle'
-                              }`}
+                                  ? 'warning'
+                                  : d.badgeTier === 'VerifiedEngineer' || d.badgeTier === 'PioneerMaker'
+                                  ? 'info'
+                                  : 'neutral'
+                              }
                             >
-                              {d.badgeTier === 'TopCreator' && '👑 Top Creator'}
-                              {d.badgeTier === 'VerifiedEngineer' && '🛡️ Verified Engineer'}
-                              {d.badgeTier === 'PioneerMaker' && '🚀 Pioneer Maker'}
-                              {d.badgeTier === 'Standard' && 'Standard Maker'}
+                              {d.badgeTier === 'TopCreator' && '👑 Tác giả hàng đầu'}
+                              {d.badgeTier === 'VerifiedEngineer' && '🛡️ Kỹ sư đã kiểm duyệt'}
+                              {d.badgeTier === 'PioneerMaker' && '🚀 Nghệ nhân tiên phong'}
+                              {d.badgeTier === 'Standard' && 'Tác giả tiêu chuẩn'}
                               {!['TopCreator', 'VerifiedEngineer', 'PioneerMaker', 'Standard'].includes(d.badgeTier) && d.badgeTier}
-                            </span>
+                            </Badge>
                           )}
                         </div>
                         <p className="text-xs text-fg-subtle mt-0.5">
                           {user?.email || '—'} • {user?.phone || (isVi ? 'Chưa cập nhật SĐT' : 'No phone')}
                         </p>
                         <p className="text-xs text-fg-subtle mt-0.5 font-mono">
-                          {isVi ? 'Xác thực:' : 'Verified:'} {d.verifiedStatus || '—'}
+                          {isVi ? 'Xác thực:' : 'Verified:'} {verifiedStatusLabel(d.verifiedStatus)}
                           {d.rating !== null ? ` • ★ ${d.rating}` : ''}
                         </p>
                       </div>
                     </div>
 
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="shrink-0"
+                      leadingIcon={<Icon name="tune" size={16} />}
                       onClick={() => handleOpenEdit(d)}
-                      className="px-3 py-1 bg-surface-muted hover:bg-primary/10 text-fg-muted hover:text-primary text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                     >
-                      <Icon name="tune" size={16} />
                       {isVi ? 'Cấu Hình' : 'Configure'}
-                    </button>
+                    </Button>
                   </div>
 
                   {d.bio && (
-                    <p className="text-xs text-fg-muted mt-3 line-clamp-2 bg-canvas p-2 rounded-lg border border-line-subtle italic">
+                    <p className="text-xs text-fg-muted mt-3 line-clamp-2 bg-surface-muted p-2.5 rounded-md border border-line-subtle italic">
                       "{d.bio}"
                     </p>
                   )}
 
                   {/* Royalty & Sales — chỉ hiện số có thật trong DB */}
-                  <div className="grid grid-cols-3 gap-2 mt-4 p-3 bg-canvas/80 rounded-lg border border-line-subtle">
+                  <div className="grid grid-cols-3 gap-2 mt-4 p-3 bg-surface-muted rounded-md border border-line-subtle">
                     <div>
-                      <div className="text-xs text-fg-subtle font-bold uppercase">{isVi ? 'Trần Royalty' : 'Royalty Cap'}</div>
-                      <div className="text-lg font-black text-primary font-mono">
+                      <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Trần Hoa Hồng' : 'Royalty Cap'}</div>
+                      <div className="text-lg font-bold text-fg font-mono tabular-nums">
                         {d.royaltyPercent !== null ? `${d.royaltyPercent}%` : '—'}
                       </div>
                       <div className="text-xs text-fg-subtle">royalty_percent</div>
                     </div>
                     <div>
-                      <div className="text-xs text-fg-subtle font-bold uppercase">{isVi ? 'Doanh Số Ghi Nhận' : 'Recorded Sales'}</div>
-                      <div className="text-sm font-bold text-fg font-mono mt-0.5">
+                      <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Doanh Số Ghi Nhận' : 'Recorded Sales'}</div>
+                      <div className="text-sm font-bold text-fg font-mono tabular-nums mt-0.5">
                         {numOrDash(d.totalSales)}
                       </div>
                       <div className="text-xs text-fg-subtle">total_sales</div>
                     </div>
                     <div>
-                      <div className="text-xs text-fg-subtle font-bold uppercase">{isVi ? 'Hoa Hồng Đã Trả' : 'Royalties Paid'}</div>
-                      <div className="text-sm font-bold text-warning font-mono mt-0.5">
+                      <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Hoa Hồng Đã Trả' : 'Royalties Paid'}</div>
+                      <div className="text-sm font-bold text-warning font-mono tabular-nums mt-0.5">
                         {d.totalRoyaltiesEarned !== null ? formatVnd(d.totalRoyaltiesEarned) : '—'}
                       </div>
                       <div className="text-xs text-fg-subtle">
@@ -573,7 +592,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
 
                   {/* Bank info — cột thật của bảng */}
                   {(d.bankName || d.bankAccount || d.taxId || d.portfolioUrl) && (
-                    <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle bg-surface-muted/60 px-2.5 py-1.5 rounded-lg font-mono">
+                    <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle bg-surface-muted border border-line-subtle px-2.5 py-1.5 rounded-md font-mono">
                       <Icon name="account_balance" size={16} className="text-fg-subtle" />
                       <span className="truncate">
                         {[d.bankName, d.bankAccount, d.taxId && `MST: ${d.taxId}`, d.portfolioUrl]
@@ -591,12 +610,13 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                   </span>
                   <div className="flex items-center gap-2">
                     {hasBadgeColumn && (
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => void handleCycleTier(d)}
-                        className="px-2.5 py-1 bg-warning-tint hover:bg-warning-tint text-warning text-xs font-bold rounded-sm cursor-pointer"
                       >
                         {isVi ? 'Thăng Hạng Nhanh' : 'Cycle Tier'}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -611,10 +631,10 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
       {/* TAB 2: LỆNH RÚT TIỀN — CHƯA CÓ NGUỒN DỮ LIỆU DB */}
       {activeTab === 'withdrawals' && (
         <div className="space-y-4">
-          <div className="bg-surface p-4 rounded-lg border border-warning/30 bg-warning-tint/20 flex items-start gap-3">
+          <div className="bg-warning-tint p-4 rounded-lg border border-warning/20 flex items-start gap-3">
             <Icon name="warning" size={24} className="text-warning mt-0.5" />
             <div className="text-xs">
-              <h4 className="font-bold text-warning text-sm">
+              <h4 className="font-semibold text-warning text-sm">
                 {isVi ? 'Chưa có nguồn dữ liệu lệnh rút tiền trong DB' : 'No DB source for payout requests yet'}
               </h4>
               <p className="text-fg-muted mt-1">
@@ -645,8 +665,8 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
       {/* TAB 3: THỐNG KÊ THEO DESIGNER — chỉ số có thật trong `designer_profiles` */}
       {activeTab === 'analytics' && (
         <div className="space-y-4">
-          <div className="bg-surface p-4 rounded-lg border border-line-subtle shadow-e0 text-xs">
-            <h4 className="font-bold text-fg text-sm">
+          <div className="bg-surface p-4 rounded-lg border border-line text-xs">
+            <h4 className="font-semibold text-fg text-sm">
               {isVi ? 'Số liệu đọc từ designer_profiles' : 'Numbers read from designer_profiles'}
             </h4>
             <p className="text-fg-subtle mt-0.5">
@@ -657,7 +677,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
           </div>
 
           {error !== null ? (
-            <div role="alert" className="p-4 bg-danger-tint border border-danger/30 rounded-lg text-xs text-danger font-mono break-all">
+            <div role="alert" className="p-4 bg-danger-tint border border-danger/20 rounded-lg text-xs text-danger font-mono break-all">
               {error}
             </div>
           ) : designers.length === 0 ? (
@@ -697,35 +717,35 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
           open
           onClose={() => setEditingDesigner(null)}
           size="md"
-          title={isVi ? 'Cấu Hình Designer & Bản Quyền' : 'Configure Designer & IP'}
+          title={isVi ? 'Cấu Hình Nhà Thiết Kế & Bản Quyền' : 'Configure Designer & IP'}
           description={editingDesigner.displayName}
         >
             <form onSubmit={handleSaveDesigner} className="space-y-4">
               {hasBadgeColumn ? (
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1.5">
-                    {isVi ? 'Gán Huy Hiệu Badge Tier:' : 'Badge Tier Assignment:'}
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {BADGE_TIERS.map((tier) => (
-                      <button
-                        key={tier.id}
-                        type="button"
-                        onClick={() => setBadgeDraft(tier.id)}
-                        className={`p-2.5 text-left rounded-lg border text-xs transition-colors cursor-pointer ${
-                          badgeDraft === tier.id
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                            : 'border-line-subtle hover:bg-canvas'
-                        }`}
-                      >
-                        <div className="font-bold text-fg">{tier.label}</div>
-                        <div className="text-xs text-fg-subtle mt-0.5">{tier.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <Field label={isVi ? 'Gán Huy Hiệu:' : 'Badge Tier Assignment:'} optionalLabel={null}>
+                  {() => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {BADGE_TIERS.map((tier) => (
+                        <button
+                          key={tier.id}
+                          type="button"
+                          aria-pressed={badgeDraft === tier.id}
+                          onClick={() => setBadgeDraft(tier.id)}
+                          className={`min-h-11 p-3 text-left rounded-md border text-xs transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            badgeDraft === tier.id
+                              ? 'border-primary bg-primary-tint ring-2 ring-ring/20'
+                              : 'border-line hover:bg-surface-muted'
+                          }`}
+                        >
+                          <div className="font-semibold text-fg">{tier.label}</div>
+                          <div className="text-xs text-fg-subtle mt-0.5">{tier.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </Field>
               ) : (
-                <p className="text-xs text-fg-muted bg-surface-muted rounded-lg px-3 py-2">
+                <p className="text-xs text-fg-muted bg-surface-muted border border-line-subtle rounded-md px-3 py-2">
                   {isVi
                     ? `Mục huy hiệu được ẩn (không ghi vào cột không tồn tại): ${noBadgeTierNote}.`
                     : `The tier section is hidden (no write to a non-existent column): ${noBadgeTierNote}.`}
@@ -733,53 +753,60 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
               )}
 
               {/* Royalty slider — ghi `royalty_percent` */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-fg-muted">
-                    {isVi ? 'Trần Hoa Hồng Bản Quyền (% Royalty):' : 'Royalty Rate (%):'}
-                  </label>
-                  <span className="font-mono font-black text-sm text-primary">{royaltyDraft}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={5}
-                  max={25}
-                  step={1}
-                  value={royaltyDraft}
-                  onChange={(e) => setRoyaltyDraft(Number(e.target.value))}
-                  className="w-full accent-primary cursor-pointer"
-                />
-                <div className="flex justify-between text-xs text-fg-subtle mt-1 font-mono">
-                  <span>Min: 5%</span>
-                  <span>{isVi ? 'Mặc định: 10%' : 'Default: 10%'}</span>
-                  <span>{isVi ? 'Trần max: 25%' : 'Max: 25%'}</span>
-                </div>
-                <p className="text-xs text-fg-subtle mt-1.5">
-                  {editingDesigner.royaltyPercent === null
-                    ? isVi
-                      ? 'Hiện DB chưa có giá trị royalty_percent cho hồ sơ này. Thanh trượt đang ở 10% chỉ là điểm bắt đầu — bấm Lưu mới ghi.'
-                      : 'The DB currently has no royalty_percent for this profile. The slider starts at 10% but only Save writes it.'
-                    : isVi
-                    ? 'Giá trị đang lưu trong DB được nạp sẵn vào thanh trượt.'
-                    : 'The value currently stored in the DB is loaded into the slider.'}
-                </p>
-              </div>
+              <Field
+                label={
+                  <span className="flex items-center justify-between gap-2">
+                    <span>{isVi ? 'Trần Hoa Hồng Bản Quyền (%):' : 'Royalty Rate (%):'}</span>
+                    <span className="font-mono font-bold tabular-nums text-sm text-fg">{royaltyDraft}%</span>
+                  </span>
+                }
+                optionalLabel={null}
+              >
+                {(control) => (
+                  <div>
+                    <input
+                      {...control}
+                      type="range"
+                      min={5}
+                      max={25}
+                      step={1}
+                      value={royaltyDraft}
+                      onChange={(e) => setRoyaltyDraft(Number(e.target.value))}
+                      className="w-full accent-primary cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs text-fg-subtle mt-1 font-mono">
+                      <span>Tối thiểu: 5%</span>
+                      <span>{isVi ? 'Mặc định: 10%' : 'Default: 10%'}</span>
+                      <span>{isVi ? 'Tối đa: 25%' : 'Max: 25%'}</span>
+                    </div>
+                    <p className="text-xs text-fg-subtle mt-1.5">
+                      {editingDesigner.royaltyPercent === null
+                        ? isVi
+                          ? 'Hiện DB chưa có giá trị royalty_percent cho hồ sơ này. Thanh trượt đang ở 10% chỉ là điểm bắt đầu — bấm Lưu mới ghi.'
+                          : 'The DB currently has no royalty_percent for this profile. The slider starts at 10% but only Save writes it.'
+                        : isVi
+                        ? 'Giá trị đang lưu trong DB được nạp sẵn vào thanh trượt.'
+                        : 'The value currently stored in the DB is loaded into the slider.'}
+                    </p>
+                  </div>
+                )}
+              </Field>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-line-subtle">
-                <button
+              <div className="flex justify-end gap-2 pt-4 border-t border-line-subtle">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setEditingDesigner(null)}
-                  className="px-4 py-2 bg-surface-muted text-fg-muted text-xs font-bold rounded-lg cursor-pointer"
                 >
                   {isVi ? 'Hủy' : 'Cancel'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  variant="primary"
                   disabled={isSavingDesigner}
-                  className="px-4 py-2 bg-primary text-primary-fg text-xs font-bold rounded-lg shadow-e1 cursor-pointer disabled:opacity-60"
                 >
                   {isSavingDesigner ? (isVi ? 'Đang lưu...' : 'Saving...') : isVi ? 'Lưu Vào DB' : 'Save to DB'}
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>

@@ -23,8 +23,9 @@ export const StlUnitConfirmModal: React.FC<StlUnitConfirmModalProps> = ({
   onConvertToInch,
   onCancel
 }) => {
-  if (!isOpen) return null;
-
+  // W2-NEW-1 (StrictMode): KHÔNG return null khi đóng — luôn mount <Modal>, chỉ đổi prop `open`.
+  // Mount có điều kiện khiến dialog mount→cleanup→mount, `dialog.close()` trong cleanup đóng
+  // modal vừa mở ⇒ bấm nút không thấy gì ở dev server.
   const dimsInchesConverted = {
     x: (dimensionsMm.x * 25.4).toFixed(1),
     y: (dimensionsMm.y * 25.4).toFixed(1),
@@ -33,71 +34,73 @@ export const StlUnitConfirmModal: React.FC<StlUnitConfirmModalProps> = ({
 
   return (
     <Modal
-      open
+      open={isOpen}
       onClose={onCancel}
       size="lg"
       closeLabel="Đóng xác nhận đơn vị đo"
       title={
         <span className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-warning/40 bg-warning-tint text-warning">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-warning/20 bg-warning-tint text-warning">
             <Icon name="straighten" size={28} />
           </span>
           <span className="flex flex-col">
             <span className="block font-mono text-xs font-bold uppercase tracking-widest text-fg-subtle">
-              Xác Nhận Đơn Vị Đo STL // Unit Verification
+              XÁC NHẬN ĐƠN VỊ ĐO STL
             </span>
             <span className="mt-0.5 font-sans text-base font-bold text-fg sm:text-lg">
-              Xác Nhận Đơn Vị Đo Cho File STL
+              Xác nhận đơn vị đo cho tệp STL
             </span>
           </span>
         </span>
       }
     >
       <div className="space-y-5">
-        <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/10 p-4 text-xs text-warning">
+        <div className="space-y-2 rounded-md border border-warning/20 bg-warning-tint p-3.5 text-xs text-warning">
           <p className="font-semibold">
-            Tập tin <span className="font-mono font-bold text-fg">{fileName}</span> là định dạng STL tiêu chuẩn.
+            Tệp <span className="font-mono font-bold text-fg">{fileName}</span> là định dạng STL tiêu chuẩn.
           </p>
           <p className="leading-relaxed">
-            Định dạng STL không lưu trữ thông tin đơn vị đo chuẩn trong header. Hệ thống hiện đang hiểu kích thước hình học là <strong>Millimet (mm)</strong>.
+            Định dạng STL không lưu trữ thông tin đơn vị đo chuẩn trong header. Hệ thống hiện đang hiểu kích thước hình học là <strong>Mi-li-mét (mm)</strong>.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
-          <div className="rounded-lg border-2 border-primary bg-primary-tint/50 p-3.5">
+          <div className="rounded-lg border border-primary bg-primary-tint p-3.5">
             <div className="mb-1 text-xs font-bold uppercase tracking-wider text-primary">
-              Khuyến nghị: Chuẩn Millimet (mm)
+              Khuyến nghị: chuẩn mi-li-mét (mm)
             </div>
             <div className="font-mono text-base font-bold text-fg">
               {dimensionsMm.x} × {dimensionsMm.y} × {dimensionsMm.z} mm
             </div>
-            <div className="mt-1 text-xs text-fg-subtle">Phù hợp kích thước bàn in thông dụng</div>
+            <div className="mt-1 text-xs text-fg-muted">Phù hợp kích thước bàn in thông dụng</div>
           </div>
 
-          <div className="rounded-lg border border-line bg-canvas p-3.5">
-            <div className="mb-1 text-xs font-bold uppercase tracking-wider text-fg-subtle">
-              Nếu file gốc vẽ theo Inch:
+          <div className="rounded-lg border border-line bg-surface-muted p-3.5">
+            <div className="mb-1 text-xs font-bold uppercase tracking-wider text-fg-muted">
+              Nếu tệp gốc vẽ theo inch:
             </div>
             <div className="font-mono text-base font-bold text-fg">
               {dimsInchesConverted.x} × {dimsInchesConverted.y} × {dimsInchesConverted.z} mm
             </div>
-            <div className="mt-1 text-xs text-fg-subtle">Tự động phóng to x25.4 lần</div>
+            <div className="mt-1 text-xs text-fg-muted">Tự động phóng to ×25,4 lần</div>
           </div>
         </div>
 
         <div className="flex flex-col gap-2.5 pt-2 sm:flex-row">
           <button
+            type="button"
             onClick={onConfirmMm}
-            className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-surface-inverse px-4 py-3 font-mono text-xs font-bold uppercase tracking-wider text-on-inverse shadow-e1 transition-all hover:bg-surface-inverse"
+            className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md bg-primary px-4 h-10 max-md:min-h-11 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Icon name="check" size={18} />
-            Đúng, Kích Thước Là Millimet (mm)
+            Đúng, kích thước là mi-li-mét (mm)
           </button>
           <button
+            type="button"
             onClick={onConvertToInch}
-            className="cursor-pointer rounded-lg border border-line bg-canvas px-4 py-3 font-mono text-xs font-bold uppercase tracking-wider text-fg shadow-e1 transition-all hover:bg-surface-muted"
+            className="cursor-pointer rounded-md border border-line-control bg-surface px-4 h-10 max-md:min-h-11 text-sm font-semibold text-fg transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Chuyển Đổi Sang Inch (x25.4)
+            Chuyển đổi sang inch (×25,4)
           </button>
         </div>
       </div>

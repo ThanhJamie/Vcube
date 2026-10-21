@@ -8,8 +8,8 @@
  * - `tone='danger'`: hành động phá huỷ. Nút xác nhận dùng **biến thể `danger` của `Button`**
  *   (A12) — không còn inline style `var(--color-danger)`: biến thể được chọn bên trong
  *   primitive vì `cn()` không giải quyết xung đột utility và thứ tự CSS không đảm bảo
- *   (`.bg-danger` đứng TRƯỚC `.bg-primary` trong CSS build). Chữ `text-primary-fg`
- *   (#FFFFFF trên nền danger = 6.47:1, đạt AA).
+ *   (`.bg-danger` đứng TRƯỚC `.bg-primary` trong CSS build). Chữ trắng trên nền danger
+ *   đạt 5.72:1 (xem `node scripts/check-contrast.mjs`: "fg on danger fill").
  * - Có icon cảnh báo + tiêu đề chữ: trạng thái nguy hiểm không chỉ thể hiện bằng màu.
  * - `loading` khoá cả hai nút để không submit hai lần.
  */

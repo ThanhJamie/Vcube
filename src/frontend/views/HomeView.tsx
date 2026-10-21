@@ -35,16 +35,38 @@ interface HomeViewProps {
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 /**
- * Tiền VND: thiếu giá trị ⇒ `—`, không bịa `0 đ`.
+ * Tiền VND: thiếu giá trị ⇒ `—`, không bịa `0 ₫`.
  * `0` KHÔNG phải một mức giá: `price_digital` / `price_physical` = 0 nghĩa là người bán KHÔNG
  * bán kênh đó. Cùng luật với `ExploreView.tsx` (`Number.isFinite(value) && value > 0 ? … : EMPTY_VALUE`).
+ * CC-14 (D-B): ký hiệu tiền là **`₫`** như `formatCurrency`/`Money` — Home từng nối tay ` đ`
+ * nên cùng một mức giá hiện 2 kiểu giữa Home và Explore/PDP/Cart.
  */
 const vnd = (v: unknown, locale: string): string =>
-  isNum(v) && v > 0 ? `${formatNumber(v, { locale, maximumFractionDigits: 0 })} đ` : EMPTY_VALUE;
+  isNum(v) && v > 0 ? `${formatNumber(v, { locale, maximumFractionDigits: 0 })} ₫` : EMPTY_VALUE;
 
 /** Điểm đánh giá chỉ có nghĩa khi CÓ cả điểm VÀ số lượng đánh giá thật. */
 const hasRating = (product: Product): boolean =>
   isNum(product.rating) && product.rating > 0 && isNum(product.reviewsCount) && product.reviewsCount > 0;
+
+/** Nhãn giấy phép: đọc `license_type`; chưa khai ⇒ nói thẳng, KHÔNG đoán "Commercial". */
+const LICENSE_VI: Record<string, string> = {
+  standard: 'Tiêu chuẩn',
+  commercial: 'Thương mại',
+  exclusive: 'Độc quyền',
+};
+const licenseLabel = (license?: string | null): string => {
+  const value = typeof license === 'string' ? license.trim() : '';
+  if (!value) return `${EMPTY_VALUE} (người bán chưa khai báo)`;
+  return LICENSE_VI[value.toLowerCase()] ?? value;
+};
+
+/** Vật liệu hỗ trợ — chỉ đọc từ dữ liệu sản phẩm, thiếu ⇒ `—` (không đoán). */
+const materialLabel = (product: Product): string => {
+  const names = (product.supportedMaterials || [])
+    .map((m) => (typeof m === 'string' ? m.trim() : ''))
+    .filter(Boolean);
+  return names.length > 0 ? names.slice(0, 2).join(' · ') : EMPTY_VALUE;
+};
 
 /** Icon placeholder theo danh mục khi sản phẩm chưa có ảnh thật. */
 const CATEGORY_ICON: Record<string, string> = Object.fromEntries(
@@ -52,6 +74,19 @@ const CATEGORY_ICON: Record<string, string> = Object.fromEntries(
 );
 const categoryIcon = (category?: string): string =>
   (category && CATEGORY_ICON[category]) || 'view_in_ar';
+
+/** UI copy seed cũ còn tiếng Anh/"File" trong `DEFAULT_SITE_CONTENT` (file dữ liệu, ngoài
+ *  write-scope W2). Chỉ thay khi giá trị VẪN ĐÚNG BẰNG seed cũ — admin đã cấu hình nội dung
+ *  khác thì giữ nguyên (D0: chuỗi hiển thị VI-only). */
+const LEGACY_SITE_COPY: Record<string, string> = {
+  'VCUBE PRECISION ANTHOLOGY // 2026': 'TUYỂN TẬP CHẾ TÁC CHÍNH XÁC VCUBE 2026',
+  'Báo Giá File 3D Tức Thì': 'Báo giá tệp 3D tức thì',
+};
+const siteCopy = (value: string | undefined, fallback: string): string => {
+  const v = (value || '').trim();
+  if (!v) return fallback;
+  return LEGACY_SITE_COPY[v] ?? v;
+};
 
 /** Số sản phẩm hiển thị mỗi lượt ở lưới catalog (3 cột × 2 hàng). */
 const CATALOG_PAGE_SIZE = 6;
@@ -78,7 +113,7 @@ interface HeroChassisModel {
 const HERO_CHASSIS_MODELS: HeroChassisModel[] = [
   {
     id: 'gear',
-    labelVi: 'Bánh Răng',
+    labelVi: 'Bánh răng',
     labelEn: 'Spur Gear',
     titleVi: 'Bánh Răng Truyền Động (Module 2.5)',
     titleEn: 'Mechanical Spur Gear (Module 2.5)',
@@ -89,7 +124,7 @@ const HERO_CHASSIS_MODELS: HeroChassisModel[] = [
   },
   {
     id: 'drone',
-    labelVi: 'Khung Drone',
+    labelVi: 'Drone',
     labelEn: 'Drone Arm',
     titleVi: 'Cánh Tay Drone Gia Cường Carbon',
     titleEn: 'Carbon-Reinforced Drone Arm',
@@ -100,7 +135,7 @@ const HERO_CHASSIS_MODELS: HeroChassisModel[] = [
   },
   {
     id: 'box',
-    labelVi: 'Vỏ Hộp IoT',
+    labelVi: 'Vỏ hộp',
     labelEn: 'IoT Case',
     titleVi: 'Vỏ Hộp Điện Tử IoT Kháng Nước IP65',
     titleEn: 'Water-Resistant IP65 IoT Enclosure',
@@ -111,7 +146,7 @@ const HERO_CHASSIS_MODELS: HeroChassisModel[] = [
   },
   {
     id: 'arch',
-    labelVi: 'Cấu Trúc Vòm',
+    labelVi: 'Vòm',
     labelEn: 'Arch Truss',
     titleVi: 'Cấu Trúc Vòm Chịu Lực FEM',
     titleEn: 'FEM Topology Load Arch Bracket',
@@ -135,7 +170,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectProduct,
   onShowToast
 }) => {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const isVi = language === 'vi';
   const locale = isVi ? 'vi-VN' : 'en-US';
   /**
@@ -283,7 +318,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     };
     onAddToCart(item);
     if (onShowToast) {
-      onShowToast(isVi ? `Đã thêm File CAD "${product.name}" vào giỏ!` : `Added CAD File "${product.name}" to cart!`);
+      onShowToast(isVi ? `Đã thêm tệp CAD "${product.name}" vào giỏ!` : `Added CAD File "${product.name}" to cart!`);
     }
   };
 
@@ -312,21 +347,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
         type="website"
       />
 
-      {/* Background Ambient Glowing Radiance (Aligned with Login & Register) */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 opacity-70">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-accent/15 rounded-full blur-3xl" />
-        <div className="absolute bottom-10 left-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-3xl" />
-      </div>
+      {/* §1.1/§0: nền trang là `canvas` phẳng. Lớp "ambient radiance" (3 vệt blur 2 màu)
+          đã bỏ — đó là gradient màu trang trí, không nằm trong bảng token. */}
 
       {/* 1. Dynamic Top Campaign Banner */}
       {activeContent.announcementActive && (
-        <section className="bg-surface-inverse text-on-inverse py-2.5 sm:py-3 px-4 sm:px-6 md:px-12 border-b border-line/30 shadow-e1">
+        <section className="bg-surface-inverse text-on-inverse py-2.5 sm:py-3 px-4 sm:px-6 md:px-12 border-b border-on-inverse/15 shadow-soft">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 text-center md:text-left">
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
               {/* §2.5/§3: không emoji làm icon, không bịa tên chiến dịch ⇒ badge rỗng thì ẩn hẳn. */}
               {activeContent.announcementBadge && (
-                <span className="bg-primary text-primary-fg text-xs font-mono font-bold uppercase px-2.5 py-0.5 rounded-sm shadow-e1 tracking-wider shrink-0 flex items-center gap-1.5 border border-accent/30">
+                <span className="bg-on-inverse text-surface-inverse text-xs font-mono font-bold uppercase px-2.5 py-0.5 rounded-sm tracking-wider shrink-0 flex items-center gap-1.5 border border-on-inverse/20">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping motion-reduce:animate-none" />
                   {activeContent.announcementBadge}
                 </span>
@@ -354,18 +385,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </section>
       )}
 
-      {/* 2. Hero Section with Interactive 3D Model Switcher */}
-      <section className="relative overflow-hidden py-6 sm:py-8 lg:py-10 px-4 sm:px-6 md:px-10">
-        <div className="max-w-7xl mx-auto">
+      {/* 2. Hero Section with Interactive 3D Model Switcher — band sáng có viền (§3.1/§3.7) */}
+      <section className="relative px-4 py-6 sm:px-6 sm:py-8 md:px-10 lg:py-10">
+        <div className="mx-auto max-w-7xl rounded-xl bg-surface p-4 shadow-soft sm:p-6 lg:p-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
             {/* Left Content Column */}
             <div className="lg:col-span-7 flex flex-col justify-center space-y-5">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface border border-line-subtle rounded-sm text-xs uppercase font-mono tracking-[0.2em] text-primary font-bold w-fit">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse motion-reduce:animate-none" />
-                <span>{activeContent.heroBadge || 'VCUBE PRECISION ANTHOLOGY // 2026'}</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-muted border border-line rounded-full text-xs font-semibold uppercase tracking-wider text-fg-muted w-fit">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse motion-reduce:animate-none" />
+                <span>{siteCopy(activeContent.heroBadge, 'TUYỂN TẬP CHẾ TÁC CHÍNH XÁC VCUBE 2026')}</span>
               </div>
 
-              <h1 className="text-3xl sm:text-5xl xl:text-6xl font-black text-fg tracking-tight leading-[1.1]">
+              <h1 className="fluid-hero-heading text-fg tracking-tight">
                 {activeContent.heroHeadlineLine1 || (isVi ? 'CHẾ TÁC CƠ KHÍ' : 'MECHANICAL FABRICATION')}
                 <br />
                 <span className="text-primary">
@@ -388,7 +419,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   onClick={() => onNavigate('quote')}
                   leadingIcon={<Icon name="upload_file" size={20} />}
                 >
-                  <span>{activeContent.heroCtaQuoteText || (isVi ? 'Báo Giá File 3D Tức Thì' : 'Get an Instant 3D Quote')}</span>
+                  <span>{siteCopy(activeContent.heroCtaQuoteText, isVi ? 'Báo giá tệp 3D tức thì' : 'Get an Instant 3D Quote')}</span>
                 </Button>
 
                 <Button size="lg" variant="secondary"
@@ -425,10 +456,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                   {heroMetrics.map((m) => (
-                    <Card key={m.label} padding="md">
+                    <Card key={m.label} variant="soft" padding="md">
                       <span className="block text-xs text-fg-muted font-medium mb-1">{m.label}</span>
                       {m.value ? (
-                        <span className="font-mono text-sm sm:text-base font-extrabold text-primary tabular-nums">{m.value}</span>
+                        <span className="font-mono text-sm sm:text-base font-semibold text-fg tabular-nums">{m.value}</span>
                       ) : (
                         <span className="font-mono text-xs font-semibold text-fg-muted">
                           {isVi ? 'Chưa cấu hình' : 'Not configured'}
@@ -442,44 +473,46 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             {/* Right: Interactive 3D Showcase with Modern Chassis */}
             <div className="lg:col-span-5 relative flex flex-col items-center justify-center pt-2 lg:pt-0">
-              <div className="w-full rounded-xl bg-surface-inverse text-on-inverse border border-line-subtle shadow-e3 relative flex flex-col overflow-hidden">
-                {/* Tech Accent Top Edge */}
-                <div className="h-0.5 w-full bg-gradient-to-r from-primary via-accent to-primary" />
+              <div className="w-full overflow-hidden rounded-lg border border-line bg-surface shadow-soft">
+                {/* Hairline đơn sắc thay cho gradient 3 màu (§0: không gradient màu) */}
+                <div className="h-px w-full bg-accent/40" />
 
-                {/* Top Header on 3D Chassis */}
-                <div className="px-4 py-3 bg-surface-inverse/90 border-b border-line-subtle flex items-center justify-between z-10">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
-                    <span className="font-mono text-xs font-bold text-accent tracking-wider uppercase">
-                      CHASSIS // 3D VIEWER
+                {/* Thanh tiêu đề khung — sáng (soften chassis); chỉ viewport giữ nền tối */}
+                <div className="z-10 flex items-center justify-between gap-2 border-b border-line bg-surface px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="size-2 shrink-0 rounded-full bg-positive" aria-hidden="true" />
+                    <span className="truncate font-mono text-xs font-bold uppercase tracking-wider text-fg">
+                      Khung xem 3D
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-surface-inverse-raised text-xs font-mono text-on-inverse/70 border border-line-subtle">
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="rounded-full border border-line bg-surface-muted px-2 py-0.5 font-mono text-xs text-fg-muted">
                       WebGL 2.0
                     </span>
-                    <span className="hidden sm:inline-flex px-2 py-0.5 rounded bg-surface-inverse-raised text-xs font-mono text-accent/80 border border-line-subtle">
-                      INTERACTIVE
+                    <span className="hidden rounded-full border border-line bg-surface-muted px-2 py-0.5 font-mono text-xs text-fg-muted sm:inline-flex">
+                      Tương tác
                     </span>
                   </div>
                 </div>
 
-                {/* Model Selector Tabs */}
-                <div className="px-3 pt-2 pb-2 bg-surface-inverse/70 border-b border-line-subtle/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                {/* Model Selector — segmented pill (chip), nền sáng */}
+                <div className="flex items-center gap-1 overflow-x-auto border-b border-line bg-surface px-3 py-2 no-scrollbar">
                   {HERO_CHASSIS_MODELS.map((item) => {
                     const isSelected = heroModel === item.id;
                     return (
                       <button
                         key={item.id}
+                        type="button"
+                        aria-pressed={isSelected}
                         onClick={() => setHeroModel(item.id)}
-                        className={`px-2.5 py-1.5 text-xs rounded-md font-mono font-bold transition-colors duration-150 shrink-0 cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        className={`flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-xs font-bold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                           isSelected
-                            ? 'bg-primary text-primary-fg shadow-sm'
-                            : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised/60'
+                            ? 'bg-primary text-primary-fg shadow-e1'
+                            : 'text-fg-muted hover:bg-surface-muted hover:text-fg'
                         }`}
                       >
-                        <Icon name={item.icon} size={14} className={isSelected ? 'text-primary-fg' : 'text-accent/70'} />
-                        <span>{isVi ? item.labelVi : item.labelEn}</span>
+                        <Icon name={item.icon} size={14} aria-hidden="true" />
+                        <span>{item.labelVi}</span>
                       </button>
                     );
                   })}
@@ -497,28 +530,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     />
                   </CanvasErrorBoundary>
 
-                  {/* Telemetry HUD Overlay (Bottom Left) — mô hình minh họa, KHÔNG phải sản phẩm
-                      thật nên không in số đo/vật liệu cụ thể (tránh khẳng định sai). */}
-                  <div className="absolute bottom-3 left-3 pointer-events-none z-10">
-                    <div className="bg-surface-inverse/85 px-3 py-2 rounded-lg border border-line-subtle shadow-e2 space-y-0.5">
-                      <p className="font-mono text-xs font-bold text-accent truncate max-w-[220px]">
-                        {isVi ? activeHeroModelMeta.titleVi : activeHeroModelMeta.titleEn}
+                  {/* HUD chip sáng trên viewport tối (§3.8) — mô hình minh họa, KHÔNG phải
+                      sản phẩm thật nên không in số đo/vật liệu cụ thể (tránh khẳng định sai). */}
+                  <div className="pointer-events-none absolute bottom-3 left-3 z-10 max-w-[calc(100%-1.5rem)]">
+                    <div className="space-y-0.5 rounded-md border border-line bg-surface/90 px-3 py-2 shadow-e2 backdrop-blur-sm">
+                      <p className="max-w-[260px] truncate font-mono text-xs font-bold text-fg">
+                        {activeHeroModelMeta.titleVi}
                       </p>
-                      <div className="text-xs font-mono text-on-inverse/70">
-                        {isVi ? 'Mô hình minh họa theo danh mục' : 'Category-based illustrative model'}
-                      </div>
+                      <p className="font-mono text-xs text-fg-muted">
+                        Mô hình minh họa theo danh mục
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Bottom Footer Action Bar on 3D Chassis */}
-                <div className="px-4 py-3 bg-surface-inverse/95 border-t border-line-subtle flex items-center justify-center gap-3 z-10">
-                  <div className="flex items-center gap-2 text-xs font-mono text-on-inverse/70">
-                    <Icon name="touch_app" size={16} className="text-accent shrink-0" />
-                    <span>
-                      {isVi ? 'Kéo chuột để xoay 360° • Cuộn để thu phóng' : 'Drag to rotate 360° • Scroll to zoom'}
-                    </span>
-                  </div>
+                {/* Thanh chân khung — sáng */}
+                <div className="z-10 flex items-center justify-center gap-2 border-t border-line bg-surface px-4 py-3">
+                  <Icon name="touch_app" size={16} className="shrink-0 text-fg-muted" aria-hidden="true" />
+                  <span className="text-center font-mono text-xs text-fg-muted">
+                    Kéo chuột để xoay 360° • Cuộn để thu phóng
+                  </span>
                 </div>
               </div>
 
@@ -526,14 +557,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   P1 §5: rỗng thì bỏ hẳn panel rời rạc "lạc lõng"; thông tin đã nằm
                   trong dòng mảnh ở cột trái (kèm lối nhập ở /admin). */}
               {toleranceSpec && (
-                <Card padding="sm" className="w-full mt-3 flex items-center justify-between gap-3">
+                <Card variant="soft" padding="sm" className="mt-3 flex w-full items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-sm bg-surface-muted text-primary flex items-center justify-center shrink-0">
-                      <Icon name="verified" size={18} />
+                    <div className="grid size-8 shrink-0 place-items-center rounded-md bg-tile-mint text-fg">
+                      <Icon name="verified" size={18} aria-hidden="true" />
                     </div>
-                    <div>
-                      <span className="font-mono text-xs uppercase tracking-wider text-primary font-bold block">
-                        {isVi ? 'Dung Sai Cam Kết' : 'Committed Tolerance'}
+                    <div className="min-w-0">
+                      <span className="block font-mono text-xs font-bold uppercase tracking-wider text-fg-muted">
+                        {isVi ? 'Dung sai cam kết' : 'Committed Tolerance'}
                       </span>
                       <p className="text-xs font-medium text-fg">{toleranceSpec}</p>
                     </div>
@@ -583,17 +614,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   onNavigate('quote');
                 }
               }}
-              className={`p-4 sm:p-5 border-2 border-dashed rounded-xl transition-colors cursor-pointer group ${
+              className={`group cursor-pointer rounded-lg border border-dashed p-4 transition-colors duration-200 motion-reduce:transition-none sm:p-5 ${
                 isDraggingFile
-                  ? 'border-primary bg-primary/15 shadow-e2 ring-2 ring-primary/30'
-                  : 'bg-surface border-primary/60 hover:border-primary hover:bg-primary/5'
+                  ? 'border-primary bg-primary-tint ring-2 ring-ring/20'
+                  : 'border-line-control bg-surface-muted hover:border-fg-subtle hover:bg-surface'
               }`}
-              title={isVi ? 'Bấm hoặc kéo thả file STL, 3MF, STEP, OBJ vào đây để nhận báo giá tức thì' : 'Click or drop an STL, 3MF, STEP or OBJ file here for an instant quote'}
+              title={isVi ? 'Bấm hoặc kéo thả tệp STL, 3MF, STEP, OBJ vào đây để nhận báo giá tức thì' : 'Click or drop an STL, 3MF, STEP or OBJ file here for an instant quote'}
             >
               <input
                 ref={heroFileInputRef}
                 type="file"
                 accept=".stl,.3mf,.step,.stp,.obj"
+                aria-label={isVi ? 'Tải tệp CAD để báo giá' : 'Upload a CAD file for a quote'}
                 onChange={(e) => {
                   if (e.target.files && e.target.files.length > 0) {
                     const file = e.target.files[0];
@@ -603,12 +635,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 className="hidden"
               />
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 border transition-transform ${
-                  isDraggingFile
-                    ? 'bg-primary text-primary-fg border-primary scale-110'
-                    : 'bg-primary-tint text-primary border-primary/30 group-hover:scale-105'
+                <div className={`grid size-12 shrink-0 place-items-center rounded-md ${
+                  isDraggingFile ? 'bg-primary text-primary-fg' : 'bg-tile-mint text-fg'
                 }`}>
-                  <Icon name={isDraggingFile ? 'download' : 'cloud_upload'} size={26} />
+                  <Icon name={isDraggingFile ? 'download' : 'cloud_upload'} size={26} aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -647,15 +677,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
       />
 
       {/* 3. BROWSE CAD CATALOG - MAIN SHOWCASE HUB (OPTIMIZED UI/UX) */}
-      <section id="browse-cad-catalog" className="py-20 sm:py-24 bg-surface px-4 sm:px-6 md:px-12 scroll-mt-16">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <section id="browse-cad-catalog" className="scroll-mt-20 bg-canvas px-4 py-12 sm:px-6 sm:py-16 md:px-12">
+        <div className="mx-auto max-w-7xl space-y-8">
           {/* Section Header with CAD Quality Value Props */}
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-line-subtle">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-line">
             <div>
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="w-2 h-2 rounded-full bg-primary"></span>
-                <span className="font-tech text-xs uppercase tracking-[0.25em] text-primary font-bold block">
-                  VCUBE CAD CATALOG // INDUSTRIAL ARCHIVE
+                <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted block">
+                  KHO BẢN VẼ CAD CÔNG NGHIỆP VCUBE
                 </span>
               </div>
               <h2 className="fluid-h2 text-fg">
@@ -669,44 +699,45 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
 
             {/* 4 CAD Precision Badges */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-tech text-xs text-fg-muted min-w-0">
-              <div className="bg-surface-muted p-2 rounded-sm flex items-center gap-1.5">
-                <Icon name="verified" size={16} className="text-positive" />
+            <div className="grid min-w-0 grid-cols-2 gap-2 font-tech text-xs text-fg-muted sm:grid-cols-4">
+              <div className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-2 shadow-soft">
+                <Icon name="verified" size={16} className="shrink-0 text-positive" aria-hidden="true" />
                 <span>{isVi ? 'Kiểm tra lưới theo tệp' : 'Per-file mesh check'}</span>
               </div>
-              <div className="bg-surface-muted p-2 rounded-sm flex items-center gap-1.5">
-                <Icon name="category" size={16} className="text-primary" />
+              <div className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-2 shadow-soft">
+                <Icon name="category" size={16} className="shrink-0 text-fg-muted" aria-hidden="true" />
                 <span>STEP / STL / 3MF</span>
               </div>
-              <div className="bg-surface-muted p-2 rounded-sm flex items-center gap-1.5">
-                <Icon name="straighten" size={16} className="text-fg-muted" />
+              <div className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-2 shadow-soft">
+                <Icon name="straighten" size={16} className="shrink-0 text-fg-muted" aria-hidden="true" />
                 <span>{isVi ? 'Dung sai theo thoả thuận' : 'Tolerance as agreed'}</span>
               </div>
-              <div className="bg-surface-muted p-2 rounded-sm flex items-center gap-1.5">
-                <Icon name="license" size={16} className="text-info" />
-                <span>{isVi ? 'Giấy phép theo từng file' : 'License per file'}</span>
+              <div className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-2 shadow-soft">
+                <Icon name="license" size={16} className="shrink-0 text-info" aria-hidden="true" />
+                <span>{isVi ? 'Giấy phép theo từng tệp' : 'License per file'}</span>
               </div>
             </div>
           </div>
 
           {/* Interactive Command & Filter Strip */}
-          <Card padding="md" className="space-y-3.5">
+          <Card variant="soft" className="space-y-3.5">
             {/* Search Bar + View Toggles */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-3">
               {/* Live Search Input */}
               <div className="relative w-full md:w-96">
-                <Icon name="search" size={16} className="absolute left-3 top-3 text-fg-muted" />
+                <Icon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" aria-hidden="true" />
                 <input
                   type="text"
+                  aria-label={isVi ? 'Tìm kiếm linh kiện CAD' : 'Search CAD parts'}
                   placeholder={isVi ? 'Tìm linh kiện CAD (vd: Bánh răng, ESP32, Drone, NEMA)...' : 'Search CAD parts (e.g. Gear, ESP32, Drone, NEMA)...'}
                   value={cadSearch}
                   onChange={(e) => setCadSearch(e.target.value)}
-                  className="w-full pl-9 pr-9 h-10 bg-canvas border border-line-control text-sm text-fg placeholder-fg-subtle focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring rounded-md font-sans"
+                  className="h-11 w-full rounded-full border border-line-control bg-surface pl-9 pr-9 font-sans text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 {cadSearch && (
                   <Button iconOnly variant="ghost" size="sm" aria-label={isVi ? 'Xóa tìm kiếm' : 'Clear search'}
                     onClick={() => setCadSearch('')}
-                    className="absolute right-0.5 top-0.5"
+                    className="absolute right-0.5 top-1/2 -translate-y-1/2"
                     leadingIcon={<Icon name="close" size={16} />}
                   />
                 )}
@@ -719,17 +750,33 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   {isVi ? 'Tìm thấy' : 'Found'} <strong className="text-primary font-bold tabular-nums">{displayedProducts.length}</strong> {isVi ? 'bản vẽ CAD' : 'CAD designs'}
                 </span>
 
-                <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-md">
-                  <Button iconOnly size="sm" aria-label={isVi ? 'Xem dạng lưới thẻ' : 'Grid view'}
-                    variant={catalogViewMode === 'grid' ? 'primary' : 'ghost'}
+                <div className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-muted p-1">
+                  <button
+                    type="button"
+                    aria-label={isVi ? 'Xem dạng lưới thẻ' : 'Grid view'}
+                    aria-pressed={catalogViewMode === 'grid'}
                     onClick={() => setCatalogViewMode('grid')}
-                    leadingIcon={<Icon name="grid_view" size={16} />}
-                  />
-                  <Button iconOnly size="sm" aria-label={isVi ? 'Xem bảng thông số kỹ thuật' : 'Technical spec list view'}
-                    variant={catalogViewMode === 'tech-table' ? 'primary' : 'ghost'}
+                    className={`grid size-10 max-md:size-12 place-items-center rounded-full transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      catalogViewMode === 'grid'
+                        ? 'bg-surface text-fg shadow-soft'
+                        : 'text-fg-muted hover:text-fg'
+                    }`}
+                  >
+                    <Icon name="grid_view" size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={isVi ? 'Xem bảng thông số kỹ thuật' : 'Technical spec list view'}
+                    aria-pressed={catalogViewMode === 'tech-table'}
                     onClick={() => setCatalogViewMode('tech-table')}
-                    leadingIcon={<Icon name="view_list" size={16} />}
-                  />
+                    className={`grid size-10 max-md:size-12 place-items-center rounded-full transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      catalogViewMode === 'tech-table'
+                        ? 'bg-surface text-fg shadow-soft'
+                        : 'text-fg-muted hover:text-fg'
+                    }`}
+                  >
+                    <Icon name="view_list" size={16} />
+                  </button>
                 </div>
 
                 <Button variant="secondary" size="sm"
@@ -743,8 +790,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             {/* Category Filter Chips Matrix with Smooth Horizontal Scroll */}
             <HorizontalScrollFilter className="border-t border-line-subtle pt-2">
-              <Button size="sm" variant={selectedCategory === 'all' ? 'primary' : 'secondary'}
+              <Button size="sm" shape="pill" variant={selectedCategory === 'all' ? 'primary' : 'secondary'}
                 onClick={() => setSelectedCategory('all')}
+                aria-pressed={selectedCategory === 'all'}
                 leadingIcon={<Icon name="select_all" size={16} />}
               >
                 <span>{isVi ? 'Tất cả danh mục' : 'All Categories'}</span>
@@ -756,8 +804,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
               {CATEGORIES.filter(c => c.id !== 'all').map((cat) => {
                 const isActive = selectedCategory === cat.id;
                 return (
-                  <Button key={cat.id} size="sm" variant={isActive ? 'primary' : 'secondary'}
-                    onClick={() => setSelectedCategory(cat.id)}
+                  <Button key={cat.id} size="sm" shape="pill" variant={isActive ? 'primary' : 'secondary'}
+                    onClick={() => setSelectedCategory(isActive ? 'all' : cat.id)}
+                    aria-pressed={isActive}
                     leadingIcon={<Icon name={cat.icon} size={16} />}
                   >
                     <span>{isVi ? cat.name : (cat as any).nameEn || cat.name}</span>
@@ -775,7 +824,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="pt-2 flex items-center gap-2">
               <span className="text-xs font-mono font-bold uppercase text-fg-muted shrink-0 flex items-center gap-1">
                 <Icon name="sell" size={14} className="text-primary" />
-                {isVi ? 'Tag nhanh:' : 'Tags:'}
+                {isVi ? 'Thẻ nhanh:' : 'Tags:'}
               </span>
 
               <div className="flex-1 min-w-0">
@@ -787,15 +836,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     return (
                       <button
                         key={tag.id}
+                        aria-pressed={isActive}
                         onClick={() => setSelectedTag(isActive ? 'all' : tag.id)}
-                        className={`px-2.5 py-1 rounded-sm border text-xs font-mono whitespace-nowrap shrink-0 transition-colors duration-150 flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        className={`min-h-11 px-3.5 py-1.5 rounded-full border text-xs font-mono whitespace-nowrap shrink-0 transition-colors duration-200 flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                           isActive
                             ? is29
-                              ? 'bg-danger text-primary-fg border-danger font-extrabold'
-                              : 'bg-primary text-primary-fg border-primary font-bold'
+                              ? 'bg-danger text-primary-fg border-danger font-semibold'
+                              : 'bg-primary text-primary-fg border-primary font-semibold'
                             : is29
-                            ? 'bg-danger-tint text-fg border-danger/30 hover:border-danger font-bold'
-                            : 'bg-surface text-fg-muted border-line-control hover:border-fg-muted hover:text-fg'
+                            ? 'bg-danger-tint text-danger border-danger/20 hover:border-danger font-semibold'
+                            : 'bg-surface text-fg-muted border-line hover:border-line-control hover:text-fg'
                         }`}
                       >
                         <span>#{isVi ? tag.nameVi : tag.nameEn}</span>
@@ -838,10 +888,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div
               role="status"
               aria-label={isVi ? 'Đang tải kho bản vẽ' : 'Loading the catalogue'}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
             >
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="rounded-lg border border-line bg-surface overflow-hidden">
+                <div key={i} className="overflow-hidden rounded-lg bg-surface shadow-soft">
                   <div className="aspect-4/3 bg-surface-muted animate-pulse motion-reduce:animate-none" />
                   <div className="p-4 space-y-2">
                     <div className="h-4 w-3/4 rounded-sm bg-surface-muted animate-pulse motion-reduce:animate-none" />
@@ -852,7 +902,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           ) : Boolean(productsError) && products.length === 0 ? (
             /* ERROR — lỗi TẢI hẳn, KHÔNG đổ cho filter; bọc role="alert". */
-            <Card padding="none">
+            <Card variant="soft" padding="none">
               <div role="alert">
                 <EmptyState
                   icon={<Icon name="error" size={20} />}
@@ -878,7 +928,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         leadingIcon={<Icon name="upload_file" size={16} />}
                         onClick={() => onNavigate('quote')}
                       >
-                        {isVi ? 'Báo giá file 3D của bạn' : 'Quote your own 3D file'}
+                        {isVi ? 'Báo giá tệp 3D của bạn' : 'Quote your own 3D file'}
                       </Button>
                     </>
                   }
@@ -887,7 +937,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </Card>
           ) : displayedProducts.length === 0 ? (
             /* EMPTY — phân biệt KHO RỖNG THẬT với FILTER KHÔNG KHỚP (F9). */
-            <Card padding="none">
+            <Card variant="soft" padding="none">
               <EmptyState
                 bordered={false}
                 icon={<Icon name={products.length === 0 ? 'inventory_2' : 'search_off'} size={20} />}
@@ -899,10 +949,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   : (isVi ? 'Bộ lọc hiện tại không khớp bản vẽ nào trong kho — thử xóa từ khóa hoặc đổi danh mục.' : 'The current filters match nothing in the library — clear the query or switch category.')}
                 action={products.length === 0 ? (
                   <Button size="sm" onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}>
-                    {isVi ? 'Tải file CAD của bạn' : 'Upload your CAD file'}
+                    {isVi ? 'Tải tệp CAD của bạn' : 'Upload your CAD file'}
                   </Button>
                 ) : (
-                  <Button size="sm"
+                  <Button size="sm" variant="secondary"
                     onClick={() => {
                       setCadSearch('');
                       setSelectedCategory('all');
@@ -916,20 +966,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </Card>
           ) : catalogViewMode === 'grid' ? (
             /* GRID VIEW MODE */
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {visibleProducts.map((product) => (
                 <Card
                   key={product.id}
                   as="article"
+                  variant="soft"
                   padding="none"
-                  className="content-auto group flex flex-col overflow-hidden transition-[transform,box-shadow] duration-300 hover:shadow-e2 hover:-translate-y-1 rounded-lg border border-line bg-surface"
+                  className="content-auto group flex flex-col overflow-hidden transition-shadow duration-300 hover:shadow-e2 motion-reduce:transition-none"
                 >
-                  {/* Card Image Area with Quick 3D Inspect Overlay */}
+                  {/* 1. Ảnh / khung 3D — tỉ lệ 4:3, phủ overlay soi 3D */}
                   <div
                     role="button"
                     tabIndex={0}
                     aria-label={isVi ? `Xem chi tiết: ${product.name}` : `View details: ${product.name}`}
-                    className="relative aspect-4/3 bg-surface-muted border-b border-line cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="relative aspect-4/3 cursor-pointer overflow-hidden bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     onClick={() => handleSelectProductAction(product, 'product_detail')}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -954,161 +1005,170 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         alt={product.name}
                         loading="lazy"
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                        className="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="relative h-full w-full object-cover"
                       />
                     ) : null}
 
-                    {/* Badge */}
+                    {/* Badge trên ảnh — ảnh có thể tối nên dùng nền sáng mờ + viền (§3.4) */}
                     {product.badge && (
-                      <span className={`absolute top-3 left-3 text-xs font-tech uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold shadow-e2 ${
+                      <span className={`absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-e1 ${
                         product.badge.includes('2/9')
-                          ? 'bg-danger text-primary-fg'
-                          : 'bg-primary text-primary-fg shadow-e1'
+                          ? 'bg-danger text-primary-fg border-danger/20'
+                          : 'bg-surface/90 backdrop-blur-sm text-fg-muted border-line'
                       }`}>
                         {product.badge}
                       </span>
                     )}
 
-                    {/* Floating 3D Inspect Trigger: hover trên desktop, luôn hiện trên thiết bị cảm ứng */}
+                    {/* Nút soi 3D: hover trên desktop, luôn hiện trên thiết bị cảm ứng */}
                     <button
+                      type="button"
                       onClick={(e) => handleOpen3DPreview(product, e)}
                       aria-label={isVi ? `Xem trước 3D: ${product.name}` : `3D preview: ${product.name}`}
-                      className="absolute inset-0 bg-surface-inverse/70 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto [@media(hover:none)]:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:bg-surface-inverse/40 transition-opacity flex flex-col items-center justify-center gap-2 text-on-inverse font-tech text-xs uppercase tracking-wider font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-2 bg-surface-inverse/70 font-tech text-xs font-bold uppercase tracking-wider text-on-inverse opacity-0 transition-opacity pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:bg-surface-inverse/40 [@media(hover:none)]:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                       title={isVi ? 'Xoay xem 3D ngay tại đây' : 'Instant 3D Mesh Inspection'}
                     >
-                      <span className="w-10 h-10 rounded-full bg-primary text-primary-fg flex items-center justify-center shadow-e2 border border-accent/50">
+                      <span className="grid size-10 place-items-center rounded-md bg-primary text-primary-fg shadow-e1">
                         <Icon name="3d_rotation" size={24} />
                       </span>
-                      <span className="bg-surface-inverse px-3 py-1 rounded-md border border-line text-accent">
-                        {isVi ? 'Soi 3D 360° Trực Tiếp' : 'Inspect 3D Mesh'}
+                      <span className="rounded-md border border-line bg-surface-inverse px-3 py-1 text-accent">
+                        {isVi ? 'Soi 3D 360° trực tiếp' : 'Inspect 3D Mesh'}
                       </span>
                     </button>
 
-                    {/* Print time & specs pill — thiếu `print_time` ⇒ `—`, không bịa giờ in */}
-                    <span className="absolute bottom-2.5 right-2.5 bg-surface text-fg text-xs font-tech px-2 py-0.5 rounded-sm font-bold shadow-e1 flex items-center gap-1">
-                      <Icon name="timer" size={14} className="text-primary" />
+                    {/* Thời gian in — thiếu `print_time` ⇒ `—`, không bịa giờ in */}
+                    <span className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 rounded-full border border-line bg-surface/90 px-2.5 py-1 font-mono text-xs text-fg-muted shadow-e1 backdrop-blur-sm">
+                      <Icon name="timer" size={14} className="shrink-0 text-fg-muted" aria-hidden="true" />
                       {product.printTime || EMPTY_VALUE}
                     </span>
                   </div>
 
-                  {/* Card Metadata Body */}
-                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                    <div>
-                      {/* Designer & Rating */}
-                      <div className="flex items-center justify-between text-xs text-fg-muted mb-1 font-sans">
-                        <span className="uppercase tracking-wider truncate font-semibold font-tech flex items-center gap-1">
-                          <Icon name="engineering" size={14} className="text-primary" />
-                          {product.designer || EMPTY_VALUE}
+                  {/* 2→6. Tác giả/đánh giá → tiêu đề → vật liệu & định dạng → giá & giấy phép → CTA */}
+                  <div className="flex flex-1 flex-col gap-3 p-4">
+                    {/* Tác giả & đánh giá */}
+                    <div className="flex items-center justify-between gap-2 font-sans text-xs text-fg-muted">
+                      <span className="flex min-w-0 items-center gap-1 truncate font-tech font-semibold uppercase tracking-wider">
+                        <Icon name="engineering" size={14} className="shrink-0 text-fg-muted" aria-hidden="true" />
+                        <span className="truncate">{product.designer || EMPTY_VALUE}</span>
+                      </span>
+                      {/* CI-03 + T3: chỉ hiện sao khi có CẢ điểm và số đánh giá thật.
+                          `rating` NULL hoặc `reviewsCount = 0` ⇒ chữ, KHÔNG `★ 0`/`NaN`. */}
+                      {hasRating(product) ? (
+                        <span className="flex shrink-0 items-center gap-1 font-tech text-xs font-bold tabular-nums text-fg">
+                          <Star size={14} className="text-warning-strong" fill="currentColor" aria-hidden="true" />
+                          {product.rating}
                         </span>
-                        {/* CI-03 + T3: chỉ hiện sao khi có CẢ điểm và số đánh giá thật.
-                            `rating` NULL hoặc `reviewsCount = 0` ⇒ chữ, KHÔNG `★ 0`/`NaN`. */}
-                        {hasRating(product) ? (
-                          <span className="font-tech text-xs text-fg font-bold flex items-center gap-1 tabular-nums">
-                            <Star size={14} className="text-warning-strong" fill="currentColor" aria-hidden="true" />
-                            {product.rating}
-                          </span>
-                        ) : (
-                          <span className="font-sans text-xs text-fg-muted">
-                            {isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Title */}
-                      <button
-                        type="button"
-                        onClick={() => handleSelectProductAction(product, 'product_detail')}
-                        className="font-bold text-base text-fg hover:text-primary transition-colors cursor-pointer line-clamp-2 leading-snug text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-                      >
-                        {product.name}
-                      </button>
-
-                      {/* CAD Specs Micro Grid */}
-                      <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-line-subtle font-tech text-xs text-fg-muted">
-                        <div className="bg-surface-muted p-1.5 rounded-sm flex items-center justify-between">
-                          <span className="text-xs text-fg-muted">SIZE:</span>
-                          <span className="font-bold text-fg truncate max-w-[80px]">{product.specs?.dimensions || EMPTY_VALUE}</span>
-                        </div>
-                        <div className="bg-surface-muted p-1.5 rounded-sm flex items-center justify-between">
-                          <span className="text-xs text-fg-muted">FORMAT:</span>
-                          <span className="font-bold text-primary">{product.cadFormat || EMPTY_VALUE}</span>
-                        </div>
-                      </div>
-
-                      {/* Tags */}
-                      <div className="flex flex-wrap gap-1 mt-2.5">
-                        {(product.tags || []).slice(0, 3).map((tg) => (
-                          <button
-                            key={tg}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTag(tg);
-                            }}
-                            className={`text-xs font-tech uppercase px-2 py-0.5 rounded-sm border transition-colors cursor-pointer ${
-                              tg.includes('2/9')
-                                ? 'bg-danger-tint text-fg border-danger/30 font-bold'
-                                : 'bg-surface-muted text-fg-muted border-line hover:border-fg-muted'
-                            }`}
-                          >
-                            #{tg}
-                          </button>
-                        ))}
-                      </div>
+                      ) : (
+                        <span className="shrink-0 font-sans text-xs text-fg-muted">
+                          {isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
+                        </span>
+                      )}
                     </div>
 
-                    {/* Pricing Matrix & Quick Actions */}
-                    <div className="pt-3 border-t border-line-subtle">
-                      <div className="flex items-baseline justify-between mb-3 font-sans">
-                        <div>
-                          <span className="text-xs text-fg-muted uppercase tracking-wider block font-medium">
-                            {t('digitalAsset', 'File Số (STL/STEP)', 'CAD File (STL)')}
+                    {/* Tiêu đề */}
+                    <button
+                      type="button"
+                      onClick={() => handleSelectProductAction(product, 'product_detail')}
+                      className="line-clamp-2 cursor-pointer rounded-sm text-left text-base font-semibold leading-snug tracking-tight text-fg transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {product.name}
+                    </button>
+
+                    {/* Vật liệu · định dạng · kích thước — chỉ dữ liệu thật, thiếu ⇒ — */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-subtle pt-2.5 font-tech text-xs text-fg-muted">
+                      <span className="flex min-w-0 items-center gap-1">
+                        <Icon name="layers" size={14} className="shrink-0" aria-hidden="true" />
+                        <span className="truncate" title={`Vật liệu: ${materialLabel(product)}`}>
+                          Vật liệu: {materialLabel(product)}
+                        </span>
+                      </span>
+                      <span className="flex min-w-0 items-center gap-1">
+                        <Icon name="category" size={14} className="shrink-0" aria-hidden="true" />
+                        <span className="truncate">Định dạng: {product.cadFormat || EMPTY_VALUE}</span>
+                      </span>
+                      <span className="flex min-w-0 items-center gap-1">
+                        <Icon name="straighten" size={14} className="shrink-0" aria-hidden="true" />
+                        <span className="truncate">Kích thước: {product.specs?.dimensions || EMPTY_VALUE}</span>
+                      </span>
+                    </div>
+
+                    {/* Thẻ kỹ thuật của sản phẩm (giá trị từ DB) */}
+                    <div className="flex flex-wrap gap-1">
+                      {(product.tags || []).slice(0, 3).map((tg) => (
+                        <button
+                          key={tg}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTag(tg);
+                          }}
+                          className={`min-h-6 cursor-pointer rounded-full border px-2 py-0.5 font-tech text-xs uppercase transition-colors ${
+                            tg.includes('2/9')
+                              ? 'border-danger/30 bg-danger-tint font-bold text-fg'
+                              : 'border-line bg-surface-muted text-fg-muted hover:border-line-control'
+                          }`}
+                        >
+                          #{tg}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Giá & giấy phép */}
+                    <div className="mt-auto space-y-2 pt-3 border-t border-line-subtle">
+                      <div className="flex items-baseline justify-between gap-2 font-sans">
+                        <div className="min-w-0">
+                          <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
+                            {isVi ? 'Tệp số' : 'CAD file'}
                           </span>
-                          <span className="font-tech font-bold text-sm text-primary tabular-nums">
+                          <span className="font-tech text-sm font-bold tabular-nums text-fg">
                             {vnd(product.priceDigital, locale)}
                           </span>
                         </div>
-                        <div className="text-right">
-                          <span className="text-xs text-fg-muted uppercase tracking-wider block font-medium">
-                            {t('physicalModel', 'In Vật Lý (FDM/Resin)', 'Physical Part')}
+                        <div className="min-w-0 text-right">
+                          <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
+                            {isVi ? 'In vật lý' : 'Physical part'}
                           </span>
-                          <span className="font-tech text-xs text-fg font-bold tabular-nums">
+                          <span className="font-tech text-sm font-bold tabular-nums text-fg">
                             {vnd(product.pricePhysical, locale)}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {/* 1-Click Buy CAD File */}
+                      <p className="flex min-w-0 items-center gap-1.5 text-xs text-fg-muted" title={licenseLabel(product.licenseType)}>
+                        <Icon name="license" size={14} className="shrink-0" aria-hidden="true" />
+                        <span className="truncate">Giấy phép: {licenseLabel(product.licenseType)}</span>
+                      </p>
+
+                      {/* CTA — 1 CTA mua tệp + 1 CTA xem/đặt in + tuỳ biến nếu có */}
+                      <div className="flex items-center gap-2 pt-1">
                         <Button size="sm" className="flex-1"
                           onClick={(e) => handleQuickAddDigital(product, e)}
                           disabled={!(isNum(product.priceDigital) && product.priceDigital > 0)}
                           title={isNum(product.priceDigital) && product.priceDigital > 0
-                            ? (isVi ? 'Tải file CAD STL/STEP gốc' : 'Get original CAD file')
-                            : (isVi ? 'Người bán không mở bán kênh file số.' : 'The seller does not sell this product as a CAD file.')}
+                            ? (isVi ? 'Tải tệp CAD STL/STEP gốc' : 'Get original CAD file')
+                            : (isVi ? 'Người bán không mở bán kênh tệp số.' : 'The seller does not sell this product as a CAD file.')}
                           leadingIcon={<Icon name="download" size={16} />}
                         >
                           <span>
                             {isNum(product.priceDigital) && product.priceDigital > 0
-                              ? (isVi ? 'Mua File CAD' : 'Buy CAD File')
-                              : (isVi ? 'Không bán file số' : 'File not sold')}
+                              ? (isVi ? 'Mua tệp CAD' : 'Buy CAD File')
+                              : (isVi ? 'Không bán tệp số' : 'File not sold')}
                           </span>
                         </Button>
 
-                        {/* Order Physical / Inspect 3D */}
                         <Button size="sm" variant="secondary"
                           onClick={() => handleSelectProductAction(product, 'product_detail')}
-                          title={isVi ? 'Xem chi tiết & Đặt in vật lý' : 'Inspect details & Order Physical'}
-                          leadingIcon={<Icon name="precision_manufacturing" size={16} className="text-primary" />}
+                          title={isVi ? 'Xem chi tiết & đặt in vật lý' : 'Inspect details & Order Physical'}
+                          leadingIcon={<Icon name="precision_manufacturing" size={16} className="text-fg" />}
                         >
-                          <span>{isVi ? 'Đặt In' : 'Order'}</span>
+                          <span>{isVi ? 'Đặt in' : 'Order'}</span>
                         </Button>
 
-                        {/* Personalize if supported */}
                         {product.isCustomizable && (
                           <Button iconOnly size="sm" variant="secondary"
                             aria-label={isVi ? 'Khắc tên / Tùy biến kích thước' : 'Custom engraving & resizing'}
                             onClick={() => handleSelectProductAction(product, 'personalize')}
-                            leadingIcon={<Icon name="tune" size={16} className="text-primary" />}
+                            leadingIcon={<Icon name="tune" size={16} className="text-fg" />}
                           />
                         )}
                       </div>
@@ -1118,25 +1178,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ))}
             </div>
           ) : (
-            /* TECHNICAL TABLE VIEW MODE */
-            <Card padding="none" className="overflow-hidden">
+            /* TECHNICAL TABLE VIEW MODE — density bảng §3.5 giữ nguyên */
+            <Card variant="soft" padding="none" className="overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-surface-muted text-fg-muted border-b border-line font-tech text-xs uppercase tracking-wider">
+                <table className="w-full text-left font-sans">
+                  <thead className="bg-surface-muted text-xs uppercase tracking-wider text-fg-subtle border-b border-line">
                     <tr>
-                      <th className="py-3 px-4">{isVi ? 'Linh Kiện CAD' : 'CAD Part'}</th>
-                      <th className="py-3 px-3">{isVi ? 'Danh Mục' : 'Category'}</th>
-                      <th className="py-3 px-3">{isVi ? 'Kích Thước' : 'Dimensions'}</th>
-                      <th className="py-3 px-3">{isVi ? 'Thời Gian In' : 'Print time'}</th>
-                      <th className="py-3 px-3">{isVi ? 'Giá File Số' : 'Digital price'}</th>
-                      <th className="py-3 px-3">{isVi ? 'Giá In Vật Lý' : 'Physical price'}</th>
-                      <th className="py-3 px-4 text-right">{isVi ? 'Thao Tác' : 'Actions'}</th>
+                      <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Linh Kiện CAD' : 'CAD Part'}</th>
+                      <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Danh Mục' : 'Category'}</th>
+                      <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Kích Thước' : 'Dimensions'}</th>
+                      <th className="h-10 px-4 text-left font-semibold">{isVi ? 'Thời Gian In' : 'Print time'}</th>
+                      <th className="h-10 px-4 text-right font-semibold">{isVi ? 'Giá tệp số' : 'Digital price'}</th>
+                      <th className="h-10 px-4 text-right font-semibold">{isVi ? 'Giá In Vật Lý' : 'Physical price'}</th>
+                      <th className="h-10 px-4 text-right font-semibold">{isVi ? 'Thao Tác' : 'Actions'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line-subtle">
                     {visibleProducts.map((product) => (
-                      <tr key={product.id} className="hover:bg-surface-muted transition-colors group">
-                        <td className="py-3 px-4">
+                      <tr key={product.id} className="h-11 hover:bg-surface-muted/60 transition-colors group">
+                        <td className="px-4 py-2 text-sm text-fg">
                           <div className="flex items-center gap-3">
                             {realProductImageUrl(product.images, product.thumbnailUrl) ? (
                               <img
@@ -1149,7 +1209,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             ) : (
                               <div
                                 aria-hidden="true"
-                                className="w-12 h-12 rounded-md shrink-0 bg-surface-muted text-fg-subtle flex items-center justify-center"
+                                className="grid size-12 shrink-0 place-items-center rounded-md bg-surface-muted text-fg-muted"
                               >
                                 <Icon name={categoryIcon(product.category)} size={22} />
                               </div>
@@ -1162,28 +1222,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               >
                                 {product.name}
                               </button>
-                              <span className="text-xs text-fg-muted font-tech block">
-                                By {product.designer || EMPTY_VALUE} • SKU: {product.sku || EMPTY_VALUE}
+                              <span className="block font-tech text-xs text-fg-muted">
+                                Tác giả: {product.designer || EMPTY_VALUE} • SKU: {product.sku || EMPTY_VALUE}
                               </span>
                             </div>
                           </div>
                         </td>
-                        <td className="py-3 px-3 font-tech font-bold uppercase text-xs text-primary">
+                        <td className="px-4 py-2 text-sm font-mono font-semibold uppercase text-fg-muted">
                           {product.category}
                         </td>
-                        <td className="py-3 px-3 font-tech text-xs text-fg">
+                        <td className="px-4 py-2 text-sm font-mono text-fg">
                           {product.specs?.dimensions || EMPTY_VALUE}
                         </td>
-                        <td className="py-3 px-3 font-tech text-xs text-fg-muted">
+                        <td className="px-4 py-2 text-sm font-mono text-fg-muted">
                           {product.printTime || EMPTY_VALUE}
                         </td>
-                        <td className="py-3 px-3 font-tech font-bold text-primary tabular-nums">
+                        <td className="px-4 py-2 text-right text-sm font-mono font-semibold tabular-nums text-fg">
                           {vnd(product.priceDigital, locale)}
                         </td>
-                        <td className="py-3 px-3 font-tech font-bold text-fg tabular-nums">
+                        <td className="px-4 py-2 text-right text-sm font-mono tabular-nums text-fg-muted">
                           {vnd(product.pricePhysical, locale)}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="px-4 py-2 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button iconOnly size="sm" variant="secondary"
                               aria-label="Soi 3D 360°"
@@ -1196,7 +1256,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             >
                               {isNum(product.priceDigital) && product.priceDigital > 0
                                 ? (isVi ? 'Tải CAD' : 'Buy STL')
-                                : (isVi ? 'Không bán file số' : 'File not sold')}
+                                : (isVi ? 'Không bán tệp số' : 'File not sold')}
                             </Button>
                           </div>
                         </td>
@@ -1232,27 +1292,27 @@ export const HomeView: React.FC<HomeViewProps> = ({
           ) : null}
 
           {/* Footer Callout */}
-          <Card padding="md" className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <Card variant="soft" className="flex flex-col items-center justify-between gap-3 sm:flex-row">
             <span className="text-xs text-fg-muted">
               {isVi
-                ? 'Bạn có file 3D của riêng mình? Sử dụng công cụ phân tích lưới và báo giá tức thì của chúng tôi.'
+                ? 'Bạn có tệp 3D của riêng mình? Sử dụng công cụ phân tích lưới và báo giá tức thì của chúng tôi.'
                 : 'Have your own CAD model? Upload to our automated mesh slicer and instant cost calculator.'}
             </span>
             <Button variant="secondary" size="sm" className="shrink-0"
               onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}
               leadingIcon={<Icon name="upload_file" size={16} className="text-primary" />}
             >
-              <span>{isVi ? 'Tải File Của Bạn Lên' : 'Upload Your CAD File'}</span>
+              <span>{isVi ? 'Tải tệp của bạn lên' : 'Upload Your CAD File'}</span>
             </Button>
           </Card>
         </div>
       </section>
 
       {/* 4.5 Quy trình 4 bước đặt hàng — tăng niềm tin trước CTA */}
-      <section className="py-12 sm:py-16 px-4 sm:px-6 md:px-12 bg-surface">
-        <div className="max-w-7xl mx-auto space-y-8">
+      <section className="py-12 sm:py-16 px-4 sm:px-6 md:px-12 bg-canvas">
+        <div className="mx-auto max-w-7xl space-y-8">
           <div className="text-center space-y-2">
-            <span className="font-tech text-xs uppercase tracking-[0.25em] text-primary font-bold">
+            <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
               {isVi ? 'QUY TRÌNH ĐẶT HÀNG' : 'HOW IT WORKS'}
             </span>
             <h2 className="fluid-h2 text-fg">
@@ -1261,66 +1321,56 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
           <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { icon: 'upload_file', titleVi: 'Tải bản vẽ', descVi: 'Tải file STL / STEP / 3MF lên hệ thống.', titleEn: 'Upload CAD', descEn: 'Upload an STL / STEP / 3MF file.' },
+              { icon: 'upload_file', titleVi: 'Tải bản vẽ', descVi: 'Tải tệp STL / STEP / 3MF lên hệ thống.', titleEn: 'Upload CAD', descEn: 'Upload an STL / STEP / 3MF file.' },
               { icon: 'request_quote', titleVi: 'Phân tích & báo giá', descVi: 'Hệ thống đọc lưới, tính thể tích và báo giá từ chính tệp.', titleEn: 'Analyse & quote', descEn: 'Mesh is read, volume computed, quote built from the file.' },
               { icon: 'precision_manufacturing', titleVi: 'Chọn xưởng & xác nhận', descVi: 'Chọn vật liệu, xưởng in phù hợp và xác nhận đơn.', titleEn: 'Match & confirm', descEn: 'Pick material and workshop, then confirm the order.' },
               { icon: 'local_shipping', titleVi: 'Giao nhận & theo dõi', descVi: 'Theo dõi tiến độ sản xuất và nhận chi tiết hoàn thiện.', titleEn: 'Track & receive', descEn: 'Track production progress and receive the finished part.' },
             ].map((step, i) => (
-              <li key={step.icon} className="bg-canvas border border-line-subtle rounded-lg p-5 space-y-3">
+              <li key={step.icon} className="space-y-3 rounded-lg bg-surface p-6 shadow-soft">
                 <div className="flex items-center justify-between">
                   <span className="w-10 h-10 rounded-md bg-primary-tint text-primary flex items-center justify-center">
                     <Icon name={step.icon} size={20} />
                   </span>
-                  <span className="font-mono text-2xl font-black text-line tabular-nums">0{i + 1}</span>
+                  <span className="font-mono text-2xl font-bold tabular-nums text-fg-muted">0{i + 1}</span>
                 </div>
-                <h3 className="font-bold text-sm text-fg">{isVi ? step.titleVi : step.titleEn}</h3>
-                <p className="text-xs text-fg-muted leading-relaxed">{isVi ? step.descVi : step.descEn}</p>
+                <h3 className="font-semibold text-base tracking-tight text-fg">{isVi ? step.titleVi : step.titleEn}</h3>
+                <p className="text-sm text-fg-muted leading-relaxed">{isVi ? step.descVi : step.descEn}</p>
               </li>
             ))}
           </ol>
         </div>
       </section>
 
-      {/* 5. Modern High-Conversion Callout Card (Light-first container with glowing dark conversion card) */}
-      <section className="py-16 sm:py-20 px-4 sm:px-6 md:px-12 bg-canvas">
-        <div className="max-w-7xl mx-auto rounded-xl bg-surface-inverse text-on-inverse p-8 sm:p-12 lg:p-16 border border-line-subtle shadow-e3 relative overflow-hidden">
-          {/* Subtle Ambient Tech Glow */}
-          <div
-            aria-hidden="true"
-            className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-primary/20 blur-3xl pointer-events-none"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-accent/15 blur-3xl pointer-events-none"
-          />
-
+      {/* 5. Callout cuối trang — panel tối giữa nền sáng (§1.1), 1 CTA chính + 1 CTA phụ */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6 md:px-12 bg-canvas">
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-xl border border-on-inverse/10 bg-surface-inverse p-8 text-on-inverse shadow-soft sm:p-12">
           <div className="relative z-10 max-w-3xl mx-auto text-center space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-inverse-raised/80 border border-line-subtle rounded-full text-xs uppercase font-mono tracking-[0.2em] text-accent font-bold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-inverse-raised/80 border border-on-inverse/15 rounded-full text-xs font-semibold uppercase tracking-wider text-accent">
               <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
-              <span>{isVi ? 'SẴN SÀNG SẢN XUẤT // RAPID FABRICATION' : 'READY TO MANUFACTURE // ON DEMAND'}</span>
+              <span>{isVi ? 'SẴN SÀNG SẢN XUẤT' : 'READY TO MANUFACTURE'}</span>
             </div>
 
-            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-on-inverse tracking-tight leading-tight">
+            <h2 className="fluid-h2 text-on-inverse tracking-tight">
               {isVi ? 'Hiện Thực Hoá Mô Hình 3D Của Bạn' : 'Bring Your 3D Designs to Life'}
             </h2>
 
             <p className="text-sm sm:text-base text-on-inverse/70 max-w-2xl mx-auto font-sans leading-relaxed">
               {isVi
-                ? 'Tải file CAD để nhận báo giá tức thì, phân tích lưới in 3D tự động và kết nối trực tiếp với mạng lưới xưởng in công nghiệp đạt chuẩn.'
+                ? 'Tải tệp CAD để nhận báo giá tức thì, phân tích lưới in 3D tự động và kết nối trực tiếp với mạng lưới xưởng in công nghiệp đạt chuẩn.'
                 : 'Upload your CAD models for instant quoting, automated mesh inspection, and direct manufacturing with certified industrial workshops.'}
             </p>
 
             {/* Feature Guarantees */}
             <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 pt-2 text-xs font-mono text-on-inverse/80">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-line-subtle">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-on-inverse/15">
                 <Icon name="verified_user" size={16} className="text-accent" />
                 <span>{isVi ? 'Bảo mật dữ liệu chuẩn NDA' : 'Strict NDA Protection'}</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-line-subtle">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-on-inverse/15">
                 <Icon name="straighten" size={16} className="text-accent" />
                 <span>{isVi ? 'Kiểm soát dung sai kỹ thuật' : 'Rigorous Tolerance QC'}</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-line-subtle">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface-inverse-raised/70 border border-on-inverse/15">
                 <Icon name="local_shipping" size={16} className="text-accent" />
                 <span>{isVi ? 'Giao hàng nhanh toàn quốc' : 'Nationwide Fast Delivery'}</span>
               </div>
@@ -1333,17 +1383,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 variant="accent"
                 onClick={() => onNavigate('quote')}
                 leadingIcon={<Icon name="upload_file" size={20} />}
-                className="w-full sm:w-auto shadow-e3"
+                className="w-full sm:w-auto shadow-e1"
               >
-                <span>{isVi ? 'Báo Giá File 3D Của Bạn' : 'Quote Your 3D File'}</span>
+                <span>{isVi ? 'Báo giá tệp 3D của bạn' : 'Quote Your 3D File'}</span>
               </Button>
 
               <Button
                 size="lg"
-                variant="secondary"
+                variant="ghost"
                 onClick={() => setIsCustomIdeaModalOpen(true)}
-                leadingIcon={<Icon name="lightbulb" size={20} className="text-primary" />}
-                className="w-full sm:w-auto bg-surface-inverse-raised text-on-inverse border-line-subtle hover:bg-surface-inverse-raised/80"
+                leadingIcon={<Icon name="lightbulb" size={20} />}
+                className="w-full sm:w-auto border border-on-inverse/15 bg-surface-inverse-raised text-on-inverse"
               >
                 <span>{isVi ? 'Tư Vấn & Custom Theo Ý Tưởng' : 'Custom Service by Idea'}</span>
               </Button>
@@ -1351,7 +1401,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             {/* Partner Network (if present) */}
             {hasPartners && (
-              <div className="pt-8 border-t border-line-subtle/50 mt-8 space-y-3">
+              <div className="pt-8 border-t border-on-inverse/15 mt-8 space-y-3">
                 <span className="text-xs uppercase font-mono font-bold text-on-inverse/60 tracking-widest block">
                   {activeContent.trustPartnersTitle || (isVi ? 'Đơn Vị Đồng Hành Cùng VCUBE' : 'Trusted by Leading Partners')}
                 </span>
@@ -1359,7 +1409,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   {partnersList.map((partner, pIdx) => (
                     <span
                       key={pIdx}
-                      className="px-3 py-1.5 bg-surface-inverse-raised/70 rounded border border-line-subtle text-on-inverse/90"
+                      className="px-3 py-1.5 bg-surface-inverse-raised/70 rounded-sm border border-on-inverse/15 text-on-inverse/90"
                     >
                       {partner}
                     </span>
@@ -1375,7 +1425,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {isDisplayableHotline(activeContent.hotline) ? (
         <a
           href={`tel:${activeContent.hotline.replace(/[^\d+]/g, '')}`}
-          className="fixed bottom-24 right-6 z-drawer hidden sm:flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-fg shadow-e3 border border-primary-hover/40 font-sans text-xs font-bold hover:bg-primary-hover transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="fixed bottom-6 left-6 z-drawer hidden min-h-11 items-center gap-2 rounded-md bg-primary px-4 py-3 font-sans text-xs font-semibold text-primary-fg shadow-e2 transition-colors duration-200 hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none sm:flex"
           aria-label={isVi ? `Gọi hotline ${activeContent.hotline}` : `Call hotline ${activeContent.hotline}`}
         >
           <Icon name="call" size={18} />

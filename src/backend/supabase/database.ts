@@ -148,6 +148,53 @@ function toIsoTimestampOrNull(value: unknown): string | null {
   return null;
 }
 
+/**
+ * MIME theo đuôi file CAD — phải khớp `allowed_mime_types` của bucket `cad-files`
+ * (`20260901_baseline_schema.sql` §10: application/octet-stream, model/stl, model/step,
+ * model/3mf, model/obj, application/zip).
+ *
+ * VÌ SAO map cố định thay vì dùng `file.type`: trình duyệt thường báo MIME KHÁC allowlist
+ * (vd .3mf → `application/vnd.ms-package.3dmanufacturing-3dmodel+3mf`, .obj → chuỗi rỗng),
+ * Supabase sẽ từ chối; map theo đuôi giữ upload chạy được trên mọi trình duyệt.
+ */
+const CAD_MIME_BY_EXTENSION: Record<string, string> = {
+  '.stl': 'model/stl',
+  '.step': 'model/step',
+  '.stp': 'model/step',
+  '.iges': 'application/octet-stream',
+  '.igs': 'application/octet-stream',
+  '.3mf': 'model/3mf',
+  '.obj': 'model/obj',
+  '.zip': 'application/zip',
+};
+
+/**
+ * Chuẩn hoá tên file CAD trước khi đưa lên Storage (D3 — T25):
+ *   * chỉ lấy BASENAME ⇒ chặn `../`, đường dẫn tuyệt đối, thư mục giả trong tên file;
+ *   * đuôi phải nằm trong `CAD_MIME_BY_EXTENSION` (allowlist D3), ném lỗi rõ ràng nếu không;
+ *   * phần tên còn lại chỉ giữ [a-z0-9._-], cắt còn 80 ký tự, rỗng thì dùng `model`.
+ *
+ * UUID nằm ở tầng thư mục (`cad/<uid>/<uuid>/…`) nên tên file chỉ cần AN TOÀN, không cần duy
+ * nhất — mọi ký tự lạ đều bị thay bằng `-`.
+ */
+function sanitizeCadFileName(rawName: string): { fileName: string; contentType: string } {
+  const base = (rawName ?? '').split(/[\\/]/).pop() ?? '';
+  const lower = base.normalize('NFC').toLowerCase();
+  const dot = lower.lastIndexOf('.');
+  const ext = dot >= 0 ? lower.slice(dot) : '';
+  if (!(ext in CAD_MIME_BY_EXTENSION)) {
+    throw new Error(
+      `Đuôi file CAD không được phép: "${ext || '(không có)'}". ` +
+        `Chỉ nhận ${Object.keys(CAD_MIME_BY_EXTENSION).join(', ')}.`
+    );
+  }
+  const stem = (dot >= 0 ? lower.slice(0, dot) : lower)
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^[.-]+|[.-]+$/g, '')
+    .slice(0, 80);
+  return { fileName: `${stem || 'model'}${ext}`, contentType: CAD_MIME_BY_EXTENSION[ext] };
+}
+
 export const dbService = {
   // Products
   // LUẬT TRUNG THỰC DỮ LIỆU (docs/design/data-honesty.md CI-01): lỗi truy vấn ⇒ ném lỗi
@@ -280,14 +327,34 @@ export const dbService = {
     }
   },
 
-  // Supabase Storage: Upload CAD file (.stl, .step, .3mf)
-  async uploadCadFile(file: File): Promise<{ path?: string; error?: string }> {
+  // Supabase Storage: Upload CAD file (.stl, .step, .stp, .iges, .igs, .3mf, .obj, .zip)
+  //
+  // SCHEME (D3, chốt 2026-09-24): `cad/<ownerId>/<crypto.randomUUID()>/<tên-đã-chuẩn-hoá>`.
+  // Policy RLS `vcube_cad_files_cad_owner_rw` (20261013110000_storage_scheme.sql) chỉ cho
+  // chủ file đọc/ghi trong `cad/<uid>/...` của chính mình. KHÔNG còn `cad/<tên file>` phẳng
+  // như bản cũ (trùng tên, không có chủ, không policy nào phủ).
+  //
+  // ⚠️ GUEST: scheme có nhánh `<guest_session>` nhưng khách vãng lai có `auth.uid()` = NULL
+  // nên KHÔNG thể upload bằng publishable key; cần luồng service-role/signed upload riêng
+  // (chưa làm). Hàm này chỉ dành cho user ĐÃ đăng nhập.
+  //
+  // Giới hạn dung lượng: bucket `cad-files` đặt `file_size_limit = 157286400` byte (~150 MiB,
+  // 20260901_baseline_schema.sql §10) — file lớn hơn bị Storage từ chối; caller nên kiểm
+  // `file.size` trước khi gọi.
+  //
+  // `ownerId` BẮT BUỘC và ném lỗi ngay khi thiếu (không tự đoán `auth.uid()` — tránh ghi
+  // nhầm chủ). Mọi lỗi khác (đuôi file, Storage) trả `{ error }` như trước.
+  async uploadCadFile(file: File, ownerId: string): Promise<{ path?: string; error?: string }> {
+    if (!ownerId) {
+      throw new Error('uploadCadFile: thiếu ownerId — cần truyền auth.uid() của người đăng nhập.');
+    }
+
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-      const filePath = `cad/${fileName}`;
+      const { fileName, contentType } = sanitizeCadFileName(file.name);
+      const filePath = `cad/${ownerId}/${crypto.randomUUID()}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage.from('cad-files').upload(filePath, file, {
+        contentType,
         upsert: false
       });
 

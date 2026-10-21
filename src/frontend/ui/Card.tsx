@@ -1,13 +1,16 @@
 /**
- * Card — bề mặt phẳng có viền (spec: docs/design/tokens.md §8).
+ * Card — bề mặt phẳng có viền (spec: docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE.md §3.1).
  *
- * - `rounded-lg` (12px) + **`border-line-subtle`** + `bg-surface` + `shadow-e0`.
- *   ĐỔI 2026-09-20 (redesign Modern SaaS, `docs/plans/21-saas-spec.md` §1.2): phân tách
- *   bằng **viền nhạt** thay cho `border-line` đậm hơn. Chọn `shadow-e0` (không bóng) làm
- *   mặc định vì §2.4 quy định "**không** bóng cho phần tử trong luồng" — Card mặc định
- *   nằm trong luồng; chỉ khi `interactive` mới nâng lên `shadow-e1` (card nổi).
+ * - `variant="flat"` (MẶC ĐỊNH, giữ nguyên hành vi v2/console): `rounded-lg` (20px) +
+ *   **`border-line-subtle`** + `bg-surface` + `shadow-e0`. Phân tách bằng **viền nhạt** thay
+ *   cho bóng; `shadow-e0` (không bóng) vì "**không** bóng cho phần tử trong luồng".
+ *   (CC-05, W5: trả primitive về `line-subtle` — 103 panel/card tự dựng trong console cũng
+ *   dùng `line-subtle`; `line` chỉ dành cho panel mạnh: band, modal, popover, toolbar.)
+ * - `variant="soft"` (v3, opt-in cho storefront — Home/Explore/PDP/commerce): **bỏ viền**,
+ *   dùng `--shadow-soft` ấm. `interactive` khi đó nâng lên `shadow-e2` thay vì thêm viền.
+ *   Console KHÔNG dùng variant này (density + hairline), trừ khi được duyệt.
  * - **Không gradient.**
- * - `interactive`: hover nâng lên `shadow-e1`. Khi card có `onClick` mà phần tử không
+ * - `interactive`: hover nâng elevation. Khi card có `onClick` mà phần tử không
  *   phải `<button>`/`<a>`, Card tự thêm `role="button"` + `tabIndex=0` + xử lý
  *   `Enter`/`Space` — sửa đúng lỗi U4 của QA checklist (overlay chỉ hover được, không
  *   tới được bằng bàn phím).
@@ -21,9 +24,13 @@ import { cn } from './cn';
 
 export type CardPadding = 'none' | 'sm' | 'md' | 'lg';
 export type CardElement = 'div' | 'article' | 'section' | 'li' | 'button' | 'a';
+/** `flat` = viền hairline (console, mặc định cũ) · `soft` = borderless + shadow ấm (storefront v3). */
+export type CardVariant = 'flat' | 'soft';
 
 export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, 'className'> {
   as?: CardElement;
+  /** Mặc định `flat` — đổi sang `soft` là quyết định của từng bề mặt, không phải global. */
+  variant?: CardVariant;
   interactive?: boolean;
   padding?: CardPadding;
   className?: string;
@@ -32,9 +39,14 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, 'className'
   ref?: Ref<HTMLElement>;
 }
 
-const BASE = 'rounded-lg border border-line-subtle bg-surface text-fg shadow-e0';
+const BASE = 'rounded-lg bg-surface text-fg';
 
-/* Mật độ SaaS §1.3: padding panel 16–20px (bản cũ cho `lg` tới 24px). */
+const VARIANT: Record<CardVariant, string> = {
+  flat: 'border border-line-subtle shadow-e0',
+  soft: 'border-0 shadow-soft',
+};
+
+/* Mật độ "Soft Studio" §2.3 + docs/design/tokens.md: sm 12 / md 16 / lg 20. */
 const PADDING: Record<CardPadding, string> = {
   none: '',
   sm: 'p-3',
@@ -42,11 +54,24 @@ const PADDING: Record<CardPadding, string> = {
   lg: 'p-5',
 };
 
-const INTERACTIVE =
-  'cursor-pointer transition-shadow duration-fast ease-out hover:shadow-e1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+/**
+ * A11Y-02 (W5c): `focus-visible:ring-*` KHÔNG được vẽ trên `variant="flat"` vì `shadow-e0`/`shadow-e1`
+ * cũng ghi `box-shadow` (đo trên admin StatCard: `boxShadow: none`, `outline-style: none`).
+ * Giữ ring (cho các trình duyệt/utility nơi ring thắng cascade) + thêm **outline không dùng shadow**
+ * làm chỉ báo chắc chắn. Bỏ `outline-none`: ở Tailwind v4 `outline-none` đặt
+ * `--tw-outline-style: none` nên nếu giữ, `outline-2` cũng bị vô hiệu.
+ */
+const INTERACTIVE_BASE =
+  'cursor-pointer transition-shadow duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none';
+
+const INTERACTIVE: Record<CardVariant, string> = {
+  flat: 'hover:border-line hover:shadow-e1',
+  soft: 'hover:shadow-e2',
+};
 
 export function Card({
   as = 'div',
+  variant = 'flat',
   interactive = false,
   padding = 'md',
   className,
@@ -75,7 +100,14 @@ export function Card({
       onKeyDown: handleKeyDown,
       role: needsKeyboardShim ? (rest.role ?? 'button') : rest.role,
       tabIndex: needsKeyboardShim ? (rest.tabIndex ?? 0) : rest.tabIndex,
-      className: cn(BASE, PADDING[padding], interactive && INTERACTIVE, className),
+      className: cn(
+        BASE,
+        VARIANT[variant],
+        PADDING[padding],
+        interactive && INTERACTIVE_BASE,
+        interactive && INTERACTIVE[variant],
+        className,
+      ),
     } as never,
     children,
   );

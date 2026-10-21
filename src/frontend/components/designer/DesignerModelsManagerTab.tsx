@@ -1,11 +1,37 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product } from '../../../types';
 import { ThreeModelViewer } from '../ThreeModelViewer';
-import { Button, ConfirmDialog, DataTable, EmptyState, Icon, Modal } from '@frontend/ui';
+import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
 import { useLanguage } from '../../context/LanguageContext';
 import { settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
+
+/**
+ * UI-010: nhãn VI cho enum giấy phép / trạng thái xuất bản.
+ * Giá trị enum (`Standard`/`Commercial`/`Exclusive`, `Published`/`Under Review`/`Draft`)
+ * vẫn chỉ sống trong code + DB; UI không render thô ra cho tác giả Việt.
+ */
+const LICENSE_LABELS: Record<string, string> = {
+  Standard: 'Tiêu chuẩn',
+  Commercial: 'Thương mại',
+  Exclusive: 'Độc quyền',
+};
+
+const PUBLISH_STATUS_LABELS: Record<string, string> = {
+  Published: 'Đã xuất bản',
+  'Under Review': 'Chờ duyệt',
+  Draft: 'Bản nháp',
+};
+
+/** Nhãn danh mục — giá trị `category` trong DB là slug kỹ thuật, không render thô. */
+const CATEGORY_LABELS: Record<string, string> = {
+  mechanical: 'Cơ khí',
+  iot: 'Vỏ hộp IoT',
+  robotics: 'Robot',
+  art: 'Nghệ thuật',
+  tools: 'Công cụ',
+};
 
 /**
  * A6 (data-honesty): tỉ lệ bản quyền tác giả đọc từ cấu hình giá thật
@@ -170,89 +196,103 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
   const modelColumns = useMemo<DataTableColumn<Product>[]>(() => [
     {
       key: 'name',
-      header: isVi ? 'Ấn Phẩm & SKU' : 'Model & SKU',
+      header: isVi ? 'Ấn phẩm & SKU' : 'Model & SKU',
       value: (p) => p.name,
       render: (prod) => (
         <div className="flex items-center gap-3">
           {prod.images?.[0] ? (
-            <img src={prod.images[0]} alt={prod.name} className="w-12 h-12 object-cover border border-line rounded-sm shrink-0 bg-surface-inverse" />
+            <img src={prod.images[0]} alt={prod.name} className="size-12 shrink-0 rounded-md border border-line bg-surface-muted object-cover" />
           ) : (
-            <span className="w-12 h-12 border border-line rounded-sm shrink-0 bg-surface-muted text-fg-subtle flex items-center justify-center">
+            <span className="grid size-12 shrink-0 place-items-center rounded-md border border-line bg-surface-muted text-fg-muted">
               <Icon name="deployed_code" size={20} />
             </span>
           )}
           <div>
-            <span className="font-bold text-fg block leading-tight">{prod.name}</span>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="font-tech text-xs text-fg-muted">SKU: {prod.sku || '—'}</span>
-              <span className="px-1.5 py-0.5 bg-line-subtle text-fg font-tech text-xs rounded-sm uppercase">{prod.category}</span>
+            <span className="block font-semibold leading-tight text-fg">{prod.name}</span>
+            <div className="mt-0.5 flex items-center gap-2">
+              <span className="font-mono text-xs text-fg-muted">SKU: {prod.sku || '—'}</span>
+              <span className="rounded-sm bg-surface-muted px-1.5 py-0.5 font-mono text-xs uppercase text-fg-muted">
+                {CATEGORY_LABELS[prod.category] ?? prod.category}
+              </span>
             </div>
           </div>
         </div>
       ),
     },
-    { key: 'designer', header: isVi ? 'Tác Giả' : 'Designer', value: (p) => p.designer || '', render: (prod) => <span className="font-medium text-xs">{prod.designer || '—'}</span> },
+    { key: 'designer', header: isVi ? 'Tác giả' : 'Designer', value: (p) => p.designer || '', render: (prod) => <span className="text-sm text-fg-muted">{prod.designer || '—'}</span> },
     {
       key: 'licenseType',
-      header: isVi ? 'Giấy Phép' : 'License',
+      header: isVi ? 'Giấy phép' : 'License',
       value: (p) => p.licenseType || 'Standard',
       render: (prod) => (
-        <span className="px-2 py-0.5 bg-primary/10 border border-line rounded-sm text-xs font-bold text-primary">
-          {prod.licenseType || 'Standard'}
+        <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary-tint px-2.5 py-1 text-xs font-medium text-primary">
+          {LICENSE_LABELS[prod.licenseType || 'Standard'] ?? 'Tiêu chuẩn'}
         </span>
       ),
     },
-    { key: 'priceDigital', header: isVi ? 'Giá Tải File Số' : 'Digital price', numeric: true, value: (p) => p.priceDigital ?? 0, render: (prod) => <span className="font-bold text-fg text-xs">{formatCurrency(prod.priceDigital)}</span> },
-    { key: 'pricePhysical', header: isVi ? 'Giá In 3D Vật Lý' : 'Physical price', numeric: true, value: (p) => p.pricePhysical ?? 0, render: (prod) => <span className="font-bold text-fg text-xs">{formatCurrency(prod.pricePhysical)}</span> },
+    { key: 'priceDigital', header: isVi ? 'Giá tải tệp số' : 'Digital price', numeric: true, value: (p) => p.priceDigital ?? 0, render: (prod) => <span className="font-semibold text-fg">{formatCurrency(prod.priceDigital)}</span> },
+    { key: 'pricePhysical', header: isVi ? 'Giá in 3D vật lý' : 'Physical price', numeric: true, value: (p) => p.pricePhysical ?? 0, render: (prod) => <span className="font-semibold text-fg">{formatCurrency(prod.pricePhysical)}</span> },
     {
       key: 'status',
-      header: isVi ? 'Trạng Thái' : 'Status',
+      header: isVi ? 'Trạng thái' : 'Status',
       align: 'center',
       value: (p) => p.status || 'Published',
       render: (prod) => (
         <button
           onClick={() => handleToggleProductStatus(prod)}
-          title={isVi ? 'Bấm để đổi trạng thái' : 'Click to toggle status'}
-          className={`px-2.5 py-1 text-xs font-tech font-bold uppercase rounded-full transition-colors ${
+          title={isVi ? 'Bấm để đổi trạng thái xuất bản' : 'Click to toggle status'}
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             prod.status === 'Under Review'
-              ? 'bg-warning/10 text-warning border border-warning/30'
+              ? 'border-warning/20 bg-warning-tint text-warning'
               : prod.status === 'Draft'
-              ? 'bg-line-subtle text-fg-muted border border-line-control'
-              : 'bg-positive/10 text-positive border border-positive/30'
+              ? 'border-line bg-surface-muted text-fg-muted'
+              : 'border-positive/20 bg-positive-tint text-positive'
           }`}
         >
-          {prod.status || 'Published'}
+          <span
+            aria-hidden="true"
+            className={`size-1.5 rounded-full ${
+              prod.status === 'Under Review'
+                ? 'bg-warning'
+                : prod.status === 'Draft'
+                ? 'bg-fg-subtle'
+                : 'bg-positive'
+            }`}
+          />
+          {PUBLISH_STATUS_LABELS[prod.status || 'Published'] ?? 'Đã xuất bản'}
         </button>
       ),
     },
     {
       key: 'actions',
-      header: isVi ? 'Hành Động' : 'Actions',
+      header: isVi ? 'Hành động' : 'Actions',
       align: 'right',
       render: (prod) => (
         <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-          <button
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={() => handleOpenEditModal(prod)}
-            className="px-2.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg rounded-full text-xs uppercase font-bold transition-colors inline-flex items-center gap-1 touch-target-btn shadow-e1"
+            leadingIcon={<Icon name="edit" size={16} />}
           >
-            <Icon name="edit" size={18} />
-            {isVi ? 'Sửa & Giá' : 'Edit'}
-          </button>
-          <button
+            {isVi ? 'Sửa & giá' : 'Edit'}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={() => setPreviewProduct(prod)}
-            className="px-2.5 py-1.5 border border-line-control hover:bg-line-subtle text-fg rounded-full text-xs uppercase font-bold transition-colors inline-flex items-center gap-1 touch-target-btn"
+            leadingIcon={<Icon name="view_in_ar" size={16} />}
           >
-            <Icon name="view_in_ar" size={18} />
             {isVi ? 'Xem 3D' : '3D'}
-          </button>
+          </Button>
           <Button
             iconOnly
             size="sm"
             variant="danger-ghost"
             aria-label={isVi ? `Xoá ${prod.name}` : `Delete ${prod.name}`}
-            title={isVi ? 'Xóa ấn phẩm' : 'Delete'}
+            title={isVi ? 'Xoá ấn phẩm' : 'Delete'}
             onClick={() => handleDeleteConfirm(prod)}
-            leadingIcon={<Icon name="delete" size={14} />}
+            leadingIcon={<Icon name="delete" size={16} />}
           />
         </div>
       ),
@@ -266,7 +306,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
         open={pendingDelete !== null}
         tone="danger"
         title="Xoá ấn phẩm"
-        description={pendingDelete ? `Bạn có chắc chắn muốn xoá ấn phẩm "${pendingDelete.name}" khỏi Catalog? Hành động này không hoàn tác được.` : ''}
+        description={pendingDelete ? `Bạn có chắc chắn muốn xoá ấn phẩm "${pendingDelete.name}" khỏi danh mục ấn phẩm? Hành động này không hoàn tác được.` : ''}
         confirmLabel="Xoá ấn phẩm"
         cancelLabel="Huỷ"
         onCancel={() => setPendingDelete(null)}
@@ -276,47 +316,64 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
           setPendingDelete(null);
         }}
       />
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-fg">Kho Ấn Phẩm &amp; Điều Chỉnh Giá In</h2>
-          <p className="text-xs text-fg-muted">
-            Quản lý {myProducts.length} ấn phẩm của bạn trong Catalog DB. Bạn có thể chỉnh sửa thông tin kỹ
-            thuật, giá in vật lý và giá file số.
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold tracking-tight text-fg">Kho ấn phẩm &amp; điều chỉnh giá in</h2>
+          <p className="max-w-prose text-sm text-fg-muted">
+            Quản lý {myProducts.length} ấn phẩm của bạn trong cơ sở dữ liệu ấn phẩm. Bạn có thể chỉnh sửa
+            thông tin kỹ thuật, giá in vật lý và giá tệp số.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <input
-            type="text"
-            placeholder="Tìm theo tên, SKU, tag..."
-            value={searchModelQuery}
-            onChange={(e) => setSearchModelQuery(e.target.value)}
-            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm w-full sm:w-52 focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-          />
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center md:w-auto">
+          <Field label="Tìm ấn phẩm" hideLabel className="w-full sm:w-52">
+            {(control) => (
+              <Input
+                {...control}
+                type="search"
+                size="sm"
+                placeholder="Tìm theo tên, SKU, thẻ…"
+                value={searchModelQuery}
+                onChange={(e) => setSearchModelQuery(e.target.value)}
+              />
+            )}
+          </Field>
 
-          <select
-            value={modelCategoryFilter}
-            onChange={(e) => setModelCategoryFilter(e.target.value)}
-            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="all">Mọi Danh Mục</option>
-            <option value="mechanical">Cơ khí</option>
-            <option value="iot">Vỏ hộp IoT</option>
-            <option value="robotics">Robot</option>
-            <option value="art">Nghệ thuật</option>
-            <option value="tools">Công cụ</option>
-          </select>
+          <Field label="Lọc theo danh mục" hideLabel className="w-full sm:w-auto">
+            {(control) => (
+              <Select
+                {...control}
+                size="sm"
+                value={modelCategoryFilter}
+                onChange={(e) => setModelCategoryFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: 'Mọi danh mục' },
+                  { value: 'mechanical', label: 'Cơ khí' },
+                  { value: 'iot', label: 'Vỏ hộp IoT' },
+                  { value: 'robotics', label: 'Robot' },
+                  { value: 'art', label: 'Nghệ thuật' },
+                  { value: 'tools', label: 'Công cụ' },
+                ]}
+              />
+            )}
+          </Field>
 
-          <select
-            value={modelStatusFilter}
-            onChange={(e) => setModelStatusFilter(e.target.value)}
-            className="bg-surface border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="all">Mọi Trạng Thái</option>
-            <option value="Published">Đã Xuất Bản</option>
-            <option value="Under Review">Chờ Duyệt</option>
-            <option value="Draft">Bản Nháp</option>
-          </select>
+          <Field label="Lọc theo trạng thái" hideLabel className="w-full sm:w-auto">
+            {(control) => (
+              <Select
+                {...control}
+                size="sm"
+                value={modelStatusFilter}
+                onChange={(e) => setModelStatusFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: 'Mọi trạng thái' },
+                  { value: 'Published', label: 'Đã xuất bản' },
+                  { value: 'Under Review', label: 'Chờ duyệt' },
+                  { value: 'Draft', label: 'Bản nháp' },
+                ]}
+              />
+            )}
+          </Field>
         </div>
       </div>
 
@@ -344,135 +401,139 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
           open
           onClose={() => setEditingProduct(null)}
           size="lg"
-          title={<span className="flex items-center gap-2"><Icon name="edit" size={22} className="text-primary" />{isVi ? 'Chỉnh Sửa Ấn Phẩm & Giá In (Catalog DB)' : 'Edit model & pricing'}</span>}
+          title={<span className="flex items-center gap-2"><Icon name="edit" size={22} className="text-primary" />{isVi ? 'Chỉnh sửa ấn phẩm & giá in' : 'Edit model & pricing'}</span>}
         >
-            <form onSubmit={handleSaveEditProduct} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs uppercase font-bold text-fg-muted block mb-1">
-                    Tên Ấn Phẩm:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
+            <form onSubmit={handleSaveEditProduct} className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Tên ấn phẩm" required>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                    />
+                  )}
+                </Field>
 
-                <div>
-                  <label className="text-xs uppercase font-bold text-fg-muted block mb-1">
-                    Mã SKU:
-                  </label>
-                  <input
-                    type="text"
-                    value={editSku}
-                    onChange={(e) => setEditSku(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs font-tech focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
+                <Field label="Mã SKU">
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={editSku}
+                      onChange={(e) => setEditSku(e.target.value)}
+                      className="font-mono"
+                    />
+                  )}
+                </Field>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs uppercase font-bold text-fg-muted block mb-1">
-                    Danh Mục:
-                  </label>
-                  <select
-                    value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="mechanical">Cơ khí chính xác</option>
-                    <option value="iot">Vỏ hộp IoT</option>
-                    <option value="robotics">Robot &amp; Automation</option>
-                    <option value="art">Nghệ thuật &amp; Decor</option>
-                    <option value="tools">Dụng cụ &amp; Đồ gá</option>
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Field label="Danh mục">
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                      options={[
+                        { value: 'mechanical', label: 'Cơ khí chính xác' },
+                        { value: 'iot', label: 'Vỏ hộp IoT' },
+                        { value: 'robotics', label: 'Robot & tự động hoá' },
+                        { value: 'art', label: 'Nghệ thuật & trang trí' },
+                        { value: 'tools', label: 'Dụng cụ & đồ gá' },
+                      ]}
+                    />
+                  )}
+                </Field>
 
-                <div>
-                  <label className="text-xs uppercase font-bold text-fg-muted block mb-1">
-                    Giấy Phép (License):
-                  </label>
-                  <select
-                    value={editLicense}
-                    onChange={(e) => setEditLicense(e.target.value as any)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="Standard">Standard (Cá nhân)</option>
-                    <option value="Commercial">Commercial (Thương mại)</option>
-                    <option value="Exclusive">Exclusive (Độc quyền)</option>
-                  </select>
-                </div>
+                <Field label="Giấy phép bản quyền">
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={editLicense}
+                      onChange={(e) => setEditLicense(e.target.value as any)}
+                      options={[
+                        { value: 'Standard', label: 'Tiêu chuẩn (cá nhân)' },
+                        { value: 'Commercial', label: 'Thương mại' },
+                        { value: 'Exclusive', label: 'Độc quyền' },
+                      ]}
+                    />
+                  )}
+                </Field>
 
-                <div>
-                  <label className="text-xs uppercase font-bold text-fg-muted block mb-1">
-                    Trạng Thái Xuất Bản:
-                  </label>
-                  <select
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value as any)}
-                    className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="Published">Published (Đã xuất bản)</option>
-                    <option value="Under Review">Under Review (Chờ duyệt)</option>
-                    <option value="Draft">Draft (Bản nháp)</option>
-                  </select>
-                </div>
+                <Field label="Trạng thái xuất bản">
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as any)}
+                      options={[
+                        { value: 'Published', label: 'Đã xuất bản' },
+                        { value: 'Under Review', label: 'Chờ duyệt' },
+                        { value: 'Draft', label: 'Bản nháp' },
+                      ]}
+                    />
+                  )}
+                </Field>
               </div>
 
               {/* PRICING FIELDS */}
-              <div className="p-3.5 bg-primary/10 border border-line rounded-sm space-y-3">
-                <span className="font-bold text-xs text-primary block uppercase font-tech">
-                  ĐIỀU CHỈNH GIÁ BÁN &amp; HOA HỒNG (VNĐ)
+              <div className="space-y-3 rounded-md border border-line-subtle bg-surface-muted p-4">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
+                  ĐIỀU CHỈNH GIÁ BÁN &amp; HOA HỒNG (₫)
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="text-xs uppercase font-bold text-fg block mb-1">
-                      Giá Tải File Thiết Kế Số:
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={editPriceDigital}
-                        onChange={(e) => setEditPriceDigital(e.target.value)}
-                        className="w-full bg-surface border border-line-control p-2 text-xs font-tech font-bold rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                      <span className="absolute right-2.5 top-2 text-xs font-tech text-fg-muted">
-                        đ
-                      </span>
-                    </div>
-                    <p className="text-xs text-fg-muted font-tech mt-1">
-                      Tác giả nhận: <strong>{EMPTY_VALUE}</strong> — tỉ lệ bản quyền file số không
+                    <Field label="Giá tải tệp thiết kế số">
+                      {(control) => (
+                        <div className="relative">
+                          <Input
+                            {...control}
+                            type="number"
+                            numeric
+                            value={editPriceDigital}
+                            onChange={(e) => setEditPriceDigital(e.target.value)}
+                            className="pr-8 font-semibold"
+                          />
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-fg-muted">
+                            ₫
+                          </span>
+                        </div>
+                      )}
+                    </Field>
+                    <p className="mt-1 text-xs text-fg-muted">
+                      Tác giả nhận: <strong>{EMPTY_VALUE}</strong> — tỉ lệ bản quyền tệp số không
                       nằm trong cấu hình giá, VCUBE công bố khi quyết toán.
                     </p>
                   </div>
 
                   <div>
-                    <label className="text-xs uppercase font-bold text-fg block mb-1">
-                      Giá In 3D Vật Lý Thành Phẩm:
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={editPricePhysical}
-                        onChange={(e) => setEditPricePhysical(e.target.value)}
-                        className="w-full bg-surface border border-line-control p-2 text-xs font-tech font-bold rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                      <span className="absolute right-2.5 top-2 text-xs font-tech text-fg-muted">
-                        đ
-                      </span>
-                    </div>
+                    <Field label="Giá in 3D vật lý thành phẩm">
+                      {(control) => (
+                        <div className="relative">
+                          <Input
+                            {...control}
+                            type="number"
+                            numeric
+                            value={editPricePhysical}
+                            onChange={(e) => setEditPricePhysical(e.target.value)}
+                            className="pr-8 font-semibold"
+                          />
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-fg-muted">
+                            ₫
+                          </span>
+                        </div>
+                      )}
+                    </Field>
                     {designerRoyaltyPercent !== null ? (
-                      <p className="text-xs text-fg-muted font-tech mt-1">
+                      <p className="mt-1 text-xs text-fg-muted">
                         Bản quyền tác giả theo cấu hình giá:{' '}
                         <strong>{designerRoyaltyPercent}%</strong> — số tiền quyết toán theo công
                         thức giá của VCUBE.
                       </p>
                     ) : (
-                      <p className="text-xs text-fg-muted font-tech mt-1">
+                      <p className="mt-1 text-xs text-fg-muted">
                         Hoa hồng tác giả: <strong>{EMPTY_VALUE}</strong> (chưa cấu hình tỉ lệ bản
                         quyền trong giá)
                       </p>
@@ -482,20 +543,21 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
               </div>
 
               <div>
-                <label className="text-xs uppercase font-bold text-fg-muted block mb-1">
-                  Thẻ Phân Loại (Tags):
-                </label>
-                <div className="flex flex-wrap items-center gap-1.5 p-2 bg-canvas border border-line rounded-sm min-h-[38px]">
+                <span className="mb-1 block text-sm font-medium text-fg">
+                  Thẻ phân loại
+                </span>
+                <div className="flex min-h-11 flex-wrap items-center gap-1.5 rounded-md border border-line-control bg-surface p-2">
                   {editTags.map((tag) => (
                     <span
                       key={tag}
-                      className="px-2 py-0.5 bg-primary/10 text-fg rounded-sm text-xs font-tech flex items-center gap-1"
+                      className="inline-flex items-center gap-1 rounded-sm bg-primary-tint px-2 py-0.5 text-xs text-fg"
                     >
                       {tag}
                       <button
                         type="button"
                         onClick={() => handleRemoveEditTag(tag)}
-                        className="hover:text-danger"
+                        aria-label={`Xoá thẻ ${tag}`}
+                        className="rounded-sm text-fg-muted transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         ×
                       </button>
@@ -503,41 +565,39 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                   ))}
                   <input
                     type="text"
-                    placeholder="Thêm tag (nhấn Enter)..."
+                    placeholder="Thêm thẻ (nhấn Enter)…"
+                    aria-label="Thêm thẻ phân loại"
                     value={editTagInput}
                     onChange={(e) => setEditTagInput(e.target.value)}
                     onKeyDown={handleAddEditTag}
-                    className="bg-transparent border-none text-xs focus:ring-0 p-0 text-fg min-w-[100px]"
+                    className="min-w-[100px] flex-1 border-none bg-transparent p-0 text-sm text-fg placeholder:text-fg-subtle rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs uppercase font-bold text-fg-muted block mb-1">
-                  Mô Tả Kỹ Thuật:
-                </label>
-                <textarea
-                  rows={3}
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  className="w-full bg-canvas border border-line-control p-2 rounded-sm text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
+              <Field label="Mô tả kỹ thuật">
+                {(control) => (
+                  <textarea
+                    {...control}
+                    rows={3}
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    className="w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                )}
+              </Field>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-line">
-                <button
+              <div className="flex flex-wrap justify-end gap-2 border-t border-line-subtle pt-4">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setEditingProduct(null)}
-                  className="px-4 py-2 border border-line-control text-xs font-bold rounded-full uppercase"
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-full uppercase transition-colors shadow-e1"
-                >
-                  Lưu Thay Đổi Vào Catalog
-                </button>
+                  Huỷ
+                </Button>
+                <Button type="submit" variant="primary">
+                  Lưu thay đổi
+                </Button>
               </div>
             </form>
         </Modal>
@@ -550,10 +610,10 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
           onClose={() => setPreviewProduct(null)}
           size="lg"
           title={previewProduct.name}
-          description={`SKU: ${previewProduct.sku || '—'} • ${previewProduct.category}`}
+          description={`SKU: ${previewProduct.sku || '—'} • ${CATEGORY_LABELS[previewProduct.category] ?? previewProduct.category}`}
         >
 
-            <div className="bg-surface-inverse border border-surface-inverse-raised rounded-sm p-2">
+            <div className="rounded-lg border border-line bg-surface-muted p-2">
               <ThreeModelViewer
                 modelType={previewProduct.category === 'iot' ? 'case' : 'gear'}
                 color="#E0DDD5"
@@ -561,46 +621,46 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 font-tech text-xs">
-              <div className="p-2 bg-canvas border border-line rounded-sm">
-                <span className="text-xs text-fg-muted block">GIÁ TẢI SỐ</span>
-                <span className="font-bold text-fg">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className="rounded-md border border-line-subtle bg-surface p-3">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">GIÁ TẢI SỐ</span>
+                <span className="font-mono text-sm font-semibold tabular-nums text-fg">
                   {formatCurrency(previewProduct.priceDigital)}
                 </span>
               </div>
-              <div className="p-2 bg-canvas border border-line rounded-sm">
-                <span className="text-xs text-fg-muted block">GIÁ IN VẬT LÝ</span>
-                <span className="font-bold text-fg">
+              <div className="rounded-md border border-line-subtle bg-surface p-3">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">GIÁ IN VẬT LÝ</span>
+                <span className="font-mono text-sm font-semibold tabular-nums text-fg">
                   {formatCurrency(previewProduct.pricePhysical)}
                 </span>
               </div>
-              <div className="p-2 bg-canvas border border-line rounded-sm">
-                <span className="text-xs text-fg-muted block">GIẤY PHÉP</span>
-                <span className="font-bold text-primary">
-                  {previewProduct.licenseType || 'Standard'}
+              <div className="rounded-md border border-line-subtle bg-surface p-3">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">GIẤY PHÉP</span>
+                <span className="text-sm font-semibold text-fg">
+                  {LICENSE_LABELS[previewProduct.licenseType || 'Standard'] ?? 'Tiêu chuẩn'}
                 </span>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-line">
-              <button
+            <div className="flex flex-wrap justify-end gap-2 border-t border-line-subtle pt-4">
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setPreviewProduct(null)}
-                className="px-4 py-2 border border-line-control text-xs font-bold rounded-full uppercase"
               >
                 Đóng
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => {
                   const prod = previewProduct;
                   setPreviewProduct(null);
                   handleOpenEditModal(prod);
                 }}
-                className="px-4 py-2 bg-primary text-primary-fg text-xs font-bold rounded-full uppercase"
               >
-                Chỉnh Sửa Bản Vẽ Này
-              </button>
+                Chỉnh sửa bản vẽ này
+              </Button>
             </div>
         </Modal>
       )}

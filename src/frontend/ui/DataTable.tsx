@@ -174,9 +174,12 @@ export interface DataTableProps<T> {
  * Hàng cuối không có đường kẻ (xem `TBODY_LINE`) nên cao đúng bằng chiều cao ô — vẫn ≥ 40px.
  */
 const DENSITY_CELL: Record<DataTableDensity, string> = {
-  40: 'h-9.75 px-3',
-  44: 'h-10.75 px-3',
+  40: 'h-9.75 px-4',
+  44: 'h-10.75 px-4',
 };
+
+/** Ô tiêu đề — DESIGN-LANGUAGE §3.5: `h-10 px-4`, chữ 12px in hoa, màu `fg-subtle`. */
+const HEADER_CELL = 'h-10 px-4';
 
 /** Đường kẻ hàng — phải vẽ trên Ô: `border-separate` BỎ QUA border của `<tr>`. */
 const ROW_LINE = 'border-b border-line-subtle';
@@ -454,7 +457,7 @@ export function DataTable<T>({
 
   const alignClass = (column: DataTableColumn<T>) =>
     column.numeric || column.align === 'right'
-      ? 'text-right tabular-nums'
+      ? 'text-right font-mono tabular-nums'
       : column.align === 'center'
         ? 'text-center'
         : 'text-left';
@@ -602,13 +605,13 @@ export function DataTable<T>({
           className="w-full border-separate border-spacing-0 text-left text-sm"
         >
           {caption ? <caption className="sr-only">{caption}</caption> : null}
-          <thead>
+          <thead className="bg-surface-muted text-xs uppercase tracking-wider text-fg-subtle">
             <tr className="bg-surface-muted">
               {selectable ? (
                 <th
                   scope="col"
                   className={cn(
-                    cellClass,
+                    HEADER_CELL,
                     ROW_LINE,
                     'w-12 whitespace-nowrap align-middle',
                     // Ô chọn-tất-cả PHẢI dính cùng các ô tiêu đề khác (lỗi đã đo: position static).
@@ -644,10 +647,10 @@ export function DataTable<T>({
                     aria-sort={column.sortable ? ariaSortFor(column) : undefined}
                     style={column.width ? { width: column.width } : undefined}
                     className={cn(
-                      cellClass,
+                      HEADER_CELL,
                       ROW_LINE,
                       wrapClass(column),
-                      'align-middle font-medium text-fg-muted',
+                      'align-middle font-semibold text-fg-subtle',
                       alignClass(column),
                       stickyHeader && 'sticky top-0 z-sticky bg-surface-muted',
                       column.headerClassName,
@@ -659,7 +662,7 @@ export function DataTable<T>({
                         onClick={(event) => handleSortClick(column, event)}
                         title={multiSort ? resolvedSortLabels.multiHint : undefined}
                         className={cn(
-                          'inline-flex items-center gap-1 rounded-sm text-xs font-semibold uppercase tracking-wide text-fg-muted',
+                          'inline-flex items-center gap-1 rounded-sm text-xs font-semibold uppercase tracking-wider text-fg-subtle',
                           'hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           // §1.3: icon trong control 16px, nhưng vùng bấm mobile vẫn ≥44×44 (bù bằng padding).
                           'max-md:min-h-11 max-md:min-w-11 max-md:justify-center',
@@ -676,7 +679,7 @@ export function DataTable<T>({
                         ) : null}
                       </button>
                     ) : (
-                      <span className="text-xs font-semibold uppercase tracking-wide">{column.header}</span>
+                      <span className="text-xs font-semibold uppercase tracking-wider">{column.header}</span>
                     )}
                   </th>
                 );
@@ -719,9 +722,9 @@ export function DataTable<T>({
                       onClick={onRowClick ? () => onRowClick(row) : undefined}
                       onKeyDown={onRowClick ? handleRowKeyDown : undefined}
                       className={cn(
-                        'align-middle',
+                        'align-middle hover:bg-surface-muted/60',
                         onRowClick &&
-                          'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring hover:bg-surface-muted',
+                          'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         isSelected && 'bg-surface-muted',
                         rowClassName?.(row, rowIndex),
                       )}

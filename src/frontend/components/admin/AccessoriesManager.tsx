@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { AccessoryItem } from '../../types';
-import { Icon, InfoTip, ConfirmDialog, DataTable, EmptyState, Modal } from '@frontend/ui';
+import { Icon, InfoTip, ConfirmDialog, DataTable, EmptyState, Field, Input, Modal, Button, Badge, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatNumber } from '../../lib/format';
 import { useLanguage } from '../../context/LanguageContext';
@@ -183,16 +183,16 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       render: (item) => (
         <div className="flex items-center gap-3">
           {item.imageUrl ? (
-            <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-sm object-cover border border-line shrink-0" />
+            <img src={item.imageUrl} alt={item.name} className="h-10 w-10 shrink-0 rounded-md border border-line object-cover" />
           ) : (
-            <span className="w-10 h-10 rounded-sm border border-line bg-surface-muted text-fg-subtle flex items-center justify-center shrink-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line-subtle bg-surface-muted text-fg-subtle">
               <Icon name="inventory" size={18} />
             </span>
           )}
           <div>
             <p className="font-bold text-fg leading-snug">{item.name}</p>
             <div className="flex items-center gap-2 mt-0.5 text-xs text-fg-muted">
-              <span className="font-tech font-bold text-primary">{item.sku || '—'}</span>
+              <span className="font-mono font-bold text-primary">{item.sku || '—'}</span>
               {item.supplier && <span>• NCC: {item.supplier}</span>}
             </div>
             {item.compatibleWith && item.compatibleWith.length > 0 && (
@@ -212,7 +212,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       value: (a) => a.category,
       render: (item) => (
         <div>
-          <span className="px-2 py-0.5 bg-info-tint text-info rounded-sm text-xs font-bold capitalize">{item.category}</span>
+          <span className="rounded-sm bg-info-tint px-2 py-0.5 text-xs font-semibold capitalize text-info">{item.category}</span>
           <div className="text-xs text-fg-muted mt-0.5">ĐVT: {item.unit}</div>
         </div>
       ),
@@ -222,7 +222,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       header: isVi ? 'Giá Vốn Xưởng' : 'Cost price',
       numeric: true,
       value: (a) => a.costPrice ?? 0,
-      render: (item) => <span className="text-fg-muted">{numText(item.costPrice, ' đ')}</span>,
+      render: (item) => <span className="font-mono tabular-nums text-fg-muted">{numText(item.costPrice, ' ₫')}</span>,
     },
     {
       key: 'sellingPrice',
@@ -236,8 +236,8 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
             : Math.round(((item.sellingPrice - item.costPrice) / item.sellingPrice) * 100);
         return (
           <div>
-            <span className="font-tech font-bold text-fg">{numText(item.sellingPrice, ' đ')}</span>
-            <div className={`text-xs font-tech font-semibold ${grossMargin === null ? 'text-fg-subtle' : 'text-positive'}`}>
+            <span className="font-mono font-bold tabular-nums text-fg">{numText(item.sellingPrice, ' ₫')}</span>
+            <div className={`text-xs font-mono font-semibold tabular-nums ${grossMargin === null ? 'text-fg-subtle' : 'text-positive'}`}>
               {grossMargin === null ? `${EMPTY_VALUE} margin` : `+${grossMargin}% margin`}
             </div>
           </div>
@@ -252,33 +252,41 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       render: (item) => {
         const isLow = isLowStock(item);
         const stockUnknown = isMissingNum(item.stockCount);
+        const outOfStock = !stockUnknown && (item.stockCount as number) <= 0;
         return (
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-col items-center gap-1.5">
             <div className="flex items-center gap-1.5">
-              <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>{numText(item.stockCount)}</span>
+              <span className={`font-mono text-sm font-bold tabular-nums ${isLow ? 'text-danger' : 'text-fg'}`}>{numText(item.stockCount)}</span>
               <span className="text-xs text-fg-muted">{item.unit}</span>
             </div>
-            {isLow && (
-              <span className="px-1.5 py-0.5 bg-danger-tint text-danger rounded-sm text-xs font-bold">
+            {stockUnknown ? (
+              <Badge variant="neutral" dot>Chưa kiểm kê</Badge>
+            ) : outOfStock ? (
+              <Badge variant="danger" dot icon={<Icon name="warning" size={12} />}>Hết hàng</Badge>
+            ) : isLow ? (
+              <Badge variant="warning" dot icon={<Icon name="warning" size={12} />}>
                 Sắp hết (&lt;={numText(item.lowStockThreshold)})
-              </span>
+              </Badge>
+            ) : (
+              <Badge variant="success" dot>Đủ hàng</Badge>
             )}
-            <div className="flex items-center gap-1 mt-1">
+            <div className="mt-1 flex items-center gap-1">
               {[
-                { delta: -10, label: '-10', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
-                { delta: 10, label: '+10', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
-                { delta: 50, label: '+50', cls: 'bg-positive-tint hover:bg-positive/20 text-positive' },
+                { delta: -10, label: '-10', variant: 'secondary' as const },
+                { delta: 10, label: '+10', variant: 'secondary' as const },
+                { delta: 50, label: '+50', variant: 'primary' as const },
               ].map((btn) => (
-                <button
+                <Button
                   key={btn.delta}
                   type="button"
+                  size="sm"
+                  variant={btn.variant}
                   onClick={() => handleQuickStockAdjust(item.id, btn.delta)}
-                  className={`px-1.5 py-0.5 rounded-sm text-xs font-tech font-bold disabled:opacity-40 disabled:cursor-not-allowed ${btn.cls}`}
                   disabled={stockUnknown}
                   title={stockUnknown ? 'Chưa có số tồn kho — không điều chỉnh nhanh được' : btn.label}
                 >
                   {btn.label}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -290,7 +298,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       header: isVi ? 'Vị Trí Kệ Kho' : 'Shelf location',
       value: (a) => a.warehouseLocation || '',
       render: (item) => (
-        <span className="flex items-center gap-1 font-tech font-bold text-primary">
+        <span className="flex items-center gap-1 font-mono font-bold text-primary">
           <Icon name="shelves" size={16} />
           {item.warehouseLocation || '—'}
         </span>
@@ -306,11 +314,11 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
           type="button"
           onClick={() => handleToggleActive(item.id)}
           aria-pressed={item.isActive}
-          className={`px-2.5 py-1 rounded-sm text-xs font-tech font-bold transition-colors ${
-            item.isActive ? 'bg-positive-tint text-positive hover:bg-positive/30' : 'bg-surface-muted text-fg-muted hover:bg-line-subtle'
-          }`}
+          className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 max-md:min-h-11"
         >
-          {item.isActive ? 'Đang Dùng' : 'Tạm Ẩn'}
+          <Badge variant={item.isActive ? 'success' : 'neutral'} dot>
+            {item.isActive ? 'Đang Dùng' : 'Tạm Ẩn'}
+          </Badge>
         </button>
       ),
     },
@@ -320,24 +328,26 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       align: 'right',
       render: (item) => (
         <div className="flex items-center justify-end gap-1.5">
-          <button
+          <Button
             type="button"
-            onClick={() => setEditingItem(item)}
-            className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-sm transition-colors"
+            iconOnly
+            size="sm"
+            variant="ghost"
             aria-label={isVi ? `Sửa ${item.name}` : `Edit ${item.name}`}
             title={isVi ? 'Chỉnh sửa thông số' : 'Edit'}
-          >
-            <Icon name="edit" size={16} />
-          </button>
-          <button
+            onClick={() => setEditingItem(item)}
+            leadingIcon={<Icon name="edit" size={16} />}
+          />
+          <Button
             type="button"
-            onClick={() => handleDeleteItem(item.id, item.name)}
-            className="p-1.5 bg-danger-tint text-danger rounded-sm transition-colors"
+            iconOnly
+            size="sm"
+            variant="danger-ghost"
             aria-label={isVi ? `Xoá ${item.name}` : `Delete ${item.name}`}
             title={isVi ? 'Xóa phụ kiện' : 'Delete'}
-          >
-            <Icon name="delete" size={16} />
-          </button>
+            onClick={() => handleDeleteItem(item.id, item.name)}
+            leadingIcon={<Icon name="delete" size={16} />}
+          />
         </div>
       ),
     },
@@ -367,14 +377,14 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
         }}
       />
       {/* Header Banner & Stats */}
-      <div className="bg-surface p-5 border border-line rounded-sm shadow-e1">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-lg border border-line-subtle bg-surface p-6 sm:p-8">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h2 className="text-base font-bold text-fg flex items-center gap-2">
+            <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
               <Icon name="extension" size={24} className="text-primary" />
               Quản Lý Phụ Kiện, Linh Kiện & Đóng Gói (Hardware & Packaging)
             </h2>
-            <div className="mt-0.5">
+            <div className="mt-1">
               <InfoTip label="Phụ kiện quản lý những trường nào?">
                 Cấu hình giá vốn xưởng, giá báo cho khách, vị trí kho và theo dõi mức tồn kho thực tế cho móc khóa,
                 ốc cấy ren, nam châm, bao bì…
@@ -382,72 +392,80 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex shrink-0 items-center gap-3">
             {lowStockCount > 0 && (
-              <div className="px-3 py-1.5 bg-warning-tint border border-warning/30 rounded-sm flex items-center gap-1.5 text-xs text-warning font-bold">
-                <Icon name="warning" size={16} className="text-warning" />
+              <Badge variant="warning" icon={<Icon name="warning" size={16} />}>
                 {lowStockCount} mặt hàng sắp hết
-              </div>
+              </Badge>
             )}
-            <button
+            <Button
+              variant="primary"
+              leadingIcon={<Icon name="add_circle" size={16} />}
               onClick={() => setIsNewModalOpen(true)}
-              className="px-4 py-2 bg-primary text-primary-fg rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-primary-hover flex items-center gap-1.5 shadow-e1"
             >
-              <Icon name="add_circle" size={16} />
               Thêm Phụ Kiện Mới
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-surface p-4 border border-line rounded-sm flex flex-col md:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2 w-full md:w-auto flex-1 max-w-md">
+      <div className="flex flex-col items-center justify-between gap-3 rounded-lg border border-line-subtle bg-surface p-4 md:flex-row">
+        <div className="flex w-full max-w-md flex-1 items-center gap-2 md:w-auto">
           <div className="relative w-full">
-            <Icon name="search" size={16} className="absolute left-3 top-2.5 text-fg-muted" />
-            <input
-              type="text"
-              placeholder="Tìm theo tên phụ kiện, mã SKU, vị trí kệ..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-line-control rounded-sm text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-            />
+            <Field id="accessory-search" label="Tìm phụ kiện" hideLabel optionalLabel={null}>
+              {(control) => (
+                <div className="relative">
+                  <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+                  <Input
+                    {...control}
+                    type="search"
+                    placeholder="Tìm theo tên phụ kiện, mã SKU, vị trí kệ..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              )}
+            </Field>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          <span className="text-xs text-fg-muted font-bold shrink-0">Danh mục:</span>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 border border-line-control rounded-sm text-xs font-bold bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-          >
-            {categories.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.label} ({c.count})
-              </option>
-            ))}
-          </select>
+        <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 md:w-auto md:pb-0">
+          <span className="shrink-0 text-sm font-medium text-fg-muted">Danh mục:</span>
+          <div className="w-full md:w-56">
+            <Field id="accessory-category-filter" label="Lọc theo danh mục phụ kiện" hideLabel optionalLabel={null}>
+              {(control) => (
+                <Select
+                  {...control}
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.label} ({c.count})
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
         </div>
       </div>
 
       {/* Accessories Table — primitive DataTable */}
       {accessories.length === 0 ? (
-        <div className="bg-surface rounded-sm p-6 shadow-e1">
+        <div className="rounded-lg border border-line-subtle bg-surface p-6">
           <EmptyState
             icon={<Icon name="extension" size={20} />}
             title={isVi ? 'Chưa có phụ kiện nào trong cơ sở dữ liệu' : 'No accessories yet'}
             description={isVi
-              ? 'Bảng accessories đang rỗng — nền tảng không tự sinh phụ kiện mẫu. Hãy thêm phụ kiện thật.'
+              ? 'Bảng phụ kiện đang rỗng — nền tảng không tự sinh phụ kiện mẫu. Hãy thêm phụ kiện thật.'
               : 'The accessories table is empty — no sample data is generated. Add real accessories.'}
             action={
-              <button
-                type="button"
-                onClick={() => setIsNewModalOpen(true)}
-                className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-lg cursor-pointer"
-              >
+              <Button variant="primary" size="sm" onClick={() => setIsNewModalOpen(true)}>
                 {isVi ? 'Thêm Phụ Kiện Mới' : 'Add accessory'}
-              </button>
+              </Button>
             }
           />
         </div>
@@ -477,37 +495,40 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
           size="lg"
           title={<span className="flex items-center gap-2"><Icon name="add_circle" size={22} className="text-primary" />Thêm Phụ Kiện / Bao Bì Mới Vào Hệ Thống</span>}
         >
-            <form onSubmit={handleSaveNewItem} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handleSaveNewItem} className="space-y-4 text-sm">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-fg block mb-1">Tên Phụ Kiện (Tiếng Việt) *</label>
+                  <label htmlFor="new-accessory-name" className="mb-1 block text-sm font-medium text-fg">Tên Phụ Kiện (Tiếng Việt) *</label>
                   <input
+                    id="new-accessory-name"
                     type="text"
                     required
                     placeholder="Ví dụ: Khoen móc khóa Inox 304 có dây xích 25mm"
                     value={newItemForm.name}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full p-2 border border-line-control rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Mã SKU Quản Lý *</label>
+                  <label htmlFor="new-accessory-sku" className="mb-1 block text-sm font-medium text-fg">Mã SKU Quản Lý *</label>
                   <input
+                    id="new-accessory-sku"
                     type="text"
                     required
                     value={newItemForm.sku}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, sku: e.target.value }))}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Phân Loại</label>
+                  <label htmlFor="new-accessory-category" className="mb-1 block text-sm font-medium text-fg">Phân Loại</label>
                   <select
+                    id="new-accessory-category"
                     value={newItemForm.category}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, category: e.target.value as any }))}
-                    className="w-full p-2 border border-line-control rounded-sm font-bold bg-surface"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="keychain">Móc Khóa & Dây Đeo (Keychain)</option>
                     <option value="fastener">Ốc Cấy Ren & Tán Nhiệt (Inserts)</option>
@@ -520,110 +541,115 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Đơn Vị Tính (ĐVT)</label>
+                  <label htmlFor="new-accessory-unit" className="mb-1 block text-sm font-medium text-fg">Đơn Vị Tính (ĐVT)</label>
                   <input
+                    id="new-accessory-unit"
                     type="text"
                     placeholder="cái, bộ, con, sợi, hộp, túi..."
                     value={newItemForm.unit}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, unit: e.target.value }))}
-                    className="w-full p-2 border border-line-control rounded-sm"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Vị Trí Kệ Kho</label>
+                  <label htmlFor="new-accessory-location" className="mb-1 block text-sm font-medium text-fg">Vị Trí Kệ Kho</label>
                   <input
+                    id="new-accessory-location"
                     type="text"
                     placeholder="Kệ A1 - Hộc 02"
                     value={newItemForm.warehouseLocation}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, warehouseLocation: e.target.value }))}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Giá Vốn Nhập Xưởng (VNĐ)</label>
+                  <label htmlFor="new-accessory-cost" className="mb-1 block text-sm font-medium text-fg">Giá Vốn Nhập Xưởng (VNĐ)</label>
                   <input
+                    id="new-accessory-cost"
                     type="number"
                     min="0"
                     step="100"
                     value={numInputValue(newItemForm.costPrice)}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, costPrice: parseNumOrNull(e.target.value) }))}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Giá Báo / Bán Cho Khách (VNĐ)</label>
+                  <label htmlFor="new-accessory-price" className="mb-1 block text-sm font-medium text-fg">Giá Báo / Bán Cho Khách (VNĐ)</label>
                   <input
+                    id="new-accessory-price"
                     type="number"
                     min="0"
                     step="500"
                     value={numInputValue(newItemForm.sellingPrice)}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, sellingPrice: parseNumOrNull(e.target.value) }))}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold text-primary"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-primary placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Tồn Kho Ban Đầu</label>
+                  <label htmlFor="new-accessory-stock" className="mb-1 block text-sm font-medium text-fg">Tồn Kho Ban Đầu</label>
                   <input
+                    id="new-accessory-stock"
                     type="number"
                     min="0"
                     value={numInputValue(newItemForm.stockCount)}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, stockCount: parseNumOrNull(e.target.value) }))}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Ngưỡng Báo Sắp Hết</label>
+                  <label htmlFor="new-accessory-threshold" className="mb-1 block text-sm font-medium text-fg">Ngưỡng Báo Sắp Hết</label>
                   <input
+                    id="new-accessory-threshold"
                     type="number"
                     min="1"
                     value={numInputValue(newItemForm.lowStockThreshold)}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, lowStockThreshold: parseNumOrNull(e.target.value) }))}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech text-danger font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-danger placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-fg block mb-1">Nhà Cung Cấp</label>
+                  <label htmlFor="new-accessory-supplier" className="mb-1 block text-sm font-medium text-fg">Nhà Cung Cấp</label>
                   <input
+                    id="new-accessory-supplier"
                     type="text"
                     placeholder="Xưởng Kim Khí Tân Bình, Fasteners VN..."
                     value={newItemForm.supplier}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, supplier: e.target.value }))}
-                    className="w-full p-2 border border-line-control rounded-sm"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-fg block mb-1">Mô Tả Kỹ Thuật</label>
+                  <label htmlFor="new-accessory-description" className="mb-1 block text-sm font-medium text-fg">Mô Tả Kỹ Thuật</label>
                   <textarea
+                    id="new-accessory-description"
                     rows={2}
                     placeholder="Đặc tính kim loại, dung sai, khả năng chịu lực..."
                     value={newItemForm.description}
                     onChange={(e) => setNewItemForm(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full p-2 border border-line-control rounded-sm"
+                    className="min-h-20 w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
-                <button
+              <div className="flex items-center justify-end gap-2 border-t border-line-subtle pt-4">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setIsNewModalOpen(false)}
-                  className="px-4 py-2 border border-line rounded-sm font-bold hover:bg-surface-muted"
                 >
                   Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-primary text-primary-fg rounded-sm font-bold uppercase hover:bg-primary-hover"
-                >
+                </Button>
+                <Button type="submit" variant="primary">
                   Lưu Phụ Kiện
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>
@@ -637,36 +663,39 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
           size="lg"
           title={<span className="flex items-center gap-2"><Icon name="edit" size={22} className="text-primary" />Chỉnh Sửa Phụ Kiện: {editingItem.name}</span>}
         >
-            <form onSubmit={handleSaveEditItem} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handleSaveEditItem} className="space-y-4 text-sm">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-fg block mb-1">Tên Phụ Kiện *</label>
+                  <label htmlFor="edit-accessory-name" className="mb-1 block text-sm font-medium text-fg">Tên Phụ Kiện *</label>
                   <input
+                    id="edit-accessory-name"
                     type="text"
                     required
                     value={editingItem.name}
                     onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Mã SKU *</label>
+                  <label htmlFor="edit-accessory-sku" className="mb-1 block text-sm font-medium text-fg">Mã SKU *</label>
                   <input
+                    id="edit-accessory-sku"
                     type="text"
                     required
                     value={editingItem.sku}
                     onChange={(e) => setEditingItem({ ...editingItem, sku: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Phân Loại</label>
+                  <label htmlFor="edit-accessory-category" className="mb-1 block text-sm font-medium text-fg">Phân Loại</label>
                   <select
+                    id="edit-accessory-category"
                     value={editingItem.category}
                     onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value as any })}
-                    className="w-full p-2 border border-line-control rounded-sm font-bold bg-surface"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="keychain">Móc Khóa & Dây Đeo (Keychain)</option>
                     <option value="fastener">Ốc Cấy Ren & Tán Nhiệt (Inserts)</option>
@@ -679,104 +708,109 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Đơn Vị Tính</label>
+                  <label htmlFor="edit-accessory-unit" className="mb-1 block text-sm font-medium text-fg">Đơn Vị Tính</label>
                   <input
+                    id="edit-accessory-unit"
                     type="text"
                     value={editingItem.unit}
                     onChange={(e) => setEditingItem({ ...editingItem, unit: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-sm"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Vị Trí Kệ Kho</label>
+                  <label htmlFor="edit-accessory-location" className="mb-1 block text-sm font-medium text-fg">Vị Trí Kệ Kho</label>
                   <input
+                    id="edit-accessory-location"
                     type="text"
                     value={editingItem.warehouseLocation || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, warehouseLocation: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Giá Vốn Nhập Xưởng (VNĐ)</label>
+                  <label htmlFor="edit-accessory-cost" className="mb-1 block text-sm font-medium text-fg">Giá Vốn Nhập Xưởng (VNĐ)</label>
                   <input
+                    id="edit-accessory-cost"
                     type="number"
                     min="0"
                     value={numInputValue(editingItem.costPrice)}
                     onChange={(e) => setEditingItem({ ...editingItem, costPrice: parseNumOrNull(e.target.value) })}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Giá Báo Khách (VNĐ)</label>
+                  <label htmlFor="edit-accessory-price" className="mb-1 block text-sm font-medium text-fg">Giá Báo Khách (VNĐ)</label>
                   <input
+                    id="edit-accessory-price"
                     type="number"
                     min="0"
                     value={numInputValue(editingItem.sellingPrice)}
                     onChange={(e) => setEditingItem({ ...editingItem, sellingPrice: parseNumOrNull(e.target.value) })}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold text-primary"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-primary placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Số Lượng Tồn Kho</label>
+                  <label htmlFor="edit-accessory-stock" className="mb-1 block text-sm font-medium text-fg">Số Lượng Tồn Kho</label>
                   <input
+                    id="edit-accessory-stock"
                     type="number"
                     min="0"
                     value={numInputValue(editingItem.stockCount)}
                     onChange={(e) => setEditingItem({ ...editingItem, stockCount: parseNumOrNull(e.target.value) })}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-fg block mb-1">Ngưỡng Báo Hết</label>
+                  <label htmlFor="edit-accessory-threshold" className="mb-1 block text-sm font-medium text-fg">Ngưỡng Báo Hết</label>
                   <input
+                    id="edit-accessory-threshold"
                     type="number"
                     min="1"
                     value={numInputValue(editingItem.lowStockThreshold)}
                     onChange={(e) => setEditingItem({ ...editingItem, lowStockThreshold: parseNumOrNull(e.target.value) })}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech text-danger font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-danger placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-fg block mb-1">Nhà Cung Cấp</label>
+                  <label htmlFor="edit-accessory-supplier" className="mb-1 block text-sm font-medium text-fg">Nhà Cung Cấp</label>
                   <input
+                    id="edit-accessory-supplier"
                     type="text"
                     value={editingItem.supplier || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, supplier: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-sm"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="font-bold text-fg block mb-1">Mô Tả</label>
+                  <label htmlFor="edit-accessory-description" className="mb-1 block text-sm font-medium text-fg">Mô Tả</label>
                   <textarea
+                    id="edit-accessory-description"
                     rows={2}
                     value={editingItem.description || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-sm"
+                    className="min-h-20 w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
-                <button
+              <div className="flex items-center justify-end gap-2 border-t border-line-subtle pt-4">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setEditingItem(null)}
-                  className="px-4 py-2 border border-line rounded-sm font-bold hover:bg-surface-muted"
                 >
                   Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-primary text-primary-fg rounded-sm font-bold uppercase hover:bg-primary-hover"
-                >
+                </Button>
+                <Button type="submit" variant="primary">
                   Lưu Thay Đổi
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>

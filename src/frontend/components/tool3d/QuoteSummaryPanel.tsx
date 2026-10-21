@@ -11,7 +11,7 @@ import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent } from 
 import { usePricingGlobalSettings } from '../../hooks/useSettings';
 import { InternalCostBreakdownModal } from './InternalCostBreakdownModal';
 import { MachineComparisonModal } from './MachineComparisonModal';
-import { EmptyState, Icon, InfoTip } from '@frontend/ui';
+import { Badge, Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
 import { useAuth } from '../../context/AuthContext';
 import { useUIStore } from '../../stores/useUIStore';
 import { EMPTY_VALUE, formatCurrency, formatNumber, formatWeight } from '../../lib/format';
@@ -22,7 +22,7 @@ import { EMPTY_VALUE, formatCurrency, formatNumber, formatWeight } from '../../l
  * màn hình `/quote`.
  */
 const perGramText = (v: number | null | undefined): string =>
-  typeof v === 'number' && Number.isFinite(v) ? `${formatNumber(v)} đ/g` : EMPTY_VALUE;
+  typeof v === 'number' && Number.isFinite(v) ? `${formatNumber(v)} ₫/g` : EMPTY_VALUE;
 
 /** Số hữu hạn hay không — NULL/NaN ⇒ KHÔNG có giá trị (không đoán hộ). */
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -35,15 +35,13 @@ const TRANSPARENT_THUMBNAIL =
  * Tiền VND của báo giá: thiếu giá trị ⇒ `—`, KHÔNG `NaN đ` và KHÔNG ném.
  * Cùng luật với `HomeView.tsx:26-34` / `ProductDetailView.tsx:21-30`: `0` không phải một mức giá.
  */
-const vnd = (v: unknown): string =>
-  isNum(v) && v > 0 ? `${formatNumber(v)} đ` : EMPTY_VALUE;
+const vnd = (v: unknown): string => (isNum(v) && v > 0 ? formatCurrency(v) : EMPTY_VALUE);
 
 /**
  * Dòng tiền được phép BẰNG 0 THẬT: `vat_percent = 0` là cấu hình hợp lệ (`lib/vat.ts`),
  * nên chỉ chặn khi giá trị KHÔNG phải số hữu hạn — không được biến một số 0 thật thành `—`.
  */
-const vndAllowZero = (v: unknown): string =>
-  isNum(v) ? `${formatNumber(v)} đ` : EMPTY_VALUE;
+const vndAllowZero = (v: unknown): string => (isNum(v) ? formatCurrency(v) : EMPTY_VALUE);
 
 type ProvenanceSource = 'slicer' | 'throughput' | 'volume_estimate';
 
@@ -52,9 +50,9 @@ type ProvenanceSource = 'slicer' | 'throughput' | 'volume_estimate';
  * KHÁC HẲN số ước tính; khách phải thấy rõ nguồn ngay cạnh con số.
  */
 const SOURCE_STYLE: Record<ProvenanceSource | 'unknown', { icon: string; classes: string }> = {
-  slicer: { icon: 'verified', classes: 'bg-positive-tint text-positive border-positive/40' },
-  throughput: { icon: 'speed', classes: 'bg-primary-tint text-primary border-primary/30' },
-  volume_estimate: { icon: 'calculate', classes: 'bg-warning-tint text-warning border-warning/40' },
+  slicer: { icon: 'verified', classes: 'bg-positive-tint text-positive border-positive/20' },
+  throughput: { icon: 'speed', classes: 'bg-primary-tint text-primary border-primary/20' },
+  volume_estimate: { icon: 'calculate', classes: 'bg-warning-tint text-warning border-warning/20' },
   unknown: { icon: 'help', classes: 'bg-surface-muted text-fg-muted border-line' }
 };
 
@@ -152,7 +150,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   // trung thực rằng hệ thống chưa có kênh gửi hồ sơ tự động (cùng pattern `Tool3DView.tsx`).
   const [manualReviewNoteShown, setManualReviewNoteShown] = useState(false);
 
-  // N3b/PC-01: "Giá Vốn Xưởng" là báo cáo NỘI BỘ (giá vốn, biên lợi nhuận, ghi đè giá) —
+  // N3b/PC-01: "Giá vốn xưởng" là báo cáo NỘI BỘ (giá vốn, biên lợi nhuận, ghi đè giá) —
   // chỉ render cho vai trò quản trị, không lộ cho khách. Hook đứng trước mọi `return` dưới.
   const { role } = useAuth();
   const canSeeInternalCost = role === 'admin';
@@ -210,13 +208,13 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   // không hiện giá 0đ như thật.
   if (!pricingResult || !currentPrinter || !currentMaterial) {
     return (
-      <div className="bg-surface p-5 sm:p-7 space-y-4 lg:sticky lg:top-24 shadow-e1 rounded-lg font-sans">
+      <div className="rounded-lg border border-line bg-surface p-5 sm:p-6 space-y-4 font-sans">
         <div className="border-b border-line pb-3">
-          <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold block">
-            VCUBE PRICING ENGINE
+          <span className="font-mono text-xs uppercase tracking-wider text-fg-muted font-semibold block">
+            BỘ TÍNH GIÁ VCUBE
           </span>
-          <h2 className="font-bold text-base sm:text-lg text-fg mt-0.5">
-            Bảng Báo Giá Gia Công 3D Tức Thì
+          <h2 className="font-semibold text-base tracking-tight text-fg mt-0.5">
+            Bảng báo giá gia công 3D tức thì
           </h2>
         </div>
 
@@ -227,10 +225,10 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           action={
             <Link
               to="/admin/pricing"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase tracking-wider rounded-lg shadow-e1 transition-colors"
+              className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover"
             >
               <Icon name="tune" size={18} />
-              Mở Cấu hình giá (/admin/pricing)
+              Mở cấu hình giá (/admin/pricing)
             </Link>
           }
         />
@@ -299,7 +297,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       productId: file.id,
       type: 'physical',
       name: `Gia công 3D [${pkg.name}]: ${file.fileName}`,
-      designer: 'VCUBE Engineering Studio',
+      designer: 'Xưởng kỹ thuật VCUBE',
       // Không có ảnh thumbnail thật cho tệp khách tự tải lên ⇒ dùng ảnh trong suốt 1×1
       // (ô trống trung tính), KHÔNG mượn ảnh stock (data-honesty).
       image: TRANSPARENT_THUMBNAIL,
@@ -309,23 +307,23 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       color: file.parts.length > 1 ? `${file.parts.length} màu chi tiết` : file.parts[0]?.color || 'Xanh Teal Công Nghiệp',
       colorHex: file.parts[0]?.colorHex || '#00687a',
       dimensions: `${file.dimensions.x.toFixed(1)} x ${file.dimensions.y.toFixed(1)} x ${file.dimensions.z.toFixed(1)} mm`,
-      resolution: `${layerHeight}mm Layer • Infill ${infillDensity}% ${infillPattern} • Giao: ${pkg.completionDate}`,
+      resolution: `Lớp in ${layerHeight} mm • Độ đặc ${infillDensity}% ${infillPattern} • Giao: ${pkg.completionDate}`,
       // Gram ước tính cho 1 cái (từ breakdown) — để đơn hoàn thành tự trừ kho chính xác.
       weightGrams: isNum(breakdown.totalFilamentGrams) ? breakdown.totalFilamentGrams : null,
     };
   };
 
   return (
-    <div className="bg-surface p-5 sm:p-7 space-y-6 lg:sticky lg:top-24 shadow-e1 rounded-lg font-sans">
+    <div className="rounded-lg border border-line bg-surface p-5 sm:p-6 space-y-6 font-sans">
       
       {/* Header & 3-Tier Status */}
       <div className="border-b border-line pb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold block">
-            VCUBE PRICING ENGINE
+          <span className="font-mono text-xs uppercase tracking-wider text-fg-muted font-semibold block">
+            BỘ TÍNH GIÁ VCUBE
           </span>
-          <h2 className="font-bold text-base sm:text-lg text-fg mt-0.5">
-            Bảng Báo Giá Gia Công 3D Tức Thì
+          <h2 className="font-semibold text-base tracking-tight text-fg mt-0.5">
+            Bảng báo giá gia công 3D tức thì
           </h2>
         </div>
 
@@ -334,13 +332,13 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
             type="button"
             onClick={() => setIsMachineModalOpen(true)}
             disabled={machineComparisons === null}
-            className="px-2.5 py-1 text-xs font-mono font-bold uppercase tracking-wider bg-canvas hover:bg-surface-muted border border-line text-fg rounded-full transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-9 px-3 text-xs font-mono font-semibold uppercase tracking-wider bg-surface hover:bg-surface-muted border border-line text-fg rounded-md transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             title={machineComparisons === null
               ? 'Chưa so sánh được các máy in — xem lý do ở nút thông tin bên cạnh'
               : 'So sánh giữa các máy in tương thích'}
           >
             <Icon name="tune" size={18} className="text-primary" />
-            So Sánh Máy
+            So sánh máy
           </button>
 
           {/* P0-1: khối so sánh máy hỏng (một máy thiếu khổ bàn / thiếu thông số giá) ⇒ ẩn bảng
@@ -355,11 +353,11 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
             <button
               type="button"
               onClick={() => setIsInternalModalOpen(true)}
-              className="px-2.5 py-1 text-xs font-mono font-bold uppercase tracking-wider bg-surface-inverse hover:bg-surface-inverse text-accent rounded-full transition-colors flex items-center gap-1 cursor-pointer"
+              className="h-9 px-3 text-xs font-mono font-semibold uppercase tracking-wider bg-surface-muted hover:bg-surface border border-line text-fg rounded-md transition-colors flex items-center gap-1 cursor-pointer"
               title="Xem bóc tách giá vốn nội bộ (chỉ vai trò quản trị)"
             >
               <Icon name="analytics" size={18} />
-              Giá Vốn Xưởng
+              Giá vốn xưởng
             </button>
           )}
         </div>
@@ -367,7 +365,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
 
       {/* F7 — khối lượng nhựa & thời gian in kèm NGUỒN (data-honesty PC-05/MP-13).
           Số nào đọc từ file slicer thì ghi "từ file"; số ước tính ghi rõ cách ước. */}
-      <div className="rounded-lg border border-line bg-canvas p-3.5 space-y-2">
+      <div className="rounded-lg border border-line-subtle bg-surface-muted p-3.5 space-y-2">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-xs">
           <span className="flex items-center gap-1.5">
             <Icon name="inventory_2" size={16} className="text-primary" />
@@ -396,34 +394,34 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
 
       {/* Volume Discount Live Banner */}
       {volumeDiscount ? (
-        <div className="p-3.5 bg-positive-tint border border-positive/40 rounded-lg space-y-1">
+        <div className="p-3.5 bg-positive-tint border border-positive/20 rounded-lg space-y-1">
           <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-positive flex items-center gap-1.5 font-mono">
               <Icon name="verified" size={18} className="text-positive" />
               {volumeDiscount.tierLabel}
             </span>
             <span className="font-mono text-xs font-bold text-positive bg-positive-tint px-2 py-0.5 rounded-sm">
-              -{volumeDiscount.discountPercent}% OFF
+              --{volumeDiscount.discountPercent}%
             </span>
           </div>
           <div className="text-xs text-positive flex justify-between pt-0.5 font-mono">
             <span>Tiết kiệm đơn này:</span>
-            <strong className="text-positive font-bold">{isNum(volumeDiscount.totalSavings) ? `-${formatNumber(volumeDiscount.totalSavings)} đ` : EMPTY_VALUE}</strong>
+            <strong className="text-positive font-bold">{isNum(volumeDiscount.totalSavings) ? `-${formatCurrency(volumeDiscount.totalSavings)}` : EMPTY_VALUE}</strong>
           </div>
         </div>
       ) : (
-        <div className="p-2.5 bg-canvas border border-line rounded-lg flex items-center justify-between text-xs text-fg-muted font-mono">
+        <div className="p-2.5 bg-surface-muted border border-line-subtle rounded-lg flex items-center justify-between text-xs text-fg-muted font-mono">
           <span>Chiết khấu số lượng:</span>
           <span className="text-primary font-bold">Từ 5 cái (-8%) đến 50+ cái (-30%)</span>
         </div>
       )}
 
       {/* 1. MỨC 1: GIÁ ƯỚC TÍNH NHANH (Quick Estimate Banner) */}
-      <div className="p-3.5 bg-canvas border border-line rounded-lg space-y-1">
+      <div className="p-3.5 bg-surface-muted border border-line-subtle rounded-lg space-y-1">
         <div className="flex items-center justify-between text-xs">
           <span className="text-xs font-mono uppercase tracking-wider font-bold text-fg-muted flex items-center gap-1">
             <Icon name="speed" size={18} className="text-primary" />
-            1. Ước Tính Hình Học Sơ Bộ:
+            1. Ước tính hình học sơ bộ:
           </span>
           <span className="font-mono text-xs font-bold text-primary">
             {isNum(quickEstimateRange.min) && isNum(quickEstimateRange.max)
@@ -437,7 +435,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       <div className="space-y-4 pt-1">
         
         {/* Máy In & Vật Liệu */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div className="space-y-1">
             <label htmlFor="quote-printer" className="text-xs font-sans uppercase tracking-wider text-fg-subtle font-bold block">
               Máy In Gia Công
@@ -446,7 +444,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-printer"
               value={selectedPrinterId}
               onChange={(e) => onPrinterChange(e.target.value)}
-              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-sans focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
               {printers.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -464,7 +462,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-material"
               value={selectedMaterialId}
               onChange={(e) => onMaterialChange(e.target.value)}
-              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg font-sans focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-sans focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -477,9 +475,9 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
 
         {/* Infill & Pattern */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <label htmlFor="quote-infill" className="text-xs font-sans uppercase tracking-wider text-fg-subtle font-bold">
-              Độ Đặc Ruột (Infill): <span className="font-tech text-primary">{infillDensity}% {infillPattern}</span>
+              Độ đặc ruột: <span className="font-tech text-primary">{infillDensity}% {infillPattern}</span>
             </label>
             <div className="flex items-center gap-1">
               {['Gyroid', 'Grid', 'Honeycomb'].map((pat) => (
@@ -487,10 +485,10 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
                   key={pat}
                   type="button"
                   onClick={() => onInfillPatternChange(pat)}
-                  className={`px-2.5 py-1 text-xs rounded-lg border font-mono transition-colors ${
+                  className={`h-8 px-3 text-xs rounded-md border font-mono font-medium transition-colors ${
                     infillPattern === pat
-                      ? 'bg-primary text-primary-fg border-primary font-bold shadow-e1'
-                      : 'bg-canvas text-fg-subtle border-line hover:text-fg'
+                      ? 'bg-primary text-primary-fg border-primary font-semibold'
+                      : 'bg-surface text-fg-muted border-line hover:bg-surface-muted hover:text-fg'
                   }`}
                 >
                   {pat}
@@ -511,7 +509,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         </div>
 
         {/* Layer Height & Support */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <div>
             <label htmlFor="quote-layer-height" className="text-xs font-sans uppercase tracking-wider text-fg-subtle font-bold block mb-1">
               Độ Dày Lớp In
@@ -520,36 +518,36 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               id="quote-layer-height"
               value={layerHeight}
               onChange={(e) => onLayerHeightChange(e.target.value)}
-              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <option value="0.08">0.08 mm (Ultra Fine)</option>
-              <option value="0.12">0.12 mm (Fine Detail)</option>
-              <option value="0.16">0.16 mm (Standard Pro)</option>
-              <option value="0.20">0.20 mm (Draft Fast)</option>
+              <option value="0.08">0,08 mm (siêu mịn)</option>
+              <option value="0.12">0,12 mm (chi tiết mịn)</option>
+              <option value="0.16">0,16 mm (tiêu chuẩn)</option>
+              <option value="0.20">0,20 mm (lớp nhanh)</option>
             </select>
           </div>
 
           <div>
             <label htmlFor="quote-supports-mode" className="text-xs font-sans uppercase tracking-wider text-fg-subtle font-bold block mb-1">
-              Cấu Hình Support
+              Cấu hình vật liệu đỡ
             </label>
             <select
               id="quote-supports-mode"
               value={supportsMode}
               onChange={(e) => onSupportsModeChange(e.target.value as any)}
-              className="w-full bg-canvas border border-line-control p-2 text-xs text-fg rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <option value="tree">Tree Support (Dễ bóc)</option>
-              <option value="auto">Auto Grid Standard</option>
-              <option value="none">Không dùng Support</option>
+              <option value="tree">Đỡ dạng cây (dễ bóc)</option>
+              <option value="auto">Đỡ dạng lưới tự động</option>
+              <option value="none">Không dùng vật liệu đỡ</option>
             </select>
           </div>
         </div>
 
         {/* Batch Quantity Selector */}
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           <label className="text-xs font-semibold text-fg">
-            Số lượng đặt in (Batch):
+            Số lượng đặt in (lô):
           </label>
           <div className="flex items-center gap-1.5">
             {[1, 2, 5, 10, 20].map((qty) => (
@@ -557,10 +555,10 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
                 key={qty}
                 type="button"
                 onClick={() => onQuantityChange(qty)}
-                className={`px-3 py-1 text-xs font-mono font-bold rounded-lg border transition-colors ${
+                className={`h-8 px-2.5 text-xs font-mono font-medium tabular-nums rounded-md border transition-colors ${
                   quantity === qty
-                    ? 'bg-primary text-primary-fg border-primary shadow-e1'
-                    : 'bg-canvas text-fg border-line hover:border-primary'
+                    ? 'bg-primary text-primary-fg border-primary font-semibold'
+                    : 'bg-surface text-fg border-line hover:bg-surface-muted'
                 }`}
               >
                 x{qty}
@@ -575,7 +573,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         <div className="flex items-center justify-between">
           <label className="text-xs font-sans uppercase tracking-wider font-bold text-fg flex items-center gap-1">
             <Icon name="local_shipping" size={18} className="text-primary" />
-            2. Báo Giá Chính Xác Theo Tiến Độ Giao Hàng
+            2. Báo giá chính xác theo tiến độ giao hàng
           </label>
         </div>
 
@@ -589,10 +587,10 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
             action={
               <Link
                 to="/admin/pricing"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase tracking-wider rounded-lg shadow-e1 transition-colors"
+                className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover"
               >
                 <Icon name="tune" size={18} />
-                Mở Cấu hình giá (/admin/pricing)
+                Mở cấu hình giá (/admin/pricing)
               </Link>
             }
           />
@@ -604,14 +602,14 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               <div
                 key={pkg.tier}
                 onClick={() => setSelectedPackageTier(pkg.tier)}
-                className={`p-3.5 border rounded-lg cursor-pointer transition-all ${
+                className={`p-3.5 border rounded-md cursor-pointer transition-colors ${
                   isSelected
-                    ? 'border-primary bg-primary-tint/40 ring-1 ring-primary'
-                    : 'border-line hover:border-line bg-surface'
+                    ? 'border-primary bg-primary-tint'
+                    : 'border-line hover:border-line-control bg-surface'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <input
                       id={`quote-package-${pkg.tier}`}
                       type="radio"
@@ -622,33 +620,31 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
                       className="accent-primary"
                     />
                     <div>
-                      <div className="font-bold text-xs text-fg flex items-center gap-1.5">
-                        <span>{pkg.name}</span>
+                      <div className="font-bold text-xs text-fg flex flex-wrap items-center gap-1.5">
+                        <span className="min-w-0 break-words">{pkg.name}</span>
                         {pkg.isPopular && (
-                          <span className="px-1.5 py-0.2 text-xs bg-primary text-primary-fg font-mono uppercase rounded-sm">
-                            Phổ Biến
-                          </span>
+                          <Badge variant="technical" size="sm">Phổ Biến</Badge>
                         )}
                       </div>
-                      <div className="text-xs text-fg-subtle mt-0.5">
+                      <div className="text-xs text-fg-muted mt-0.5">
                         Thời gian: <strong>{pkg.leadTimeDays}</strong> (Dự kiến xong: {pkg.completionDate})
                       </div>
                     </div>
                   </div>
 
                   <div className="text-right shrink-0">
-                    <div className="font-mono text-sm sm:text-base font-bold text-fg">
+                    <div className="font-mono tabular-nums text-sm sm:text-base font-bold text-fg">
                       {vnd(pkg.pricePerUnit)}
                       <span className="text-xs font-normal text-fg-subtle"> /cái</span>
                     </div>
                     {quantity > 1 && (
-                      <div className="text-xs font-mono text-primary font-semibold">
+                      <div className="text-xs font-mono tabular-nums text-fg-muted font-semibold">
                         Tổng ({quantity} cái): {vnd(pkg.totalPrice)}
                       </div>
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-fg-subtle mt-1 pl-5">
+                <p className="text-xs text-fg-muted mt-1 pl-5">
                   {pkg.description}
                 </p>
               </div>
@@ -660,10 +656,10 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
 
       {/* 3. MỨC 3: BÁO GIÁ CẦN KIỂM DUYỆT (Manual Review / Approval Alert) */}
       {tier === 'manual_review' && (
-        <div className="p-4 bg-warning-tint border border-warning/40 rounded-lg space-y-2.5">
+        <div className="p-4 bg-warning-tint border border-warning/20 rounded-lg space-y-2.5">
           <div className="flex items-center gap-2 text-warning font-bold text-xs">
             <Icon name="policy" size={18} className="text-warning" />
-            3. Phôi In Cần Kỹ Sư Kiểm Duyệt (Manual Review Required)
+            3. Phôi in cần kỹ sư kiểm duyệt
           </div>
           <p className="text-xs text-warning leading-relaxed">
             Hệ thống phát hiện một số thông số kỹ thuật đặc biệt cần xưởng thẩm định trực tiếp trước khi sản xuất:
@@ -675,20 +671,22 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           </ul>
 
           {manualReviewNoteShown ? (
-            <p className="text-xs text-warning border-t border-warning/30 pt-3 leading-relaxed">
+            <p className="text-xs text-warning border-t border-warning/20 pt-3 leading-relaxed">
               Hệ thống chưa có kênh gửi hồ sơ thẩm định tự động, nên KHÔNG có yêu cầu nào được gửi
               đi và cũng không có thông báo "đã gửi". Vui lòng liên hệ xưởng qua kênh hỗ trợ chính
               thức để chuyển hồ sơ thẩm định cho tệp này.
             </p>
           ) : (
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              fullWidth
               onClick={() => setManualReviewNoteShown(true)}
-              className="w-full py-2 bg-warning hover:opacity-90 text-primary-fg text-xs font-sans uppercase tracking-wider font-bold rounded-sm transition-colors flex items-center justify-center gap-1.5"
+              leadingIcon={<Icon name="send" size={18} />}
             >
-              <Icon name="send" size={18} />
-              Gửi Yêu Cầu Thẩm Định Kỹ Thuật
-            </button>
+              Gửi yêu cầu thẩm định kỹ thuật
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-warning" />
+            </Button>
           )}
         </div>
       )}
@@ -700,29 +698,29 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           P0-1: không có gói giao hàng thật thì KHÔNG có tổng nào để in — ẩn thanh này thay vì
           bịa số; nguyên nhân đã nêu ở khối "2. Báo Giá Chính Xác" ngay phía trên. */}
       {selectedPackage && (
-      <div className="bg-surface-inverse text-on-inverse p-4 rounded-lg space-y-2.5 border border-surface-inverse-raised/60 shadow-e2">
+      <div className="rounded-lg border border-line bg-surface p-4 space-y-2.5">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs uppercase font-mono tracking-widest text-on-inverse/70 block">
-            Tổng Giá Trị Đơn Hàng ({quantity} cái):
+          <span className="text-xs uppercase font-mono tracking-wider text-fg-muted block">
+            Tổng giá trị đơn hàng ({quantity} cái):
           </span>
-          <span className="text-xs text-accent font-mono shrink-0">Gói {selectedPackage.name}</span>
+          <span className="text-xs text-fg-subtle font-mono shrink-0">Gói {selectedPackage.name}</span>
         </div>
-        <div className="space-y-1 text-xs font-mono">
-          <div className="flex items-baseline justify-between">
-            <span className="text-on-inverse/70">Giá gói (chưa gồm VAT):</span>
-            <span>{vnd(selectedPackage.totalPrice)}</span>
+        <div className="space-y-1 text-sm font-mono">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-fg-muted">Giá gói (chưa gồm VAT):</span>
+            <span className="tabular-nums text-right text-fg">{vnd(selectedPackage.totalPrice)}</span>
           </div>
           {vat ? (
-            <div className="flex items-baseline justify-between">
-              <span className="text-on-inverse/70">{vatLabel(vat.rate)}:</span>
-              <span>{vndAllowZero(vat.amount)}</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-fg-muted">{vatLabel(vat.rate)}:</span>
+              <span className="tabular-nums text-right text-fg">{vndAllowZero(vat.amount)}</span>
             </div>
           ) : (
-            <p className="text-xs text-on-inverse/70 leading-relaxed font-sans">{vatNotConfiguredLabel(true)}</p>
+            <p className="text-xs text-fg-muted leading-relaxed font-sans">{vatNotConfiguredLabel(true)}</p>
           )}
-          <div className="flex items-baseline justify-between border-t border-surface-inverse-raised/60 pt-1.5">
-            <span className="font-bold">Tổng phải trả:</span>
-            <span className="font-mono text-2xl font-bold text-accent">
+          <div className="flex items-baseline justify-between gap-2 border-t border-line-subtle pt-2">
+            <span className="text-lg font-bold text-fg">Tổng phải trả:</span>
+            <span className="font-mono tabular-nums text-lg font-bold text-fg text-right">
               {vnd(vat ? vat.total : selectedPackage.totalPrice)}
             </span>
           </div>
@@ -732,32 +730,34 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
 
       {/* Action Buttons — chỉ hiện khi CÓ gói giao hàng thật (không bán một gói không tồn tại). */}
       {selectedPackage && (
-      <div className="space-y-2 pt-1 font-mono">
-        <button
+      <div className="space-y-2 pt-1">
+        <Button
           type="button"
+          variant="primary"
+          size="lg"
+          fullWidth
           onClick={() => onAddToCart(handleBuildCartItem(selectedPackage))}
-          className="w-full py-4 bg-accent hover:opacity-90 text-fg font-bold text-sm uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-e3 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          leadingIcon={<Icon name="shopping_cart" size={20} />}
         >
-          <Icon name="shopping_cart" size={20} />
-          Thêm Vào Giỏ &amp; Đặt Hàng
-        </button>
+          Thêm vào giỏ &amp; đặt hàng
+        </Button>
 
         <button
           type="button"
           onClick={() => onDirectOrder(handleBuildCartItem(selectedPackage))}
-          className="w-full py-3.5 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer border border-surface-inverse-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full h-12 bg-surface hover:bg-surface-muted text-fg font-semibold text-sm transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer border border-line-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <Icon name="precision_manufacturing" size={18} className="text-accent" />
-          Đặt In Ngay (Chuyển Đến Thanh Toán)
+          <Icon name="precision_manufacturing" size={18} className="text-fg-muted" />
+          Đặt in ngay (chuyển đến thanh toán)
         </button>
 
         <button
           type="button"
           onClick={() => setIsChatOpen(true)}
-          className="w-full py-3 bg-surface border border-line-control hover:bg-surface-muted text-fg font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full h-10 bg-surface border border-line hover:bg-surface-muted text-fg font-medium text-sm transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Icon name="support_agent" size={18} className="text-primary" />
-          Gửi Yêu Cầu Hỗ Trợ Kỹ Thuật
+          Gửi yêu cầu hỗ trợ kỹ thuật
         </button>
       </div>
       )}
@@ -773,7 +773,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           currentPrinter={currentPrinter}
           onApplyOverride={(newPrice, reason) => {
             setCustomOverriddenPrice(newPrice);
-            onShowToast(`Đã áp dụng giá điều chỉnh: ${isNum(newPrice) ? formatNumber(newPrice) : EMPTY_VALUE} đ (Lý do: ${reason})`);
+            onShowToast(`Đã áp dụng giá điều chỉnh: ${isNum(newPrice) ? formatCurrency(newPrice) : EMPTY_VALUE} (Lý do: ${reason})`);
           }}
         />
       )}

@@ -4,6 +4,17 @@ import { readColorToken, type ColorTokenName } from '@frontend/theme/tokens';
 import { ThreeModelViewer } from '../ThreeModelViewer';
 import { useLanguage } from '../../context/LanguageContext';
 
+/** Nhãn VI cho 4 mô hình minh hoạ của khung 3D (modelType chỉ là mã code, không render thô). */
+const MODEL_LABEL_VI: Record<ServiceItem['modelType'], string> = {
+  gear: 'BÁNH RĂNG',
+  drone: 'CÁNH TAY DRONE',
+  box: 'VỎ HỘP',
+  arch: 'VÒM CHỊU LỰC',
+};
+
+/** Tone tile pastel v3 cho icon dịch vụ (class tĩnh để Tailwind phát ra utility). */
+const SERVICE_TILE = ['bg-tile-mint', 'bg-tile-lilac', 'bg-tile-rose', 'bg-tile-amber'] as const;
+
 /** Bảng màu chọn được cho khung xem 3D — tên token, KHÔNG hex cứng. */
 const VIEWER_COLOR_TOKENS: ColorTokenName[] = ['primary', 'accent', 'positive', 'warning', 'danger'];
 
@@ -34,9 +45,9 @@ const SERVICES: ServiceItem[] = [
     id: 'rapid_print',
     nameVi: 'Gia Công In 3D Công Nghiệp Tức Thì',
     nameEn: 'Rapid Industrial 3D Printing Service',
-    badgeVi: 'ON-DEMAND MANUFACTURING',
+    badgeVi: 'SẢN XUẤT THEO YÊU CẦU',
     badgeEn: 'ON-DEMAND MANUFACTURING',
-    shortDescVi: 'Tải file CAD, cắt lớp tự động và gia công chuẩn xác với công nghệ FDM, Resin và SLS chuyên nghiệp.',
+    shortDescVi: 'Tải tệp CAD, cắt lớp tự động và gia công chuẩn xác với công nghệ FDM, Resin và SLS chuyên nghiệp.',
     shortDescEn: 'Upload CAD files, slice automatically and manufacture with industrial-grade FDM, Resin & SLS.',
     fullDescVi: 'VCUBE kết nối hệ thống máy in 3D công nghiệp đa kích cỡ và vật liệu kỹ thuật cao. Hệ thống tự động phân tích lưới 3D STL/STEP, tính toán thể tích và đề xuất phương án gia công tối ưu chi phí và độ bền.',
     fullDescEn: 'VCUBE connects multi-capacity industrial 3D printing systems with high-performance engineering filaments and resins. Automatic mesh analysis calculates volume, wall thickness, and optimal production paths.',
@@ -67,7 +78,7 @@ const SERVICES: ServiceItem[] = [
       { label: 'Lead time', value: 'Confirmed by the workshop per order' },
       { label: 'Quality assurance', value: 'QC process per workshop' }
     ],
-    ctaLabelVi: 'Báo Giá File 3D Của Bạn',
+    ctaLabelVi: 'Báo giá tệp 3D của bạn',
     ctaLabelEn: 'Quote Your 3D File',
     actionType: 'quote'
   },
@@ -75,11 +86,11 @@ const SERVICES: ServiceItem[] = [
     id: 'custom_idea',
     nameVi: 'Thiết Kế CAD 3D & Hiện Thực Ý Tưởng',
     nameEn: 'Custom 3D CAD & Idea Engineering',
-    badgeVi: 'CONCEPT TO PROTOTYPE',
+    badgeVi: 'TỪ Ý TƯỞNG ĐẾN MẪU',
     badgeEn: 'CONCEPT TO PROTOTYPE',
     shortDescVi: 'Bạn chỉ có ý tưởng hoặc bản vẽ phác thảo? Đội ngũ kỹ sư VCUBE sẽ dựng mô hình 3D và gia công mẫu thực tế.',
     shortDescEn: 'Have an idea or sketch? VCUBE engineering team creates parametric 3D CAD models and physical prototypes.',
-    fullDescVi: 'Dịch vụ biến ý tưởng kinh doanh, phụ tùng thay thế hoặc mô hình tùy chỉnh thành bản vẽ CAD 3D chuẩn kỹ thuật cơ khí. Bao gồm tư vấn kết cấu chịu lực, tối ưu khả năng in 3D (DFAM) và cung cấp file số gốc.',
+    fullDescVi: 'Dịch vụ biến ý tưởng kinh doanh, phụ tùng thay thế hoặc mô hình tùy chỉnh thành bản vẽ CAD 3D chuẩn kỹ thuật cơ khí. Bao gồm tư vấn kết cấu chịu lực, tối ưu khả năng in 3D và cung cấp tệp số gốc.',
     fullDescEn: 'Turn product ideas, replacement parts or bespoke mechanisms into production-ready 3D CAD models. Includes structural engineering, Design for Additive Manufacturing (DFAM), and native file export.',
     modelType: 'drone',
     colorToken: 'accent',
@@ -87,8 +98,8 @@ const SERVICES: ServiceItem[] = [
     featuresVi: [
       'Dựng hình theo phác thảo 2D hoặc mô tả công năng',
       'Được hiệu chỉnh mô hình trước khi in',
-      'Bàn giao đầy đủ file STEP, STL, OBJ',
-      'In mẫu thử nghiệm (prototyping) xác minh khớp nối'
+      'Bàn giao đầy đủ tệp STEP, STL, OBJ',
+      'In mẫu thử nghiệm xác minh khớp nối'
     ],
     featuresEn: [
       'CAD modeling from 2D sketches or functional criteria',
@@ -98,7 +109,7 @@ const SERVICES: ServiceItem[] = [
     ],
     specsVi: [
       { label: 'Phần mềm sử dụng', value: 'SolidWorks, Inventor, Fusion' },
-      { label: 'Hỗ trợ phác thảo', value: 'Ảnh chụp, file tay, mẫu vỡ' },
+      { label: 'Hỗ trợ phác thảo', value: 'Ảnh chụp, bản vẽ tay, mẫu vỡ' },
       { label: 'Quy trình', value: '3 bước chuẩn hóa' },
       { label: 'Bảo mật ý tưởng', value: 'Cam kết NDA bảo mật thiết kế' }
     ],
@@ -116,18 +127,18 @@ const SERVICES: ServiceItem[] = [
     id: 'cad_catalog',
     nameVi: 'Kho Bản Vẽ Kỹ Thuật Đạt Chuẩn',
     nameEn: 'Certified Engineering 3D Catalog',
-    badgeVi: 'VERIFIED CAD ASSETS',
+    badgeVi: 'BẢN VẼ CAD ĐÃ KIỂM DUYỆT',
     badgeEn: 'VERIFIED CAD ASSETS',
     shortDescVi: 'Thư viện bản vẽ cơ khí, đồ gá, vỏ IoT và phụ tùng thay thế được kiểm duyệt kỹ lưỡng về hình học và độ khớp.',
     shortDescEn: 'Verified mechanical library: jigs, fixtures, IoT cases and spare parts verified for geometric integrity.',
-    fullDescVi: 'Hệ sinh thái bản vẽ 3D được thiết kế bởi cộng đồng kỹ sư và nhà thiết kế được xác minh. Khách hàng có thể mua bản quyền file số gốc hoặc đặt in trực tiếp chỉ với 1 cú nhấp chuột.',
+    fullDescVi: 'Hệ sinh thái bản vẽ 3D được thiết kế bởi cộng đồng kỹ sư và nhà thiết kế được xác minh. Khách hàng có thể mua bản quyền tệp số gốc hoặc đặt in trực tiếp chỉ với 1 cú nhấp chuột.',
     fullDescEn: 'Ecosystem of premium 3D engineering designs crafted by verified industrial designers. Purchase original digital CAD files or order physical prints with a single click.',
     modelType: 'box',
     colorToken: 'positive',
     iconName: 'inventory_2',
     featuresVi: [
-      'Danh mục kiểm tra tính khép kín khi đọc tệp (manifold)',
-      'Tải tức thì file STL & STEP bản quyền',
+      'Kiểm tra tính khép kín của lưới khi đọc tệp',
+      'Tải tức thì tệp STL & STEP bản quyền',
       'Minh bạch thông số kích thước, khối lượng và giờ in',
       'Bảo vệ quyền tác giả cho kỹ sư thiết kế'
     ],
@@ -138,7 +149,7 @@ const SERVICES: ServiceItem[] = [
       'Author copyright & royalty protection'
     ],
     specsVi: [
-      { label: 'Định dạng file', value: 'STL, STEP, 3MF' },
+      { label: 'Định dạng tệp', value: 'STL, STEP, 3MF' },
       { label: 'Kiểm duyệt mô hình', value: 'Thuật toán quét lưới tự động' },
       { label: 'Cập nhật', value: 'Liên tục từ cộng đồng kỹ sư' },
       { label: 'Tùy biến', value: 'Hỗ trợ khắc tên & điều chỉnh kích thước' }
@@ -157,7 +168,7 @@ const SERVICES: ServiceItem[] = [
     id: 'qc_advisory',
     nameVi: 'Đo Kiểm Dung Sai & Tư Vấn Kỹ Thuật',
     nameEn: 'Metrology QC & Technical Advisory',
-    badgeVi: 'TOLERANCE & METROLOGY',
+    badgeVi: 'DUNG SAI & ĐO KIỂM',
     badgeEn: 'TOLERANCE & METROLOGY',
     shortDescVi: 'Đo kiểm độ chính xác chi tiết in, kiểm tra ứng suất cơ tính và tư vấn giải pháp vật liệu cho môi trường khắc nghiệt.',
     shortDescEn: 'Dimensional accuracy measurement, mechanical stress analysis and material advisory for harsh environments.',
@@ -169,7 +180,7 @@ const SERVICES: ServiceItem[] = [
     featuresVi: [
       'Đo kiểm kích thước dung sai theo yêu cầu kỹ thuật',
       'Tư vấn vật liệu chịu nhiệt cao (ABS, PA-CF, PEEK)',
-      'Phân tích hướng in (print orientation) tối ưu cơ tính',
+      'Phân tích hướng in tối ưu cơ tính',
       'Báo cáo đo kiểm đi kèm kiện hàng'
     ],
     featuresEn: [
@@ -249,15 +260,15 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-line">
           <div className="max-w-3xl space-y-2">
-            <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary block font-bold">
-              {isVi ? 'HỆ SINH THÁI DỊCH VỤ // VCUBE ENGINEERING SERVICES' : 'CORE SERVICES // VCUBE ENGINEERING'}
+            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-fg-muted block">
+              {isVi ? 'HỆ SINH THÁI DỊCH VỤ VCUBE' : 'CORE SERVICES // VCUBE ENGINEERING'}
             </span>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-fg tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-bold text-fg tracking-tight">
               {isVi ? 'Giải Pháp Gia Công & Thiết Kế 3D Chuẩn Công Nghiệp' : 'Industrial 3D Printing & Engineering Solutions'}
             </h2>
             <p className="text-sm sm:text-base text-fg-muted leading-relaxed">
               {isVi
-                ? 'VCUBE kết hợp công nghệ in 3D hiện đại với dịch vụ kỹ thuật chuyên sâu: từ chế tác theo file CAD, hiện thực hóa ý tưởng đến kiểm định đo lường chuẩn xác.'
+                ? 'VCUBE kết hợp công nghệ in 3D hiện đại với dịch vụ kỹ thuật chuyên sâu: từ chế tác theo tệp CAD, hiện thực hóa ý tưởng đến kiểm định đo lường chuẩn xác.'
                 : 'VCUBE integrates cutting-edge additive manufacturing with precision engineering: from instant CAD file quoting to custom idea prototyping and metrology inspection.'}
             </p>
           </div>
@@ -291,37 +302,36 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 return (
                   <div
                     key={service.id}
-                    className="hover:-translate-y-[3px] transition-transform duration-fast ease-out motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    className="h-full motion-reduce:transition-none"
                   >
                     <Card
+                      variant="soft"
                       padding="md"
-                      className={`relative flex flex-col justify-between h-full transition-all duration-200 cursor-pointer text-left ${
-                        isSelected
-                          ? 'border-primary shadow-e2 bg-primary-tint ring-2 ring-primary/50'
-                          : 'hover:border-line-control hover:shadow-e1 bg-surface'
+                      className={`relative flex h-full flex-col justify-between text-left transition-shadow duration-300 motion-reduce:transition-none cursor-pointer ${
+                        isSelected ? 'shadow-e2 ring-2 ring-primary' : 'hover:shadow-e2'
                       }`}
                       onClick={() => handleSelectService(service)}
                     >
-                      {/* Top serial badge and icon */}
+                      {/* Top serial badge and icon — tile pastel v3 (§1.5) */}
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <span className="font-mono text-xs font-bold text-fg-muted px-2 py-0.5 rounded bg-surface-muted border border-line-subtle tabular-nums">
+                          <span className="font-mono text-xs font-bold text-fg-muted px-2 py-0.5 rounded-sm bg-surface-muted tabular-nums">
                             0{idx + 1}
                           </span>
                           <span
-                            className={`p-2.5 rounded-md border transition-colors ${
+                            className={`grid size-11 place-items-center rounded-md transition-colors ${
                               isSelected
-                                ? 'bg-primary text-primary-fg border-primary'
-                                : 'bg-primary-tint text-primary border-primary/20'
+                                ? 'bg-primary text-primary-fg'
+                                : `${SERVICE_TILE[idx % SERVICE_TILE.length]} text-fg`
                             }`}
                           >
-                            <Icon name={service.iconName} size={22} />
+                            <Icon name={service.iconName} size={22} aria-hidden="true" />
                           </span>
                         </div>
 
                         {/* Title & Badge */}
                         <div className="space-y-1">
-                          <span className="font-mono text-xs uppercase tracking-wider text-primary font-bold block">
+                          <span className="font-mono text-xs uppercase tracking-wider text-fg-muted font-bold block">
                             {isVi ? service.badgeVi : service.badgeEn}
                           </span>
                           <h3 className="font-bold text-base text-fg leading-snug">
@@ -340,11 +350,14 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
+                            // Chọn dịch vụ trước khi mở popup: bàn phím cũng đổi được khung 3D
+                            // (card onClick chỉ dùng được bằng chuột).
+                            handleSelectService(service);
                             setModalService(service);
                           }}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-hover hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                          className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-fg hover:text-primary hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                         >
-                          <Icon name="info" size={14} />
+                          <Icon name="info" size={14} aria-hidden="true" />
                           <span>{isVi ? 'Chi tiết dịch vụ' : 'View specs'}</span>
                         </button>
 
@@ -353,6 +366,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                           variant={isSelected ? 'primary' : 'secondary'}
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleSelectService(service);
                             handleExecuteAction(service.actionType);
                           }}
                           leadingIcon={<Icon name="arrow_forward" size={14} />}
@@ -397,19 +411,19 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
 
           {/* Right: Live Interactive 3D Model Stage (5 cols) */}
           <div className="lg:col-span-5">
-            <Card padding="none" className="overflow-hidden border-line shadow-e2 bg-surface">
+            <Card variant="soft" padding="none" className="overflow-hidden">
               {/* 3D Header Bar */}
               <div className="p-3.5 bg-surface border-b border-line flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-positive animate-pulse motion-reduce:animate-none" />
                   <span className="font-mono text-xs font-bold text-fg uppercase tracking-wider">
-                    {isVi ? 'Mô Phỏng 3D // ' : 'LIVE 3D MESH // '}
-                    <span className="text-primary">{activeService.modelType.toUpperCase()}</span>
+                    {isVi ? 'MÔ PHỎNG 3D · ' : 'LIVE 3D MESH · '}
+                    <span className="text-primary">{MODEL_LABEL_VI[activeService.modelType]}</span>
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1 text-xs font-mono text-fg-muted">
-                  <span className="px-2 py-0.5 rounded bg-surface-muted border border-line-subtle">
+                  <span className="px-2 py-0.5 rounded-sm bg-surface-muted border border-line-subtle">
                     {isVi ? activeService.badgeVi : activeService.badgeEn}
                   </span>
                 </div>
@@ -426,44 +440,48 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                   className="w-full h-full"
                 />
 
-                {/* Floating Top Controls Pill */}
-                <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
-                  <span className="font-mono text-xs text-on-inverse/80 px-2 py-1 rounded bg-surface-inverse/80 backdrop-blur-sm border border-line/30 shadow-sm">
+                {/* Floating Top Controls Pill — HUD sáng (§3.8) trên nền render tối */}
+                <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-panel">
+                  <span className="font-mono text-xs text-fg-muted px-3 py-1 rounded-full border border-line bg-surface/90 backdrop-blur-sm">
                     {isVi ? 'Kéo chuột để xoay 360°' : 'Drag to orbit 360°'}
                   </span>
 
                   {/* Wireframe & Auto-rotate triggers */}
-                  <div className="pointer-events-auto flex items-center gap-1.5 bg-surface-inverse/80 backdrop-blur-sm p-1 rounded-md border border-line/30">
+                  <div className="pointer-events-auto flex items-center gap-1 rounded-md border border-line bg-surface/95 shadow-e2 backdrop-blur-md p-1.5">
                     <button
                       type="button"
                       onClick={() => setWireframe(!wireframe)}
+                      aria-label={wireframe ? 'Tắt khung dây' : 'Bật khung dây (Wireframe)'}
+                      aria-pressed={wireframe}
                       title={wireframe ? 'Tắt khung dây' : 'Bật khung dây (Wireframe)'}
-                      className={`p-1.5 rounded transition-colors cursor-pointer text-xs font-mono ${
+                      className={`grid size-8 max-md:size-11 place-items-center rounded-md transition-colors duration-200 cursor-pointer text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         wireframe
                           ? 'bg-primary text-primary-fg font-bold'
-                          : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised'
+                          : 'text-fg-muted hover:text-fg hover:bg-surface-muted'
                       }`}
                     >
-                      <Icon name="grid_3x3" size={14} />
+                      <Icon name="grid_3x3" size={14} aria-hidden="true" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setAutoRotate(!autoRotate)}
+                      aria-label={autoRotate ? 'Dừng tự xoay' : 'Bật tự xoay'}
+                      aria-pressed={autoRotate}
                       title={autoRotate ? 'Dừng tự xoay' : 'Bật tự xoay'}
-                      className={`p-1.5 rounded transition-colors cursor-pointer text-xs font-mono ${
+                      className={`grid size-8 max-md:size-11 place-items-center rounded-md transition-colors duration-200 cursor-pointer text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         autoRotate
                           ? 'bg-primary text-primary-fg font-bold'
-                          : 'text-on-inverse/70 hover:text-on-inverse hover:bg-surface-inverse-raised'
+                          : 'text-fg-muted hover:text-fg hover:bg-surface-muted'
                       }`}
                     >
-                      <Icon name="sync" size={14} className={autoRotate ? 'animate-spin motion-reduce:animate-none' : ''} />
+                      <Icon name="sync" size={14} aria-hidden="true" className={autoRotate ? 'animate-spin motion-reduce:animate-none' : ''} />
                     </button>
                   </div>
                 </div>
 
-                {/* Floating Color Palette */}
-                <div className="absolute bottom-3 left-3 pointer-events-auto flex items-center gap-1.5 bg-surface-inverse/80 backdrop-blur-sm px-2 py-1 rounded-md border border-line/30">
-                  <span className="text-xs font-mono text-on-inverse/60 mr-1">
+                {/* Floating Color Palette — dock sáng (§3.8) */}
+                <div className="absolute bottom-3 left-3 pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-surface/95 shadow-e2 backdrop-blur-md px-2 py-1">
+                  <span className="px-1 text-xs font-mono text-fg-muted">
                     {isVi ? 'Màu:' : 'Color:'}
                   </span>
                   {VIEWER_COLOR_TOKENS.map((token) => {
@@ -474,12 +492,20 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                         key={token}
                         type="button"
                         onClick={() => setViewerColorToken(token)}
-                        className={`w-4 h-4 rounded-full transition-transform cursor-pointer border ${
-                          isActive ? 'scale-125 border-on-inverse ring-1 ring-primary' : 'border-line/40 hover:scale-110'
-                        }`}
-                        style={{ backgroundColor: hex }}
+                        aria-pressed={isActive}
+                        // Vùng bấm ≥44px dưới `md`: nút bọc chấm màu 16px (màu là dữ liệu token).
+                        className="grid size-9 max-md:size-11 place-items-center rounded-full transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label={`Chọn màu ${hex}`}
-                      />
+                        title={`Chọn màu ${hex}`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          style={{ backgroundColor: hex }}
+                          className={`block size-4 rounded-full border ${
+                            isActive ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-line'
+                          }`}
+                        />
+                      </button>
                     );
                   })}
                 </div>
@@ -520,16 +546,16 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
         </div>
       </div>
 
-      {/* Service Deep-Dive Popup Modal */}
-      {modalService && (
-        <Modal
+      {/* Service Deep-Dive Popup Modal — LUÔN mount (chỉ đổi `open`):
+          mount có điều kiện + StrictMode làm effect Modal tự đóng ngay sau khi mở. */}
+      <Modal
           open={Boolean(modalService)}
           onClose={() => setModalService(null)}
           size="lg"
-          title={
+          title={modalService ? (
             <div className="flex items-center gap-2.5">
-              <span className="p-2 rounded-md bg-primary-tint text-primary border border-primary/20">
-                <Icon name={modalService.iconName} size={20} />
+              <span className="grid size-10 place-items-center rounded-md bg-tile-mint text-fg">
+                <Icon name={modalService.iconName} size={20} aria-hidden="true" />
               </span>
               <div>
                 <h3 className="font-bold text-lg text-fg leading-tight">
@@ -540,9 +566,9 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 </span>
               </div>
             </div>
-          }
+          ) : undefined}
           footer={
-            <div className="flex items-center justify-between w-full">
+            modalService ? (<div className="flex items-center justify-between w-full">
               <Button variant="ghost" size="sm" onClick={() => setModalService(null)}>
                 {isVi ? 'Đóng' : 'Close'}
               </Button>
@@ -557,10 +583,9 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
               >
                 <span>{isVi ? modalService.ctaLabelVi : modalService.ctaLabelEn}</span>
               </Button>
-            </div>
-          }
+            </div>) : undefined}
         >
-          <div className="space-y-6">
+          {modalService ? (<div className="space-y-6">
             {/* Description */}
             <p className="text-sm text-fg-muted leading-relaxed">
               {isVi ? modalService.fullDescVi : modalService.fullDescEn}
@@ -576,24 +601,24 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 showGrid={true}
                 className="w-full h-full"
               />
-              <div className="absolute top-2.5 left-3 font-mono text-xs text-on-inverse/70 bg-surface-inverse/70 px-2 py-0.5 rounded border border-line/20">
-                {isVi ? 'Mô hình minh họa dịch vụ (Xoay 360°)' : 'Service Interactive 3D Preview'}
+              <div className="pointer-events-none absolute bottom-2.5 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-full border border-line bg-surface/90 px-3 py-1 font-mono text-xs text-fg-muted backdrop-blur-sm">
+                {isVi ? 'Mô hình minh họa (xoay 360°)' : 'Service Interactive 3D Preview'}
               </div>
             </div>
 
             {/* Technical Specifications Grid */}
             <div>
               <h4 className="font-mono text-xs uppercase tracking-wider text-fg-muted font-bold mb-2.5">
-                {isVi ? 'THÔNG SỐ KỸ THUẬT & CAM KẾT // TECHNICAL SPECIFICATIONS' : 'TECHNICAL SPECIFICATIONS & COMMITMENTS'}
+                {isVi ? 'THÔNG SỐ KỸ THUẬT & CAM KẾT' : 'TECHNICAL SPECIFICATIONS & COMMITMENTS'}
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-mono text-xs">
                 {(isVi ? modalService.specsVi : modalService.specsEn).map((spec) => (
                   <div
                     key={spec.label}
-                    className="p-2.5 rounded bg-surface-muted border border-line-subtle flex items-center justify-between"
+                    className="flex items-start justify-between gap-3 rounded-md bg-surface-muted p-2.5"
                   >
-                    <span className="text-fg-muted">{spec.label}:</span>
-                    <span className="font-bold text-fg tabular-nums">{spec.value}</span>
+                    <span className="shrink-0 text-fg-muted">{spec.label}:</span>
+                    <span className="text-right font-bold text-fg tabular-nums">{spec.value}</span>
                   </div>
                 ))}
               </div>
@@ -602,7 +627,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
             {/* Feature Highlights */}
             <div>
               <h4 className="font-mono text-xs uppercase tracking-wider text-fg-muted font-bold mb-2.5">
-                {isVi ? 'ĐẶC ĐIỂM NỔI BẬT // KEY CAPABILITIES' : 'KEY CAPABILITIES'}
+                {isVi ? 'ĐẶC ĐIỂM NỔI BẬT' : 'KEY CAPABILITIES'}
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 {(isVi ? modalService.featuresVi : modalService.featuresEn).map((feat) => (
@@ -613,9 +638,8 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
                 ))}
               </div>
             </div>
-          </div>
+          </div>) : null}
         </Modal>
-      )}
     </section>
   );
 };

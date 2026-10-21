@@ -15,6 +15,8 @@ vẫn là `docs/README.md` → `docs/architecture/`, `docs/pages/`, `docs/databa
 | [`DOCS-ISSUES.md`](./DOCS-ISSUES.md) | Sổ đăng ký trạng thái **đã xác minh lại** (vòng 2, 2026-09-23): 125 mục còn mở (78 CONFIRMED · 17 PARTIAL + 30 vấn đề MỚI). Nguồn ưu tiên để xử lý. | ACTIVE |
 | [`DRIFT-REMEDIATION-PLAN.md`](./DRIFT-REMEDIATION-PLAN.md) | Gộp 125 mục về **6 nguyên nhân gốc** (A RLS · B docs-chép-tay · C schema≠UI · D UI-hứa-quá · E di-sản · F chưa-chốt-VI/EN) + lộ trình 4 đợt. **Đọc trước khi sửa từng mục.** | ACTIVE |
 | [`DRIFT-TASKS.md`](./DRIFT-TASKS.md) | **Task board thực thi (v4)**: template + task nhỏ theo wave (W0 hotfix P0 → W1 quick win → W2 RLS serial → W3 generator → W4 code → W5 docs hành vi → W6 backlog); có Executor `SA/H/O`, prod-apply protocol, worktree an toàn secret, `coverage.json` (129 ID), broadcast realtime tránh PII, Phụ lục B xác minh code. | ACTIVE |
+| [`as-is/README.md`](./as-is/README.md) | **AS-IS Inventory (baseline 2026-10-19)**: chốt toàn bộ item + workflow đang có trong code (DB 32 bảng/2 view, service/store/type, 30 route/16 view/53 component, 12 workflow, ma trận trạng thái tính năng, nợ kỹ thuật). Dùng làm baseline so sánh khi nhận UI/UX mới. | ACTIVE |
+| [`ui-redesign/PLAN.md`](./ui-redesign/PLAN.md) | **Redesign toàn bộ UI/UX sang "Warm Studio" (AURA)**: 4 wave, 15 workstream song song, quyền sở hữu file, cross-review R1/R2, gate. Kèm `DESIGN-LANGUAGE.md` (hợp đồng LOCKED), `REVIEW.md`, `PROGRESS.md`. | **EXECUTING (2026-10-19)** — Wave 0–2 xong; Wave 3 integrator đang chạy |
 
 ## Lịch sử (không còn là nguồn sự thật)
 

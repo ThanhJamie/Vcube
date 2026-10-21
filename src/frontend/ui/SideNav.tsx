@@ -1,19 +1,20 @@
 /**
- * SideNav — điều hướng dọc của `AppShell` (spec: docs/plans/21-saas-spec.md §3).
+ * SideNav — điều hướng dọc của `AppShell` (spec: docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE.md §3.7).
  *
  * Hợp đồng:
  * - Rộng **240px** (`w-60`), thu gọn **64px** (`w-16`) — kích thước do `AppShell` đặt,
  *   `SideNav` chỉ lo nội dung.
- * - Mục đang chọn: nền `bg-surface-muted` + **vạch nhấn trái** `bg-primary` (không chỉ
- *   dựa vào màu chữ) + `aria-current="page"`.
+ * - `variant="tint"` (MẶC ĐỊNH — giữ nguyên console v2): mục đang chọn nền
+ *   `bg-primary-tint` + chữ `text-fg font-semibold` + **vạch nhấn trái** `bg-primary`
+ *   (không chỉ dựa vào màu chữ) + `aria-current="page"`.
+ * - `variant="pill"` (v3, opt-in): nav nằm trên nền `bg-canvas`, mục đang chọn là
+ *   **pill trắng `bg-surface` + `shadow-soft`**, bỏ vạch dọc; bo `rounded-full`.
+ *   Dùng cho console v3 (D2 hybrid) và các nav dọc mới; không đổi mặc định.
  * - Badge số **chỉ hiện khi có giá trị** — nơi gọi truyền `badge={count > 0 ? … : null}`
  *   để "0" không bao giờ được vẽ (`docs/design/data-honesty.md`).
- * - Icon điều hướng **18px** (`size-4.5`) — giữ nguyên theo §1.3 (không thu nhỏ như icon
- *   trong control).
+ * - Icon điều hướng **18px** (`size-4.5`) — giữ nguyên (không thu nhỏ như icon trong control).
  * - Mỗi mục cao ≥44px (`min-h-11`) để đạt đích chạm trên mobile.
  * - Mục có `href` render `<a>`, chỉ có `onClick` render `<button>`.
- * - `tone='chrome'`: sidebar tối — nav `bg-chrome`, mục active `bg-chrome-active text-chrome-active-fg`
- *   + vạch trái `bg-chrome-active-fg`, mục thường `text-chrome-fg-muted`, focus `ring-chrome-ring`.
  * - Thu gọn: nhãn ẩn khỏi màn hình nhưng vẫn nằm trong DOM ở dạng `sr-only`? **Không** —
  *   ở chế độ thu gọn mỗi mục được đặt `title` + `aria-label` = nhãn, tránh chồng chữ.
  */
@@ -21,7 +22,6 @@
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Button } from './Button';
 import { cn } from './cn';
-import type { Tone } from './tone';
 import type { ReactNode } from 'react';
 
 export interface SideNavItem {
@@ -44,7 +44,12 @@ export interface SideNavGroup {
   items: SideNavItem[];
 }
 
+/** `tint` = tint + vạch dọc (mặc định) · `pill` = pill trắng + shadow (v3 storefront/console mới). */
+export type SideNavVariant = 'tint' | 'pill';
+
 export interface SideNavProps {
+  /** Mặc định `tint` (console v2). `pill` là biến thể opt-in của v3. */
+  variant?: SideNavVariant;
   /** Nhóm có nhãn — dùng cho nav nhiều miền nghiệp vụ. */
   groups?: SideNavGroup[];
   /** Danh sách phẳng (không nhãn nhóm). */
@@ -59,39 +64,50 @@ export interface SideNavProps {
   collapseLabel?: string;
   expandLabel?: string;
   label?: string;
-  /** Bề mặt render lên: `light` (mặc định) hoặc `chrome` (sidebar console tối). */
-  tone?: Tone;
   className?: string;
 }
 
 const ITEM_BASE = [
-  'relative flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-sm',
-  'transition-colors duration-fast ease-out motion-reduce:transition-none',
-  'focus-visible:outline-none focus-visible:ring-2',
+  'relative flex min-h-11 w-full items-center gap-3 px-3 py-2 text-sm font-medium',
+  'transition-colors duration-200 ease-out motion-reduce:transition-none',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
 ].join(' ');
+
+/** Mặc định giữ `rounded-md` (12px); pill chỉ bật khi nơi gọi chọn `variant="pill"`. */
+const ITEM_RADIUS: Record<SideNavVariant, string> = {
+  tint: 'rounded-md',
+  pill: 'rounded-full',
+};
+
+const ROOT_BG: Record<SideNavVariant, string> = {
+  tint: 'bg-surface',
+  pill: 'bg-canvas',
+};
+
+const ACTIVE: Record<SideNavVariant, string> = {
+  tint: 'bg-primary-tint font-semibold text-fg',
+  pill: 'bg-surface font-semibold text-fg shadow-soft',
+};
 
 function ItemNode({
   item,
   active,
   collapsed,
-  tone,
+  variant,
   onSelect,
 }: {
   item: SideNavItem;
   active: boolean;
   collapsed: boolean;
-  tone: Tone;
+  variant: SideNavVariant;
   onSelect?: (id: string) => void;
 }) {
   const content = (
     <>
-      {active ? (
+      {active && variant === 'tint' ? (
         <span
           aria-hidden="true"
-          className={cn(
-            'absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full',
-            tone === 'chrome' ? 'bg-chrome-active-fg' : 'bg-primary',
-          )}
+          className="absolute bottom-1 left-0 top-1 w-0.5 rounded-full bg-primary"
         />
       ) : null}
 
@@ -104,12 +120,7 @@ function ItemNode({
       {collapsed ? null : <span className="min-w-0 flex-1 truncate">{item.label}</span>}
 
       {!collapsed && item.badge != null ? (
-        <span
-          className={cn(
-            'inline-flex shrink-0 items-center rounded-full px-2 text-xs font-medium tabular-nums',
-            tone === 'chrome' ? 'bg-chrome-raised text-chrome-fg' : 'bg-surface-muted text-fg-muted',
-          )}
-        >
+        <span className="inline-flex shrink-0 items-center rounded-full bg-surface-muted px-2 text-xs font-medium tabular-nums text-fg-muted">
           {item.badge}
         </span>
       ) : null}
@@ -118,15 +129,9 @@ function ItemNode({
 
   const className = cn(
     ITEM_BASE,
-    tone === 'chrome' ? 'focus-visible:ring-chrome-ring' : 'focus-visible:ring-ring',
+    ITEM_RADIUS[variant],
     collapsed && 'justify-center px-0',
-    active
-      ? tone === 'chrome'
-        ? 'bg-chrome-active font-medium text-chrome-active-fg'
-        : 'bg-surface-muted font-medium text-fg'
-      : tone === 'chrome'
-        ? 'text-chrome-fg-muted hover:bg-chrome-raised hover:text-chrome-fg'
-        : 'text-fg-muted hover:bg-surface-muted hover:text-fg',
+    active ? ACTIVE[variant] : 'text-fg-muted hover:bg-surface-muted hover:text-fg',
     item.disabled && 'pointer-events-none opacity-50',
   );
 
@@ -167,6 +172,7 @@ function ItemNode({
 }
 
 export function SideNav({
+  variant = 'tint',
   groups,
   items,
   header,
@@ -178,7 +184,6 @@ export function SideNav({
   collapseLabel = 'Thu gọn điều hướng',
   expandLabel = 'Mở rộng điều hướng',
   label = 'Điều hướng chính',
-  tone = 'light',
   className,
 }: SideNavProps) {
   const resolvedGroups: SideNavGroup[] =
@@ -189,11 +194,7 @@ export function SideNav({
   return (
     <nav
       aria-label={label}
-      className={cn(
-        'flex h-full min-h-0 flex-col gap-2',
-        tone === 'chrome' ? 'bg-chrome' : 'bg-surface',
-        className,
-      )}
+      className={cn('flex h-full min-h-0 flex-col gap-2', ROOT_BG[variant], className)}
     >
       <div className={cn('flex h-14 shrink-0 items-center gap-3 px-3', collapsed && 'justify-center px-0')}>
         {header}
@@ -203,12 +204,7 @@ export function SideNav({
         {resolvedGroups.map((group, groupIndex) => (
           <div key={group.id ?? groupIndex} className="flex flex-col gap-1">
             {group.label && !collapsed ? (
-              <p
-                className={cn(
-                  'px-3 pb-1 text-xs font-medium uppercase tracking-wide',
-                  tone === 'chrome' ? 'text-chrome-fg-muted' : 'text-fg-subtle',
-                )}
-              >
+              <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-fg-subtle">
                 {group.label}
               </p>
             ) : null}
@@ -219,7 +215,7 @@ export function SideNav({
                 item={item}
                 active={item.active ?? item.id === activeId}
                 collapsed={collapsed}
-                tone={tone}
+                variant={variant}
                 onSelect={onSelect}
               />
             ))}
@@ -232,8 +228,7 @@ export function SideNav({
       {onCollapsedChange ? (
         <div
           className={cn(
-            'shrink-0 border-t p-2',
-            tone === 'chrome' ? 'border-chrome-border' : 'border-line-subtle',
+            'shrink-0 border-t border-line-subtle p-2',
             collapsed && 'flex justify-center',
           )}
         >
@@ -241,7 +236,6 @@ export function SideNav({
             iconOnly
             variant="ghost"
             size="sm"
-            tone={tone}
             aria-label={collapsed ? expandLabel : collapseLabel}
             onClick={() => onCollapsedChange(!collapsed)}
           >

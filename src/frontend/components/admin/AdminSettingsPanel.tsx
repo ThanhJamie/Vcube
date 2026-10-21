@@ -20,7 +20,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
-import { Icon, InfoTip } from '@frontend/ui';
+import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
 import { useAppSettings } from '../../hooks/useSettings';
 import {
   isValidBankAccount,
@@ -86,7 +86,7 @@ function validate(form: FormState, isVi: boolean): FormErrors {
   }
   if (!isValidHotline(form.hotline)) {
     errors.hotline = isVi
-      ? 'Hotline không hợp lệ (8–20 ký tự, tối thiểu 8 chữ số).'
+      ? 'Đường dây nóng không hợp lệ (8–20 ký tự, tối thiểu 8 chữ số).'
       : 'Invalid hotline (8–20 characters, at least 8 digits).';
   }
   if (!isValidEmail(form.contactEmail)) {
@@ -108,30 +108,24 @@ interface TextFieldProps {
   mono?: boolean;
 }
 
+const TEXTAREA_CLASS = [
+  'w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg',
+  'placeholder:text-fg-subtle transition-colors duration-200 ease-out motion-reduce:transition-none',
+  'focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring aria-invalid:border-danger',
+].join(' ');
+
 const TextField: React.FC<TextFieldProps> = ({ id, label, value, onChange, error, hint, mono }) => (
-  <div className="space-y-1">
-    <label htmlFor={id} className="block font-bold text-fg">
-      {label}
-    </label>
-    <input
-      id={id}
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-invalid={error ? true : undefined}
-      aria-describedby={error ? `${id}-error` : undefined}
-      className={`w-full p-2.5 border rounded-lg text-xs bg-canvas text-fg ${
-        error ? 'border-danger' : 'border-line-control'
-      } ${mono ? 'font-tech' : ''}`}
-    />
-    {error ? (
-      <p id={`${id}-error`} role="alert" className="text-xs font-bold text-danger">
-        {error}
-      </p>
-    ) : hint ? (
-      <p className="text-xs text-fg-muted">{hint}</p>
-    ) : null}
-  </div>
+  <Field id={id} label={label} error={error} hint={hint} optionalLabel={null}>
+    {(control) => (
+      <Input
+        {...control}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={mono ? 'font-mono' : undefined}
+      />
+    )}
+  </Field>
 );
 
 interface TextAreaFieldProps extends Omit<TextFieldProps, 'mono'> {
@@ -139,29 +133,17 @@ interface TextAreaFieldProps extends Omit<TextFieldProps, 'mono'> {
 }
 
 const TextAreaField: React.FC<TextAreaFieldProps> = ({ id, label, value, onChange, error, hint, rows = 3 }) => (
-  <div className="space-y-1">
-    <label htmlFor={id} className="block font-bold text-fg">
-      {label}
-    </label>
-    <textarea
-      id={id}
-      rows={rows}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-invalid={error ? true : undefined}
-      aria-describedby={error ? `${id}-error` : undefined}
-      className={`w-full p-2.5 border rounded-lg text-xs bg-canvas text-fg ${
-        error ? 'border-danger' : 'border-line-control'
-      }`}
-    />
-    {error ? (
-      <p id={`${id}-error`} role="alert" className="text-xs font-bold text-danger">
-        {error}
-      </p>
-    ) : hint ? (
-      <p className="text-xs text-fg-muted">{hint}</p>
-    ) : null}
-  </div>
+  <Field id={id} label={label} error={error} hint={hint} optionalLabel={null}>
+    {(control) => (
+      <textarea
+        {...control}
+        rows={rows}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={TEXTAREA_CLASS}
+      />
+    )}
+  </Field>
 );
 
 export const AdminSettingsPanel: React.FC<AdminSettingsPanelProps> = ({ onShowToast }) => {
@@ -257,57 +239,58 @@ export const AdminSettingsPanel: React.FC<AdminSettingsPanelProps> = ({ onShowTo
           : 'app_settings has no configured row — the fields below are empty. Save to create the first configuration.';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="bg-surface p-5 sm:p-6 rounded-lg flex flex-col md:flex-row md:items-start justify-between gap-4 shadow-e1">
+      <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2 py-0.5 bg-accent/20 text-primary font-tech text-xs font-bold rounded-sm border border-accent/40 uppercase tracking-widest">
-              APP_SETTINGS // PHÁP LÝ
+            <span className="px-2.5 py-0.5 bg-primary-tint text-fg font-mono text-xs font-semibold rounded-sm border border-line uppercase tracking-wider">
+              CẤU HÌNH HỆ THỐNG // PHÁP LÝ
             </span>
-            <span className="text-xs text-fg-muted">
+            <span className="text-xs text-fg-subtle">
               {isVi ? 'Nguồn dữ liệu: Supabase · bảng app_settings' : 'Source: Supabase · app_settings table'}
             </span>
           </div>
-          <h2 className="text-lg sm:text-xl font-bold text-fg mt-1 flex items-center gap-2">
+          <h2 className="text-2xl font-bold tracking-tight text-fg mt-2 flex items-center gap-2">
             <Icon name="settings" size={24} className="text-primary" />
             {isVi ? 'Cài Đặt Pháp Lý & Định Danh' : 'Legal & Identity Settings'}
           </h2>
           <div className="mt-0.5">
             <InfoTip label={isVi ? 'Mục này gồm những trường nào?' : 'Which fields does this section hold?'}>
               {isVi
-                ? 'Tên pháp nhân, mã số thuế, địa chỉ xuất hoá đơn, hotline, email, tài khoản ngân hàng, điều khoản bảo hành và chính sách đặt cọc. Ô để trống nghĩa là CHƯA CẤU HÌNH — hệ thống không tự điền giá trị đoán.'
+                ? 'Tên pháp nhân, mã số thuế, địa chỉ xuất hoá đơn, đường dây nóng, email, tài khoản ngân hàng, điều khoản bảo hành và chính sách đặt cọc. Ô để trống nghĩa là CHƯA CẤU HÌNH — hệ thống không tự điền giá trị đoán.'
                 : 'Legal name, tax code, invoice address, hotline, email, bank account, warranty terms and deposit policy. An empty field means NOT CONFIGURED — the app never fills in a guessed value.'}
             </InfoTip>
           </div>
           <p
             id="app-settings-load-status"
             role="status"
-            className={`text-xs mt-2 ${error ? 'font-bold text-danger' : 'text-fg-muted'}`}
+            className={`text-xs mt-2 ${error ? 'font-medium text-danger' : 'text-fg-subtle'}`}
           >
             {statusText}
           </p>
         </div>
 
-        <button
+        <Button
+          variant="primary"
+          loading={saving}
+          loadingLabel={isVi ? 'Đang lưu…' : 'Saving…'}
+          leadingIcon={<Icon name="save" size={16} />}
           onClick={handleSave}
-          disabled={saving}
-          className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-1.5 shadow-e1 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <Icon name="save" size={16} />
           {saving ? (isVi ? 'Đang lưu…' : 'Saving…') : isVi ? 'Lưu Cài Đặt' : 'Save Settings'}
-        </button>
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Pháp nhân & xuất hoá đơn */}
-        <div className="bg-surface rounded-lg p-5 shadow-e1 space-y-4">
-          <h3 className="font-bold text-sm text-fg flex items-center gap-2 border-b border-line pb-3">
-            <Icon name="domain" size={24} className="text-primary" />
+        <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-5">
+          <h3 className="text-base font-semibold tracking-tight text-fg flex items-center gap-2 border-b border-line-subtle pb-3">
+            <Icon name="domain" size={20} className="text-fg-muted" />
             {isVi ? 'Pháp Nhân & Xuất Hoá Đơn' : 'Legal Entity & Invoicing'}
           </h3>
 
-          <div className="space-y-3 text-xs">
+          <div className="space-y-4">
             <TextField
               id="app-settings-legal-name"
               label={isVi ? 'Tên pháp nhân / công ty' : 'Legal entity / company name'}
@@ -334,7 +317,7 @@ export const AdminSettingsPanel: React.FC<AdminSettingsPanelProps> = ({ onShowTo
               value={form.invoiceAddress}
               onChange={update('invoiceAddress')}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <TextField
                 id="app-settings-bank-account"
                 label={isVi ? 'Số tài khoản ngân hàng' : 'Bank account number'}
@@ -354,23 +337,23 @@ export const AdminSettingsPanel: React.FC<AdminSettingsPanelProps> = ({ onShowTo
         </div>
 
         {/* Liên hệ & chính sách */}
-        <div className="bg-surface rounded-lg p-5 shadow-e1 space-y-4">
-          <h3 className="font-bold text-sm text-fg flex items-center gap-2 border-b border-line pb-3">
-            <Icon name="receipt_long" size={24} className="text-primary" />
+        <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-5">
+          <h3 className="text-base font-semibold tracking-tight text-fg flex items-center gap-2 border-b border-line-subtle pb-3">
+            <Icon name="receipt_long" size={20} className="text-fg-muted" />
             {isVi ? 'Liên Hệ & Chính Sách' : 'Contact & Policies'}
           </h3>
 
-          <div className="space-y-3 text-xs">
+          <div className="space-y-4">
             <TextField
               id="app-settings-hotline"
-              label={isVi ? 'Hotline' : 'Hotline'}
+              label={isVi ? 'Đường dây nóng' : 'Hotline'}
               value={form.hotline}
               onChange={update('hotline')}
               error={errors.hotline}
               mono
               hint={
                 isVi
-                  ? 'Chưa khai báo — mọi nơi hiển thị hotline sẽ ẩn dòng liên hệ.'
+                  ? 'Chưa khai báo — mọi nơi hiển thị đường dây nóng sẽ ẩn dòng liên hệ.'
                   : 'Not declared — any hotline line will be hidden.'
               }
             />

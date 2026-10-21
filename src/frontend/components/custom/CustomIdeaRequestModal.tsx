@@ -98,10 +98,10 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
     setIsSubmitting(true);
     try {
       const budgetLabels: Record<string, string> = {
-        under_1m: isVi ? 'Dưới 1.000.000 đ' : '< 1,000,000 VND',
-        '1m-3m': isVi ? '1.000.000 đ - 3.000.000 đ' : '1,000,000 - 3,000,000 VND',
-        '3m-10m': isVi ? '3.000.000 đ - 10.000.000 đ' : '3,000,000 - 10,000,000 VND',
-        above_10m: isVi ? 'Trên 10.000.000 đ' : '> 10,000,000 VND',
+        under_1m: isVi ? 'Dưới 1.000.000 ₫' : '< 1,000,000 VND',
+        '1m-3m': isVi ? '1.000.000 ₫ – 3.000.000 ₫' : '1,000,000 - 3,000,000 VND',
+        '3m-10m': isVi ? '3.000.000 ₫ – 10.000.000 ₫' : '3,000,000 - 10,000,000 VND',
+        above_10m: isVi ? 'Trên 10.000.000 ₫' : '> 10,000,000 VND',
         flexible: isVi ? 'Cần kỹ sư ước tính' : 'To be estimated by engineer',
       };
 
@@ -174,35 +174,35 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
   };
 
   const categoryOptions = [
-    { value: 'jigs', label: isVi ? 'Đồ gá & Dụng cụ xưởng (Jigs & Fixtures)' : 'Jigs, Fixtures & Tooling' },
-    { value: 'iot', label: isVi ? 'Vỏ hộp điện tử & Thiết bị IoT' : 'IoT & Electronics Enclosures' },
-    { value: 'mechanical', label: isVi ? 'Cơ cấu truyền động & Bánh răng' : 'Motion Mechanisms & Gears' },
-    { value: 'robotics', label: isVi ? 'Khung Drone & Tay gắp Robot' : 'Drone & Robotics Mechanisms' },
-    { value: 'architecture', label: isVi ? 'Khớp nối Module & Sa bàn mô phỏng' : 'Modular Joints & Architectural Models' },
-    { value: 'custom_cad', label: isVi ? 'Ứng dụng cơ khí tùy biến khác' : 'Other Custom Engineering CAD' },
+    { value: 'jigs', label: 'Đồ gá & dụng cụ xưởng' },
+    { value: 'iot', label: 'Vỏ hộp điện tử & thiết bị IoT' },
+    { value: 'mechanical', label: 'Cơ cấu truyền động & bánh răng' },
+    { value: 'robotics', label: 'Khung drone & tay gắp robot' },
+    { value: 'architecture', label: 'Khớp nối module & sa bàn mô phỏng' },
+    { value: 'custom_cad', label: 'Ứng dụng cơ khí tùy biến khác' },
   ];
 
   const materialOptions = [
-    { value: 'pla-petg', label: isVi ? 'PLA / PETG (Tiêu chuẩn kỹ thuật)' : 'PLA / PETG (Standard Engineering)' },
-    { value: 'abs-pc', label: isVi ? 'ABS / PC (Chịu nhiệt & va đập)' : 'ABS / PC (Heat & Impact Resistant)' },
-    { value: 'pa12-cf', label: isVi ? 'Nylon PA12-CF (Gia cường sợi Carbon)' : 'Nylon PA12-CF (Carbon Fiber Reinforced)' },
-    { value: 'tough-resin', label: isVi ? 'Tough Resin (Bề mặt siêu nét & mịn)' : 'Tough Resin (Ultra-smooth & Fine Detail)' },
-    { value: 'tpu-95a', label: isVi ? 'TPU 95A (Cao su đàn hồi giảm chấn)' : 'TPU 95A (Elastomer & Shock Absorption)' },
-    { value: 'consult', label: isVi ? 'Nhờ kỹ sư VCUBE đề xuất vật liệu tối ưu' : 'Advise optimal material for my use case' },
+    { value: 'pla-petg', label: 'PLA / PETG (tiêu chuẩn kỹ thuật)' },
+    { value: 'abs-pc', label: 'ABS / PC (chịu nhiệt & va đập)' },
+    { value: 'pa12-cf', label: 'Nylon PA12-CF (gia cường sợi carbon)' },
+    { value: 'tough-resin', label: 'Resin dai (bề mặt siêu nét & mịn)' },
+    { value: 'tpu-95a', label: 'TPU 95A (cao su đàn hồi giảm chấn)' },
+    { value: 'consult', label: 'Nhờ kỹ sư VCUBE đề xuất vật liệu tối ưu' },
   ];
 
   const budgetOptions = [
-    { value: 'under_1m', label: isVi ? 'Dưới 1.000.000 đ' : '< 1,000,000 VND' },
-    { value: '1m-3m', label: isVi ? '1.000.000 đ - 3.000.000 đ' : '1,000,000 - 3,000,000 VND' },
-    { value: '3m-10m', label: isVi ? '3.000.000 đ - 10.000.000 đ' : '3,000,000 - 10,000,000 VND' },
-    { value: 'above_10m', label: isVi ? 'Trên 10.000.000 đ (Dự án công nghiệp)' : '> 10,000,000 VND (Industrial project)' },
-    { value: 'flexible', label: isVi ? 'Linh hoạt / Kỹ sư báo giá phương án' : 'Flexible / Quoted by engineering brief' },
+    { value: 'under_1m', label: 'Dưới 1.000.000 ₫' },
+    { value: '1m-3m', label: '1.000.000 ₫ – 3.000.000 ₫' },
+    { value: '3m-10m', label: '3.000.000 ₫ – 10.000.000 ₫' },
+    { value: 'above_10m', label: 'Trên 10.000.000 ₫ (dự án công nghiệp)' },
+    { value: 'flexible', label: 'Linh hoạt / kỹ sư báo giá phương án' },
   ];
 
   const deadlineOptions = [
-    { value: 'urgent', label: isVi ? 'Gấp (1 - 3 ngày làm việc)' : 'Urgent (1 - 3 business days)' },
-    { value: 'standard', label: isVi ? 'Tiêu chuẩn (5 - 7 ngày làm việc)' : 'Standard (5 - 7 business days)' },
-    { value: 'flexible', label: isVi ? 'Linh hoạt theo tiến độ dự án' : 'Flexible with project milestone' },
+    { value: 'urgent', label: 'Gấp (1 – 3 ngày làm việc)' },
+    { value: 'standard', label: 'Tiêu chuẩn (5 – 7 ngày làm việc)' },
+    { value: 'flexible', label: 'Linh hoạt theo tiến độ dự án' },
   ];
 
   return (
@@ -219,10 +219,8 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
             <h3 className="text-lg font-bold text-fg leading-tight">
               {isVi ? 'Đăng Ký Dịch Vụ Dựng Mô Hình 3D Từ Ý Tưởng' : 'Custom 3D CAD Modeling by Idea Request'}
             </h3>
-            <span className="text-xs text-fg-muted font-sans font-normal block mt-0.5">
-              {isVi
-                ? 'Tiếp nhận phác thảo sơ bộ, dựng CAD chuẩn kỹ thuật & in thử nghiệm 1:1'
-                : 'Intake concept sketches, build parametric 3D CAD & rapid physical prototyping'}
+            <span className="mt-0.5 block font-sans text-xs font-normal text-fg-muted">
+              Tiếp nhận phác thảo sơ bộ, dựng CAD chuẩn kỹ thuật & in thử nghiệm 1:1
             </span>
           </div>
         </div>
@@ -230,7 +228,7 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-5 pt-2">
         {/* Info callout card */}
-        <Card padding="md" className="bg-surface-muted border-line-subtle">
+        <Card variant="soft" padding="md" className="bg-surface-muted">
           <div className="flex items-start gap-3">
             <Icon name="info" size={18} className="text-primary shrink-0 mt-0.5" />
             <div className="text-xs text-fg-muted leading-relaxed">
@@ -250,9 +248,9 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
         </Card>
 
         {/* Section 1: Contact info */}
-        <div>
-          <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-primary mb-3">
-            {isVi ? '01 // Thông Tin Người Đăng Ký' : '01 // Contact Information'}
+        <div className="rounded-lg bg-surface p-4 shadow-soft">
+          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+            {isVi ? '01 · Thông tin người đăng ký' : '01 // Contact Information'}
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field id="custom-idea-name" label={isVi ? 'Họ và tên' : 'Full Name'} required error={errors.clientName}>
@@ -294,7 +292,7 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
                     setClientEmail(e.target.value);
                     if (errors.clientEmail) setErrors((prev) => ({ ...prev, clientEmail: '' }));
                   }}
-                  placeholder="contact@company.com"
+                  placeholder="ban@congty.vn"
                 />
               )}
             </Field>
@@ -313,9 +311,9 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
         </div>
 
         {/* Section 2: Project specifications */}
-        <div>
-          <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-primary mb-3">
-            {isVi ? '02 // Chi Tiết Dự Án & Ý Tưởng Cần Dựng' : '02 // Project & Concept Details'}
+        <div className="rounded-lg bg-surface p-4 shadow-soft">
+          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+            {isVi ? '02 · Chi tiết dự án & ý tưởng cần dựng' : '02 // Project & Concept Details'}
           </h4>
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -373,7 +371,7 @@ export const CustomIdeaRequestModal: React.FC<CustomIdeaRequestModalProps> = ({
                       ? 'Ví dụ: Cần dựng mô hình vỏ hộp chứa mạch ESP32 kích thước ~100x60x35mm, có rãnh gioăng cao su, 4 lỗ ren cấy M3, chịu nhiệt độ làm việc ngoài trời khoảng 60°C...'
                       : 'E.g.: Need a custom enclosure for an ESP32 board (~100x60x35mm), sealing groove, 4x M3 brass threaded inserts, operating outdoors at ~60°C...'
                   }
-                  className="w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle transition-colors duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               )}
             </Field>

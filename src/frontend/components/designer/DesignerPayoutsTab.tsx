@@ -1,9 +1,16 @@
 import React, { useMemo } from 'react';
 import { PayoutTransaction } from '../../../types';
 import { PAYOUT_TRANSACTIONS } from '../../../data/mockData';
-import { Icon, EmptyState, DataTable } from '@frontend/ui';
+import { Badge, Button, EmptyState, Icon, DataTable } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';
+
+/** Nhãn VI cho enum trạng thái quyết toán — enum chỉ sống trong code/DB. */
+const PAYOUT_STATUS_LABELS: Record<string, string> = {
+  COMPLETED: 'Hoàn tất',
+  PENDING: 'Đang xử lý',
+  FAILED: 'Thất bại',
+};
 
 export interface DesignerPayoutsTabProps {
   currentDesignerName: string;
@@ -32,33 +39,37 @@ export const DesignerPayoutsTab: React.FC<DesignerPayoutsTabProps> = ({
   const payoutColumns = useMemo<DataTableColumn<PayoutTransaction>[]>(
     () => [
       { key: 'date', header: 'Ngày', value: (p) => p.date, render: (p) => <span className="text-fg">{p.date}</span> },
-      { key: 'reference', header: 'Mã Giao Dịch', value: (p) => p.reference, render: (p) => <span className="text-fg-muted">{p.reference}</span> },
-      { key: 'method', header: 'Phương Thức', value: (p) => p.method, render: (p) => <span className="text-fg">{p.method}</span> },
-      { key: 'amount', header: 'Số Tiền', numeric: true, value: (p) => p.amount, render: (p) => <span className="font-bold text-fg">{formatCurrency(p.amount)}</span> },
+      { key: 'reference', header: 'Mã giao dịch', value: (p) => p.reference, render: (p) => <span className="text-fg-muted">{p.reference}</span> },
+      { key: 'method', header: 'Phương thức', value: (p) => p.method, render: (p) => <span className="text-fg">{p.method}</span> },
+      { key: 'amount', header: 'Số tiền', numeric: true, value: (p) => p.amount, render: (p) => <span className="font-bold text-fg">{formatCurrency(p.amount)}</span> },
       {
         key: 'status',
-        header: 'Trạng Thái',
+        header: 'Trạng thái',
         align: 'center',
         value: (p) => p.status,
-        render: (p) => <span className="px-2 py-0.5 bg-positive/10 text-positive font-tech text-xs rounded-sm font-bold">{p.status}</span>,
+        render: (p) => (
+          <Badge variant={p.status === 'COMPLETED' ? 'success' : p.status === 'PENDING' ? 'warning' : 'danger'} dot>
+            {PAYOUT_STATUS_LABELS[p.status] ?? p.status}
+          </Badge>
+        ),
       },
     ],
     []
   );
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-12">
         {/* Available Balance */}
-        <div className="md:col-span-5 bg-surface-inverse text-on-inverse p-6 rounded-sm flex flex-col justify-between space-y-4 shadow-e2">
-          <div>
-            <span className="text-xs font-tech uppercase tracking-widest text-accent">
+        <div className="flex flex-col justify-between gap-6 rounded-lg border border-line bg-surface p-6 md:col-span-5">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
               SỐ DƯ KHẢ DỤNG
-            </span>
-            <div className="text-3xl font-bold font-tech mt-1 text-on-inverse">
+            </p>
+            <div className="font-mono text-2xl font-bold tabular-nums text-fg">
               {hasBalance ? formatCurrency(availableBalance) : '—'}
             </div>
-            <p className="text-xs text-fg-subtle mt-1">
+            <p className="text-sm text-fg-muted">
               {hasBalance
                 ? 'Số dư đã được hệ thống ghi nhận cho tài khoản của bạn.'
                 : 'Chưa có nguồn số dư khả dụng cho tài khoản này.'}
@@ -66,25 +77,26 @@ export const DesignerPayoutsTab: React.FC<DesignerPayoutsTabProps> = ({
           </div>
 
           <div className="space-y-2">
-            <button
+            <Button
               type="button"
+              variant="primary"
+              fullWidth
               disabled
               onClick={() => onShowToast('Chức năng rút tiền chưa được nối tới hệ thống thanh toán.')}
-              className="w-full py-3 bg-primary/40 text-primary-fg/70 font-bold text-xs uppercase tracking-wider rounded-full cursor-not-allowed"
               title="Chưa có hệ thống quyết toán được nối"
             >
-              Yêu Cầu Rút Tiền Về Ngân Hàng
-            </button>
-            <p className="text-xs font-tech text-fg-subtle text-center">
+              Yêu cầu rút tiền về ngân hàng
+            </Button>
+            <p className="text-center text-xs text-fg-subtle">
               Chức năng quyết toán chưa được kích hoạt.
             </p>
           </div>
         </div>
 
         {/* Linked Accounts */}
-        <div className="md:col-span-7 bg-surface p-5 rounded-sm space-y-4 shadow-e1">
-          <h3 className="font-bold text-xs uppercase tracking-wider text-fg border-b border-line pb-2">
-            Tài Khoản Nhận Thanh Toán
+        <div className="space-y-4 rounded-lg border border-line bg-surface p-6 md:col-span-7">
+          <h3 className="text-base font-semibold tracking-tight text-fg">
+            Tài khoản nhận thanh toán
           </h3>
           <EmptyState
             bordered
@@ -95,11 +107,17 @@ export const DesignerPayoutsTab: React.FC<DesignerPayoutsTabProps> = ({
         </div>
       </div>
 
+      {/* UI-022 (data honesty): bảng quyết toán CHƯA nối DB và fixture rỗng ⇒ không được
+          nói "Dữ liệu mẫu" (người dùng sẽ tưởng có giao dịch mẫu để xem). */}
+      <div className="rounded-md border border-warning/20 bg-warning-tint p-3 text-sm text-warning">
+        Chưa nối bảng quyết toán — chưa có giao dịch.
+      </div>
+
       {/* Payout History */}
-      <div className="bg-surface border border-line rounded-sm overflow-hidden shadow-e1">
-        <div className="p-4 border-b border-line flex items-center justify-between">
-          <h3 className="font-bold text-xs uppercase tracking-wider text-fg">
-            Lịch Sử Rút Tiền &amp; Quyết Toán
+      <div className="overflow-hidden rounded-lg border border-line bg-surface">
+        <div className="flex items-center justify-between border-b border-line-subtle p-4">
+          <h3 className="text-base font-semibold tracking-tight text-fg">
+            Lịch sử rút tiền &amp; quyết toán
           </h3>
         </div>
         {payouts.length === 0 ? (

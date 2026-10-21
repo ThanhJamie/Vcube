@@ -1,7 +1,7 @@
 import React from 'react';
 import { MachineComparisonItem } from '../../types';
 import { Icon, Modal } from '@frontend/ui';
-import { EMPTY_VALUE, formatNumber } from '../../lib/format';
+import { EMPTY_VALUE, formatCurrency, formatNumber } from '../../lib/format';
 
 /** Số hữu hạn hay không — NULL/NaN ⇒ KHÔNG có giá trị (không đoán hộ). */
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -9,8 +9,7 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 /**
  * Tiền VND: thiếu giá trị ⇒ `—`, KHÔNG `NaN đ` và KHÔNG ném.
  */
-const vnd = (v: unknown): string =>
-  isNum(v) && v > 0 ? `${formatNumber(v)} đ` : EMPTY_VALUE;
+const vnd = (v: unknown): string => (isNum(v) && v > 0 ? formatCurrency(v) : EMPTY_VALUE);
 
 interface MachineComparisonModalProps {
   isOpen: boolean;
@@ -32,8 +31,7 @@ export const MachineComparisonModal: React.FC<MachineComparisonModalProps> = ({
   onSelectPrinter,
   showCost = false
 }) => {
-  if (!isOpen) return null;
-
+  // W2-NEW-1 (StrictMode): luôn mount <Modal>, chỉ đổi prop `open`; không return null.
   /*
    * GỢI Ý ĐIỀU PHỐI — chỉ suy từ SỐ ĐO của chính lượt so sánh này, không nêu máy nào ngoài `items`.
    */
@@ -48,7 +46,7 @@ export const MachineComparisonModal: React.FC<MachineComparisonModalProps> = ({
 
   return (
     <Modal
-      open
+      open={isOpen}
       onClose={onClose}
       size="xl"
       showCloseButton={false}
@@ -58,20 +56,21 @@ export const MachineComparisonModal: React.FC<MachineComparisonModalProps> = ({
           <span>
             <span className="flex items-center gap-2 mb-1">
               <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold">
-                PRC-009 // So Sánh Đa Máy In Tương Thích (Multi-Machine Slicer)
+                PRC-009 // So sánh đa máy in tương thích
               </span>
               <span className="px-2 py-0.5 text-xs bg-primary-tint text-primary font-bold rounded-sm">
-                Smart Router
+                Điều phối thông minh
               </span>
             </span>
             <span className="block font-sans font-bold text-base sm:text-lg text-fg">
-              Ma Trận Lựa Chọn Thiết Bị Gia Công Tối Ưu
+              Ma trận lựa chọn thiết bị gia công tối ưu
             </span>
           </span>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Đóng so sánh máy in"
-            className="shrink-0 p-1.5 hover:bg-surface-muted text-fg-subtle hover:text-fg rounded-lg transition-colors cursor-pointer"
+            className="shrink-0 inline-flex h-10 w-10 max-md:size-11 items-center justify-center hover:bg-surface-muted text-fg-subtle hover:text-fg rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Icon name="close" size={24} />
           </button>
@@ -81,15 +80,15 @@ export const MachineComparisonModal: React.FC<MachineComparisonModalProps> = ({
       <div className="space-y-5 p-5 sm:p-7">
         {/* Comparison Table */}
         <div className="border border-line rounded-lg overflow-hidden overflow-x-auto">
-          <table className="w-full text-left text-xs font-sans">
-            <thead className="bg-canvas text-fg-subtle text-xs uppercase tracking-wider border-b border-line">
+          <table className="w-full text-left text-sm font-sans">
+            <thead className="bg-surface-muted text-fg-subtle text-xs uppercase tracking-wider">
               <tr>
-                <th className="p-3">Thiết Bị / Công Nghệ</th>
-                <th className="p-3">Thời Gian In</th>
-                <th className="p-3">{showCost ? 'Giá Vốn / Bán' : 'Giá Bán'}</th>
-                <th className="p-3">Dự Kiến Xong</th>
-                <th className="p-3">Mức Rủi Ro</th>
-                <th className="p-3 text-right">Lựa Chọn</th>
+                <th className="h-10 px-4 text-left font-semibold">Thiết bị / Công nghệ</th>
+                <th className="h-10 px-4 text-left font-semibold">Thời gian in</th>
+                <th className="h-10 px-4 text-left font-semibold">{showCost ? 'Giá vốn / bán' : 'Giá bán'}</th>
+                <th className="h-10 px-4 text-left font-semibold">Dự kiến xong</th>
+                <th className="h-10 px-4 text-left font-semibold">Mức rủi ro</th>
+                <th className="h-10 px-4 text-right font-semibold">Lựa chọn</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line-subtle">
@@ -98,11 +97,11 @@ export const MachineComparisonModal: React.FC<MachineComparisonModalProps> = ({
                 return (
                   <tr
                     key={item.printerId}
-                    className={`hover:bg-canvas transition-colors ${
-                      isSelected ? 'bg-primary-tint/70 font-semibold' : ''
+                    className={`h-11 border-t border-line-subtle hover:bg-surface-muted/60 transition-colors ${
+                      isSelected ? 'bg-primary-tint font-semibold' : ''
                     }`}
                   >
-                    <td className="p-3">
+                    <td className="px-4 py-2">
                       <div className="font-bold text-fg flex items-center gap-1.5">
                         <span>{item.printerName}</span>
                         {item.recommendationTag && (
@@ -115,25 +114,25 @@ export const MachineComparisonModal: React.FC<MachineComparisonModalProps> = ({
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-fg-subtle">{item.technology} Industrial</span>
+                      <span className="text-xs text-fg-subtle">{item.technology} · công nghiệp</span>
                     </td>
 
-                    <td className="p-3 font-mono text-fg">
+                    <td className="px-4 py-2 font-mono tabular-nums text-fg">
                       {item.printTimeFormatted}
                     </td>
 
-                    <td className="p-3 font-mono">
+                    <td className="px-4 py-2 font-mono tabular-nums">
                       <div className="font-bold text-primary">{vnd(item.sellingPrice)}</div>
                       {showCost && (
                         <div className="text-xs text-fg-subtle">Vốn: {vnd(item.costPrice)}</div>
                       )}
                     </td>
 
-                    <td className="p-3 font-mono text-fg">
+                    <td className="px-4 py-2 font-mono tabular-nums text-fg">
                       {item.completionDate}
                     </td>
 
-                    <td className="p-3">
+                    <td className="px-4 py-2">
                       <span className={`px-2 py-0.5 text-xs font-mono font-bold rounded-sm ${
                         item.riskLevel === 'Thấp'
                           ? 'bg-positive-tint text-positive'
@@ -145,17 +144,17 @@ export const MachineComparisonModal: React.FC<MachineComparisonModalProps> = ({
                       </span>
                     </td>
 
-                    <td className="p-3 text-right">
+                    <td className="px-4 py-2 text-right">
                       <button
                         type="button"
                         onClick={() => {
                           onSelectPrinter(item.printerId);
                           onClose();
                         }}
-                        className={`px-3 py-1.5 text-xs uppercase font-mono tracking-wider font-bold rounded-lg transition-colors cursor-pointer ${
+                        className={`h-9 max-md:min-h-11 px-3 text-xs font-mono font-semibold tracking-wider rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                           isSelected
-                            ? 'bg-primary text-primary-fg shadow-e1'
-                            : 'bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse'
+                            ? 'bg-primary text-primary-fg'
+                            : 'bg-surface border border-line-control text-fg hover:bg-surface-muted'
                         }`}
                       >
                         {isSelected ? 'Đang Dùng' : 'Chọn Máy Này'}
@@ -169,8 +168,8 @@ export const MachineComparisonModal: React.FC<MachineComparisonModalProps> = ({
         </div>
 
         {/* Optimization Tips — chỉ từ số đo của chính bảng trên */}
-        <div className="p-3.5 bg-canvas border border-line rounded-lg text-xs space-y-1 text-fg-muted">
-          <strong className="text-fg block">Gợi ý thuật toán điều phối (Smart Routing):</strong>
+        <div className="p-3.5 bg-surface-muted border border-line-subtle rounded-lg text-xs space-y-1 text-fg-muted">
+          <strong className="text-fg block">Gợi ý thuật toán điều phối:</strong>
           {items.length === 0 ? (
             <p className="leading-relaxed">
               Bảng so sánh chưa có máy nào từ đội máy thật của xưởng — không có cơ sở để đề xuất.
@@ -203,10 +202,11 @@ export const MachineComparisonModal: React.FC<MachineComparisonModalProps> = ({
         {/* Footer */}
         <div className="flex justify-end pt-2">
           <button
+            type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-surface hover:bg-surface-muted border border-line-control text-fg text-xs font-mono uppercase tracking-wider font-bold rounded-lg transition-colors shadow-e1 cursor-pointer"
+            className="h-10 max-md:min-h-11 px-4 bg-surface hover:bg-surface-muted border border-line-control text-fg text-sm font-semibold rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Đóng Cửa Sổ
+            Đóng cửa sổ
           </button>
         </div>
       </div>

@@ -1,22 +1,15 @@
 /**
  * AppShell — khung dashboard dùng chung cho khu ĐÃ ĐĂNG NHẬP
- * (`/admin`, `/lab`, `/designer`, `/orders`, `/assets`) — spec: docs/plans/21-saas-spec.md §3.
+ * (`/admin`, `/lab`, `/designer`, `/orders`, `/assets`).
  *
- * Bố cục:
+ * Bố cục (console sáng — D-3, DESIGN-LANGUAGE §3.7):
+ * - `Topbar` cao **56px** (`h-14`) **full-width** nằm TRÊN hàng `flex`; sidebar sáng bắt
+ *   đầu dưới topbar (`sticky top-14 h-[calc(100dvh-3.5rem)]`).
  * - `SideNav` trái: **240px** (`w-60`), thu gọn **64px** (`w-16`); dưới `lg` chuyển thành
  *   drawer trượt từ trái (dùng `Sheet side="left"` — cùng cơ chế `<dialog>` của `Modal`,
  *   nên có top-layer + focus trap + Esc).
- * - `Topbar` cao **56px**.
- * - `chrome` (mặc định `false`): console tối — topbar sáng **full-width** nằm TRÊN hàng
- *   `flex`, sidebar tối bắt đầu dưới topbar (`sticky top-14 h-[calc(100dvh-3.5rem)]`),
- *   drawer mobile dùng `tone="chrome"`. `chrome={false}` giữ nguyên bố cục cũ 100%
- *   (topbar nằm trong cột nội dung).
- * - Vùng nội dung `PageHeader` + `Section`, bề rộng `max-w-[1400px]` (dashboard);
+ * - Vùng nội dung `mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6`;
  *   `maxWidth="reading"` = `max-w-3xl` cho trang đọc (chi tiết, hoá đơn).
- *
- * ⚠️ **`AppShell`/`SideNav`/`Topbar` là primitive MỚI của Đợt 11A — CHƯA áp vào trang nào.**
- * Việc thay `AdminSidebar`/`AdminDashboardView` bằng `AppShell` thuộc Đợt 11B+ và phải làm
- * theo từng khu, không gộp (`21-saas-spec.md` §6).
  *
  * Lưu ý kỹ thuật:
  * - `sidebar` được render **hai lần** (một `<aside>` chỉ hiện từ `lg`, một trong `Sheet` chỉ
@@ -62,12 +55,6 @@ export interface AppShellProps {
   /** Nút mở drawer mặc định (chỉ hiện dưới `lg`) — truyền `false` để tự làm nút khác. */
   showMobileNavButton?: boolean;
   openNavLabel?: string;
-  /**
-   * `true` = console tối: topbar sáng **full-width** đặt TRƯỚC hàng `flex`, sidebar tối
-   * bắt đầu dưới topbar, drawer mobile `tone="chrome"`. Mặc định `false` giữ nguyên bố
-   * cục cũ (topbar trong cột nội dung, aside cao `h-dvh`) — storefront không đổi.
-   */
-  chrome?: boolean;
   className?: string;
   contentClassName?: string;
 }
@@ -92,7 +79,6 @@ export function AppShell({
   skipLinkLabel = 'Bỏ qua điều hướng',
   showMobileNavButton = true,
   openNavLabel = 'Mở điều hướng',
-  chrome = false,
   className,
   contentClassName,
 }: AppShellProps) {
@@ -134,11 +120,11 @@ export function AppShell({
         {skipLinkLabel}
       </a>
 
-      {/* Chrome: topbar sáng FULL-WIDTH đặt TRƯỚC hàng `flex`, sidebar tối ở dưới. */}
-      {chrome && (topbarNode || mobileTrigger) ? (
+      {/* Topbar sáng FULL-WIDTH đặt TRƯỚC hàng `flex`; sidebar bắt đầu dưới topbar. */}
+      {topbarNode || mobileTrigger ? (
         <div className="sticky top-0 z-header flex flex-col">
           {mobileTrigger ? (
-            <div className="flex h-14 items-center border-b border-line-subtle bg-surface px-3 sm:px-4 lg:hidden">
+            <div className="flex h-14 items-center border-b border-line bg-surface px-3 backdrop-blur-md sm:px-4 lg:hidden">
               {mobileTrigger}
             </div>
           ) : null}
@@ -149,9 +135,7 @@ export function AppShell({
       <div className="flex">
         <aside
           className={cn(
-            chrome
-              ? 'sticky top-14 hidden h-[calc(100dvh-3.5rem)] shrink-0 border-r border-chrome-border lg:flex lg:flex-col'
-              : 'sticky top-0 hidden h-dvh shrink-0 border-r border-line-subtle bg-surface lg:flex lg:flex-col',
+            'sticky top-14 hidden h-[calc(100dvh-3.5rem)] shrink-0 border-r border-line bg-surface lg:flex lg:flex-col',
             collapsed ? 'lg:w-16' : 'lg:w-60',
           )}
         >
@@ -163,7 +147,6 @@ export function AppShell({
           open={mobileOpen}
           onClose={closeNav}
           side="left"
-          tone={chrome ? 'chrome' : 'light'}
           aria-label={navLabel}
           showCloseButton={false}
           panelClassName="lg:hidden"
@@ -172,22 +155,11 @@ export function AppShell({
         </Sheet>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {!chrome && (topbarNode || mobileTrigger) ? (
-            <div className="sticky top-0 z-header flex flex-col">
-              {mobileTrigger ? (
-                <div className="flex h-14 items-center border-b border-line-subtle bg-surface px-3 sm:px-4 lg:hidden">
-                  {mobileTrigger}
-                </div>
-              ) : null}
-              {topbarNode}
-            </div>
-          ) : null}
-
           <main
             id={mainId}
             aria-label={mainLabel}
             className={cn(
-              'mx-auto flex w-full min-w-0 flex-1 flex-col gap-section px-4 py-6 sm:px-6',
+              'mx-auto flex w-full min-w-0 flex-1 flex-col gap-section px-4 py-6 sm:px-6 lg:px-8',
               MAX_WIDTH[maxWidth],
               contentClassName,
             )}

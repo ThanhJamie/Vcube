@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MaterialProfile, PrinterProfile, InkiriCostFormulaConfig, AccessoryItem } from '../../types';
 import { calculateManualInkiriEstimate } from '../../utils/pricingEngine';
 import { getStore, settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
-import { Icon } from '@frontend/ui';
+import { Icon, Button } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';
 
 /** Snapshot `app_settings` suy ra từ accessor — `null` = CHƯA cấu hình. */
@@ -133,7 +133,7 @@ export const WorkshopEstimatorBOM: React.FC<WorkshopEstimatorBOMProps> = ({
   if (!isConfiguredNumber(weightGrams)) unavailableInputs.push('Khối lượng nhựa (g / cái) — ô nhập bên trái.');
   if (!isConfiguredNumber(printHours)) unavailableInputs.push('Thời gian in (giờ / cái) — ô nhập bên trái.');
   if (!quantityKnown) unavailableInputs.push('Số lượng đặt in — ô nhập bên trái.');
-  if (!isConfiguredNumber(customMarkup)) unavailableInputs.push('Markup lợi nhuận xưởng (%) — ô nhập bên trái.');
+  if (!isConfiguredNumber(customMarkup)) unavailableInputs.push('Hệ số lãi xưởng (%) — ô nhập bên trái.');
 
   const estimateComplete = unavailableInputs.length === 0;
 
@@ -260,7 +260,7 @@ export const WorkshopEstimatorBOM: React.FC<WorkshopEstimatorBOMProps> = ({
       : '   + Đóng gói tiêu chuẩn';
 
     const contactLine = [
-      hotline ? `Hotline ${hotline}` : null,
+      hotline ? `Đường dây nóng ${hotline}` : null,
       contactEmail ? `Email ${contactEmail}` : null
     ].filter(Boolean).join(' • ');
 
@@ -305,28 +305,28 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-surface p-5 border border-line rounded-sm shadow-e1">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-lg border border-line-subtle bg-surface p-6 sm:p-8">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <div className="flex items-center gap-2">
               <Icon name="receipt_long" size={24} className="text-primary" />
-              <h2 className="text-base font-bold text-fg">
-                Trình Dự Toán BOM Kỹ Thuật & Báo Giá Nhanh Xưởng (Workshop Estimator)
+              <h2 className="text-lg font-bold tracking-tight text-fg">
+                Trình Dự Toán BOM Kỹ Thuật & Báo Giá Nhanh Xưởng
               </h2>
             </div>
-            <p className="text-xs text-fg-muted mt-1">
+            <p className="mt-1 text-sm text-fg-muted">
               Dành riêng cho Quản lý & Kỹ thuật viên: Bóc tách cấu trúc giá thành 8 tầng chi phí, tích hợp tự động phụ kiện (móc khóa, ốc cấy, bao bì) và kiểm tra tồn kho kho xưởng tức thì.
             </p>
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="primary"
+            leadingIcon={<Icon name="content_copy" size={16} />}
             onClick={handleCopyFormalQuote}
-            className="px-4 py-2.5 bg-primary text-primary-fg rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-primary-hover flex items-center gap-2 shadow-e1 shrink-0"
           >
-            <Icon name="content_copy" size={16} />
             Sao Chép Báo Giá Gửi Khách (Zalo/Email)
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -335,52 +335,52 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
         {/* Left Column: Project & Manufacturing Parameters */}
         <div className="lg:col-span-6 space-y-5">
           {/* 1. Job Information */}
-          <div className="bg-surface p-5 border border-line rounded-sm space-y-4 shadow-e1">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-fg flex items-center gap-2 pb-2 border-b border-line-subtle">
+          <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+            <h3 className="flex items-center gap-2 border-b border-line-subtle pb-2 text-xs font-semibold uppercase tracking-wider text-fg">
               <Icon name="badge" size={16} className="text-primary" />
               1. Thông Tin Khách Hàng & Đơn Hàng Gia Công
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
               <div>
-                <label htmlFor="bom-job-name" className="font-bold text-fg block mb-1">Tên Dự Án / Phôi In</label>
+                <label htmlFor="bom-job-name" className="mb-1 block text-sm font-medium text-fg">Tên Dự Án / Phôi In</label>
                 <input
                   id="bom-job-name"
                   type="text"
                   value={jobName}
                   onChange={(e) => setJobName(e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-sm font-medium"
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               <div>
-                <label htmlFor="bom-customer" className="font-bold text-fg block mb-1">Tên Khách Hàng / Đơn Vị</label>
+                <label htmlFor="bom-customer" className="mb-1 block text-sm font-medium text-fg">Tên Khách Hàng / Đơn Vị</label>
                 <input
                   id="bom-customer"
                   type="text"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-sm font-medium"
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
             </div>
           </div>
 
           {/* 2. Slicing & Machine Parameters */}
-          <div className="bg-surface p-5 border border-line rounded-sm space-y-4 shadow-e1">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-fg flex items-center gap-2 pb-2 border-b border-line-subtle">
+          <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+            <h3 className="flex items-center gap-2 border-b border-line-subtle pb-2 text-xs font-semibold uppercase tracking-wider text-fg">
               <Icon name="precision_manufacturing" size={16} className="text-primary" />
               2. Thông Số Kỹ Thuật In 3D & Máy Móc
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
               <div>
-                <label htmlFor="bom-printer" className="font-bold text-fg block mb-1">Máy In Sử Dụng</label>
+                <label htmlFor="bom-printer" className="mb-1 block text-sm font-medium text-fg">Máy In Sử Dụng</label>
                 <select
                   id="bom-printer"
                   value={selectedPrinterId}
                   onChange={(e) => setSelectedPrinterId(e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-sm font-bold bg-surface"
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   {printers.map(p => (
                     <option key={p.id} value={p.id}>
@@ -391,12 +391,12 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
               </div>
 
               <div>
-                <label htmlFor="bom-material" className="font-bold text-fg block mb-1">Loại Nhựa / Resin</label>
+                <label htmlFor="bom-material" className="mb-1 block text-sm font-medium text-fg">Loại Nhựa / Resin</label>
                 <select
                   id="bom-material"
                   value={selectedMaterialId}
                   onChange={(e) => setSelectedMaterialId(e.target.value)}
-                  className="w-full p-2 border border-line-control rounded-sm font-bold bg-surface"
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   {materials.map(m => (
                     <option key={m.id} value={m.id}>
@@ -407,7 +407,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
               </div>
 
               <div>
-                <label htmlFor="bom-weight" className="font-bold text-fg block mb-1">Khối Lượng Nhựa (g / cái)</label>
+                <label htmlFor="bom-weight" className="mb-1 block text-sm font-medium text-fg">Khối Lượng Nhựa (g / cái)</label>
                 <input
                   id="bom-weight"
                   type="number"
@@ -415,12 +415,12 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   placeholder="Chưa nhập"
                   value={weightGrams ?? ''}
                   onChange={(e) => setWeightGrams(numberOrUndefined(e.target.value))}
-                  className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               <div>
-                <label htmlFor="bom-hours" className="font-bold text-fg block mb-1">Thời Gian In (giờ / cái)</label>
+                <label htmlFor="bom-hours" className="mb-1 block text-sm font-medium text-fg">Thời Gian In (giờ / cái)</label>
                 <input
                   id="bom-hours"
                   type="number"
@@ -429,13 +429,13 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   placeholder="Chưa nhập"
                   value={printHours ?? ''}
                   onChange={(e) => setPrintHours(numberOrUndefined(e.target.value))}
-                  className="w-full p-2 border border-line-control rounded-sm font-tech font-bold"
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               <div>
-                <label htmlFor="bom-quantity" className="font-bold text-fg block mb-1">Số Lượng Đặt In (Batch)</label>
-                <div className="flex items-center gap-1.5">
+                <label htmlFor="bom-quantity" className="mb-1 block text-sm font-medium text-fg">Số Lượng Đặt In (lô)</label>
+                <div className="flex flex-wrap items-center gap-1.5">
                   <input
                     id="bom-quantity"
                     type="number"
@@ -443,7 +443,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                     placeholder="Chưa nhập"
                     value={quantity ?? ''}
                     onChange={(e) => setQuantity(numberOrUndefined(e.target.value))}
-                    className="w-full p-2 border border-line-control rounded-sm font-tech font-bold text-base text-primary"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-primary placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <div className="flex gap-1 shrink-0">
                     {[1, 10, 50, 100].map(q => (
@@ -451,8 +451,8 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                         key={q}
                         type="button"
                         onClick={() => setQuantity(q)}
-                        className={`px-2 py-1.5 text-xs font-tech font-bold rounded-sm border ${
-                          quantity === q ? 'bg-surface-inverse text-on-inverse border-line' : 'bg-surface-muted text-fg-muted'
+                        className={`rounded-md border px-2 py-1.5 font-mono text-xs font-bold tabular-nums transition-colors max-md:min-h-11 ${
+                          quantity === q ? 'border-primary bg-primary text-primary-fg' : 'border-line-control bg-surface text-fg-muted hover:bg-surface-muted'
                         }`}
                       >
                         x{q}
@@ -463,7 +463,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
               </div>
 
               <div>
-                <label htmlFor="bom-markup" className="font-bold text-fg block mb-1">Markup Lợi Nhuận Xưởng (%)</label>
+                <label htmlFor="bom-markup" className="mb-1 block text-sm font-medium text-fg">Hệ Số Lãi Xưởng (%)</label>
                 <div className="flex items-center gap-2">
                   <input
                     id="bom-markup"
@@ -475,7 +475,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                     onChange={(e) => setCustomMarkup(numberOrUndefined(e.target.value))}
                     className="w-full accent-primary"
                   />
-                  <span className="font-tech font-bold text-xs text-primary w-12 text-right">
+                  <span className="w-12 text-right font-mono text-xs font-bold tabular-nums text-primary">
                     {isConfiguredNumber(customMarkup) ? `${customMarkup}%` : '—'}
                   </span>
                 </div>
@@ -484,20 +484,20 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
           </div>
 
           {/* 3. Phụ Kiện & Bao Bì Đóng Gói Đi Kèm (Key Feature) */}
-          <div className="bg-surface p-5 border border-line rounded-sm space-y-4 shadow-e1">
+          <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
             <div className="flex items-center justify-between pb-2 border-b border-line-subtle">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-fg flex items-center gap-2">
+              <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-fg">
                 <Icon name="extension" size={16} className="text-primary" />
-                3. Chọn Phụ Kiện & Bao Bì Đóng Gói (Add-on Hardware)
+                3. Chọn Phụ Kiện & Bao Bì Đóng Gói (phụ kiện bổ sung)
               </h3>
-              <span className="text-xs font-tech text-fg-muted">
+              <span className="text-xs font-mono tabular-nums text-fg-muted">
                 Đã chọn: <strong>{detailedSelectedAccessories.length}</strong> món
               </span>
             </div>
 
             {hasOutOfStockAccessories && (
-              <div className="p-3 bg-danger-tint border border-danger/30 rounded-sm text-xs text-danger flex items-center gap-2 font-bold animate-pulse motion-reduce:animate-none">
-                <Icon name="warning" size={18} className="text-danger" />
+              <div className="flex items-center gap-2 rounded-md border border-danger/20 bg-danger-tint p-3 text-xs font-semibold text-danger">
+                <Icon name="warning" size={18} className="shrink-0 text-danger" />
                 Cảnh báo: Có phụ kiện trong đơn hàng đang thiếu hàng trong kho! Cần nhập thêm.
               </div>
             )}
@@ -514,10 +514,10 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                 return (
                   <div
                     key={acc.id}
-                    className={`p-3 border rounded-sm transition-colors text-xs ${
+                    className={`rounded-md border p-3 text-xs transition-colors ${
                       isSelected
-                        ? 'border-primary bg-primary-tint/40 ring-1 ring-primary'
-                        : 'border-line-subtle hover:border-line bg-surface-muted'
+                        ? 'border-primary bg-primary-tint/60'
+                        : 'border-line-subtle bg-surface-muted hover:border-line'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -527,7 +527,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleToggleAccessory(acc.id)}
-                          className="accent-primary w-4 h-4 rounded-sm"
+                          className="size-4 rounded-sm accent-primary"
                         />
                         <div className="truncate">
                           <p className="font-bold text-fg truncate">{acc.name}</p>
@@ -553,14 +553,14 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                             max="20"
                             value={qtyPerPart}
                             onChange={(e) => handleUpdateAccessoryQty(acc.id, Number(e.target.value))}
-                            className="w-12 p-1 border border-primary rounded-sm text-center font-tech font-bold bg-surface"
+                            className="h-9 w-14 rounded-md border border-line-control bg-surface px-2 text-center font-mono text-sm font-bold tabular-nums text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                           />
                         </div>
                       )}
                     </div>
 
                     {isSelected && isStockShortage && (
-                      <div className="mt-2 text-xs text-danger bg-danger-tint p-1.5 rounded-sm border border-danger/30 font-bold">
+                      <div className="mt-2 rounded-sm border border-danger/30 bg-danger-tint p-2 text-xs font-bold text-danger">
                         Thiếu {(totalNeeded as number) - acc.stockCount} {acc.unit} (Yêu cầu: {plainNumber(totalNeeded)} • Tồn: {acc.stockCount})
                       </div>
                     )}
@@ -575,12 +575,12 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
         <div className="lg:col-span-6 space-y-5">
           {/* Thiếu cấu hình ⇒ KHÔNG hiện giá (không suy đoán hộ), chỉ liệt kê việc cần làm */}
           {!estimateComplete && (
-            <div role="status" className="bg-surface p-5 border border-warning/40 rounded-sm shadow-e1 space-y-2">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-warning flex items-center gap-2">
+            <div role="status" className="space-y-2 rounded-lg border border-warning/20 bg-warning-tint/50 p-6">
+              <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-warning">
                 <Icon name="warning" size={16} />
                 Chưa đủ cấu hình để tính giá — {unavailableInputs.length} thông số còn thiếu
               </h3>
-              <p className="text-xs text-fg-muted">
+              <p className="text-sm text-fg-muted">
                 Hệ thống KHÔNG tự điền giá trị đoán và KHÔNG tạo báo giá gửi khách khi còn thông số chưa có nguồn.
               </p>
               <ul className="text-xs text-fg-muted list-disc pl-5 space-y-0.5">
@@ -592,19 +592,19 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
           )}
 
           {/* Summary Price Card */}
-          <div className="bg-gradient-to-br from-surface-inverse to-surface-inverse-raised text-on-inverse p-6 rounded-lg shadow-e2 space-y-4">
+          <div className="space-y-4 rounded-lg border border-surface-inverse-raised bg-surface-inverse p-6 text-on-inverse">
             <div className="flex items-center justify-between border-b border-surface-inverse-raised pb-3">
               <div>
-                <span className="text-xs font-tech uppercase tracking-widest text-accent block">
-                  BÁO GIÁ XUẤT XƯỞNG DỰ TÍNH (BATCH BẢNG GIÁ)
+                <span className="text-xs font-mono tabular-nums uppercase tracking-widest text-accent block">
+                  BÁO GIÁ XUẤT XƯỞNG DỰ TÍNH (THEO LÔ)
                 </span>
-                <h3 className="text-xl font-bold font-tech text-on-inverse mt-0.5">
+                <h3 className="text-xl font-bold font-mono tabular-nums text-on-inverse mt-0.5">
                   {money(totalBatchPrice)}
                 </h3>
               </div>
               <div className="text-right">
-                <span className="text-xs text-fg-subtle block uppercase">Đơn Giá 1 Chiếc</span>
-                <span className="text-base font-tech font-bold text-accent">
+                <span className="text-xs text-on-inverse/70 block uppercase">Đơn Giá 1 Chiếc</span>
+                <span className="text-base font-mono tabular-nums font-bold text-accent">
                   {money(finalUnitPriceAfterDiscount)}
                 </span>
               </div>
@@ -613,20 +613,20 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
             {/* Quick Metrics Bar */}
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="bg-on-inverse/5 p-2.5 rounded-sm border border-on-inverse/10">
-                <span className="text-xs text-fg-subtle block">Tổng Giá Vốn (COGS)</span>
-                <span className="font-tech font-bold text-on-inverse">
+                <span className="text-xs text-on-inverse/70 block">Tổng Giá Vốn (COGS)</span>
+                <span className="font-mono tabular-nums font-bold text-on-inverse">
                   {money(totalBatchCost)}
                 </span>
               </div>
               <div className="bg-on-inverse/5 p-2.5 rounded-sm border border-on-inverse/10">
-                <span className="text-xs text-fg-subtle block">Lợi Nhuận Xưởng</span>
-                <span className="font-tech font-bold text-positive">
+                <span className="text-xs text-on-inverse/70 block">Lợi Nhuận Xưởng</span>
+                <span className="font-mono tabular-nums font-bold text-positive-tint">
                   {totalBatchProfit === null ? '—' : `+${money(totalBatchProfit)}`}
                 </span>
               </div>
               <div className="bg-on-inverse/5 p-2.5 rounded-sm border border-on-inverse/10">
-                <span className="text-xs text-fg-subtle block">Biên Lợi Nhuận</span>
-                <span className="font-tech font-bold text-accent">
+                <span className="text-xs text-on-inverse/70 block">Biên Lợi Nhuận</span>
+                <span className="font-mono tabular-nums font-bold text-accent">
                   {netMarginPercent === null ? '—' : `${netMarginPercent}%`}
                 </span>
               </div>
@@ -634,17 +634,18 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
 
             {/* Wholesale / Discount Adjustment */}
             <div className="pt-2 border-t border-surface-inverse-raised flex items-center justify-between text-xs">
-              <span className="text-fg-subtle">Chiết khấu ưu đãi khách hàng (%):</span>
+              <span className="text-on-inverse/70">Chiết khấu ưu đãi khách hàng (%):</span>
               <div className="flex items-center gap-2">
                 {[0, 5, 10, 15, 20].map(d => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => setCustomDiscountPercent(d)}
-                    className={`px-2 py-0.5 text-xs font-tech font-bold rounded-sm ${
+                    aria-pressed={customDiscountPercent === d}
+                    className={`rounded-md px-2.5 py-1 font-mono text-xs font-bold tabular-nums transition-colors max-md:min-h-11 ${
                       customDiscountPercent === d
-                        ? 'bg-surface-inverse text-accent'
-                        : 'bg-surface-muted text-fg-muted hover:bg-line-subtle'
+                        ? 'bg-on-inverse text-fg'
+                        : 'bg-on-inverse/10 text-on-inverse/80 hover:bg-on-inverse/20'
                     }`}
                   >
                     {d === 0 ? '0%' : `-${d}%`}
@@ -655,8 +656,8 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
           </div>
 
           {/* 8-Part Manufacturing Bill of Materials (BOM) Table */}
-          <div className="bg-surface p-5 border border-line rounded-sm shadow-e1 space-y-4">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-fg flex items-center gap-2 pb-2 border-b border-line-subtle">
+          <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+            <h3 className="flex items-center gap-2 border-b border-line-subtle pb-3 text-xs font-semibold uppercase tracking-wider text-fg">
               <Icon name="account_tree" size={16} className="text-primary" />
               Bảng Phân Tích Chi Phí Sản Xuất Chi Tiết (8 Lớp Chi Phí BOM)
             </h3>
@@ -668,7 +669,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="w-2 h-2 rounded-full bg-info"></span>
                   <span className="font-bold text-fg">1. Chi Phí Nhựa In ({selectedMaterial?.name || '—'})</span>
                 </div>
-                <div className="text-right font-tech">
+                <div className="text-right font-mono tabular-nums">
                   <span className="font-bold text-fg">{money(estimate?.materialCost)}</span>
                   <span className="text-xs text-fg-muted block">
                     ({plainNumber(weightGrams)}g x {plainNumber(quantity)} cái = {money(estimate && quantityKnown ? estimate.materialCost * (quantity as number) : null)})
@@ -682,7 +683,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="w-2 h-2 rounded-full bg-warning"></span>
                   <span className="font-bold text-fg">2. Điện Năng Máy In ({selectedPrinter ? `${plainNumber(selectedPrinter.powerKW)} kW` : '—'})</span>
                 </div>
-                <div className="text-right font-tech">
+                <div className="text-right font-mono tabular-nums">
                   <span className="font-bold text-fg">{money(estimate?.electricityCost)}</span>
                   <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? estimate.electricityCost * (quantity as number) : null)}/lô)</span>
                 </div>
@@ -692,9 +693,9 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-info"></span>
-                  <span className="font-bold text-fg">3. Khấu Hao Máy & Hao Mòn Nozzle</span>
+                  <span className="font-bold text-fg">3. Khấu Hao Máy & Hao Mòn Đầu Phun</span>
                 </div>
-                <div className="text-right font-tech">
+                <div className="text-right font-mono tabular-nums">
                   <span className="font-bold text-fg">{money(estimate?.machineTotal)}</span>
                   <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? estimate.machineTotal * (quantity as number) : null)}/lô)</span>
                 </div>
@@ -706,7 +707,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="w-2 h-2 rounded-full bg-positive"></span>
                   <span className="font-bold text-fg">4. Nhân Công Kỹ Thuật ({plainNumber(totalLaborMins)} phút)</span>
                 </div>
-                <div className="text-right font-tech">
+                <div className="text-right font-mono tabular-nums">
                   <span className="font-bold text-fg">{money(estimate?.laborCost)}</span>
                   <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? estimate.laborCost * (quantity as number) : null)}/lô)</span>
                 </div>
@@ -725,7 +726,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                     ))}
                   </div>
                 </div>
-                <div className="text-right font-tech">
+                <div className="text-right font-mono tabular-nums">
                   <span className="font-bold text-fg">{money(estimate ? estimate.packaging + estimate.accessories : null)}</span>
                   <span className="text-xs text-fg-muted block">({money(estimate && quantityKnown ? (estimate.packaging + estimate.accessories) * (quantity as number) : null)}/lô)</span>
                 </div>
@@ -737,7 +738,7 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="w-2 h-2 rounded-full bg-fg-subtle"></span>
                   <span className="font-bold text-fg">6. Quản Lý Xưởng & Mặt Bằng</span>
                 </div>
-                <div className="text-right font-tech">
+                <div className="text-right font-mono tabular-nums">
                   <span className="font-bold text-fg">{money(estimate?.overhead)}</span>
                 </div>
               </div>
@@ -748,15 +749,15 @@ ${contactLine ? `\nLiên hệ VCUBE: ${contactLine}` : ''}
                   <span className="w-2 h-2 rounded-full bg-danger"></span>
                   <span className="font-bold text-fg">7. Dự Phòng Rủi Ro Hỏng Mẫu ({plainNumber(pricingConfig.baseFailureReservePercent)}%)</span>
                 </div>
-                <div className="text-right font-tech text-danger font-bold">
+                <div className="text-right font-mono tabular-nums text-danger font-bold">
                   {estimate ? `+${money(estimate.failureCost)}` : '—'}
                 </div>
               </div>
 
               {/* Summary Total Cost Row */}
-              <div className="flex items-center justify-between pt-3 bg-canvas p-2 rounded-sm font-bold text-xs text-fg">
+              <div className="mt-2 flex items-center justify-between border-t border-line-subtle pt-4 text-lg font-bold text-fg">
                 <span>TỔNG GIÁ THÀNH XUẤT XƯỞNG (COGS / Cái):</span>
-                <span className="font-tech text-sm text-primary">
+                <span className="font-mono text-lg tabular-nums text-primary">
                   {money(estimate?.costPriceUnit)}
                 </span>
               </div>

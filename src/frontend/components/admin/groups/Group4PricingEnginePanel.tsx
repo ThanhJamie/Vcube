@@ -34,9 +34,9 @@ export const Group4PricingEnginePanel: React.FC<Group4PricingEnginePanelProps> =
 }) => {
   return (
     <div className="space-y-4">
-      <div className="bg-surface p-4 rounded-lg shadow-e1 flex items-center justify-between">
+      <div className="bg-surface p-4 rounded-lg border border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="px-2.5 py-0.5 bg-primary-tint text-primary font-tech text-xs font-bold rounded-sm uppercase tracking-wider">
+          <span className="px-2.5 py-0.5 bg-primary-tint text-primary font-mono text-xs font-semibold rounded-sm uppercase tracking-wider">
             DANH MỤC & ĐỊNH GIÁ
           </span>
           <span className="text-xs text-fg-subtle">Cấu hình tham số giá, khấu hao máy in, định mức nhựa & dự toán BOM</span>

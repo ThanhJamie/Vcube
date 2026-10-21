@@ -290,6 +290,11 @@ await expectColumnsBlocked('SEC-01: anon designer_profiles.tax_id', 'designer_pr
   'rò mã số thuế của nhà thiết kế');
 await expectColumnsReadable('SEC-01: anon designer_profiles cột an toàn', 'designer_profiles', 'id,display_name');
 
+/* SEC-01/T20: bảng tách PII thanh toán. Anon phải bị chặn (401/42501 hoặc 0 dòng) và khoá
+ * secret phải thấy bảng; trước khi áp 20261013090000 thì SKIP qua PGRST205. */
+await expectZeroTwoKey('SEC-01: anon designer_payout_info ?select=*', 'designer_payout_info', null,
+  'rò bank_name/bank_account/tax_id của nhà thiết kế');
+
 await expectColumnsBlocked('SEC-02: anon custom_design_requests ?select=*', 'custom_design_requests', '*',
   'lộ PII/hội thoại của yêu cầu CAD chưa gán');
 await expectColumnsBlocked('SEC-02: anon cdr.client_name', 'custom_design_requests', 'client_name',

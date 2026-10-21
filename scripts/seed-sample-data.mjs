@@ -657,10 +657,19 @@ function buildPlan(ctx) {
     {
       table: 'designer_profiles', conflict: 'id',
       rows: [
-        { id: ctx.designerUserId, user_id: ctx.designerUserId, display_name: `${MARK}Lê Thắng (demo)`, bio: `${MARK}Hồ sơ nhà thiết kế để test UI.`, portfolio_url: 'https://example.com/demo', avatar_url: IMG.ava, bank_name: 'Ngân hàng demo', bank_account: '0000000000', tax_id: 'DEMO-TAX-0001', royalty_percent: ctx.royaltyPercent, verified_status: 'Verified', rating: 4.8, total_sales: 18500000, created_at: daysAgo(120), updated_at: daysAgo(3) },
-        { id: U(90), user_id: null, display_name: `${MARK}Designer Demo 02`, bio: `${MARK}Hồ sơ chờ duyệt để test hàng đợi.`, portfolio_url: '', avatar_url: IMG.ava, bank_name: '', bank_account: '', tax_id: '', royalty_percent: 12, verified_status: 'Pending', rating: null, total_sales: 0, created_at: daysAgo(30), updated_at: daysAgo(2), _note: 'verified_status = Pending + rating NULL' },
+        { id: ctx.designerUserId, user_id: ctx.designerUserId, display_name: `${MARK}Lê Thắng (demo)`, bio: `${MARK}Hồ sơ nhà thiết kế để test UI.`, portfolio_url: 'https://example.com/demo', avatar_url: IMG.ava, royalty_percent: ctx.royaltyPercent, verified_status: 'Verified', rating: 4.8, total_sales: 18500000, created_at: daysAgo(120), updated_at: daysAgo(3) },
+        { id: U(90), user_id: null, display_name: `${MARK}Designer Demo 02`, bio: `${MARK}Hồ sơ chờ duyệt để test hàng đợi.`, portfolio_url: '', avatar_url: IMG.ava, royalty_percent: 12, verified_status: 'Pending', rating: null, total_sales: 0, created_at: daysAgo(30), updated_at: daysAgo(2), _note: 'verified_status = Pending + rating NULL' },
       ],
       label: '2 hồ sơ designer (1 Verified, 1 Pending)',
+    },
+    {
+      // T20: thông tin nhận tiền đã tách khỏi `designer_profiles` (SEC-01).
+      table: 'designer_payout_info', conflict: 'designer_id',
+      rows: [
+        { designer_id: ctx.designerUserId, bank_name: 'Ngân hàng demo', bank_account: '0000000000', tax_id: 'DEMO-TAX-0001', created_at: daysAgo(120), updated_at: daysAgo(3) },
+        { designer_id: U(90), bank_name: '', bank_account: '', tax_id: '', created_at: daysAgo(30), updated_at: daysAgo(2), _note: 'hàng tồn tại nhưng RỖNG ⇒ test nhánh "chưa khai báo thông tin nhận tiền"' },
+      ],
+      label: '2 thông tin nhận tiền (1 có dữ liệu, 1 rỗng)',
     },
     {
       table: 'customer_profiles', conflict: 'id',
@@ -782,6 +791,7 @@ function selfCheck(plan) {
     ['đánh giá pending cho hàng đợi duyệt', byTable.reviews.filter((r) => r.status === 'pending').map((r) => r.id)],
     ['mọi stock_status Tracking/LowStock/OutOfStock đều có', ['Tracking', 'LowStock', 'OutOfStock'].filter((s) => byTable.workshop_materials.some((m) => m.stock_status === s))],
     ['hoa hồng NULL ở 1 xưởng ⇒ test fallback mặc định', byTable.workshop_commission_terms.filter((c) => c.commission_percent === null).map((c) => c.partner_id)],
+    ['thông tin nhận tiền (T20): 1 hàng có dữ liệu + 1 hàng rỗng', (byTable.designer_payout_info || []).map((r) => r.designer_id)],
   ];
   for (const [label, hit] of cov) if (!hit.length) problems.push(`mất nhánh UI: ${label}`);
   return { problems, cov };
@@ -964,6 +974,7 @@ const DELETABLE = [
   { table: 'orders', ids: () => idsOf('orders'), marker: null },
   { table: 'workshop_commission_terms', ids: () => null, marker: { col: 'note', op: 'like', val: `${MARK}%` } },
   { table: 'kyc_records', ids: () => ['DEMO-KYC-01'], marker: null },
+  { table: 'designer_payout_info', ids: () => idsOf('designer_payout_info', 'designer_id'), idField: 'designer_id', marker: null },
   { table: 'designer_profiles', ids: () => null, marker: { col: 'display_name', op: 'like', val: `${MARK}%` } },
   { table: 'customer_profiles', ids: () => null, marker: { col: 'display_name', op: 'like', val: `${MARK}%` } },
   { table: 'workshop_machines', ids: () => idsOf('workshop_machines'), marker: null },
@@ -975,7 +986,8 @@ const DELETABLE = [
   { table: 'accessories', ids: () => ACCESSORIES.map((a) => a.id), marker: null },
 ];
 let PLAN_CACHE = null;
-const idsOf = (table) => (PLAN_CACHE.find((p) => p.table === table)?.rows || []).map((r) => r.id).filter(Boolean);
+const idsOf = (table, field = 'id') =>
+  (PLAN_CACHE.find((p) => p.table === table)?.rows || []).map((r) => r[field]).filter(Boolean);
 
 async function removeAll(bk) {
   console.log('\n=== XOÁ HÀNG MẪU (chỉ hàng có dấu DEMO-/d0d0d0d0-/[MẪU]) ===');
@@ -987,10 +999,10 @@ async function removeAll(bk) {
     let q = sb.from(step.table).delete();
     q = step.marker
       ? (step.marker.op === 'like' ? q.like(step.marker.col, step.marker.val) : q.eq(step.marker.col, step.marker.val))
-      : q.in('id', ids);
+      : q.in(step.idField || 'id', ids);
     if (step.marker) q = q.select(step.marker.col);
     else if (step.table === 'workshop_commission_terms') q = q.select('partner_id');
-    else q = q.select('id');
+    else q = q.select(step.idField || 'id');
     const { data, error } = await q;
     writeStats.requests++;
     if (error) { console.log(`  ✖ ${step.table}: ${error.code} ${error.message}`); summary.push([step.table, 0, 'LỖI: ' + error.message]); continue; }

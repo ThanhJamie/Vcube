@@ -15,7 +15,7 @@
  * - `aria-labelledby` -> title, `aria-describedby` -> description (id sinh bằng `useId`).
  * - Trả focus về phần tử đã mở modal khi đóng (nếu phần tử còn trong DOM).
  * - Không tự vẽ `div` overlay: `::backdrop` của nền tảng + nền mờ trên chính `<dialog>`.
- * - Bán kính panel: `rounded-modal` = **14px** (`--radius-modal`, 21-saas-spec.md §1.1).
+ * - Bán kính panel: `rounded-modal` = **20px** (`--radius-modal`, DESIGN-LANGUAGE §2.1).
  *   Placement `'left'` phục vụ `SideNav` mobile của `AppShell`.
  */
 
@@ -24,7 +24,6 @@ import { useEffect, useId, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, RefObject } from 'react';
 import { Button } from './Button';
 import { cn } from './cn';
-import type { Tone } from './tone';
 
 /* -------------------------------------------------------------------------- */
 /* Khoá scroll body — đếm tham chiếu (ref count)                              */
@@ -91,8 +90,6 @@ export interface ModalProps {
   description?: ReactNode;
   size?: ModalSize;
   placement?: ModalPlacement;
-  /** Bề mặt panel: `light` (mặc định) hoặc `chrome` (console tối). */
-  tone?: Tone;
   footer?: ReactNode;
   children?: ReactNode;
   /** Gắn vào chính `<dialog>` (lớp phủ toàn màn hình). */
@@ -121,7 +118,7 @@ export interface ModalProps {
  */
 const DIALOG_BASE = [
   'fixed inset-0 z-modal m-0 h-full w-full max-h-none max-w-none overflow-hidden p-0',
-  'bg-surface-inverse/60 text-fg backdrop:bg-surface-inverse/40',
+  'bg-fg/40 backdrop-blur-sm text-fg backdrop:bg-fg/40',
   'open:flex',
 ].join(' ');
 
@@ -133,16 +130,11 @@ const CONTAINER: Record<ModalPlacement, string> = {
 };
 
 const PANEL_BASE = [
-  'relative flex flex-col overflow-hidden shadow-e3',
+  'relative flex flex-col overflow-hidden bg-surface text-fg shadow-e3',
   'transition duration-base ease-out',
   'starting:scale-95 starting:opacity-0',
   'motion-reduce:transition-none',
 ].join(' ');
-
-const PANEL_TONE: Record<Tone, string> = {
-  light: 'bg-surface text-fg',
-  chrome: 'bg-chrome text-chrome-fg',
-};
 
 const SIZE_WIDTH: Record<ModalSize, string> = {
   sm: 'max-w-sm',
@@ -154,12 +146,14 @@ const SIZE_WIDTH: Record<ModalSize, string> = {
 
 /** Class panel tính theo biến (không lồng class xung đột để không phụ thuộc thứ tự CSS). */
 function panelClasses(placement: ModalPlacement, size: ModalSize): string {
-  // Bán kính panel = `--radius-modal` (14px) — 21-saas-spec.md §1.1 (bản cũ 20px).
-  if (placement === 'bottom') return 'w-full max-w-none max-h-[85dvh] rounded-t-modal border border-b-0';
-  if (placement === 'left') return 'h-full w-full max-w-xs rounded-none border border-y-0 border-l-0';
-  if (placement === 'right') return 'h-full w-full max-w-md rounded-none border border-y-0 border-r-0';
-  if (size === 'full') return 'h-full w-full max-w-none rounded-none border';
-  return `w-full max-h-full rounded-modal border ${SIZE_WIDTH[size]}`;
+  // Bán kính panel = `--radius-modal` (20px) — DESIGN-LANGUAGE §2.1 (bản cũ 14px).
+  if (placement === 'bottom') return 'w-full max-w-none max-h-[85dvh] rounded-t-modal border border-b-0 border-line';
+  // Sheet cạnh trượt: bo 20px ở cạnh trong (DESIGN-LANGUAGE §2.1), cạnh sát viewport phẳng.
+  if (placement === 'left') return 'h-full w-full max-w-xs rounded-r-modal border border-y-0 border-l-0 border-line';
+  if (placement === 'right') return 'h-full w-full max-w-md rounded-l-modal border border-y-0 border-r-0 border-line';
+  // Fullscreen là ngoại lệ có ghi trong hợp đồng: phủ kín viewport nên không bo góc.
+  if (size === 'full') return 'h-full w-full max-w-none rounded-none border border-line';
+  return `w-full max-h-full rounded-modal border border-line ${SIZE_WIDTH[size]}`;
 }
 
 export function Modal({
@@ -169,7 +163,6 @@ export function Modal({
   description,
   size = 'md',
   placement = 'center',
-  tone = 'light',
   footer,
   children,
   className,
@@ -310,6 +303,9 @@ export function Modal({
     <dialog
       ref={dialogRef}
       role={role}
+      /* A11Y-07: `<dialog>` + `showModal()` đã là top-layer/inert, nhưng hợp đồng a11y của repo
+         yêu cầu khai báo tường minh `aria-modal` cho AT không dựa vào hành vi native. */
+      aria-modal="true"
       className={cn(DIALOG_BASE, CONTAINER[placement], className)}
       aria-labelledby={title ? titleId : undefined}
       aria-describedby={description ? descriptionId : undefined}
@@ -319,29 +315,18 @@ export function Modal({
     >
       <div
         ref={panelRef}
-        className={cn(PANEL_BASE, PANEL_TONE[tone], panelClasses(placement, size), panelClassName)}
+        className={cn(PANEL_BASE, panelClasses(placement, size), panelClassName)}
       >
         {hasHeader ? (
-          <div
-            className={cn(
-              'flex items-start justify-between gap-4 border-b p-4',
-              tone === 'chrome' ? 'border-chrome-border' : 'border-line',
-            )}
-          >
+          <div className="flex items-start justify-between gap-4 border-b border-line p-4">
             <div className="flex min-w-0 flex-col gap-1">
               {title ? (
-                <h2
-                  id={titleId}
-                  className={cn('text-lg font-semibold', tone === 'chrome' ? 'text-chrome-fg' : 'text-fg')}
-                >
+                <h2 id={titleId} className="text-lg font-semibold tracking-tight text-fg">
                   {title}
                 </h2>
               ) : null}
               {description ? (
-                <p
-                  id={descriptionId}
-                  className={cn('text-sm', tone === 'chrome' ? 'text-chrome-fg-muted' : 'text-fg-muted')}
-                >
+                <p id={descriptionId} className="text-sm text-fg-muted">
                   {description}
                 </p>
               ) : null}
@@ -351,7 +336,6 @@ export function Modal({
                 iconOnly
                 variant="ghost"
                 size="sm"
-                tone={tone}
                 aria-label={closeLabel}
                 onClick={onClose}
               >
@@ -368,12 +352,7 @@ export function Modal({
         ) : null}
 
         {footer ? (
-          <div
-            className={cn(
-              'flex flex-wrap items-center justify-end gap-2 border-t p-4',
-              tone === 'chrome' ? 'border-chrome-border' : 'border-line',
-            )}
-          >
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line p-4">
             {footer}
           </div>
         ) : null}

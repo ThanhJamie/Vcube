@@ -14,30 +14,30 @@
  * SỔ SÁCH TỪNG LUẬT (đo bằng số học WCAG 2.x trên gamma sRGB — xem `ratioOf`/`compositeOver`)
  * ------------------------------------------------------------------------------------------
  * App light-only: mọi luật chỉ còn một con số light.
- * Luật 1 — `text-fg-subtle` (#64748B) trên `bg-line-subtle` (#E2E8F0):
- *            light = 3.86:1   -> < 4.5 ⇒ VI PHẠM
- *          Lý do: `fg-subtle` là màu metadata 12px; trên nền hairline nó tụt dưới sàn 4.5.
- *          Cách sửa: dùng `text-fg-muted` (5.22).
- * Luật 2 — `text-fg-subtle` trên `bg-primary/5` (nền = primary composite 5% trên surface;
- *          composite trong KHÔNG GIAN GAMMA sRGB, KHÔNG phải linear-light — linear-light cho
- *          4.56 = PASS GIẢ):
- *            light #F2F7F8 = 4.40:1  -> < 4.5 ⇒ VI PHẠM
- * Luật 3 — `text-fg-subtle` trên `bg-warning-tint` (#FEF6EC sau D-1):
- *            light = 4.44:1   -> < 4.5 ⇒ VI PHẠM
- *          Lưu ý: D-1 chỉ làm nhạt `--color-warning-tint` cho `text-warning` (#B45309 → 4.69).
- *          `fg-subtle` (#64748B) NHẸ HƠN `warning`, nên làm nhạt nền chỉ kéo nó từ 4.23 lên
- *          4.44 — vẫn fail. Đây là lý do luật này tồn tại độc lập với D-1.
- * Luật 4 — `text-fg-subtle` trên `bg-surface-muted` (#F8F9FF):
- *            light = 4.53:1   -> >= 4.5 ⇒ **KHÔNG PHẢI VI PHẠM**
- *          Vẫn khai báo (in ra ở mức "ĐẠT NHƯNG SÁT NGƯỠNG", kèm file:line) vì biên chỉ 0.03:
- *          ép nó thành lỗi là SAI SỐ HỌC (4.53 >= 4.5) và sẽ báo nhầm ~20 chỗ đang đạt chuẩn.
- * Luật 5 — `text-fg-subtle` trên `bg-positive-tint` (#F0F9F3 sau D-1b):
- *            light = 4.43:1   -> < 4.5 ⇒ VI PHẠM (0 chỗ đang dùng)
- * Luật 6 — `text-positive` trên `bg-positive-tint`: **ĐÃ SỬA Ở TẦNG TOKEN (D-1b)**
- *            light #15803D trên #E7F3EC = 4.40 (FAIL) -> #F0F9F3 = 4.67 (ĐẠT)
- *          Luật này KHÔNG in từng chỗ (`muteHits`): ~55 chỗ `bg-positive-tint text-positive` nay
- *          đều ĐẠT, in ra chỉ là nhiễu. Giữ luật để phần SỔ SÁCH còn hiệu lực: `--color-positive-tint`
- *          mà bị làm đậm lại ⇒ `token-drift` đỏ ngay.
+ * Palette v3 "Soft Studio" (docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE.md):
+ * `canvas` #F6F7EF · `surface` #FFFDF9 · `surface-muted` #F5F4EC · `line-subtle` #F0EDE3
+ * · `fg-subtle` #746E68 · `primary` #1C1917 (đen đá) · coral `brand` #E8624A (chỉ mark).
+ *
+ * Luật 1 — `text-fg-subtle` trên `bg-line-subtle` (#F0EDE3, v3):
+ *            light = 4.30:1   -> < 4.5 ⇒ VI PHẠM
+ *          Lý do: `fg-subtle` là màu metadata 12px; trên nền hairline nó tụt dưới sàn.
+ *          Cách sửa: dùng `text-fg-muted` (6.51).
+ * Luật 2 — `text-fg-subtle` trên `bg-primary/5` (nền = primary composite 5% trên surface
+ *          mới #FFFDF9; composite trong KHÔNG GIAN GAMMA sRGB, KHÔNG phải linear-light):
+ *            light #F4F2EE = 4.50:1  -> >= 4.5 ⇒ ĐẠT SÁT NGƯỠNG (giữ luật để chặn drift)
+ * Luật 3 — `text-fg-subtle` trên `bg-warning-tint` (#FFFBEB): 4.85:1 ⇒ ĐẠT
+ * Luật 4 — `text-fg-subtle` trên `bg-surface-muted` (#F5F4EC, v3): 4.56:1 ⇒ ĐẠT sát ngưỡng
+ * Luật 5 — `text-fg-subtle` trên `bg-positive-tint` (#ECFDF5): 4.78:1 ⇒ ĐẠT
+ * Luật 6 — `text-positive` trên `bg-positive-tint`: 5.21:1 ⇒ ĐẠT (`muteHits`: giữ để phần
+ *          SỔ SÁCH chặn token bị làm đậm lại — `token-drift` / `rule-ratio-drift`).
+ * Luật 7 — `text-fg-subtle` trên `bg-canvas` (#F6F7EF): 4.67:1 ⇒ ĐẠT. Chặn việc kéo canvas
+ *          tối hơn (PLAN v3 §4.1: không tối hơn #F1F5E8).
+ * Luật 8 — `text-fg-subtle` trên `bg-surface` (#FFFDF9): 4.95:1 ⇒ ĐẠT.
+ * Luật 9 — `text-fg-subtle` trên 4 `bg-tile-*` pastel: 4.29–4.44 ⇒ VI PHẠM. Trên tile
+ *          pastel luôn dùng `text-fg` (14.9–15.4) hoặc `text-fg-muted` (6.5–6.7).
+ * Luật 10 — `text-fg` trên `bg-brand` (coral): 5.23 ⇒ ĐẠT (chữ V trên ô logo).
+ * Luật 11 — `text-brand` làm CHỮ trên `bg-surface`: 3.29 ⇒ VI PHẠM. Coral chỉ brand mark
+ *          (đồ hoạ), không bao giờ làm màu chữ (D3).
  *
  * CÁCH SO KHỚP (cố ý chặt, tránh báo nhầm)
  * ---------------------------------------
@@ -109,14 +109,21 @@ const compositeOver = (hex, alphaPercent, baseHex) => {
    --------------------------------------------------------------------------- */
 const TOKENS = {
   light: {
-    'fg-subtle': '#64748B',
-    'line-subtle': '#E2E8F0',
-    'surface-muted': '#F8F9FF',
-    'warning-tint': '#FEF6EC',
-    'positive-tint': '#F0F9F3',
-    primary: '#00687A',
-    positive: '#15803D',
-    surface: '#FFFFFF',
+    'fg-subtle': '#746E68',
+    fg: '#1C1917',
+    'line-subtle': '#F0EDE3',
+    'surface-muted': '#F5F4EC',
+    surface: '#FFFDF9',
+    canvas: '#F6F7EF',
+    'warning-tint': '#FFFBEB',
+    'positive-tint': '#ECFDF5',
+    primary: '#1C1917',
+    positive: '#047857',
+    brand: '#E8624A',
+    'tile-mint': '#E7F1E4',
+    'tile-lilac': '#EFEBF8',
+    'tile-rose': '#FCEBE5',
+    'tile-amber': '#FAF0DA',
   },
 };
 
@@ -128,8 +135,8 @@ const RULES = [
     bg: 'bg-line-subtle',
     fgToken: 'fg-subtle',
     bgToken: 'line-subtle',
-    ratios: { light: 3.86 },
-    remedy: 'dùng `text-fg-muted` (5.22) cho chữ trên dải hairline',
+    ratios: { light: 4.30 },
+    remedy: 'dùng `text-fg-muted` (6.51) cho chữ trên dải hairline',
   },
   {
     id: 'fg-subtle-on-primary-5',
@@ -138,8 +145,8 @@ const RULES = [
     fgToken: 'fg-subtle',
     bgToken: 'primary',
     bgAlpha: 5,
-    ratios: { light: 4.4 },
-    remedy: 'dùng `text-fg-muted` (5.96) trên hàng `bg-primary/5`',
+    ratios: { light: 4.50 },
+    remedy: 'đạt sát ngưỡng (4.50) — vẫn ưu tiên `text-fg-muted` nếu sửa vùng này',
   },
   {
     id: 'fg-subtle-on-warning-tint',
@@ -147,8 +154,8 @@ const RULES = [
     bg: 'bg-warning-tint',
     fgToken: 'fg-subtle',
     bgToken: 'warning-tint',
-    ratios: { light: 4.44 },
-    remedy: 'dùng `text-fg-muted`, hoặc đổi nền sang `bg-surface-muted` + `text-warning`',
+    ratios: { light: 4.85 },
+    remedy: 'đạt (4.85) — giữ token warning-tint >= #FFFBEB',
   },
   {
     id: 'fg-subtle-on-surface-muted',
@@ -156,9 +163,8 @@ const RULES = [
     bg: 'bg-surface-muted',
     fgToken: 'fg-subtle',
     bgToken: 'surface-muted',
-    ratios: { light: 4.53 },
-    // 4.53 >= 4.5 ⇒ mọi chỗ dùng luật này in ở mức SÁT NGƯỠNG (không tính RC).
-    remedy: 'đạt chuẩn nhưng biên chỉ 0.03 — cân nhắc `text-fg-muted` khi sửa vùng này',
+    ratios: { light: 4.56 },
+    remedy: 'đạt sát ngưỡng (4.56) — không làm surface-muted tối hơn #F5F4EC',
   },
   {
     id: 'fg-subtle-on-positive-tint',
@@ -166,8 +172,8 @@ const RULES = [
     bg: 'bg-positive-tint',
     fgToken: 'fg-subtle',
     bgToken: 'positive-tint',
-    ratios: { light: 4.43 },
-    remedy: 'dùng `text-fg-muted` trên nền `bg-positive-tint`',
+    ratios: { light: 4.78 },
+    remedy: 'đạt (4.78) — giữ token positive-tint <= #ECFDF5',
   },
   {
     id: 'positive-on-positive-tint',
@@ -175,16 +181,93 @@ const RULES = [
     bg: 'bg-positive-tint',
     fgToken: 'positive',
     bgToken: 'positive-tint',
-    ratios: { light: 4.67 },
-    // ĐÃ SỬA Ở TẦNG TOKEN (D-1b): #E7F3EC (4.40 FAIL) -> #F0F9F3 (4.67 ĐẠT).
-    // `muteHits`: ~55 chỗ đang dùng nay đều ĐẠT -> không in từng chỗ; luật vẫn giữ để phần
+    ratios: { light: 5.21 },
+    // ĐÃ SỬA Ở TẦNG TOKEN: #15803D/#F0F9F3 (4.67) -> #047857/#ECFDF5 (5.21).
+    // `muteHits`: mọi chỗ đang dùng nay đều ĐẠT -> không in từng chỗ; luật vẫn giữ để phần
     // SỔ SÁCH chặn token bị làm đậm lại (`token-drift` / `rule-ratio-drift`).
     muteHits: true,
     remedy: 'token `--color-positive-tint` phải giữ >= 4.5:1 với `--color-positive`',
   },
+  {
+    id: 'fg-subtle-on-canvas',
+    fg: 'text-fg-subtle',
+    bg: 'bg-canvas',
+    fgToken: 'fg-subtle',
+    bgToken: 'canvas',
+    ratios: { light: 4.67 },
+    // Chỉ giữ để SỔ SÁCH chặn canvas bị kéo tối hơn (PLAN v3 §4.1).
+    muteHits: true,
+    remedy: 'đạt (4.67) — canvas không được tối hơn #F6F7EF',
+  },
+  {
+    id: 'fg-subtle-on-surface',
+    fg: 'text-fg-subtle',
+    bg: 'bg-surface',
+    fgToken: 'fg-subtle',
+    bgToken: 'surface',
+    ratios: { light: 4.95 },
+    muteHits: true,
+    remedy: 'đạt (4.95) — surface không được tối hơn #FFFDF9',
+  },
+  {
+    id: 'fg-subtle-on-tile-mint',
+    fg: 'text-fg-subtle',
+    bg: 'bg-tile-mint',
+    fgToken: 'fg-subtle',
+    bgToken: 'tile-mint',
+    ratios: { light: 4.34 },
+    remedy: 'dùng `text-fg` (15.07) hoặc `text-fg-muted` (6.58) trên tile pastel',
+  },
+  {
+    id: 'fg-subtle-on-tile-lilac',
+    fg: 'text-fg-subtle',
+    bg: 'bg-tile-lilac',
+    fgToken: 'fg-subtle',
+    bgToken: 'tile-lilac',
+    ratios: { light: 4.29 },
+    remedy: 'dùng `text-fg` (14.91) hoặc `text-fg-muted` (6.51) trên tile pastel',
+  },
+  {
+    id: 'fg-subtle-on-tile-rose',
+    fg: 'text-fg-subtle',
+    bg: 'bg-tile-rose',
+    fgToken: 'fg-subtle',
+    bgToken: 'tile-rose',
+    ratios: { light: 4.35 },
+    remedy: 'dùng `text-fg` (15.12) hoặc `text-fg-muted` (6.60) trên tile pastel',
+  },
+  {
+    id: 'fg-subtle-on-tile-amber',
+    fg: 'text-fg-subtle',
+    bg: 'bg-tile-amber',
+    fgToken: 'fg-subtle',
+    bgToken: 'tile-amber',
+    ratios: { light: 4.44 },
+    remedy: 'dùng `text-fg` (15.44) hoặc `text-fg-muted` (6.74) trên tile pastel',
+  },
+  {
+    id: 'fg-on-brand',
+    fg: 'text-fg',
+    bg: 'bg-brand',
+    fgToken: 'fg',
+    bgToken: 'brand',
+    ratios: { light: 5.23 },
+    // Chữ V trên ô logo coral: ĐẠT. Chỉ giữ để chặn đổi coral quá sáng/tối.
+    muteHits: true,
+    remedy: 'chữ trên brand mark phải là `text-fg` (5.23), KHÔNG dùng trắng (3.35)',
+  },
+  {
+    id: 'brand-as-text-on-surface',
+    fg: 'text-brand',
+    bg: 'bg-surface',
+    fgToken: 'brand',
+    bgToken: 'surface',
+    ratios: { light: 3.29 },
+    remedy: 'coral chỉ dùng cho brand mark (nền/đồ hoạ) — không bao giờ làm màu chữ (D3)',
+  },
 ];
 
-const TEXT_COLOR_RE = /^text-(?:fg|fg-muted|fg-subtle|on-inverse|primary|primary-fg|primary-hover|accent|positive|warning|warning-strong|danger|info|canvas|surface)(?:\/\d{1,3})?$/;
+const TEXT_COLOR_RE = /^text-(?:fg|fg-muted|fg-subtle|on-inverse|primary|primary-fg|primary-hover|accent|brand|positive|warning|warning-strong|danger|info|canvas|surface)(?:\/\d{1,3})?$/;
 /* Token class PHẢI cho phép `:` (modifier `hover:` / `disabled:` / `md:hover:`) — nếu chặn `:`
    thì mọi class có modifier bị lọc bỏ và cổng trở thành MÙ với `hover:bg-line-subtle`. */
 const CLASS_TOKEN_RE = /^[A-Za-z0-9_@[\]().,%#/:-]+$/;

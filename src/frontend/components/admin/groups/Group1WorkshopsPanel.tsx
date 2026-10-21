@@ -4,7 +4,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { dbService } from '../../../../backend/supabase/database';
 import { WorkshopProfile, WorkshopMachine, WorkshopMaterial, WorkshopPartner, PrinterProfile } from '../../../../types';
 import { getPricingGlobalSettings } from '../../../../backend/services/settingsService';
-import { Button, DataTable, EmptyState, Icon, InfoTip, Modal } from '@frontend/ui';
+import { Badge, Button, DataTable, EmptyState, Field, Icon, InfoTip, Input, Modal, Select, Skeleton } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 
 export interface Group1WorkshopsPanelProps {
@@ -517,7 +517,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         </div>
       ),
     },
-    { key: 'materialType', header: isVi ? 'Loại' : 'Type', value: (m) => m.materialType, render: (mat) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted rounded-sm font-bold text-xs">{mat.materialType}</span> },
+    { key: 'materialType', header: isVi ? 'Loại' : 'Type', value: (m) => m.materialType, render: (mat) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted border border-line rounded-sm font-medium text-xs">{mat.materialType}</span> },
     {
       key: 'workshop',
       header: isVi ? 'Xưởng giữ kho' : 'Workshop',
@@ -545,11 +545,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       header: isVi ? 'Trạng thái' : 'Status',
       value: (m) => m.stockStatus,
       render: (mat) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-          mat.stockStatus === 'Tracking' ? 'bg-positive-tint text-positive' : mat.stockStatus === 'LowStock' ? 'bg-warning-tint text-warning font-black' : 'bg-danger-tint text-danger font-black'
-        }`}>
+        <Badge
+          variant={mat.stockStatus === 'Tracking' ? 'success' : mat.stockStatus === 'LowStock' ? 'warning' : 'danger'}
+          dot
+        >
           {mat.stockStatus === 'Tracking' ? (isVi ? 'Đầy đủ' : 'In Stock') : mat.stockStatus === 'LowStock' ? (isVi ? 'Sắp hết' : 'Low Stock') : (isVi ? 'Hết hàng' : 'Out of Stock')}
-        </span>
+        </Badge>
       ),
     },
     {
@@ -558,20 +559,22 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       align: 'right',
       render: (mat) => (
         <div className="flex items-center justify-end gap-1.5">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => updateMaterialStock(mat.id, Math.max(0, mat.currentStockGrams - 500))}
-            className="px-2 py-0.5 bg-surface-muted hover:bg-line-subtle text-fg-muted text-xs font-bold rounded-sm cursor-pointer"
             title="-500g"
           >
             -500g
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => updateMaterialStock(mat.id, mat.currentStockGrams + 1000)}
-            className="px-2 py-0.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-sm cursor-pointer"
             title="+1kg (1000g)"
           >
             +1kg
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -591,7 +594,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         </div>
       ),
     },
-    { key: 'region', header: isVi ? 'Vùng' : 'Region', value: (p) => p.region, render: (p) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted rounded-sm font-bold text-xs uppercase">{p.region}</span> },
+    { key: 'region', header: isVi ? 'Vùng' : 'Region', value: (p) => p.region, render: (p) => <span className="px-2 py-0.5 bg-surface-muted text-fg-muted border border-line rounded-sm font-medium text-xs uppercase">{p.region}</span> },
     {
       key: 'contact',
       header: isVi ? 'Liên hệ' : 'Contact',
@@ -609,7 +612,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       render: (p) => (
         <div className="flex flex-wrap gap-1">
           {(p.supportedTechnologies || []).map((tech) => (
-            <span key={tech} className="px-1.5 py-0.5 bg-primary-tint text-primary border border-primary/30 rounded-sm font-tech font-bold text-xs">{tech}</span>
+            <span key={tech} className="px-1.5 py-0.5 bg-primary-tint text-primary border border-primary/20 rounded-sm font-mono font-medium text-xs">{tech}</span>
           ))}
         </div>
       ),
@@ -631,9 +634,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       header: isVi ? 'Trạng thái' : 'Status',
       value: (p) => p.status,
       render: (p) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${p.status === 'active' ? 'bg-positive-tint text-positive border border-positive/30' : p.status === 'busy' ? 'bg-warning-tint text-warning border border-warning/30' : 'bg-surface-muted text-fg-subtle'}`}>
-          {p.status}
-        </span>
+        <Badge
+          variant={p.status === 'active' ? 'success' : p.status === 'busy' ? 'warning' : 'neutral'}
+          dot
+        >
+          {p.status === 'active' ? 'Đang hoạt động' : p.status === 'busy' ? 'Đang bận' : 'Ngoại tuyến'}
+        </Badge>
       ),
     },
     {
@@ -642,18 +648,20 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       align: 'right',
       render: (p) => (
         <div className="flex items-center justify-end gap-1.5">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => handleTogglePartnerStatus(p)}
-            className={`px-2.5 py-1 text-xs font-bold rounded-sm cursor-pointer ${p.status === 'active' ? 'bg-warning-tint text-warning' : 'bg-positive-tint text-positive'}`}
           >
             {p.status === 'active' ? (isVi ? 'Giảm tải' : 'Throttle') : isVi ? 'Nhận đơn' : 'Activate'}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setPartnerDraft({ ...p })}
-            className="px-2.5 py-1 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-sm cursor-pointer"
           >
             {isVi ? 'Sửa' : 'Edit'}
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -663,14 +671,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   return (
     <div className="space-y-6">
       {/* Header & Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-5 rounded-lg border border-line-subtle shadow-e1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-6 rounded-lg border border-line">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
-              Xưởng in & Thiết bị
-            </span>
-            <h2 className="text-xl font-black text-fg tracking-tight">
-              {isVi ? 'Quản Trị Mạng Lưới Xưởng In & Đội Máy (Workshops Hub)' : 'Workshops & Fleet Network Hub'}
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="technical">{isVi ? 'Xưởng in & Thiết bị' : 'Workshops & Fleet'}</Badge>
+            <h2 className="text-xl font-bold text-fg tracking-tight">
+              {isVi ? 'Quản Trị Mạng Lưới Xưởng In & Đội Máy' : 'Workshops & Fleet Network Hub'}
             </h2>
           </div>
           <div className="mt-1">
@@ -683,12 +689,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         </div>
 
         {/* Tab Navigation Buttons */}
-        <div className="flex items-center gap-1.5 p-1 bg-surface-muted rounded-lg">
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-line bg-surface-muted p-1">
           <button
             onClick={() => setActiveTab('workshops')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
               activeTab === 'workshops'
-                ? 'bg-surface text-primary shadow-e1'
+                ? 'bg-surface text-fg font-semibold shadow-e1'
                 : 'text-fg-muted hover:text-fg'
             }`}
           >
@@ -697,45 +703,45 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('fleet')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
               activeTab === 'fleet'
-                ? 'bg-surface text-primary shadow-e1'
+                ? 'bg-surface text-fg font-semibold shadow-e1'
                 : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="precision_manufacturing" size={18} />
-            {isVi ? 'Đội Máy (Fleet)' : 'Fleet Inspector'}
+            {isVi ? 'Đội Máy' : 'Fleet Inspector'}
           </button>
           <button
             onClick={() => setActiveTab('materials')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
               activeTab === 'materials'
-                ? 'bg-surface text-primary shadow-e1'
+                ? 'bg-surface text-fg font-semibold shadow-e1'
                 : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="inventory_2" size={18} />
             {isVi ? 'Tồn Kho Nhựa' : 'Materials'}
             {stats.lowStockMaterialsCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 bg-danger-tint text-danger text-xs font-black rounded-full">
+              <Badge variant="danger" size="sm">
                 {stats.lowStockMaterialsCount}
-              </span>
+              </Badge>
             )}
           </button>
           <button
             onClick={() => setActiveTab('partners')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
               activeTab === 'partners'
-                ? 'bg-surface text-primary shadow-e1'
+                ? 'bg-surface text-fg font-semibold shadow-e1'
                 : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="handshake" size={18} />
             {isVi ? 'Đối Tác (DB)' : 'Partners (DB)'}
             {partners.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 bg-primary text-primary-fg text-xs font-black rounded-full">
+              <Badge variant="technical" size="sm">
                 {partners.length}
-              </span>
+              </Badge>
             )}
           </button>
         </div>
@@ -743,31 +749,31 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
 
       {/* KPI Cards Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
-          <div className="text-xs font-bold uppercase text-fg-subtle">{isVi ? 'Tổng Xưởng' : 'Total Hubs'}</div>
-          <div className="text-2xl font-black text-fg mt-1">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tổng Xưởng' : 'Total Hubs'}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">
             {workshopsError ? '—' : workshopsLoading ? '…' : stats.totalWorkshops}
           </div>
-          <div className="text-xs text-positive font-semibold mt-0.5">
+          <div className="text-xs text-positive font-medium mt-0.5">
             {workshopsError
               ? isVi ? 'Lỗi đọc workshop_profiles' : 'workshop_profiles read failed'
               : `${stats.verifiedCount} ${isVi ? 'Đã duyệt' : 'Verified'}`}
           </div>
         </div>
 
-        <div className="bg-surface p-3.5 rounded-lg border border-warning/30 bg-warning-tint/30 shadow-e0">
-          <div className="text-xs font-bold uppercase text-warning">{isVi ? 'Chờ Duyệt' : 'Pending Review'}</div>
-          <div className="text-2xl font-black text-warning mt-1">{workshopsError ? '—' : stats.pendingCount}</div>
-          <div className="text-xs text-warning font-semibold mt-0.5">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Chờ Duyệt' : 'Pending Review'}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">{workshopsError ? '—' : stats.pendingCount}</div>
+          <div className="text-xs text-warning font-medium mt-0.5">
             {workshopsError
               ? isVi ? 'Xem lỗi ở tab Danh Sách Xưởng' : 'See the Workshops tab error'
               : isVi ? 'Cần phê duyệt' : 'Action needed'}
           </div>
         </div>
 
-        <div className="bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
-          <div className="text-xs font-bold uppercase text-fg-subtle">{isVi ? 'Tổng Máy In' : 'Fleet Size'}</div>
-          <div className="text-2xl font-black text-fg mt-1">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Tổng Máy In' : 'Fleet Size'}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">
             {fleetError ? '—' : fleetPrinters === null ? '…' : fleetCounts.total}
           </div>
           <div className="text-xs text-fg-subtle font-medium mt-0.5">
@@ -777,20 +783,20 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           </div>
         </div>
 
-        <div className="bg-surface p-3.5 rounded-lg border border-positive/30 bg-positive-tint/20 shadow-e0">
-          <div className="text-xs font-bold uppercase text-positive">{isVi ? 'Máy Rảnh (Idle)' : 'Printers Idle'}</div>
-          <div className="text-2xl font-black text-positive mt-1">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Máy Rảnh' : 'Printers Idle'}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">
             {fleetError ? '—' : fleetPrinters === null ? '…' : fleetCounts.free}
           </div>
-          <div className="text-xs text-positive font-semibold mt-0.5">{isVi ? 'Sẵn sàng nhận lệnh' : 'Available now'}</div>
+          <div className="text-xs text-positive font-medium mt-0.5">{isVi ? 'Sẵn sàng nhận lệnh' : 'Available now'}</div>
         </div>
 
-        <div className="bg-surface p-3.5 rounded-lg border border-info/30 bg-info-tint/20 shadow-e0">
-          <div className="text-xs font-bold uppercase text-info">{isVi ? 'Đang In (Printing)' : 'Printing Now'}</div>
-          <div className="text-2xl font-black text-info mt-1">
+        <div className="bg-surface p-4 rounded-lg border border-line-subtle">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{isVi ? 'Đang In' : 'Printing Now'}</div>
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">
             {fleetError ? '—' : fleetPrinters === null ? '…' : fleetCounts.busy}
           </div>
-          <div className="text-xs text-info font-semibold mt-0.5">
+          <div className="text-xs text-info font-medium mt-0.5">
             {fleetError || fleetPrinters === null || fleetCounts.total === 0
               ? '—'
               : `${Math.round((fleetCounts.busy / fleetCounts.total) * 100)}% ${isVi ? 'công suất' : 'load'}`}
@@ -798,14 +804,14 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         </div>
 
         {/* Tab Tồn Kho Nhựa CHƯA nối nguồn DB (`workshop_materials` bị RLS theo xưởng, và
-            bảng catalog `materials` không có cột tồn kho theo xưởng) ⇒ KHÔNG hiện "0 / Đủ tồn kho"
+            bảng danh mục `materials` không có cột tồn kho theo xưởng) ⇒ KHÔNG hiện "0 / Đủ tồn kho"
             như một khẳng định thật. */}
-        <div className="p-3.5 rounded-lg border border-line-subtle bg-surface shadow-e0">
-          <div className="text-xs font-bold uppercase text-fg-subtle">
+        <div className="p-4 rounded-lg border border-line-subtle bg-surface">
+          <div className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
             {isVi ? 'Cảnh Báo Nhựa' : 'Low Stock Alert'}
           </div>
-          <div className="text-2xl font-black text-fg mt-1">—</div>
-          <div className="text-xs font-semibold mt-0.5 text-fg-subtle">
+          <div className="text-2xl font-bold tabular-nums text-fg mt-1">—</div>
+          <div className="text-xs font-medium mt-0.5 text-fg-subtle">
             {isVi ? 'Chưa nối nguồn tồn kho' : 'Inventory source not wired'}
           </div>
         </div>
@@ -815,18 +821,18 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       {activeTab === 'workshops' && (
         <div className="space-y-4">
           {/* Controls bar */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-4 rounded-lg border border-line">
             <div className="flex flex-wrap items-center gap-2">
               {/* Region Filter */}
-              <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs font-semibold">
+              <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
                 <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Khu vực:' : 'Region:'}</span>
                 {(['all', 'Bắc', 'Trung', 'Nam'] as const).map((r) => (
                   <button
                     key={r}
                     onClick={() => setFilterRegion(r)}
-                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                       filters.region === r
-                        ? 'bg-surface text-primary font-bold shadow-e0'
+                        ? 'bg-surface text-fg font-semibold shadow-e1'
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
@@ -836,15 +842,15 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               </div>
 
               {/* Status Filter */}
-              <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs font-semibold">
+              <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
                 <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Trạng thái:' : 'Status:'}</span>
                 {(['all', 'Verified', 'Pending', 'Suspended'] as const).map((s) => (
                   <button
                     key={s}
                     onClick={() => setFilterStatus(s)}
-                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                       filters.status === s
-                        ? 'bg-surface text-primary font-bold shadow-e0'
+                        ? 'bg-surface text-fg font-semibold shadow-e1'
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
@@ -856,49 +862,55 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
 
             <div className="flex items-center gap-2">
               <div className="relative flex-1 sm:w-64">
-                <Icon name="search" size={16} className="absolute left-2.5 top-2 text-fg-subtle" />
-                <input
+                <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
+                <Input
                   type="text"
+                  aria-label={isVi ? 'Tìm tên xưởng, địa chỉ, sđt' : 'Search workshop'}
                   placeholder={isVi ? 'Tìm tên xưởng, địa chỉ, sđt...' : 'Search workshop...'}
                   value={filters.searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-canvas border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary focus:bg-surface"
+                  className="pl-8"
                 />
               </div>
 
-              <button
+              <Button
+                variant="primary"
+                size="sm"
+                leadingIcon={<Icon name="add_circle" size={16} />}
                 onClick={() => setIsAddWorkshopModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-lg shadow-e1 transition-colors shrink-0 cursor-pointer"
+                className="shrink-0"
               >
-                <Icon name="add_circle" size={16} />
                 {isVi ? 'Thêm Xưởng In' : 'Add Workshop'}
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* Workshop Cards Grid */}
           {/* Đang tải danh sách xưởng từ DB */}
           {workshopsLoading && workshops.length === 0 && workshopsError === null && (
-            <div className="bg-surface p-6 rounded-lg border border-line-subtle shadow-e0 text-center text-xs text-fg-subtle">
-              {isVi ? 'Đang tải danh sách xưởng từ workshop_profiles...' : 'Loading workshops from workshop_profiles...'}
+            <div
+              role="status"
+              aria-label={isVi ? 'Đang tải danh sách xưởng từ workshop_profiles...' : 'Loading workshops from workshop_profiles...'}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+              {[0, 1].map((i) => (
+                <Skeleton key={i} variant="rect" height="10rem" rounded="lg" />
+              ))}
             </div>
           )}
 
           {/* LỖI THẬT */}
           {workshopsError !== null && (
-            <div role="alert" className="p-4 bg-danger-tint border border-danger/30 rounded-lg flex items-start gap-3">
+            <div role="alert" className="p-4 bg-danger-tint border border-danger/20 rounded-lg flex items-start gap-3">
               <Icon name="error" size={24} className="text-danger mt-0.5" />
               <div className="flex-1">
-                <h4 className="font-bold text-danger text-sm">
+                <h4 className="font-semibold text-danger text-sm">
                   {isVi ? 'Không đọc được bảng workshop_profiles' : 'Could not read the workshop_profiles table'}
                 </h4>
                 <p className="text-xs text-danger mt-1 font-mono break-all">{workshopsError}</p>
-                <button
-                  onClick={() => void loadWorkshops()}
-                  className="mt-2 px-3 py-1 bg-surface border border-danger/30 text-danger text-xs font-bold rounded-lg cursor-pointer"
-                >
+                <Button variant="secondary" size="sm" className="mt-2" onClick={() => void loadWorkshops()}>
                   {isVi ? 'Thử lại' : 'Retry'}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -941,14 +953,14 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               return (
                 <div
                   key={w.id}
-                  className="bg-surface rounded-lg border border-line-subtle hover:border-line shadow-e0 transition-colors flex flex-col justify-between overflow-hidden"
+                  className="bg-surface rounded-lg border border-line hover:shadow-e1 transition-all duration-300 flex flex-col justify-between overflow-hidden"
                 >
-                  <div className="p-4 border-b border-line-subtle">
+                  <div className="p-6 border-b border-line-subtle">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 rounded-sm text-xs font-black uppercase ${
+                            className={`px-2 py-0.5 rounded-sm border border-line text-xs font-semibold uppercase ${
                               w.region === 'Bắc'
                                 ? 'bg-info-tint text-info'
                                 : w.region === 'Trung'
@@ -958,21 +970,22 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                           >
                             Miền {w.region}
                           </span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                          <Badge
+                            variant={
                               w.verifiedStatus === 'Verified'
-                                ? 'bg-positive-tint text-positive border border-positive/30'
+                                ? 'success'
                                 : w.verifiedStatus === 'Pending'
-                                ? 'bg-warning-tint text-warning border border-warning/30 animate-pulse motion-reduce:animate-none'
-                                : 'bg-danger-tint text-danger border border-danger/30'
-                            }`}
+                                ? 'warning'
+                                : 'danger'
+                            }
+                            dot
                           >
                             {w.verifiedStatus === 'Verified'
                               ? '● ' + (isVi ? 'Đã duyệt' : 'Verified')
                               : w.verifiedStatus === 'Pending'
                               ? '⏳ ' + (isVi ? 'Chờ duyệt' : 'Pending')
                               : '✕ ' + (isVi ? 'Đình chỉ' : 'Suspended')}
-                          </span>
+                          </Badge>
                         </div>
                         <h3 className="font-bold text-fg text-base mt-2 line-clamp-1">{w.workshopName}</h3>
                         <p className="text-xs text-fg-subtle mt-0.5 flex items-center gap-1 line-clamp-1">
@@ -983,18 +996,18 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     </div>
 
                     {/* Machine summary mini badges */}
-                    <div className="grid grid-cols-3 gap-2 mt-4 p-2.5 bg-canvas rounded-lg text-center">
+                    <div className="grid grid-cols-3 gap-2 mt-4 p-3 bg-surface-muted rounded-md text-center">
                       <div>
-                        <div className="text-xs text-fg-subtle font-bold uppercase">{isVi ? 'Tổng máy' : 'Total'}</div>
-                        <div className="text-base font-black text-fg">{numOrEmpty(w.totalMachines)}</div>
+                        <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Tổng máy' : 'Total'}</div>
+                        <div className="text-base font-bold tabular-nums text-fg">{numOrEmpty(w.totalMachines)}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-positive font-bold uppercase">{isVi ? 'Rảnh' : 'Free'}</div>
-                        <div className="text-base font-black text-positive">—</div>
+                        <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Rảnh' : 'Free'}</div>
+                        <div className="text-base font-bold tabular-nums text-fg">—</div>
                       </div>
                       <div>
-                        <div className="text-xs text-info font-bold uppercase">{isVi ? 'Đang In' : 'Busy'}</div>
-                        <div className="text-base font-black text-info">{numOrEmpty(w.activeMachinesNow)}</div>
+                        <div className="text-xs text-fg-subtle font-semibold uppercase">{isVi ? 'Đang In' : 'Busy'}</div>
+                        <div className="text-base font-bold tabular-nums text-fg">{numOrEmpty(w.activeMachinesNow)}</div>
                       </div>
                     </div>
 
@@ -1010,7 +1023,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                       </div>
                       {w.contactPhone && (
                         <div className="flex justify-between pt-1 border-t border-line-subtle">
-                          <span className="text-fg-subtle">{isVi ? 'Hotline:' : 'Contact:'}</span>
+                          <span className="text-fg-subtle">{isVi ? 'Đường dây nóng:' : 'Contact:'}</span>
                           <span className="font-mono text-fg-muted">{w.contactPhone}</span>
                         </div>
                       )}
@@ -1018,40 +1031,47 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   </div>
 
                   {/* Actions Footer */}
-                  <div className="p-3 bg-canvas/70 flex items-center justify-between gap-2">
+                  <div className="p-4 bg-surface-muted/60 flex items-center justify-between gap-2">
                     {w.verifiedStatus === 'Pending' ? (
-                      <button
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        fullWidth
+                        leadingIcon={<Icon name="check_circle" size={16} />}
                         onClick={() => handleApprove(w.id, w.workshopName)}
-                        className="w-full py-1.5 px-3 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                       >
-                        <Icon name="check_circle" size={16} />
                         {isVi ? 'Phê Duyệt Xưởng Này' : 'Approve Workshop'}
-                      </button>
+                      </Button>
                     ) : w.verifiedStatus === 'Verified' ? (
                       <div className="flex items-center gap-2 w-full">
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="flex-1"
+                          leadingIcon={<Icon name="view_timeline" size={16} />}
                           onClick={() => setActiveTab('fleet')}
-                          className="flex-1 py-1.5 px-2.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                         >
-                          <Icon name="view_timeline" size={16} />
                           {isVi ? 'Xem Đội Máy' : 'View Fleet'}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="danger-ghost"
+                          size="sm"
                           onClick={() => handleSuspend(w.id, w.workshopName)}
-                          className="py-1.5 px-2.5 bg-danger-tint hover:bg-danger-tint text-danger text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                           title={isVi ? 'Đình chỉ xưởng' : 'Suspend workshop'}
                         >
                           {isVi ? 'Đình Chỉ' : 'Suspend'}
-                        </button>
+                        </Button>
                       </div>
                     ) : (
-                      <button
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        fullWidth
+                        leadingIcon={<Icon name="replay" size={16} />}
                         onClick={() => void handleSetWorkshopStatus(w.id, 'Verified', w.workshopName)}
-                        className="w-full py-1.5 px-3 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                       >
-                        <Icon name="replay" size={16} />
                         {isVi ? 'Khôi Phục Hoạt Động' : 'Reactivate'}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -1066,26 +1086,26 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       {activeTab === 'fleet' && (
         <div className="space-y-4">
           {/* Fleet Controls */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface p-4 rounded-lg border border-line">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg text-xs font-semibold">
+              <div className="inline-flex flex-wrap items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-sm">
                 <span className="text-fg-subtle px-1 text-xs uppercase tracking-wider">{isVi ? 'Trạng thái máy:' : 'Printer Status:'}</span>
                 {(['all', 'Free', 'Busy', 'Maintenance'] as const).map((s) => (
                   <button
                     key={s}
                     onClick={() => setFleetStatusFilter(s)}
-                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-sm transition-colors cursor-pointer ${
                       fleetStatusFilter === s
-                        ? 'bg-surface text-primary font-bold shadow-e0'
+                        ? 'bg-surface text-fg font-semibold shadow-e1'
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
                     {s === 'all'
                       ? (isVi ? 'Tất cả' : 'All')
                       : s === 'Free'
-                      ? (isVi ? 'Rảnh (Idle)' : 'Idle')
+                      ? (isVi ? 'Rảnh' : 'Idle')
                       : s === 'Busy'
-                      ? (isVi ? 'Đang In (Printing)' : 'Printing')
+                      ? (isVi ? 'Đang In' : 'Printing')
                       : (isVi ? 'Bảo Trì' : 'Maintenance')}
                   </button>
                 ))}
@@ -1099,28 +1119,30 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                leadingIcon={<Icon name="sync" size={16} className={isFleetLoading ? 'animate-spin motion-reduce:animate-none' : ''} />}
                 onClick={() => void loadFleet()}
                 disabled={isFleetLoading}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-60"
               >
-                <Icon name="sync" size={16} className={isFleetLoading ? 'animate-spin motion-reduce:animate-none' : ''} />
                 {isVi ? 'Tải Lại' : 'Reload'}
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="primary"
+                size="sm"
+                leadingIcon={<Icon name="add" size={16} />}
                 onClick={() => setIsAddMachineModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-lg shadow-e1 transition-colors cursor-pointer"
               >
-                <Icon name="add" size={16} />
                 {isVi ? 'Biên Chế Máy Mới' : 'Register Printer'}
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* Đang tải */}
           {isFleetLoading && fleetPrinters === null && (
-            <div className="bg-surface p-6 rounded-lg border border-line-subtle shadow-e0 text-center text-xs text-fg-subtle">
+            <div className="bg-surface p-6 rounded-lg border border-line-subtle text-center text-sm text-fg-muted">
               {isVi
                 ? 'Đang tải đội máy in từ bảng printer_fleet...'
                 : 'Loading printer fleet from printer_fleet...'}
@@ -1129,21 +1151,18 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
 
           {/* LỖI THẬT — không rơi về 0, không rơi về fixture */}
           {!isFleetLoading && fleetError !== null && (
-            <div role="alert" className="p-4 bg-danger-tint border border-danger/30 rounded-lg flex items-start gap-3">
+            <div role="alert" className="p-4 bg-danger-tint border border-danger/20 rounded-lg flex items-start gap-3">
               <Icon name="error" size={24} className="text-danger mt-0.5" />
               <div className="flex-1">
-                <h4 className="font-bold text-danger text-sm">
+                <h4 className="font-semibold text-danger text-sm">
                   {isVi
                     ? 'Không đọc được đội máy in từ bảng printer_fleet'
                     : 'Could not read the printer fleet from printer_fleet'}
                 </h4>
                 <p className="text-xs text-danger mt-1 font-mono break-all">{fleetError}</p>
-                <button
-                  onClick={() => void loadFleet()}
-                  className="mt-2 px-3 py-1 bg-surface border border-danger/30 text-danger text-xs font-bold rounded-lg cursor-pointer"
-                >
+                <Button variant="secondary" size="sm" className="mt-2" onClick={() => void loadFleet()}>
                   {isVi ? 'Thử lại' : 'Retry'}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -1206,34 +1225,20 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
               return (
                 <div
                   key={p.id}
-                  className="bg-surface rounded-lg border border-line-subtle p-4 shadow-e0 hover:shadow-e1 transition-all"
+                  className="bg-surface rounded-lg border border-line p-6 hover:shadow-e1 transition-all duration-300"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded-sm text-xs font-black bg-surface-muted text-fg-muted">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-sm border border-line text-xs font-medium uppercase tracking-wider bg-surface-muted text-fg-muted">
                           {p.technology}
                         </span>
-                        <span
-                          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                            p.status === 'Idle'
-                              ? 'bg-positive-tint text-positive border border-positive/30'
-                              : p.status === 'Printing'
-                              ? 'bg-info-tint text-info border border-info/30'
-                              : 'bg-warning-tint text-warning border border-warning/30'
-                          }`}
+                        <Badge
+                          variant={p.status === 'Idle' ? 'success' : p.status === 'Printing' ? 'info' : 'warning'}
+                          dot
                         >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              p.status === 'Idle'
-                                ? 'bg-positive animate-pulse motion-reduce:animate-none'
-                                : p.status === 'Printing'
-                                ? 'bg-info animate-pulse motion-reduce:animate-none'
-                                : 'bg-warning'
-                            }`}
-                          />
                           {statusLabel}
-                        </span>
+                        </Badge>
                       </div>
                       <h4 className="font-bold text-fg text-base mt-2">{p.name}</h4>
                       <p className="text-xs text-fg-subtle mt-0.5 flex items-center gap-1">
@@ -1249,10 +1254,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   </div>
 
                   {/* Hourly Cost Breakdown Card */}
-                  <div className="mt-4 p-3 bg-canvas rounded-lg border border-line-subtle space-y-2">
-                    <div className="text-xs font-black uppercase text-fg-subtle tracking-wider flex items-center justify-between">
+                  <div className="mt-4 p-3 bg-surface-muted rounded-md border border-line-subtle space-y-2">
+                    <div className="text-xs font-semibold uppercase text-fg-muted tracking-wider flex items-center justify-between">
                       <span>{isVi ? 'Định Mức Chi Phí Vận Hành' : 'Operational Cost Engine'}</span>
-                      <span className="font-bold text-primary">
+                      <span className="font-mono font-bold tabular-nums text-fg">
                         {totalHourlyCost != null ? `${formatVnd(totalHourlyCost)}/h` : '—'}
                       </span>
                     </div>
@@ -1262,7 +1267,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         <div className="text-xs text-fg-subtle font-medium">
                           {isVi ? 'Khấu hao máy/giờ:' : 'Depreciation/h:'}
                         </div>
-                        <div className="font-bold text-fg font-mono">
+                        <div className="font-bold text-fg font-mono tabular-nums">
                           {depPerHour != null ? `${formatVnd(depPerHour)}/h` : '—'}
                         </div>
                         <div className="text-xs text-fg-subtle">
@@ -1278,7 +1283,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                         <div className="text-xs text-fg-subtle font-medium">
                           {isVi ? 'Tiền điện máy/giờ:' : 'Electricity/h:'}
                         </div>
-                        <div className="font-bold text-fg font-mono">
+                        <div className="font-bold text-fg font-mono tabular-nums">
                           {elecPerHour != null ? `${formatVnd(elecPerHour)}/h` : '—'}
                         </div>
                         <div className="text-xs text-fg-subtle">
@@ -1301,29 +1306,29 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     <span className="text-fg-subtle font-mono">ID: {p.id}</span>
 
                     <div className="flex items-center gap-1.5">
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() =>
                           void handleSetPrinterStatus(p, p.status === 'Printing' ? 'Idle' : 'Printing')
                         }
-                        className={`px-2.5 py-1 text-xs font-bold rounded-sm transition-colors cursor-pointer ${
-                          p.status === 'Printing'
-                            ? 'bg-positive-tint hover:bg-positive/20 text-positive'
-                            : 'bg-info-tint hover:bg-info/20 text-info'
-                        }`}
                       >
                         {p.status === 'Printing'
                           ? isVi ? 'Đặt Rảnh (Idle)' : 'Set Idle'
                           : isVi ? 'Đặt Bận (Printing)' : 'Set Printing'}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        iconOnly
+                        variant="ghost"
+                        size="sm"
                         onClick={() =>
                           void handleSetPrinterStatus(p, p.status === 'Maintenance' ? 'Idle' : 'Maintenance')
                         }
-                        className="px-2 py-1 text-xs font-medium text-fg-subtle hover:text-warning bg-surface-muted rounded-sm hover:bg-warning-tint cursor-pointer"
                         title={isVi ? 'Chuyển sang bảo trì' : 'Toggle maintenance'}
+                        aria-label={isVi ? 'Chuyển sang bảo trì' : 'Toggle maintenance'}
                       >
                         <Icon name="build" size={14} />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1339,10 +1344,10 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         <div className="space-y-4">
           {/* Low stock warning banner */}
           {lowStockList.length > 0 && (
-            <div className="p-4 bg-danger-tint border border-danger/30 rounded-lg flex items-start gap-3">
+            <div className="p-4 bg-danger-tint border border-danger/20 rounded-lg flex items-start gap-3">
               <Icon name="warning" size={28} className="text-danger mt-0.5" />
               <div className="flex-1">
-                <h4 className="font-bold text-danger text-sm">
+                <h4 className="font-semibold text-danger text-sm">
                   {isVi
                     ? `Cảnh Báo: Có ${lowStockList.length} cuộn/loại vật liệu đang dưới ngưỡng an toàn!`
                     : `Alert: ${lowStockList.length} material spools are below safe stock threshold!`}
@@ -1356,7 +1361,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   {lowStockList.map((m) => (
                     <span
                       key={m.id}
-                      className="px-2 py-0.5 bg-surface border border-danger/30 text-danger text-xs font-bold rounded-md"
+                      className="px-2 py-0.5 bg-surface border border-danger/20 text-danger text-xs font-medium rounded-md"
                     >
                       {m.materialName}: {m.currentStockGrams}g / {m.lowStockThresholdGrams}g
                     </span>
@@ -1367,24 +1372,26 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           )}
 
           {/* Material inventory table controls */}
-          <div className="flex items-center justify-between gap-3 bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 rounded-lg border border-line">
             <div className="text-xs text-fg-subtle font-medium">
               {isVi
-                ? 'Danh sách tồn kho CHƯA nối nguồn DB: `workshop_materials` bị RLS giới hạn theo xưởng và bảng catalog `materials` không có cột tồn kho theo xưởng — nên bảng dưới đây không phải số liệu thật.'
+                ? 'Danh sách tồn kho CHƯA nối nguồn DB: `workshop_materials` bị RLS giới hạn theo xưởng và bảng danh mục `materials` không có cột tồn kho theo xưởng — nên bảng dưới đây không phải số liệu thật.'
                 : 'The inventory list has NO DB source yet: `workshop_materials` is RLS-scoped per workshop and the `materials` catalogue has no per-workshop stock column, so the table below is not real data.'}
             </div>
 
-            <button
+            <Button
+              variant="primary"
+              size="sm"
+              leadingIcon={<Icon name="add" size={16} />}
               onClick={() => setIsAddMaterialModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-lg shadow-e1 transition-colors cursor-pointer"
+              className="shrink-0"
             >
-              <Icon name="add" size={16} />
               {isVi ? 'Thêm Cuộn Nhựa / Resin' : 'Add Material SKU'}
-            </button>
+            </Button>
           </div>
 
           {/* Materials Table */}
-          <div className="bg-surface rounded-lg border border-line-subtle overflow-hidden shadow-e0">
+          <div className="bg-surface rounded-lg border border-line overflow-hidden">
             {materials.length === 0 ? (
             <EmptyState
               size="sm"
@@ -1428,143 +1435,134 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           size="lg"
           title={isVi ? 'Thêm Xưởng In Mới Vào Mạng Lưới' : 'Register New Partner Workshop'}
         >
-            <form onSubmit={handleCreateWorkshop} className="mt-4 space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-fg-muted mb-1">
-                  {isVi ? 'Tên xưởng in:' : 'Workshop Name:'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Smart 3D FabLab Đà Nẵng"
-                  value={newWorkshopForm.workshopName}
-                  onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, workshopName: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">
-                    {isVi ? 'Khu vực (Miền):' : 'Region:'}
-                  </label>
-                  <select
-                    value={newWorkshopForm.region}
-                    onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, region: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  >
-                    <option value="Bắc">Miền Bắc (Hà Nội, Hải Phòng...)</option>
-                    <option value="Trung">Miền Trung (Đà Nẵng, Huế...)</option>
-                    <option value="Nam">Miền Nam (TP.HCM, Bình Dương...)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">
-                    {isVi ? 'Trạng thái ban đầu:' : 'Initial Status:'}
-                  </label>
-                  <select
-                    value={newWorkshopForm.verifiedStatus}
-                    onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, verifiedStatus: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  >
-                    <option value="Pending">Chờ duyệt (Pending)</option>
-                    <option value="Verified">Đã duyệt (Verified)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-fg-muted mb-1">
-                  {isVi ? 'Địa chỉ xưởng:' : 'Address:'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Số nhà, đường, quận/huyện, tỉnh/thành"
-                  value={newWorkshopForm.address}
-                  onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, address: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">
-                    {isVi ? 'Số điện thoại:' : 'Phone:'}
-                  </label>
-                  <input
+            <form onSubmit={handleCreateWorkshop} className="mt-4 space-y-4">
+              <Field label={isVi ? 'Tên xưởng in:' : 'Workshop Name:'} optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
                     type="text"
-                    placeholder="0988 xxx xxx"
-                    value={newWorkshopForm.contactPhone}
-                    onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, contactPhone: e.target.value })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+                    required
+                    placeholder="Ví dụ: Smart 3D FabLab Đà Nẵng"
+                    value={newWorkshopForm.workshopName}
+                    onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, workshopName: e.target.value })}
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">
-                    {isVi ? 'Email liên hệ:' : 'Email:'}
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="workshop@vcube.vn"
-                    value={newWorkshopForm.contactEmail}
-                    onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, contactEmail: e.target.value })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
+                )}
+              </Field>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={isVi ? 'Khu vực (Miền):' : 'Region:'} optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={newWorkshopForm.region}
+                      onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, region: e.target.value as any })}
+                    >
+                      <option value="Bắc">Miền Bắc (Hà Nội, Hải Phòng...)</option>
+                      <option value="Trung">Miền Trung (Đà Nẵng, Huế...)</option>
+                      <option value="Nam">Miền Nam (TP.HCM, Bình Dương...)</option>
+                    </Select>
+                  )}
+                </Field>
+                <Field label={isVi ? 'Trạng thái ban đầu:' : 'Initial Status:'} optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={newWorkshopForm.verifiedStatus}
+                      onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, verifiedStatus: e.target.value as any })}
+                    >
+                      <option value="Pending">Chờ duyệt</option>
+                      <option value="Verified">Đã duyệt</option>
+                    </Select>
+                  )}
+                </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">
-                    {isVi ? 'Giá điện riêng (VNĐ/kWh):' : 'Electricity Rate (VND/kWh):'}
-                  </label>
-                  <input
-                    type="number"
-                    placeholder={isVi ? 'Chưa khai ⇒ để trống' : 'Not set ⇒ leave empty'}
-                    value={newWorkshopForm.electricityRateOverride ?? ''}
-                    onChange={(e) =>
-                      setNewWorkshopForm({
-                        ...newWorkshopForm,
-                        electricityRateOverride: e.target.value === '' ? null : Number(e.target.value)
-                      })
-                    }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+              <Field label={isVi ? 'Địa chỉ xưởng:' : 'Address:'} optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    required
+                    placeholder="Số nhà, đường, quận/huyện, tỉnh/thành"
+                    value={newWorkshopForm.address}
+                    onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, address: e.target.value })}
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">
-                    {isVi ? 'Công nhân công (VNĐ/giờ):' : 'Labor Rate (VND/h):'}
-                  </label>
-                  <input
-                    type="number"
-                    placeholder={isVi ? 'Chưa khai ⇒ để trống' : 'Not set ⇒ leave empty'}
-                    value={newWorkshopForm.laborRateOverride ?? ''}
-                    onChange={(e) =>
-                      setNewWorkshopForm({
-                        ...newWorkshopForm,
-                        laborRateOverride: e.target.value === '' ? null : Number(e.target.value)
-                      })
-                    }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
+                )}
+              </Field>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={isVi ? 'Số điện thoại:' : 'Phone:'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      placeholder="0988 xxx xxx"
+                      value={newWorkshopForm.contactPhone}
+                      onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, contactPhone: e.target.value })}
+                    />
+                  )}
+                </Field>
+                <Field label={isVi ? 'Email liên hệ:' : 'Email:'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="email"
+                      placeholder="workshop@vcube.vn"
+                      value={newWorkshopForm.contactEmail}
+                      onChange={(e) => setNewWorkshopForm({ ...newWorkshopForm, contactEmail: e.target.value })}
+                    />
+                  )}
+                </Field>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-line-subtle">
-                <button
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={isVi ? 'Giá điện riêng (VNĐ/kWh):' : 'Electricity Rate (VND/kWh):'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      numeric
+                      placeholder={isVi ? 'Chưa khai ⇒ để trống' : 'Not set ⇒ leave empty'}
+                      value={newWorkshopForm.electricityRateOverride ?? ''}
+                      onChange={(e) =>
+                        setNewWorkshopForm({
+                          ...newWorkshopForm,
+                          electricityRateOverride: e.target.value === '' ? null : Number(e.target.value)
+                        })
+                      }
+                    />
+                  )}
+                </Field>
+                <Field label={isVi ? 'Công nhân công (VNĐ/giờ):' : 'Labor Rate (VND/h):'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      numeric
+                      placeholder={isVi ? 'Chưa khai ⇒ để trống' : 'Not set ⇒ leave empty'}
+                      value={newWorkshopForm.laborRateOverride ?? ''}
+                      onChange={(e) =>
+                        setNewWorkshopForm({
+                          ...newWorkshopForm,
+                          laborRateOverride: e.target.value === '' ? null : Number(e.target.value)
+                        })
+                      }
+                    />
+                  )}
+                </Field>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-line-subtle">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setIsAddWorkshopModalOpen(false)}
-                  className="px-4 py-2 bg-surface-muted hover:bg-line-subtle text-fg-muted text-xs font-bold rounded-lg cursor-pointer"
                 >
                   {isVi ? 'Hủy Bỏ' : 'Cancel'}
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-lg shadow-e1 cursor-pointer"
-                >
+                </Button>
+                <Button type="submit" variant="primary">
                   {isVi ? 'Lưu & Khởi Tạo Xưởng' : 'Save Workshop'}
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>
@@ -1578,92 +1576,101 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           size="md"
           title={isVi ? 'Thêm Máy In Vào printer_fleet' : 'Add Printer to printer_fleet'}
         >
-            <form onSubmit={handleCreateMachine} className="mt-4 space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Tên máy in:' : 'Machine Name:'}</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Bambu Lab X1-Carbon #05"
-                  value={newMachineForm.machineName}
-                  onChange={(e) => setNewMachineForm({ ...newMachineForm, machineName: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                />
+            <form onSubmit={handleCreateMachine} className="mt-4 space-y-4">
+              <Field label={isVi ? 'Tên máy in:' : 'Machine Name:'} optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    required
+                    placeholder="Ví dụ: Bambu Lab X1-Carbon #05"
+                    value={newMachineForm.machineName}
+                    onChange={(e) => setNewMachineForm({ ...newMachineForm, machineName: e.target.value })}
+                  />
+                )}
+              </Field>
+
+              <Field label={isVi ? 'Hãng / dòng máy:' : 'Brand / model:'} optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    placeholder={isVi ? 'Để trống nếu chưa rõ' : 'Leave empty if unknown'}
+                    value={newMachineForm.brand}
+                    onChange={(e) => setNewMachineForm({ ...newMachineForm, brand: e.target.value })}
+                  />
+                )}
+              </Field>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={isVi ? 'Công nghệ in:' : 'Technology:'} optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={newMachineForm.machineType}
+                      onChange={(e) => setNewMachineForm({ ...newMachineForm, machineType: e.target.value as any })}
+                    >
+                      <option value="FDM">FDM (Dây nhựa)</option>
+                      <option value="SLA">SLA (Resin lỏng)</option>
+                      <option value="SLS">SLS (Bột nylon)</option>
+                    </Select>
+                  )}
+                </Field>
+                <Field label={isVi ? 'Công suất chạy (kW):' : 'Avg Power (kW):'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      step="0.01"
+                      numeric
+                      placeholder={isVi ? 'Chưa đo ⇒ để trống' : 'Not measured ⇒ leave empty'}
+                      value={newMachineForm.avgPowerKW ?? ''}
+                      onChange={(e) =>
+                        setNewMachineForm({
+                          ...newMachineForm,
+                          avgPowerKW: e.target.value === '' ? null : Number(e.target.value)
+                        })
+                      }
+                    />
+                  )}
+                </Field>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Hãng / dòng máy:' : 'Brand / model:'}</label>
-                <input
-                  type="text"
-                  placeholder={isVi ? 'Để trống nếu chưa rõ' : 'Leave empty if unknown'}
-                  value={newMachineForm.brand}
-                  onChange={(e) => setNewMachineForm({ ...newMachineForm, brand: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Công nghệ in:' : 'Technology:'}</label>
-                  <select
-                    value={newMachineForm.machineType}
-                    onChange={(e) => setNewMachineForm({ ...newMachineForm, machineType: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  >
-                    <option value="FDM">FDM (Dây nhựa)</option>
-                    <option value="SLA">SLA (Resin lỏng)</option>
-                    <option value="SLS">SLS (Bột nylon)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Công suất chạy (kW):' : 'Avg Power (kW):'}</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder={isVi ? 'Chưa đo ⇒ để trống' : 'Not measured ⇒ leave empty'}
-                    value={newMachineForm.avgPowerKW ?? ''}
-                    onChange={(e) =>
-                      setNewMachineForm({
-                        ...newMachineForm,
-                        avgPowerKW: e.target.value === '' ? null : Number(e.target.value)
-                      })
-                    }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Giá mua máy (VNĐ):' : 'Purchase Price:'}</label>
-                  <input
-                    type="number"
-                    placeholder={isVi ? 'Chưa có ⇒ để trống' : 'Unknown ⇒ leave empty'}
-                    value={newMachineForm.purchasePrice ?? ''}
-                    onChange={(e) =>
-                      setNewMachineForm({
-                        ...newMachineForm,
-                        purchasePrice: e.target.value === '' ? null : Number(e.target.value)
-                      })
-                    }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Tuổi thọ khấu hao (giờ):' : 'Lifetime (Hours):'}</label>
-                  <input
-                    type="number"
-                    placeholder={isVi ? 'Chưa có ⇒ để trống' : 'Unknown ⇒ leave empty'}
-                    value={newMachineForm.lifetimeHours ?? ''}
-                    onChange={(e) =>
-                      setNewMachineForm({
-                        ...newMachineForm,
-                        lifetimeHours: e.target.value === '' ? null : Number(e.target.value)
-                      })
-                    }
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={isVi ? 'Giá mua máy (VNĐ):' : 'Purchase Price:'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      numeric
+                      placeholder={isVi ? 'Chưa có ⇒ để trống' : 'Unknown ⇒ leave empty'}
+                      value={newMachineForm.purchasePrice ?? ''}
+                      onChange={(e) =>
+                        setNewMachineForm({
+                          ...newMachineForm,
+                          purchasePrice: e.target.value === '' ? null : Number(e.target.value)
+                        })
+                      }
+                    />
+                  )}
+                </Field>
+                <Field label={isVi ? 'Tuổi thọ khấu hao (giờ):' : 'Lifetime (Hours):'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      numeric
+                      placeholder={isVi ? 'Chưa có ⇒ để trống' : 'Unknown ⇒ leave empty'}
+                      value={newMachineForm.lifetimeHours ?? ''}
+                      onChange={(e) =>
+                        setNewMachineForm({
+                          ...newMachineForm,
+                          lifetimeHours: e.target.value === '' ? null : Number(e.target.value)
+                        })
+                      }
+                    />
+                  )}
+                </Field>
               </div>
 
               <p className="text-xs text-fg-subtle">
@@ -1672,20 +1679,17 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   : 'printer_fleet is not bound to a specific workshop, so there is no workshop field. Empty numeric fields are stored as NULL, never as a made-up default.'}
               </p>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-line-subtle">
-                <button
+              <div className="flex justify-end gap-2 pt-4 border-t border-line-subtle">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setIsAddMachineModalOpen(false)}
-                  className="px-4 py-2 bg-surface-muted text-fg-muted text-xs font-bold rounded-lg cursor-pointer"
                 >
                   {isVi ? 'Đóng' : 'Cancel'}
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary text-primary-fg text-xs font-bold rounded-lg shadow-e1 cursor-pointer"
-                >
+                </Button>
+                <Button type="submit" variant="primary">
                   {isVi ? 'Ghi Vào DB' : 'Save to DB'}
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>
@@ -1699,94 +1703,100 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
           size="md"
           title={isVi ? 'Thêm Cuộn Nhựa / Vật Liệu Mới' : 'Add Material SKU'}
         >
-            <form onSubmit={handleCreateMaterial} className="mt-4 space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Xưởng lưu kho:' : 'Workshop:'}</label>
-                <select
-                  value={newMaterialForm.workshopId}
-                  onChange={(e) => setNewMaterialForm({ ...newMaterialForm, workshopId: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                >
-                  {workshops.map((w) => (
-                    <option key={w.id} value={w.id}>{w.workshopName} ({w.region})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Tên vật liệu:' : 'Material Name:'}</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: PETG-CF Carbon Fiber Đen"
-                  value={newMaterialForm.materialName}
-                  onChange={(e) => setNewMaterialForm({ ...newMaterialForm, materialName: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Họ nhựa:' : 'Polymer Type:'}</label>
-                  <select
-                    value={newMaterialForm.materialType}
-                    onChange={(e) => setNewMaterialForm({ ...newMaterialForm, materialType: e.target.value as any })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+            <form onSubmit={handleCreateMaterial} className="mt-4 space-y-4">
+              <Field label={isVi ? 'Xưởng lưu kho:' : 'Workshop:'} optionalLabel={null}>
+                {(control) => (
+                  <Select
+                    {...control}
+                    value={newMaterialForm.workshopId}
+                    onChange={(e) => setNewMaterialForm({ ...newMaterialForm, workshopId: e.target.value })}
                   >
-                    <option value="PLA">PLA</option>
-                    <option value="PETG">PETG</option>
-                    <option value="ABS">ABS</option>
-                    <option value="TPU">TPU</option>
-                    <option value="PA">PA (Nylon)</option>
-                    <option value="Resin">Resin</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Đơn giá/kg (VNĐ):' : 'Price/kg:'}</label>
-                  <input
-                    type="number"
-                    value={newMaterialForm.pricePerKg}
-                    onChange={(e) => setNewMaterialForm({ ...newMaterialForm, pricePerKg: Number(e.target.value) })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+                    {workshops.map((w) => (
+                      <option key={w.id} value={w.id}>{w.workshopName} ({w.region})</option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+
+              <Field label={isVi ? 'Tên vật liệu:' : 'Material Name:'} optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    required
+                    placeholder="Ví dụ: PETG-CF Carbon Fiber Đen"
+                    value={newMaterialForm.materialName}
+                    onChange={(e) => setNewMaterialForm({ ...newMaterialForm, materialName: e.target.value })}
                   />
-                </div>
+                )}
+              </Field>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={isVi ? 'Họ nhựa:' : 'Polymer Type:'} optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={newMaterialForm.materialType}
+                      onChange={(e) => setNewMaterialForm({ ...newMaterialForm, materialType: e.target.value as any })}
+                    >
+                      <option value="PLA">PLA</option>
+                      <option value="PETG">PETG</option>
+                      <option value="ABS">ABS</option>
+                      <option value="TPU">TPU</option>
+                      <option value="PA">PA (Nylon)</option>
+                      <option value="Resin">Resin</option>
+                    </Select>
+                  )}
+                </Field>
+                <Field label={isVi ? 'Đơn giá/kg (VNĐ):' : 'Price/kg:'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      numeric
+                      value={newMaterialForm.pricePerKg}
+                      onChange={(e) => setNewMaterialForm({ ...newMaterialForm, pricePerKg: Number(e.target.value) })}
+                    />
+                  )}
+                </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Tồn kho ban đầu (grams):' : 'Stock (g):'}</label>
-                  <input
-                    type="number"
-                    value={newMaterialForm.currentStockGrams}
-                    onChange={(e) => setNewMaterialForm({ ...newMaterialForm, currentStockGrams: Number(e.target.value) })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-fg-muted mb-1">{isVi ? 'Ngưỡng cảnh báo (grams):' : 'Threshold (g):'}</label>
-                  <input
-                    type="number"
-                    value={newMaterialForm.lowStockThresholdGrams}
-                    onChange={(e) => setNewMaterialForm({ ...newMaterialForm, lowStockThresholdGrams: Number(e.target.value) })}
-                    className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                  />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label={isVi ? 'Tồn kho ban đầu (grams):' : 'Stock (g):'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      numeric
+                      value={newMaterialForm.currentStockGrams}
+                      onChange={(e) => setNewMaterialForm({ ...newMaterialForm, currentStockGrams: Number(e.target.value) })}
+                    />
+                  )}
+                </Field>
+                <Field label={isVi ? 'Ngưỡng cảnh báo (grams):' : 'Threshold (g):'} optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      numeric
+                      value={newMaterialForm.lowStockThresholdGrams}
+                      onChange={(e) => setNewMaterialForm({ ...newMaterialForm, lowStockThresholdGrams: Number(e.target.value) })}
+                    />
+                  )}
+                </Field>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-line-subtle">
-                <button
+              <div className="flex justify-end gap-2 pt-4 border-t border-line-subtle">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setIsAddMaterialModalOpen(false)}
-                  className="px-4 py-2 bg-surface-muted text-fg-muted text-xs font-bold rounded-lg cursor-pointer"
                 >
                   {isVi ? 'Đóng' : 'Cancel'}
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary text-primary-fg text-xs font-bold rounded-lg shadow-e1 cursor-pointer"
-                >
+                </Button>
+                <Button type="submit" variant="primary">
                   {isVi ? 'Lưu Cuộn Nhựa' : 'Save Material'}
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>
@@ -1795,7 +1805,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       {/* TAB 4: ĐỐI TÁC XƯỞNG LƯU TRONG SUPABASE (`workshop_partners`) */}
       {activeTab === 'partners' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3.5 rounded-lg border border-line-subtle shadow-e0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 rounded-lg border border-line">
             <div className="text-xs text-fg-subtle font-medium">
               {isVi
                 ? `Đối tác xưởng đọc/ghi trực tiếp bảng workshop_partners trên Supabase: ${partners.length} bản ghi.`
@@ -1803,26 +1813,28 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                leadingIcon={<Icon name="sync" size={16} className={isPartnersLoading ? 'animate-spin motion-reduce:animate-none' : ''} />}
                 onClick={() => void loadPartners()}
                 disabled={isPartnersLoading}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-subtle hover:bg-canvas text-fg-muted text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-60"
               >
-                <Icon name="sync" size={16} className={isPartnersLoading ? 'animate-spin motion-reduce:animate-none' : ''} />
                 {isVi ? 'Tải Lại' : 'Reload'}
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="primary"
+                size="sm"
+                leadingIcon={<Icon name="add_business" size={16} />}
                 onClick={() => setPartnerDraft(emptyPartnerDraft())}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-lg shadow-e1 transition-colors cursor-pointer"
               >
-                <Icon name="add_business" size={16} />
                 {isVi ? 'Thêm Đối Tác' : 'Add Partner'}
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div className="bg-surface rounded-lg border border-line-subtle overflow-hidden shadow-e0">
+          <div className="bg-surface rounded-lg border border-line overflow-hidden">
             {!isPartnersLoading && partners.length === 0 ? (
             <EmptyState
               size="sm"
@@ -1880,152 +1892,145 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                   : 'Add new workshop partner'
               }
             >
-                <form onSubmit={handleSubmitPartner} className="mt-4 space-y-3.5">
-                  <div>
-                    <label className="block text-xs font-bold text-fg-muted mb-1">
-                      {isVi ? 'Tên xưởng / trạm MES *' : 'Workshop name *'}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={partnerDraft.name}
-                      onChange={(e) => setPartnerDraft({ ...partnerDraft, name: e.target.value })}
-                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-fg-muted mb-1">
-                        {isVi ? 'Vùng:' : 'Region:'}
-                      </label>
-                      <select
-                        value={partnerDraft.region}
-                        onChange={(e) =>
-                          setPartnerDraft({ ...partnerDraft, region: e.target.value as WorkshopPartner['region'] })
-                        }
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                      >
-                        <option value="hanoi">{isVi ? 'Miền Bắc (Hà Nội)' : 'North (Hanoi)'}</option>
-                        <option value="danang">{isVi ? 'Miền Trung (Đà Nẵng)' : 'Central (Da Nang)'}</option>
-                        <option value="hcm">{isVi ? 'Miền Nam (TP.HCM)' : 'South (HCMC)'}</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-fg-muted mb-1">
-                        {isVi ? 'Trạng thái:' : 'Status:'}
-                      </label>
-                      <select
-                        value={partnerDraft.status}
-                        onChange={(e) =>
-                          setPartnerDraft({ ...partnerDraft, status: e.target.value as WorkshopPartner['status'] })
-                        }
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                      >
-                        <option value="active">active</option>
-                        <option value="busy">busy</option>
-                        <option value="offline">offline</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-fg-muted mb-1">
-                      {isVi ? 'Địa chỉ *' : 'Address *'}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={partnerDraft.address}
-                      onChange={(e) => setPartnerDraft({ ...partnerDraft, address: e.target.value })}
-                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-fg-muted mb-1">
-                        {isVi ? 'Người phụ trách:' : 'Contact person:'}
-                      </label>
-                      <input
+                <form onSubmit={handleSubmitPartner} className="mt-4 space-y-4">
+                  <Field label={isVi ? 'Tên xưởng / trạm MES *' : 'Workshop name *'} optionalLabel={null}>
+                    {(control) => (
+                      <Input
+                        {...control}
                         type="text"
-                        value={partnerDraft.contactPerson}
-                        onChange={(e) => setPartnerDraft({ ...partnerDraft, contactPerson: e.target.value })}
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+                        required
+                        value={partnerDraft.name}
+                        onChange={(e) => setPartnerDraft({ ...partnerDraft, name: e.target.value })}
                       />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-fg-muted mb-1">
-                        {isVi ? 'Hotline:' : 'Phone:'}
-                      </label>
-                      <input
+                    )}
+                  </Field>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label={isVi ? 'Vùng:' : 'Region:'} optionalLabel={null}>
+                      {(control) => (
+                        <Select
+                          {...control}
+                          value={partnerDraft.region}
+                          onChange={(e) =>
+                            setPartnerDraft({ ...partnerDraft, region: e.target.value as WorkshopPartner['region'] })
+                          }
+                        >
+                          <option value="hanoi">{isVi ? 'Miền Bắc (Hà Nội)' : 'North (Hanoi)'}</option>
+                          <option value="danang">{isVi ? 'Miền Trung (Đà Nẵng)' : 'Central (Da Nang)'}</option>
+                          <option value="hcm">{isVi ? 'Miền Nam (TP.HCM)' : 'South (HCMC)'}</option>
+                        </Select>
+                      )}
+                    </Field>
+                    <Field label={isVi ? 'Trạng thái:' : 'Status:'} optionalLabel={null}>
+                      {(control) => (
+                        <Select
+                          {...control}
+                          value={partnerDraft.status}
+                          onChange={(e) =>
+                            setPartnerDraft({ ...partnerDraft, status: e.target.value as WorkshopPartner['status'] })
+                          }
+                        >
+                          <option value="active">{isVi ? 'Sẵn sàng' : 'Active'}</option>
+                          <option value="busy">{isVi ? 'Đang bận' : 'Busy'}</option>
+                          <option value="offline">{isVi ? 'Ngoại tuyến' : 'Offline'}</option>
+                        </Select>
+                      )}
+                    </Field>
+                  </div>
+
+                  <Field label={isVi ? 'Địa chỉ *' : 'Address *'} optionalLabel={null}>
+                    {(control) => (
+                      <Input
+                        {...control}
                         type="text"
-                        value={partnerDraft.phone}
-                        onChange={(e) => setPartnerDraft({ ...partnerDraft, phone: e.target.value })}
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
+                        required
+                        value={partnerDraft.address}
+                        onChange={(e) => setPartnerDraft({ ...partnerDraft, address: e.target.value })}
                       />
-                    </div>
+                    )}
+                  </Field>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label={isVi ? 'Người phụ trách:' : 'Contact person:'} optionalLabel={null}>
+                      {(control) => (
+                        <Input
+                          {...control}
+                          type="text"
+                          value={partnerDraft.contactPerson}
+                          onChange={(e) => setPartnerDraft({ ...partnerDraft, contactPerson: e.target.value })}
+                        />
+                      )}
+                    </Field>
+                    <Field label={isVi ? 'Đường dây nóng:' : 'Phone:'} optionalLabel={null}>
+                      {(control) => (
+                        <Input
+                          {...control}
+                          type="text"
+                          value={partnerDraft.phone}
+                          onChange={(e) => setPartnerDraft({ ...partnerDraft, phone: e.target.value })}
+                        />
+                      )}
+                    </Field>
+                  </div>
+
+                  <Field label={isVi ? 'Email:' : 'Email:'} optionalLabel={null}>
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="email"
+                        value={partnerDraft.email}
+                        onChange={(e) => setPartnerDraft({ ...partnerDraft, email: e.target.value })}
+                      />
+                    )}
+                  </Field>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Field label={isVi ? 'Máy đang chạy:' : 'Active printers:'} optionalLabel={null}>
+                      {(control) => (
+                        <Input
+                          {...control}
+                          type="number"
+                          numeric
+                          min="0"
+                          value={partnerDraft.activePrintersCount}
+                          onChange={(e) =>
+                            setPartnerDraft({ ...partnerDraft, activePrintersCount: Number(e.target.value) })
+                          }
+                        />
+                      )}
+                    </Field>
+                    <Field label={isVi ? 'Máy rảnh:' : 'Idle printers:'} optionalLabel={null}>
+                      {(control) => (
+                        <Input
+                          {...control}
+                          type="number"
+                          numeric
+                          min="0"
+                          value={partnerDraft.availablePrintersCount}
+                          onChange={(e) =>
+                            setPartnerDraft({ ...partnerDraft, availablePrintersCount: Number(e.target.value) })
+                          }
+                        />
+                      )}
+                    </Field>
+                    <Field label={isVi ? 'Điểm SLA:' : 'SLA rating:'} optionalLabel={null}>
+                      {(control) => (
+                        <Input
+                          {...control}
+                          type="number"
+                          numeric
+                          step="0.1"
+                          min="0"
+                          max="5"
+                          value={partnerDraft.slaRating}
+                          onChange={(e) => setPartnerDraft({ ...partnerDraft, slaRating: Number(e.target.value) })}
+                        />
+                      )}
+                    </Field>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-fg-muted mb-1">
-                      {isVi ? 'Email:' : 'Email:'}
-                    </label>
-                    <input
-                      type="email"
-                      value={partnerDraft.email}
-                      onChange={(e) => setPartnerDraft({ ...partnerDraft, email: e.target.value })}
-                      className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-fg-muted mb-1">
-                        {isVi ? 'Máy đang chạy:' : 'Active printers:'}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={partnerDraft.activePrintersCount}
-                        onChange={(e) =>
-                          setPartnerDraft({ ...partnerDraft, activePrintersCount: Number(e.target.value) })
-                        }
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-fg-muted mb-1">
-                        {isVi ? 'Máy rảnh:' : 'Idle printers:'}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={partnerDraft.availablePrintersCount}
-                        onChange={(e) =>
-                          setPartnerDraft({ ...partnerDraft, availablePrintersCount: Number(e.target.value) })
-                        }
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-fg-muted mb-1">
-                        {isVi ? 'Điểm SLA:' : 'SLA rating:'}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="5"
-                        value={partnerDraft.slaRating}
-                        onChange={(e) => setPartnerDraft({ ...partnerDraft, slaRating: Number(e.target.value) })}
-                        className="w-full text-xs px-3 py-2 border border-line-subtle rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-fg-muted mb-1">
+                    <label className="block text-sm font-medium text-fg mb-1.5">
                       {isVi ? 'Công nghệ hỗ trợ:' : 'Supported technologies:'}
                     </label>
                     <div className="flex items-center gap-4 pt-1">
@@ -2044,7 +2049,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                                 : current.filter((t) => t !== tech);
                               setPartnerDraft({ ...partnerDraft, supportedTechnologies: next });
                             }}
-                            className="rounded-sm text-primary"
+                            className="size-4 rounded-sm border-line-control accent-primary"
                           />
                           <span>{tech}</span>
                         </label>
@@ -2052,20 +2057,17 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-3 border-t border-line-subtle">
-                    <button
+                  <div className="flex justify-end gap-2 pt-4 border-t border-line-subtle">
+                    <Button
                       type="button"
+                      variant="secondary"
                       onClick={() => setPartnerDraft(null)}
-                      className="px-4 py-2 bg-surface-muted hover:bg-line-subtle text-fg-muted text-xs font-bold rounded-lg cursor-pointer"
                     >
                       {isVi ? 'Hủy Bỏ' : 'Cancel'}
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-lg shadow-e1 cursor-pointer"
-                    >
+                    </Button>
+                    <Button type="submit" variant="primary">
                       {isVi ? 'Lưu Vào Supabase' : 'Save to Supabase'}
-                    </button>
+                    </Button>
                   </div>
                 </form>
             </Modal>

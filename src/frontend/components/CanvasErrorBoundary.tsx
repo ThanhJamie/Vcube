@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Icon } from '@frontend/ui';
+import { Button, Icon } from '@frontend/ui';
 
 interface Props {
   children: ReactNode;
@@ -37,54 +37,53 @@ export class CanvasErrorBoundary extends Component<Props, State> {
         <div
           className={`w-full ${
             this.props.fallbackHeight || 'h-[360px]'
-          } bg-surface-inverse border border-surface-inverse-raised rounded-lg flex flex-col items-center justify-center p-6 text-center text-on-inverse relative overflow-hidden font-sans`}
+          } bg-surface border border-line rounded-lg flex flex-col items-center justify-center p-6 text-center text-fg relative overflow-hidden font-sans`}
         >
           {/* Subtle grid background */}
           <div
-            className="absolute inset-0 opacity-10 pointer-events-none"
+            className="absolute inset-0 opacity-60 pointer-events-none"
             style={{
-              backgroundImage: 'radial-gradient(#57DFFE 1px, transparent 1px)',
+              backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)',
               backgroundSize: '20px 20px'
             }}
           />
 
           {/* Top Engine HUD Overlay */}
           <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-xs font-mono pointer-events-none z-panel">
-            <div className="bg-surface-inverse/90 border border-line px-3 py-1 rounded-lg flex items-center gap-2 text-accent">
-              <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
-              <span className="font-bold">VCUBE MESH ENGINE v2.6</span>
+            <div className="bg-surface/90 border border-line px-3 py-1 rounded-full flex items-center gap-2 text-fg-muted backdrop-blur-sm">
+              <span className="size-1.5 rounded-full bg-danger" />
+              <span className="font-bold text-fg-muted">BỘ MÁY LƯỚI 3D VCUBE v2.6</span>
               <span className="text-fg-subtle">//</span>
-              <span className="text-warning text-xs font-semibold uppercase">Render Error</span>
+              <span className="text-danger text-xs font-semibold uppercase">Lỗi kết xuất 3D</span>
             </div>
           </div>
 
-          <div className="w-14 h-14 rounded-lg bg-primary-tint border border-primary/30 flex items-center justify-center text-accent mb-3 relative z-sticky shadow-e2">
-            <Icon name="view_in_ar" size={30} />
+          <div className="w-12 h-12 rounded-md bg-danger-tint border border-danger/20 flex items-center justify-center text-danger mb-3 relative z-sticky">
+            <Icon name="view_in_ar" size={24} />
           </div>
 
-          <h3 className="font-extrabold text-base text-on-inverse tracking-tight mb-1 relative z-sticky">
+          <h3 className="font-semibold text-base text-fg tracking-tight mb-1 relative z-sticky">
             {this.props.fallbackTitle || 'Không dựng được khung 3D — thử tải lại'}
           </h3>
 
-          <p className="text-xs text-fg-subtle max-w-md mx-auto mb-3 leading-relaxed relative z-sticky">
+          <p className="text-sm text-fg-muted max-w-md mx-auto mb-3 leading-relaxed relative z-sticky">
             Khung nhìn 3D gặp lỗi khi dựng. Phần còn lại của trang vẫn dùng bình thường; bấm nút bên dưới để dựng lại khung 3D.
           </p>
 
           {this.state.errorMessage && (
-            <div className="mb-4 px-3 py-1 bg-surface-inverse/70 border border-line rounded-lg text-xs font-mono text-accent max-w-sm truncate relative z-sticky">
+            <div className="mb-4 px-3 py-1 bg-danger-tint border border-danger/20 rounded-md text-xs font-mono text-danger max-w-sm truncate relative z-sticky">
               Mã lỗi: {this.state.errorMessage}
             </div>
           )}
 
           <div className="flex items-center gap-3 relative z-sticky">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={this.handleRetry}
-              className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-mono font-bold uppercase tracking-wider rounded-full transition-all shadow-e2 hover:shadow-e2 flex items-center gap-2 cursor-pointer"
+              leadingIcon={<Icon name="refresh" size={16} />}
             >
-              <Icon name="refresh" size={18} />
-              <span>Kích Hoạt Lại Engine 3D</span>
-            </button>
+              <span>Kích hoạt lại khung 3D</span>
+            </Button>
           </div>
         </div>
       );

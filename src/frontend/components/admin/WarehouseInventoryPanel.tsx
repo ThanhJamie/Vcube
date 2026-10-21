@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { MaterialProfile, AccessoryItem } from '../../types';
-import { Icon, InfoTip, DataTable, EmptyState } from '@frontend/ui';
+import { Icon, InfoTip, DataTable, EmptyState, Field, Input, Button, Badge } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatNumber } from '../../lib/format';
 import { useLanguage } from '../../context/LanguageContext';
@@ -182,7 +182,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
         <div className="flex items-center gap-2">
           <div className="flex -space-x-1">
             {mat.colors.slice(0, 3).map((col, idx) => (
-              <span key={`${col}-${idx}`} className="w-3.5 h-3.5 rounded-full border border-line shadow-e1 inline-block" style={{ backgroundColor: col }} />
+              <span key={`${col}-${idx}`} className="inline-block h-3.5 w-3.5 rounded-full border border-line" style={{ backgroundColor: col }} />
             ))}
           </div>
           <div>
@@ -198,14 +198,14 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       header: isVi ? 'Giá Vốn / kg' : 'Cost / kg',
       numeric: true,
       value: (m) => costPerKgOf(m) ?? 0,
-      render: (mat) => <span className="text-fg-muted">{numText(costPerKgOf(mat), ' đ')}</span>,
+      render: (mat) => <span className="font-mono tabular-nums text-fg-muted">{numText(costPerKgOf(mat), ' ₫')}</span>,
     },
     {
       key: 'pricePerGram',
       header: isVi ? 'Giá Báo / g' : 'Price / g',
       numeric: true,
       value: (m) => m.pricePerGram ?? 0,
-      render: (mat) => <span className="font-bold text-primary">{numText(mat.pricePerGram, ' đ/g')}</span>,
+      render: (mat) => <span className="font-mono font-bold tabular-nums text-primary">{numText(mat.pricePerGram, ' đ/g')}</span>,
     },
     {
       key: 'stockRollsCount',
@@ -215,13 +215,20 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       render: (mat) => {
         const count = declaredNumber(mat.stockRollsCount);
         const isLow = isMaterialLow(mat);
+        const outOfStock = count !== null && count <= 0;
         return (
-          <div className="flex flex-col items-center">
-            <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>{numText(count, ' cuộn')}</span>
-            {isLow && (
-              <span className="text-xs font-bold text-danger bg-danger-tint px-1.5 py-0.5 rounded-sm mt-0.5">
+          <div className="flex flex-col items-center gap-1.5">
+            <span className={`font-mono text-sm font-bold tabular-nums ${isLow ? 'text-danger' : 'text-fg'}`}>{numText(count, ' cuộn')}</span>
+            {count === null ? (
+              <Badge variant="neutral" dot>Chưa khai tồn</Badge>
+            ) : outOfStock ? (
+              <Badge variant="danger" dot icon={<Icon name="warning" size={12} />}>Hết hàng</Badge>
+            ) : isLow ? (
+              <Badge variant="warning" dot icon={<Icon name="warning" size={12} />}>
                 Cần nhập thêm (&lt;={MATERIAL_LOW_STOCK_THRESHOLD})
-              </span>
+              </Badge>
+            ) : (
+              <Badge variant="success" dot>Đủ hàng</Badge>
             )}
           </div>
         );
@@ -234,12 +241,12 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       render: (mat) => {
         const count = declaredNumber(mat.stockRollsCount);
         if (count === null) {
-          return <span className="px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-surface-muted text-fg-muted">{isVi ? 'Chưa khai tồn' : 'Stock not declared'}</span>;
+          return <Badge variant="neutral">{isVi ? 'Chưa khai tồn' : 'Stock not declared'}</Badge>;
         }
         if (mat.inStock && count > 0) {
-          return <span className="px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-positive-tint text-positive">{isVi ? 'Sẵn Sàng Cho Khách' : 'Available'}</span>;
+          return <Badge variant="success" dot>{isVi ? 'Sẵn Sàng Cho Khách' : 'Available'}</Badge>;
         }
-        return <span className="px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-danger-tint text-danger">{isVi ? 'Tạm Hết Hàng' : 'Out of stock'}</span>;
+        return <Badge variant="danger" dot>{isVi ? 'Tạm Hết Hàng' : 'Out of stock'}</Badge>;
       },
     },
     {
@@ -249,18 +256,20 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       render: (mat) => (
         <div className="flex items-center justify-end gap-1">
           {[
-            { delta: -1, label: '-1', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
-            { delta: 1, label: '+1', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
-            { delta: 5, label: '+5', cls: 'bg-positive-tint hover:bg-positive/20 text-positive' },
+            { delta: -1, label: '-1', variant: 'secondary' as const },
+            { delta: 1, label: '+1', variant: 'secondary' as const },
+            { delta: 5, label: '+5', variant: 'primary' as const },
           ].map((btn) => (
-            <button
+            <Button
               key={btn.delta}
               type="button"
+              size="sm"
+              variant={btn.variant}
               onClick={() => handleMaterialStockAdjust(mat.id, btn.delta)}
-              className={`px-2 py-1 rounded-sm font-tech font-bold text-xs ${btn.cls}`}
+              aria-label={`${btn.label} ${mat.name}`}
             >
               {btn.label}
-            </button>
+            </Button>
           ))}
         </div>
       ),
@@ -291,15 +300,15 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       render: (acc) => (
         <div className="flex items-center gap-2.5">
           {acc.imageUrl ? (
-            <img src={acc.imageUrl} alt={acc.name} className="w-8 h-8 rounded-sm object-cover border border-line" />
+            <img src={acc.imageUrl} alt={acc.name} className="h-8 w-8 rounded-md border border-line object-cover" />
           ) : (
-            <span className="w-8 h-8 rounded-sm border border-line bg-surface-muted text-fg-subtle flex items-center justify-center shrink-0">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line-subtle bg-surface-muted text-fg-subtle">
               <Icon name="inventory" size={16} />
             </span>
           )}
           <div>
             <p className="font-bold text-fg">{acc.name}</p>
-            <span className="font-tech text-xs text-primary font-semibold">{acc.sku || '—'}</span>
+            <span className="font-mono text-xs font-semibold text-primary">{acc.sku || '—'}</span>
           </div>
         </div>
       ),
@@ -308,21 +317,21 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       key: 'category',
       header: isVi ? 'Phân Loại' : 'Category',
       value: (a) => a.category,
-      render: (acc) => <span className="px-2 py-0.5 bg-info-tint text-info rounded-sm text-xs font-bold capitalize">{acc.category}</span>,
+      render: (acc) => <Badge variant="info" className="capitalize">{acc.category}</Badge>,
     },
     {
       key: 'warehouseLocation',
       header: isVi ? 'Vị Trí Kệ' : 'Shelf',
       value: (a) => a.warehouseLocation || '',
       render: (acc) => (
-        <span className="flex items-center gap-1 font-tech font-bold text-xs text-primary">
+        <span className="flex items-center gap-1 font-mono text-xs font-bold text-primary">
           <Icon name="shelves" size={14} />
           {acc.warehouseLocation || '—'}
         </span>
       ),
     },
-    { key: 'costPrice', header: isVi ? 'Giá Vốn' : 'Cost', numeric: true, value: (a) => a.costPrice ?? 0, render: (acc) => <span className="text-fg-muted">{numText(acc.costPrice, ' đ')}</span> },
-    { key: 'sellingPrice', header: isVi ? 'Giá Báo Khách' : 'Sell', numeric: true, value: (a) => a.sellingPrice ?? 0, render: (acc) => <span className="font-bold text-fg">{numText(acc.sellingPrice, ' đ')}</span> },
+    { key: 'costPrice', header: isVi ? 'Giá Vốn' : 'Cost', numeric: true, value: (a) => a.costPrice ?? 0, render: (acc) => <span className="font-mono tabular-nums text-fg-muted">{numText(acc.costPrice, ' ₫')}</span> },
+    { key: 'sellingPrice', header: isVi ? 'Giá Báo Khách' : 'Sell', numeric: true, value: (a) => a.sellingPrice ?? 0, render: (acc) => <span className="font-mono font-bold tabular-nums text-fg">{numText(acc.sellingPrice, ' ₫')}</span> },
     {
       key: 'stockCount',
       header: isVi ? 'Tồn Kho' : 'Stock',
@@ -331,13 +340,21 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       render: (acc) => {
         const threshold = declaredNumber(acc.lowStockThreshold);
         const isLow = isAccessoryLow(acc);
+        const stock = declaredNumber(acc.stockCount);
+        const outOfStock = stock !== null && stock <= 0;
         return (
-          <div className="flex flex-col items-center">
-            <span className={`font-tech font-bold text-sm ${isLow ? 'text-danger' : 'text-fg'}`}>{numText(acc.stockCount)} {acc.unit}</span>
-            {isLow && (
-              <span className="text-xs font-bold text-danger bg-danger-tint px-1.5 py-0.5 rounded-sm mt-0.5">
+          <div className="flex flex-col items-center gap-1.5">
+            <span className={`font-mono text-sm font-bold tabular-nums ${isLow ? 'text-danger' : 'text-fg'}`}>{numText(acc.stockCount)} {acc.unit}</span>
+            {stock === null ? (
+              <Badge variant="neutral" dot>Chưa kiểm kê</Badge>
+            ) : outOfStock ? (
+              <Badge variant="danger" dot icon={<Icon name="warning" size={12} />}>Hết hàng</Badge>
+            ) : isLow ? (
+              <Badge variant="warning" dot icon={<Icon name="warning" size={12} />}>
                 Cảnh báo hết (&lt;={numText(threshold)})
-              </span>
+              </Badge>
+            ) : (
+              <Badge variant="success" dot>Đủ hàng</Badge>
             )}
           </div>
         );
@@ -350,18 +367,20 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       render: (acc) => (
         <div className="flex items-center justify-end gap-1">
           {[
-            { delta: -10, label: '-10', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
-            { delta: 10, label: '+10', cls: 'bg-surface-muted hover:bg-line-subtle text-fg-muted' },
-            { delta: 50, label: '+50', cls: 'bg-positive-tint hover:bg-positive/20 text-positive' },
+            { delta: -10, label: '-10', variant: 'secondary' as const },
+            { delta: 10, label: '+10', variant: 'secondary' as const },
+            { delta: 50, label: '+50', variant: 'primary' as const },
           ].map((btn) => (
-            <button
+            <Button
               key={btn.delta}
               type="button"
+              size="sm"
+              variant={btn.variant}
               onClick={() => handleAccessoryStockAdjust(acc.id, btn.delta)}
-              className={`px-2 py-1 rounded-sm font-tech font-bold text-xs ${btn.cls}`}
+              aria-label={`${btn.label} ${acc.name}`}
             >
               {btn.label}
-            </button>
+            </Button>
           ))}
         </div>
       ),
@@ -372,66 +391,66 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
   return (
     <div className="space-y-6">
       {/* 4 Core KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-surface p-4 border border-line rounded-sm shadow-e1">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-line-subtle bg-surface p-4">
           <div className="flex items-center justify-between text-fg-muted">
-            <span className="text-xs font-tech uppercase font-bold tracking-wider">Tổng Giá Trị Tồn Kho</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Tổng Giá Trị Tồn Kho</span>
             <Icon name="account_balance_wallet" size={24} className="text-primary" />
           </div>
           <div className="mt-2">
-            <span className="text-xl font-tech font-bold text-fg">
-              {numText(totalInventoryValuation, ' đ')}
-              {inventoryValueIncomplete && <span className="text-xs font-sans font-normal text-warning"> (thiếu)</span>}
+            <span className="font-mono text-xl font-bold tabular-nums text-fg">
+              {numText(totalInventoryValuation, ' ₫')}
+              {inventoryValueIncomplete && <span className="font-sans text-xs font-normal text-warning"> (thiếu)</span>}
             </span>
-            <p className="text-xs text-fg-muted mt-0.5">
-              Vật liệu: {numText(totalMaterialValue, ' đ')} • Phụ kiện: {numText(totalAccessoriesValue, ' đ')}
+            <p className="mt-0.5 text-xs text-fg-muted">
+              Vật liệu: {numText(totalMaterialValue, ' ₫')} • Phụ kiện: {numText(totalAccessoriesValue, ' ₫')}
               {inventoryValueIncomplete && ' • có dòng tồn kho chưa khai số lượng hoặc giá vốn'}
             </p>
           </div>
         </div>
 
-        <div className="bg-surface p-4 border border-line rounded-sm shadow-e1">
+        <div className="rounded-lg border border-line-subtle bg-surface p-4">
           <div className="flex items-center justify-between text-fg-muted">
-            <span className="text-xs font-tech uppercase font-bold tracking-wider">Vật Liệu Nhựa & Resin</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Vật Liệu Nhựa & Resin</span>
             <Icon name="inventory_2" size={24} className="text-info" />
           </div>
           <div className="mt-2">
-            <span className="text-xl font-tech font-bold text-fg">
+            <span className="font-mono text-xl font-bold tabular-nums text-fg">
               {materialSpoolsText(' cuộn / bình')}
-              {materialStockIncomplete && <span className="text-xs font-sans font-normal text-warning"> (thiếu)</span>}
+              {materialStockIncomplete && <span className="font-sans text-xs font-normal text-warning"> (thiếu)</span>}
             </span>
-            <p className="text-xs text-fg-muted mt-0.5">
+            <p className="mt-0.5 text-xs text-fg-muted">
               {materials.length} chủng loại nhựa (PLA, PETG, ABS, TPU, SLA...)
               {materialStockIncomplete && ' • có vật liệu chưa khai tồn kho'}
             </p>
           </div>
         </div>
 
-        <div className="bg-surface p-4 border border-line rounded-sm shadow-e1">
+        <div className="rounded-lg border border-line-subtle bg-surface p-4">
           <div className="flex items-center justify-between text-fg-muted">
-            <span className="text-xs font-tech uppercase font-bold tracking-wider">Phụ Kiện & Bao Bì</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Phụ Kiện & Bao Bì</span>
             <Icon name="extension" size={24} className="text-positive" />
           </div>
           <div className="mt-2">
-            <span className="text-xl font-tech font-bold text-fg">
+            <span className="font-mono text-xl font-bold tabular-nums text-fg">
               {numText(totalAccessoriesCount, ' món')}
             </span>
-            <p className="text-xs text-fg-muted mt-0.5">
+            <p className="mt-0.5 text-xs text-fg-muted">
               {accessories.length} mặt hàng (móc khóa, ốc cấy, nam châm, hộp...)
             </p>
           </div>
         </div>
 
-        <div className="bg-surface p-4 border border-line rounded-sm shadow-e1">
+        <div className="rounded-lg border border-line-subtle bg-surface p-4">
           <div className="flex items-center justify-between text-fg-muted">
-            <span className="text-xs font-tech uppercase font-bold tracking-wider">Cảnh Báo Sắp Hết Hàng</span>
-            <Icon name="warning" size={24} className={totalLowStockAlerts > 0 ? 'text-danger animate-pulse motion-reduce:animate-none' : 'text-fg-subtle'} />
+            <span className="text-xs font-semibold uppercase tracking-wider">Cảnh Báo Sắp Hết Hàng</span>
+            <Icon name="warning" size={24} className={totalLowStockAlerts > 0 ? 'text-warning' : 'text-fg-subtle'} />
           </div>
           <div className="mt-2">
-            <span className={`text-xl font-tech font-bold ${totalLowStockAlerts > 0 ? 'text-danger' : 'text-positive'}`}>
+            <span className={`font-mono text-xl font-bold tabular-nums ${totalLowStockAlerts > 0 ? 'text-warning' : 'text-positive'}`}>
               {totalLowStockAlerts} mặt hàng
             </span>
-            <p className="text-xs text-fg-muted mt-0.5">
+            <p className="mt-0.5 text-xs text-fg-muted">
               {lowStockMaterials.length} vật liệu & {lowStockAccessories.length} phụ kiện cần nhập thêm
             </p>
           </div>
@@ -439,18 +458,15 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       </div>
 
       {/* Warehouse Location Matrix & Stock Synchronizer */}
-      <div className="bg-gradient-to-r from-surface-inverse to-surface-inverse text-on-inverse p-5 rounded-lg shadow-e1">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-lg border border-line-subtle bg-surface-muted p-6">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <div className="flex items-center gap-2">
-              <Icon name="shelves" size={24} className="text-accent" />
-              <h3 className="font-bold text-sm text-on-inverse">Sơ Đồ Kệ Kho Xưởng & Đồng Bộ Báo Giá (Stock Mapping)</h3>
+              <Icon name="shelves" size={24} className="text-primary" />
+              <h3 className="text-sm font-bold tracking-tight text-fg">Sơ Đồ Kệ Kho Xưởng & Đồng Bộ Báo Giá (Stock Mapping)</h3>
             </div>
             <div className="mt-1">
-              <InfoTip
-                label="Số lượng tồn kho này được dùng ở đâu?"
-                className="[&_button]:text-on-inverse/80 [&_button:hover]:text-on-inverse"
-              >
+              <InfoTip label="Số lượng tồn kho này được dùng ở đâu?">
                 Tất cả các số lượng tồn kho hiển thị tại đây được liên kết trực tiếp vào{' '}
                 <strong>Tool Báo Giá 3D Quoting</strong> và <strong>Trình Dự Toán Xưởng</strong>. Khi khách chọn loại
                 nhựa hoặc phụ kiện, hệ thống sẽ tự kiểm tra tính khả dụng.
@@ -458,24 +474,23 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="px-3 py-1 bg-positive/20 border border-positive/30 text-accent rounded-sm text-xs font-tech font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-positive animate-ping motion-reduce:animate-none"></span>
-              Đồng Bộ Thời Gian Thực
-            </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="neutral" dot>
+              Dữ Liệu Tồn Kho Từ CSDL
+            </Badge>
           </div>
         </div>
 
         {/* Quick Location Filter Tags */}
-        <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-surface-inverse-raised">
-          <span className="text-xs font-tech uppercase text-fg-subtle font-bold">Lọc theo Vị Trí Kệ:</span>
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line-subtle pt-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Lọc theo Vị Trí Kệ:</span>
           <button
             type="button"
             onClick={() => setSelectedLocation('all')}
-            className={`px-2.5 py-1 text-xs rounded-sm font-tech transition-colors ${
+            className={`rounded-sm px-2.5 py-1 text-xs font-medium transition-colors max-md:min-h-11 ${
               selectedLocation === 'all'
-                ? 'bg-surface-inverse text-accent font-bold'
-                : 'bg-surface-muted text-fg-muted hover:bg-line-subtle'
+                ? 'bg-surface font-semibold text-fg shadow-e1'
+                : 'text-fg-muted hover:bg-surface'
             }`}
           >
             Tất Cả Kệ
@@ -485,10 +500,10 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
               key={loc}
               type="button"
               onClick={() => setSelectedLocation(loc)}
-              className={`px-2.5 py-1 text-xs rounded-sm font-tech transition-colors ${
+              className={`rounded-sm px-2.5 py-1 text-xs font-medium transition-colors max-md:min-h-11 ${
                 selectedLocation === loc
-                  ? 'bg-surface-inverse text-accent font-bold'
-                  : 'bg-surface-muted text-fg-muted hover:bg-line-subtle'
+                  ? 'bg-surface font-semibold text-fg shadow-e1'
+                  : 'text-fg-muted hover:bg-surface'
               }`}
             >
               {loc}
@@ -498,8 +513,8 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       </div>
 
       {/* Filter Tabs & Search */}
-      <div className="bg-surface p-4 border border-line rounded-sm flex flex-col md:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2 w-full md:w-auto">
+      <div className="flex flex-col items-center justify-between gap-3 rounded-lg border border-line-subtle bg-surface p-4 md:flex-row">
+        <div className="inline-flex w-full flex-wrap items-center gap-1 rounded-md border border-line bg-surface-muted p-1 md:w-auto">
           {[
             { id: 'all', label: 'Tất Cả Tồn Kho' },
             { id: 'materials', label: `Nhựa In & Resin (${materials.length})` },
@@ -510,10 +525,11 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
               key={tab.id}
               type="button"
               onClick={() => setFilterType(tab.id as any)}
-              className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors ${
+              aria-pressed={filterType === tab.id}
+              className={`rounded-sm px-3 py-1.5 text-sm font-medium transition-colors max-md:min-h-11 ${
                 filterType === tab.id
-                  ? 'bg-primary text-primary-fg shadow-e1'
-                  : 'bg-surface-muted text-fg-muted hover:bg-line-subtle'
+                  ? 'bg-surface font-semibold text-fg shadow-e1'
+                  : 'text-fg-muted hover:text-fg'
               }`}
             >
               {tab.label}
@@ -521,29 +537,35 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
           ))}
         </div>
 
-        <div className="w-full md:w-72 relative">
-          <Icon name="search" size={16} className="absolute left-3 top-2 text-fg-muted" />
-          <input
-            type="text"
-            placeholder="Tìm theo tên hàng, mã SKU, vị trí..."
-            aria-label="Tìm hàng trong kho theo tên, mã SKU hoặc vị trí"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 border border-line-control rounded-sm text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary"
-          />
+        <div className="w-full md:w-72">
+          <Field id="warehouse-search" label="Tìm hàng trong kho theo tên, mã SKU hoặc vị trí" hideLabel optionalLabel={null}>
+            {(control) => (
+              <div className="relative">
+                <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+                <Input
+                  {...control}
+                  type="search"
+                  placeholder="Tìm theo tên hàng, mã SKU, vị trí..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            )}
+          </Field>
         </div>
       </div>
 
       {/* 1. SECTON: TỒN KHO NHỰA IN & RESIN (FILAMENTS / RESINS) */}
       {(filterType === 'all' || filterType === 'materials' || filterType === 'low_stock') && (
-        <div className="bg-surface rounded-sm overflow-hidden shadow-e1">
-          <div className="bg-canvas px-4 py-3 border-b border-line flex items-center justify-between">
-            <h3 className="font-bold text-xs text-fg flex items-center gap-2">
+        <div className="overflow-hidden rounded-lg border border-line bg-surface">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-subtle bg-surface-muted px-4 py-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-fg">
               <Icon name="palette" size={16} className="text-primary" />
               Tồn Kho Cuộn Nhựa Filament & Nhựa Resin (Đang Đồng Bộ Báo Giá)
             </h3>
-            <span className="text-xs font-tech text-fg-muted">
-              Tổng: <strong>{materialSpoolsText(' cuộn')}</strong> ({numText(totalMaterialValue, ' đ')})
+            <span className="font-mono text-xs tabular-nums text-fg-muted">
+              Tổng: <strong>{materialSpoolsText(' cuộn')}</strong> ({numText(totalMaterialValue, ' ₫')})
               {materialStockIncomplete && <span className="text-warning"> • thiếu dòng chưa khai tồn</span>}
             </span>
           </div>
@@ -568,14 +590,14 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
 
       {/* 2. SECTION: TỒN KHO PHỤ KIỆN & BAO BÌ (ACCESSORIES / PACKAGING / HARDWARE) */}
       {(filterType === 'all' || filterType === 'accessories' || filterType === 'low_stock') && (
-        <div className="bg-surface rounded-sm overflow-hidden shadow-e1">
-          <div className="bg-canvas px-4 py-3 border-b border-line flex items-center justify-between">
-            <h3 className="font-bold text-xs text-fg flex items-center gap-2">
+        <div className="overflow-hidden rounded-lg border border-line bg-surface">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-subtle bg-surface-muted px-4 py-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-fg">
               <Icon name="extension" size={16} className="text-primary" />
               Tồn Kho Phụ Kiện, Linh Kiện & Đóng Gói (Hardware & Packaging Stock)
             </h3>
-            <span className="text-xs font-tech text-fg-muted">
-              Tổng: <strong>{numText(totalAccessoriesCount, ' món')}</strong> ({numText(totalAccessoriesValue, ' đ')})
+            <span className="font-mono text-xs tabular-nums text-fg-muted">
+              Tổng: <strong>{numText(totalAccessoriesCount, ' món')}</strong> ({numText(totalAccessoriesValue, ' ₫')})
               {accessoryValueIncomplete && <span className="text-warning"> • thiếu dòng chưa khai giá vốn</span>}
             </span>
           </div>

@@ -186,7 +186,7 @@ export function getMaterialAdvisory(materialName: string, isVi: boolean): Materi
         ? [
             'Đầu đùn dẫn động trực tiếp (Direct Drive Extruder) chống kẹt và uốn sợi dẻo.',
             'Tốc độ đùn kiểm soát chậm 25–45 mm/s đảm bảo dòng chảy ổn định.',
-            'Hạn chế các cấu trúc chống đỡ (supports) phức tạp khó bóc tách.',
+            'Hạn chế các cấu trúc vật liệu đỡ phức tạp khó bóc tách.',
           ]
         : [
             'Direct-drive extruder required to eliminate flexible filament buckling.',
@@ -283,7 +283,7 @@ export const MaterialTechnicalAdvisory: React.FC<MaterialTechnicalAdvisoryProps>
   return (
     <div
       className={cn(
-        'rounded-lg border border-warning/30 bg-surface p-3.5 space-y-3 shadow-e0 transition-all',
+        'rounded-lg bg-surface-muted p-4 space-y-3',
         className
       )}
       aria-live="polite"
@@ -294,7 +294,7 @@ export const MaterialTechnicalAdvisory: React.FC<MaterialTechnicalAdvisoryProps>
           <Badge
             variant="warning"
             size="sm"
-            icon={<Icon name="warning" size={14} className="text-warning" />}
+            dot
           >
             {advisory.badgeLabel}
           </Badge>
@@ -338,7 +338,7 @@ export const MaterialTechnicalAdvisory: React.FC<MaterialTechnicalAdvisoryProps>
             <Icon name="straighten" size={15} className="text-primary shrink-0" />
             <span>{isVi ? '3. Tỷ lệ co ngót & Dung sai khuyến nghị:' : '3. Thermal Shrinkage & Recommended Tolerance:'}</span>
           </div>
-          <div className="rounded-md border border-line-subtle bg-surface-muted p-2.5 space-y-1.5">
+          <div className="rounded-md bg-surface p-2.5 space-y-1.5">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <span className="text-xs font-mono text-fg-muted block uppercase">

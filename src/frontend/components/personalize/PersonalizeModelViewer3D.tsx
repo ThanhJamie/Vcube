@@ -607,6 +607,10 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
 
     return () => {
       if (animationFrameIdRef.current !== null) cancelAnimationFrame(animationFrameIdRef.current);
+      // StrictMode (dev) mount → cleanup → mount: phải NHẢ cờ requestRender, nếu không lần mount
+      // thứ hai gọi requestRender() sẽ early-return và canvas không bao giờ được vẽ.
+      animationFrameIdRef.current = null;
+      renderRequestedRef.current = false;
       resizeObserver.disconnect();
       domEl.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
@@ -698,23 +702,28 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
   return (
     <div
       ref={rootWrapperRef}
-      className={`relative bg-surface-inverse select-none overflow-hidden border border-surface-inverse-raised flex flex-col font-sans transition-all duration-300 ${
+      className={`relative flex flex-col select-none overflow-hidden font-sans transition-all duration-300 motion-reduce:transition-none ${
         isFullscreen
-          ? 'fixed inset-0 z-[100] rounded-none w-screen h-dvh p-0 m-0 shadow-e3'
-          : `rounded-lg ${className}`
+          ? 'fixed inset-0 z-modal m-0 h-dvh w-screen rounded-modal bg-surface p-0 shadow-e3'
+          : `bg-surface-inverse ${className}`
       }`}
     >
-      {/* 3D WebGL Canvas Container */}
-      <div ref={containerRef} className="w-full flex-1 cursor-grab active:cursor-grabbing" />
+      {/* 3D WebGL Canvas Container — nền viewport tối, khớp nền scene của engine.
+          A11Y-04: canvas không có DOM nội dung ⇒ `role="img"` + nhãn VI trên container canvas
+          (không đặt trên wrapper vì wrapper còn toolbar/slider). */}
+      <div
+        ref={containerRef}
+        role="img"
+        aria-label={`Mô hình 3D tuỳ biến ${modelType === 'arduino-case' ? 'hộp Arduino' : modelType} — xem trước theo thông số đang chọn, không phải tệp CAD gốc.`}
+        className="w-full flex-1 bg-surface-inverse cursor-grab active:cursor-grabbing"
+      />
 
-      {/* TOP-LEFT MINIMAL PRODUCT BADGE */}
-      <div className="absolute top-3 left-3 z-panel pointer-events-auto flex items-center gap-2 bg-surface-inverse/85 backdrop-blur-md px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2">
-        <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none"></span>
-        <span className="font-mono text-xs font-bold text-on-inverse uppercase">
-          {modelType || 'ARDUINO-CASE'}
-        </span>
-        <span className="text-on-inverse font-mono text-xs hidden sm:inline">
-          ({dimensions.x.toFixed(0)}×{dimensions.y.toFixed(0)}×{dimensions.z.toFixed(0)} mm)
+      {/* TOP-LEFT MINIMAL PRODUCT BADGE — HUD chip §3.8 */}
+      <div className="absolute top-3 left-3 z-panel pointer-events-auto hidden items-center gap-2 rounded-full border border-line bg-surface/90 px-3 py-1 text-xs font-mono text-fg-muted backdrop-blur-sm shadow-soft sm:inline-flex">
+        <span className="w-2 h-2 rounded-full bg-primary animate-pulse motion-reduce:animate-none" aria-hidden="true"></span>
+        <span className="font-mono text-xs font-bold text-fg uppercase">
+          {/* UI-035: fallback VI — không hiện mã model tiếng Anh thô khi thiếu modelType. */}
+          {modelType === 'arduino-case' ? 'HỘP ARDUINO' : modelType || 'MÔ HÌNH 3D'}
         </span>
       </div>
 
@@ -736,10 +745,10 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
         />
       </div>
 
-      {/* BOTTOM CENTER: COMPACT EXPLODE LID CONTROLLER */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-panel pointer-events-auto flex items-center gap-3 bg-surface-inverse/90 backdrop-blur-md px-4 py-2 rounded-lg border border-surface-inverse-raised/60 shadow-e3 text-xs text-on-inverse">
-        <Icon name="vertical_align_top" size={18} className="text-accent" />
-        <span className="font-mono text-xs uppercase text-on-inverse font-bold hidden sm:inline">
+      {/* BOTTOM CENTER: COMPACT EXPLODE LID CONTROLLER — dock §3.8 */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-panel pointer-events-auto flex items-center gap-3 rounded-lg border border-line bg-surface/95 shadow-e2 backdrop-blur-md px-4 py-2 text-xs text-fg-muted">
+        <Icon name="vertical_align_top" size={18} className="text-primary" aria-hidden="true" />
+        <span className="font-mono text-xs uppercase text-fg-muted font-bold hidden sm:inline">
           TÁCH NẮP HỘP:
         </span>
         <input
@@ -752,10 +761,11 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
             setLocalLidLift(val);
             onLidExplodeChange?.(val);
           }}
-          className="w-28 sm:w-36 accent-primary cursor-pointer"
+          className="w-28 sm:w-36"
+          aria-label="Kéo trượt để mở nắp hộp kiểm tra chân cắm bên trong"
           title="Kéo trượt để mở nắp hộp kiểm tra chân cắm bên trong"
         />
-        <span className="font-mono text-xs text-accent font-bold w-12 text-right">
+        <span className="font-mono text-xs text-fg font-bold w-12 text-right tabular-nums">
           +{localLidLift}mm
         </span>
       </div>

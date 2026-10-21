@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DigitalAsset } from '../types';
 import { ThreeModelViewer } from '../components/ThreeModelViewer';
 import { AssetService, SIGNED_URL_TTL_SECONDS } from '../../backend/services/assetService';
-import { Icon, Button, Modal } from '@frontend/ui';
+import { Icon, Button, Card, Modal, Field, Input, Select, EmptyState } from '@frontend/ui';
 
 interface AssetLibraryViewProps {
   assets: DigitalAsset[];
@@ -55,7 +55,7 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
     if (!canDownload(asset)) {
       // Không có đường dẫn thật ⇒ nói rõ, không tải giả, không toast "bắt đầu tải".
       onShowToast(
-        `Chưa hỗ trợ tải trực tiếp cho "${asset.name}": hệ thống chưa lưu vị trí file trong kho. Vui lòng liên hệ hỗ trợ.`
+        `Chưa hỗ trợ tải trực tiếp cho "${asset.name}": hệ thống chưa lưu vị trí tệp trong kho. Vui lòng liên hệ hỗ trợ.`
       );
       return;
     }
@@ -85,78 +85,62 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
         {/* Title */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-6 border-b border-line">
           <div>
-            <span className="font-mono text-xs uppercase tracking-widest text-fg-subtle block mb-1">
+            <span className="font-mono text-xs uppercase tracking-wider text-fg-subtle block mb-1">
               Thư viện bản quyền kỹ thuật số
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-fg">
-              Thư Viện File CAD Đã Sở Hữu
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-fg">
+              Thư Viện Tệp CAD Đã Sở Hữu
             </h1>
             <p className="text-xs sm:text-sm text-fg-muted mt-1">
-              Danh sách file CAD thuộc quyền sử dụng của bạn theo từng đơn hàng đã mua.
+              Danh sách tệp CAD thuộc quyền sử dụng của bạn theo từng đơn hàng đã mua.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full md:w-64 font-sans">
-              <input
-                type="text"
-                placeholder="Tìm file theo tên..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Tìm file theo tên"
-              />
-              <Icon name="search" size={18} className="absolute left-2.5 top-2.5 text-fg-muted" />
-            </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full md:w-auto">
+            <Field hideLabel label="Tìm tệp theo tên" className="relative w-full md:w-64">
+              {(control) => (
+                <>
+                  <Input {...control} type="text" className="pl-9" placeholder="Tìm tệp theo tên..."
+                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                  <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+                </>
+              )}
+            </Field>
+            <Field hideLabel label="Lọc theo định dạng tệp" className="w-full md:w-44">
+              {(control) => (
+                <Select {...control} value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)}>
+                  {['all', 'STL', '3MF', 'STEP'].map((fmt) => (
+                    <option key={fmt} value={fmt}>{fmt === 'all' ? 'Tất Cả Định Dạng' : fmt}</option>
+                  ))}
+                </Select>
+              )}
+            </Field>
           </div>
         </div>
 
         {/* Download availability notice — honest about the current limitation */}
-        <div className="bg-warning-tint border border-warning/30 rounded-lg p-4 flex items-start gap-3 text-xs">
-          <Icon name="info" size={24} className="text-warning shrink-0 mt-0.5" />
+        <div className="rounded-lg border border-warning/20 bg-warning-tint p-4 flex items-start gap-3 text-xs">
+          <Icon name="info" size={20} className="text-warning shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="font-bold text-warning">Tải trực tiếp: chưa hỗ trợ</p>
+            <p className="font-semibold text-warning">Tải trực tiếp: chưa hỗ trợ</p>
             <p className="text-warning leading-relaxed">
-              Hệ thống chưa lưu vị trí từng file trong kho lưu trữ, nên chưa thể cấp liên kết tải có chữ ký.
-              Danh sách dưới đây là các bản quyền bạn đã mua. Vui lòng liên hệ hỗ trợ để nhận file trong thời gian này.
+              Hệ thống chưa lưu vị trí từng tệp trong kho lưu trữ, nên chưa thể cấp liên kết tải có chữ ký.
+              Danh sách dưới đây là các bản quyền bạn đã mua. Vui lòng liên hệ hỗ trợ để nhận tệp trong thời gian này.
             </p>
           </div>
         </div>
 
-        {/* Format Badges */}
-        <div className="flex items-center gap-2 font-mono overflow-x-auto pb-1">
-          {['all', 'STL', '3MF', 'STEP'].map((fmt) => (
-            <button
-              key={fmt}
-              onClick={() => setSelectedFormat(fmt)}
-              className={`px-3.5 py-1.5 text-xs uppercase tracking-wider font-bold whitespace-nowrap transition-colors border rounded-md cursor-pointer ${
-                selectedFormat === fmt
-                  ? 'bg-primary text-primary-fg border-primary shadow-e1'
-                  : 'bg-surface text-fg-muted hover:text-fg border-line'
-              }`}
-            >
-              {fmt === 'all' ? 'Tất Cả Định Dạng' : fmt}
-            </button>
-          ))}
-        </div>
-
         {/* Assets Grid */}
         {filteredAssets.length === 0 ? (
-          <div className="bg-surface rounded-lg p-10 sm:p-16 text-center space-y-4 shadow-e1">
-            <div className="w-14 h-14 bg-surface-muted rounded-lg flex items-center justify-center mx-auto text-fg-subtle">
-              <Icon name="folder_off" size={30} />
-            </div>
-            <div>
-              <h3 className="font-bold text-base text-fg">
-                {assets.length === 0 ? 'Bạn chưa sở hữu file CAD nào' : 'Không tìm thấy file phù hợp'}
-              </h3>
-              <p className="text-xs text-fg-subtle mt-1">
-                {assets.length === 0
-                  ? 'Mua bản quyền file CAD trên Marketplace, file sẽ xuất hiện tại đây.'
-                  : 'Thử đổi bộ lọc định dạng hoặc từ khoá tìm kiếm.'}
-              </p>
-            </div>
-            <div className="pt-2">
+          <EmptyState
+            bordered
+            live
+            icon={<Icon name="folder_off" size={20} />}
+            title={assets.length === 0 ? 'Bạn chưa sở hữu tệp CAD nào' : 'Không tìm thấy tệp phù hợp'}
+            description={assets.length === 0
+              ? 'Mua bản quyền tệp CAD trên sàn VCUBE, tệp sẽ xuất hiện tại đây.'
+              : 'Thử đổi bộ lọc định dạng hoặc từ khoá tìm kiếm.'}
+            action={(
               <Button
                 variant="primary"
                 size="md"
@@ -165,79 +149,82 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
               >
                 Khám phá kho bản vẽ
               </Button>
-            </div>
-          </div>
+            )}
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {filteredAssets.map((asset) => {
               const downloadable = canDownload(asset);
               return (
-                <div key={asset.id} className="bg-surface hover:border-primary/50 transition-all flex flex-col justify-between p-4 sm:p-5 space-y-4 rounded-lg shadow-e1" >
+                <Card key={asset.id} variant="soft" padding="md" className="flex flex-col justify-between space-y-4">
                   <div>
                     <div className="relative responsive-aspect-frame bg-surface-muted overflow-hidden mb-3 rounded-lg border border-line">
                       <img src={asset.image} alt={asset.name} className="responsive-img-cover" />
-                      <span className="absolute top-2.5 left-2.5 bg-primary text-primary-fg text-xs font-mono font-bold px-2 py-0.5 rounded-sm shadow-e1">
+                      <span className="absolute top-2.5 left-2.5 rounded-full bg-primary px-2.5 py-1 text-xs font-mono font-semibold text-primary-fg">
                         {asset.format}
                       </span>
                       {asset.hasUpdate && (
-                        <span className="absolute top-2.5 right-2.5 bg-surface text-fg text-xs font-sans font-bold uppercase tracking-wider px-2 py-0.5 border border-line rounded-sm shadow-e1">
-                          Update {asset.version}
+                        <span className="absolute top-2.5 right-2.5 rounded-full bg-surface px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-fg border border-line">
+                          Cập nhật {asset.version}
                         </span>
                       )}
-                      <button
+                      <Button
                         type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="absolute bottom-2.5 right-2.5 bg-surface/95 shadow-e1"
                         onClick={() => setPreviewAsset(asset)}
-                        className="absolute bottom-2.5 right-2.5 bg-surface/90 hover:bg-surface text-fg text-xs font-mono uppercase tracking-wider px-2.5 py-1 flex items-center gap-1 rounded-md cursor-pointer border border-line shadow-e1 transition-all active:scale-95"
+                        leadingIcon={<Icon name="view_in_ar" size={16} className="text-fg-muted" />}
                       >
-                        <Icon name="view_in_ar" size={16} className="text-primary" />
                         Xem 3D
-                      </button>
+                      </Button>
                     </div>
 
                     <div className="space-y-1 font-sans">
                       <div className="flex items-center justify-between text-xs text-fg-subtle font-mono">
                         <span>{asset.designer}</span>
-                        <span>{asset.version}</span>
+                        <span className="tabular-nums">{asset.version}</span>
                       </div>
-                      <h3 className="font-bold text-sm text-fg line-clamp-2">{asset.name}</h3>
+                      <h3 className="font-semibold text-sm text-fg line-clamp-2">{asset.name}</h3>
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-line space-y-1 text-xs font-mono text-fg-subtle">
+                    <div className="mt-3 pt-3 border-t border-line-subtle space-y-1 text-xs font-mono text-fg-subtle">
                       <div className="flex items-center justify-between">
                         <span>Giấy phép:</span>
-                        <span className="text-fg font-bold">{asset.license}</span>
+                        <span className="text-fg font-semibold">{asset.license}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Mua ngày:</span>
-                        <span className="text-fg">{asset.purchaseDate}</span>
+                        <span className="text-fg tabular-nums">{asset.purchaseDate}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Dung lượng:</span>
-                        <span className="text-fg">{asset.fileSize}</span>
+                        <span className="text-fg tabular-nums">{asset.fileSize}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2 pt-3 border-t border-line font-sans">
+                  <div className="space-y-2 pt-3 border-t border-line-subtle font-sans">
                     {downloadable ? (
                       <Button
                         size="md"
                         variant="primary"
                         fullWidth
-                        disabled={downloadingId === asset.id}
+                        loading={downloadingId === asset.id}
+                        loadingLabel="Đang tạo liên kết..."
                         onClick={() => handleDownloadFile(asset)}
                         leadingIcon={<Icon name="download" size={18} />}
                       >
                         {downloadingId === asset.id ? 'Đang tạo liên kết...' : 'Tải Về Ngay'}
                       </Button>
                     ) : (
-                      <div className="w-full py-2 bg-surface-muted border border-line text-fg-subtle text-xs uppercase tracking-widest font-bold flex flex-col items-center justify-center gap-0.5 rounded-md text-center px-2">
+                      <div className="w-full rounded-md border border-dashed border-line bg-surface-muted px-2 py-3 text-fg-muted text-xs font-medium flex flex-col items-center justify-center gap-1 text-center">
                         <span className="flex items-center gap-1.5">
                           <Icon name="link_off" size={16} />
                           Chưa hỗ trợ tải trực tiếp
                         </span>
                         <span className="text-xs normal-case tracking-normal font-normal">
-                          Cần bảng order_files để cấp liên kết có chữ ký
+                          Liên kết tải sẽ có khi hệ thống lưu vị trí từng tệp
                         </span>
                       </div>
                     )}
@@ -252,7 +239,7 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
                       Báo Giá Gia Công
                     </Button>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
@@ -265,7 +252,7 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
             onClose={() => setPreviewAsset(null)}
             size="lg"
             title={previewAsset.name}
-            description="Xem trước dạng khối minh hoạ — không phải hình học thật của file."
+            description="Xem trước dạng khối minh hoạ — không phải hình học thật của tệp."
           >
               <div className="bg-surface-muted p-2 border border-line rounded-lg">
                 <ThreeModelViewer
@@ -287,7 +274,7 @@ export const AssetLibraryView: React.FC<AssetLibraryViewProps> = ({
                   variant="primary"
                   size="md"
                   disabled={!canDownload(previewAsset)}
-                  title={!canDownload(previewAsset) ? 'Kho file chưa hỗ trợ tải trực tiếp cho tệp này.' : undefined}
+                  title={!canDownload(previewAsset) ? 'Kho tệp chưa hỗ trợ tải trực tiếp cho tệp này.' : undefined}
                   onClick={() => {
                     if (!canDownload(previewAsset)) return;
                     void handleDownloadFile(previewAsset);

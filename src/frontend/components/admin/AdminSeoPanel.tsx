@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SiteContentConfig } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
-import { Icon, InfoTip } from '@frontend/ui';
+import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
 
 interface AdminSeoPanelProps {
   siteContent: SiteContentConfig;
@@ -68,7 +68,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
       const res = await onUpdateSiteContent(localContent);
       if (!res || res.success) {
         setIsSaved(true);
-        onShowToast(isVi ? 'Đã lưu cấu hình SEO & Metadata thành công!' : 'Saved SEO & Metadata settings successfully!');
+        onShowToast(isVi ? 'Đã lưu cấu hình SEO thành công!' : 'Saved SEO & Metadata settings successfully!');
       } else {
         setIsSaved(false);
         onShowToast(isVi ? `KHÔNG lưu được: ${res.error || 'lỗi không xác định'}` : `Could not save: ${res.error || 'unknown error'}`);
@@ -83,190 +83,223 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
   const descLen = metaDesc.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header Banner */}
-      <div className="bg-surface p-5 sm:p-6 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-e1">
+      <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 bg-primary/10 text-primary font-mono text-xs font-bold rounded-md border border-primary/30 uppercase tracking-widest">
-              SEO CONSOLE // SERP & METADATA
+            <span className="px-2.5 py-0.5 bg-primary-tint text-fg font-mono text-xs font-semibold rounded-sm border border-line uppercase tracking-wider">
+              CẤU HÌNH SEO // KẾT QUẢ TÌM KIẾM & THẺ MÔ TẢ
             </span>
-            <span className="text-xs text-fg-subtle">Google Search & Social Media Ready</span>
+            <span className="text-xs text-fg-subtle">Sẵn sàng cho tìm kiếm Google &amp; mạng xã hội</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-fg mt-1.5 flex items-center gap-2">
+          <h2 className="text-2xl font-bold tracking-tight text-fg mt-2 flex items-center gap-2">
             <Icon name="search" size={24} className="text-primary" />
-            {isVi ? 'Quản Trị SEO & Metadata Toàn Diện' : 'Search Engine Optimization (SEO) & Metadata'}
+            {isVi ? 'Quản Trị SEO Toàn Diện' : 'Search Engine Optimization (SEO) & Metadata'}
           </h2>
-          <p className="text-xs text-fg-subtle mt-1">
+          <p className="text-xs text-fg-subtle mt-1 max-w-2xl">
             {isVi
-              ? 'Tùy chỉnh thẻ Meta, xem trước kết quả tìm kiếm Google (SERP Simulator), cấu hình thẻ chia sẻ mạng xã hội và dữ liệu có cấu trúc Schema.org.'
+              ? 'Tùy chỉnh thẻ tiêu đề & mô tả, xem trước kết quả tìm kiếm Google, cấu hình thẻ chia sẻ mạng xã hội và dữ liệu có cấu trúc Schema.org.'
               : 'Configure Meta tags, live preview Google search snippets, customize social share cards, and validate Schema.org JSON-LD.'}
           </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           {!isSaved && !isSaving && (
-            <span className="text-xs font-bold text-warning flex items-center gap-1">
+            <span className="text-xs font-medium text-warning flex items-center gap-1">
               <Icon name="warning" size={14} />
               {isVi ? 'Chưa lưu' : 'Unsaved'}
             </span>
           )}
-          <button
+          <Button
+            variant={isSaved ? 'secondary' : 'primary'}
+            loading={isSaving}
+            loadingLabel={isVi ? 'Đang lưu…' : 'Saving…'}
+            leadingIcon={<Icon name="save" size={16} />}
             onClick={handleSave}
-            disabled={isSaved || isSaving}
-            className={`px-5 py-2.5 text-xs font-bold rounded-lg uppercase tracking-wider transition-colors flex items-center gap-2 shadow-e1 cursor-pointer disabled:cursor-not-allowed ${
-              isSaved
-                ? 'bg-line-subtle text-fg-muted shadow-none'
-                : 'bg-primary hover:bg-primary-hover text-primary-fg'
-            }`}
+            disabled={isSaved}
           >
-            <Icon name="save" size={18} />
             {isSaving
               ? (isVi ? 'Đang lưu…' : 'Saving…')
               : isSaved
               ? (isVi ? 'Đã Lưu SEO' : 'All Changes Saved')
               : (isVi ? 'Lưu Cấu Hình SEO' : 'Save SEO Config')}
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-line">
+      {/* Navigation Sub-Tabs — segmented §3.6 */}
+      <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-md border border-line bg-surface-muted p-1">
         <button
+          type="button"
           onClick={() => setActiveTab('meta')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+          aria-pressed={activeTab === 'meta'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'meta'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="title" size={18} />
-          <span>{isVi ? 'Thẻ Meta & Keywords' : 'Meta Tags & Keywords'}</span>
+          <Icon name="title" size={16} />
+          <span>{isVi ? 'Thẻ Tiêu Đề & Từ Khoá' : 'Meta Tags & Keywords'}</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('serp')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+          aria-pressed={activeTab === 'serp'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'serp'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="travel_explore" size={18} />
-          <span>{isVi ? 'Mô Phỏng Google SERP' : 'Google SERP Simulator'}</span>
+          <Icon name="travel_explore" size={16} />
+          <span>{isVi ? 'Mô Phỏng Kết Quả Tìm Kiếm' : 'Google SERP Simulator'}</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('social')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+          aria-pressed={activeTab === 'social'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'social'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="share" size={18} />
-          <span>{isVi ? 'Card Mạng Xã Hội (OpenGraph)' : 'Social Sharing Cards'}</span>
+          <Icon name="share" size={16} />
+          <span>{isVi ? 'Thẻ Chia Sẻ Mạng Xã Hội' : 'Social Sharing Cards'}</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('schema')}
-          className={`px-4 py-2.5 rounded-lg font-sans text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+          aria-pressed={activeTab === 'schema'}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none max-md:min-h-11 ${
             activeTab === 'schema'
-              ? 'bg-surface-inverse text-on-inverse shadow-e1'
-              : 'bg-surface text-fg-muted hover:bg-surface-muted border border-line'
+              ? 'bg-surface text-fg shadow-e1 font-semibold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
-          <Icon name="schema" size={18} />
+          <Icon name="schema" size={16} />
           <span>{isVi ? 'Schema.org & Robots' : 'Schema & Robots'}</span>
         </button>
       </div>
 
       {/* TAB 1: META TAGS & KEYWORDS */}
       {activeTab === 'meta' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
             {/* Meta Title */}
-            <div className="bg-surface p-5 rounded-lg space-y-2 shadow-e0">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-fg flex items-center gap-1.5">
-                  <Icon name="badge" size={16} className="text-primary" />
-                  Tiêu Đề Trang (Meta Title)
-                </label>
-                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-sm ${
-                  titleLen >= 50 && titleLen <= 65
-                    ? 'bg-positive-tint text-positive'
-                    : titleLen > 65
-                    ? 'bg-warning-tint text-warning'
-                    : 'bg-surface-muted text-fg-muted'
-                }`}>
-                  {titleLen} / 60 ký tự (Khuyến nghị 50-60)
-                </span>
-              </div>
-              <input
-                type="text"
-                value={metaTitle}
-                onChange={(e) => handleChange('seoTitle', e.target.value)}
-                placeholder="VD: VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì"
-                className="w-full px-4 py-2.5 bg-canvas border border-line-control rounded-lg text-sm text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-              />
-              <div className="flex justify-end">
-                <InfoTip label="Tiêu đề trang xuất hiện ở đâu?">
-                  Tiêu đề hiển thị trên thanh tab trình duyệt và dòng đầu tiên của kết quả tìm kiếm Google.
-                </InfoTip>
-              </div>
+            <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-3">
+              <Field
+                label={
+                  <>
+                    <span className="flex items-center gap-1.5">
+                      <Icon name="badge" size={16} className="text-fg-muted" />
+                      Tiêu Đề Trang
+                    </span>
+                    <span className={`rounded-sm px-2 py-0.5 font-mono text-xs font-medium tabular-nums ${
+                      titleLen >= 50 && titleLen <= 65
+                        ? 'bg-positive-tint text-positive'
+                        : titleLen > 65
+                        ? 'bg-warning-tint text-warning'
+                        : 'bg-surface-muted text-fg-muted'
+                    }`}>
+                      {titleLen} / 60 ký tự (Khuyến nghị 50-60)
+                    </span>
+                  </>
+                }
+                labelClassName="flex w-full flex-wrap items-center justify-between gap-2"
+                hint={
+                  <InfoTip label="Tiêu đề trang xuất hiện ở đâu?">
+                    Tiêu đề hiển thị trên thanh tab trình duyệt và dòng đầu tiên của kết quả tìm kiếm Google.
+                  </InfoTip>
+                }
+                optionalLabel={null}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    value={metaTitle}
+                    onChange={(e) => handleChange('seoTitle', e.target.value)}
+                    placeholder="VD: VCUBE — Dịch Vụ In 3D Công Nghiệp & Báo Giá CAD Tức Thì"
+                  />
+                )}
+              </Field>
             </div>
 
             {/* Meta Description */}
-            <div className="bg-surface p-5 rounded-lg space-y-2 shadow-e0">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-fg flex items-center gap-1.5">
-                  <Icon name="description" size={16} className="text-primary" />
-                  Mô Tả Tóm Tắt (Meta Description)
-                </label>
-                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-sm ${
-                  descLen >= 140 && descLen <= 160
-                    ? 'bg-positive-tint text-positive'
-                    : descLen > 160
-                    ? 'bg-warning-tint text-warning'
-                    : 'bg-surface-muted text-fg-muted'
-                }`}>
-                  {descLen} / 160 ký tự (Khuyến nghị 140-160)
-                </span>
-              </div>
-              <textarea
-                rows={3}
-                value={metaDesc}
-                onChange={(e) => handleChange('seoDescription', e.target.value)}
-                placeholder="Mô tả tóm tắt nội dung nền tảng và thế mạnh in 3D công nghiệp..."
-                className="w-full px-4 py-2.5 bg-canvas border border-line-control rounded-lg text-sm text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
-              />
-              <div className="flex justify-end">
-                <InfoTip label="Mô tả tóm tắt ảnh hưởng gì?">
-                  Đoạn snippet xuất hiện dưới tiêu đề tìm kiếm, quyết định tỷ lệ click chuột (CTR) của khách hàng
-                  tiềm năng.
-                </InfoTip>
-              </div>
+            <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-3">
+              <Field
+                label={
+                  <>
+                    <span className="flex items-center gap-1.5">
+                      <Icon name="description" size={16} className="text-fg-muted" />
+                      Mô Tả Tóm Tắt
+                    </span>
+                    <span className={`rounded-sm px-2 py-0.5 font-mono text-xs font-medium tabular-nums ${
+                      descLen >= 140 && descLen <= 160
+                        ? 'bg-positive-tint text-positive'
+                        : descLen > 160
+                        ? 'bg-warning-tint text-warning'
+                        : 'bg-surface-muted text-fg-muted'
+                    }`}>
+                      {descLen} / 160 ký tự (Khuyến nghị 140-160)
+                    </span>
+                  </>
+                }
+                labelClassName="flex w-full flex-wrap items-center justify-between gap-2"
+                hint={
+                  <InfoTip label="Mô tả tóm tắt ảnh hưởng gì?">
+                    Đoạn snippet xuất hiện dưới tiêu đề tìm kiếm, quyết định tỷ lệ click chuột (CTR) của khách hàng
+                    tiềm năng.
+                  </InfoTip>
+                }
+                optionalLabel={null}
+              >
+                {(control) => (
+                  <textarea
+                    {...control}
+                    rows={3}
+                    value={metaDesc}
+                    onChange={(e) => handleChange('seoDescription', e.target.value)}
+                    placeholder="Mô tả tóm tắt nội dung nền tảng và thế mạnh in 3D công nghiệp..."
+                    className="w-full resize-none rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring aria-invalid:border-danger"
+                  />
+                )}
+              </Field>
             </div>
 
             {/* Keywords */}
-            <div className="bg-surface p-5 rounded-lg space-y-2 shadow-e0">
-              <label className="text-xs font-bold uppercase tracking-wider text-fg flex items-center gap-1.5">
-                <Icon name="tag" size={16} className="text-primary" />
-                Từ Khóa Tìm Kiếm (SEO Keywords)
-              </label>
-              <input
-                type="text"
-                value={keywords}
-                onChange={(e) => handleChange('seoKeywords', e.target.value)}
-                placeholder="in 3d, gia cong in 3d, bao gia stl, in resin, vcube..."
-                className="w-full px-4 py-2.5 bg-canvas border border-line-control rounded-lg text-sm text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-              />
-              <div className="flex flex-wrap gap-1.5 pt-1">
+            <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-3">
+              <Field
+                label={
+                  <span className="flex items-center gap-1.5">
+                    <Icon name="tag" size={16} className="text-fg-muted" />
+                    Từ Khoá Tìm Kiếm
+                  </span>
+                }
+                optionalLabel={null}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="text"
+                    value={keywords}
+                    onChange={(e) => handleChange('seoKeywords', e.target.value)}
+                    placeholder="in 3d, gia cong in 3d, bao gia stl, in resin, vcube..."
+                  />
+                )}
+              </Field>
+              <div className="flex flex-wrap gap-1.5">
                 {keywords.split(',').map((k) => {
                   const trimmed = k.trim();
                   if (!trimmed) return null;
                   return (
-                    <span key={trimmed} className="px-2 py-0.5 bg-surface-muted text-primary font-medium text-xs rounded-md border border-line-subtle">
+                    <span key={trimmed} className="rounded-sm border border-line-subtle bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted">
                       #{trimmed}
                     </span>
                   );
@@ -276,98 +309,116 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
 
             {/* Canonical URL & OG Image */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-surface p-4 rounded-lg space-y-2 shadow-e0">
-                <label className="text-xs font-bold uppercase tracking-wider text-fg flex items-center gap-1.5">
-                  <Icon name="link" size={16} className="text-primary" />
-                  Canonical URL Chuẩn
-                </label>
-                <input
-                  type="text"
-                  value={canonicalUrl}
-                  onChange={(e) => handleChange('seoCanonicalUrl', e.target.value)}
-                  placeholder="https://vcube.vn"
-                  className="w-full px-3 py-2 bg-canvas border border-line-control rounded-lg text-xs text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
+              <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-3">
+                <Field
+                  label={
+                    <span className="flex items-center gap-1.5">
+                      <Icon name="link" size={16} className="text-fg-muted" />
+                      URL Chính Tắc
+                    </span>
+                  }
+                  optionalLabel={null}
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={canonicalUrl}
+                      onChange={(e) => handleChange('seoCanonicalUrl', e.target.value)}
+                      placeholder="https://vcube.vn"
+                      size="sm"
+                    />
+                  )}
+                </Field>
               </div>
 
-              <div className="bg-surface p-4 rounded-lg space-y-2 shadow-e0">
-                <label className="text-xs font-bold uppercase tracking-wider text-fg flex items-center gap-1.5">
-                  <Icon name="image" size={16} className="text-primary" />
-                  Ảnh Đại Diện Mạng Xã Hội (OG Image)
-                </label>
-                <input
-                  type="text"
-                  value={ogImage}
-                  onChange={(e) => handleChange('seoOgImage', e.target.value)}
-                  placeholder="https://... ảnh tỉ lệ 1200x630"
-                  className="w-full px-3 py-2 bg-canvas border border-line-control rounded-lg text-xs text-fg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
+              <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-3">
+                <Field
+                  label={
+                    <span className="flex items-center gap-1.5">
+                      <Icon name="image" size={16} className="text-fg-muted" />
+                      Ảnh Đại Diện Mạng Xã Hội
+                    </span>
+                  }
+                  optionalLabel={null}
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={ogImage}
+                      onChange={(e) => handleChange('seoOgImage', e.target.value)}
+                      placeholder="https://... ảnh tỉ lệ 1200x630"
+                      size="sm"
+                    />
+                  )}
+                </Field>
               </div>
             </div>
           </div>
 
           {/* Quick Score Card */}
           <div className="space-y-4">
-            <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e0">
-              <div className="flex items-center justify-between border-b border-line-subtle pb-3">
-                <h3 className="text-sm font-bold text-fg flex items-center gap-2">
+            <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-4">
+              <div className="flex items-center justify-between gap-2 border-b border-line-subtle pb-3">
+                <h3 className="text-base font-semibold tracking-tight text-fg flex items-center gap-2">
                   <Icon name="verified" size={20} className="text-positive" />
-                  Chỉ Số Tối Ưu Hóa (On-Page Score)
+                  Chỉ Số Tối Ưu Hóa
                 </h3>
-                <span className="text-sm font-black text-fg-muted font-mono" title={isVi ? 'Chưa có công cụ crawl/đo chỉ số on-page' : 'No on-page crawler configured'}>—</span>
+                <span className="font-mono text-sm font-semibold text-fg-muted" title={isVi ? 'Chưa có công cụ thu thập/đo chỉ số tối ưu' : 'No on-page crawler configured'}>—</span>
               </div>
 
               <div className="space-y-3 text-xs">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-fg-muted">Độ dài tiêu đề</span>
-                  <span className={!metaTitle ? 'text-fg-muted' : titleLen >= 50 && titleLen <= 65 ? 'text-positive font-bold' : 'text-warning'}>
+                  <span className={`text-right ${!metaTitle ? 'text-fg-muted' : titleLen >= 50 && titleLen <= 65 ? 'text-positive font-medium' : 'text-warning'}`}>
                     {!metaTitle ? '— Chưa cấu hình' : titleLen >= 50 && titleLen <= 65 ? '✓ Chuẩn' : 'Cần tối ưu'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-fg-muted">Độ dài mô tả</span>
-                  <span className={!metaDesc ? 'text-fg-muted' : descLen >= 140 && descLen <= 160 ? 'text-positive font-bold' : 'text-warning'}>
+                  <span className={`text-right ${!metaDesc ? 'text-fg-muted' : descLen >= 140 && descLen <= 160 ? 'text-positive font-medium' : 'text-warning'}`}>
                     {!metaDesc ? '— Chưa cấu hình' : descLen >= 140 && descLen <= 160 ? '✓ Chuẩn' : 'Cần tối ưu'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-fg-muted">Thẻ OpenGraph Image</span>
-                  <span className={ogImage ? 'text-positive font-bold' : 'text-danger'}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-fg-muted">Thẻ Ảnh Chia Sẻ</span>
+                  <span className={`text-right ${ogImage ? 'text-positive font-medium' : 'text-danger'}`}>
                     {ogImage ? '✓ Có sẵn' : '✗ Thiếu'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-fg-muted">Canonical Tag</span>
-                  <span className={canonicalUrl ? 'text-positive font-bold' : 'text-danger'}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-fg-muted">Thẻ URL Chính Tắc</span>
+                  <span className={`text-right ${canonicalUrl ? 'text-positive font-medium' : 'text-danger'}`}>
                     {canonicalUrl ? '✓ Hợp lệ' : '✗ Thiếu'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-fg-muted">Dữ liệu Schema.org</span>
-                  <span className={localContent.seoStructuredData ? 'text-positive font-bold' : 'text-fg-muted'}>{localContent.seoStructuredData ? '✓ Có dữ liệu Schema.org' : '— Chưa cấu hình'}</span>
+                  <span className={`text-right ${localContent.seoStructuredData ? 'text-positive font-medium' : 'text-fg-muted'}`}>{localContent.seoStructuredData ? '✓ Có dữ liệu Schema.org' : '— Chưa cấu hình'}</span>
                 </div>
               </div>
             </div>
 
             {/* OG Image Mini Preview — chưa cấu hình ⇒ trạng thái TRỐNG, không gọi ảnh bịa */}
-            <div className="bg-surface p-4 rounded-lg space-y-2 shadow-e0">
-              <span className="text-xs font-bold text-fg-muted block">Xem trước ảnh OG Image:</span>
+            <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-3">
+              <span className="text-xs font-semibold text-fg-muted block">Xem trước ảnh chia sẻ:</span>
               {ogImage ? (
-                <div className="aspect-[1.91/1] rounded-lg overflow-hidden border border-line-subtle bg-surface-muted relative">
+                <div className="relative aspect-[1.91/1] overflow-hidden rounded-lg border border-line bg-surface-muted">
                   <img
                     src={ogImage}
-                    alt="OG Preview"
+                    alt="Ảnh xem trước chia sẻ"
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = 'none';
                     }}
                   />
-                  <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-surface-inverse/70 backdrop-blur-xs text-on-inverse text-xs font-mono rounded-sm">
+                  <div className="absolute bottom-2 left-2 rounded-sm bg-surface-inverse/70 px-2 py-0.5 font-mono text-xs text-on-inverse backdrop-blur-sm">
                     1200 × 630 px
                   </div>
                 </div>
               ) : (
-                <div className="aspect-[1.91/1] rounded-lg border border-line-subtle bg-surface-muted flex items-center justify-center">
+                <div className="flex aspect-[1.91/1] items-center justify-center rounded-lg border border-line bg-surface-muted p-4 text-center">
                   <span className="text-xs text-fg-muted">Chưa cấu hình ảnh OG — hệ thống không hiển thị ảnh mẫu.</span>
                 </div>
               )}
@@ -378,43 +429,45 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
 
       {/* TAB 2: GOOGLE SERP SIMULATOR */}
       {activeTab === 'serp' && (
-        <div className="bg-surface p-6 rounded-lg space-y-6 shadow-e1">
+        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line-subtle pb-4">
             <div>
-              <h3 className="text-base font-bold text-fg flex items-center gap-2">
-                <Icon name="preview" size={24} className="text-primary" />
-                Trình Mô Phỏng Google Search Result (SERP Simulator)
+              <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
+                <Icon name="preview" size={22} className="text-fg-muted" />
+                Trình Mô Phỏng Kết Quả Tìm Kiếm Google
               </h3>
-              <p className="text-xs text-fg-subtle mt-0.5">
+              <p className="text-xs text-fg-subtle mt-1">
                 Hiển thị chính xác diện mạo trang web của bạn trên trang nhất của Google khi người dùng tìm kiếm.
               </p>
             </div>
 
-            {/* Device Switcher */}
-            <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg border border-line-subtle shrink-0">
+            {/* Device Switcher — segmented §3.6 */}
+            <div className="inline-flex shrink-0 items-center gap-1 rounded-md border border-line bg-surface-muted p-1">
               <button
+                type="button"
                 onClick={() => setDevicePreview('desktop')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  devicePreview === 'desktop' ? 'bg-surface text-fg shadow-e1' : 'text-fg-subtle hover:text-fg'
+                className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none ${
+                  devicePreview === 'desktop' ? 'bg-surface text-fg shadow-e1 font-semibold' : 'text-fg-muted hover:text-fg'
                 }`}
               >
                 <Icon name="desktop_windows" size={16} />
-                Máy Tính (Desktop)
+                Máy Tính
               </button>
               <button
+                type="button"
                 onClick={() => setDevicePreview('mobile')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  devicePreview === 'mobile' ? 'bg-surface text-fg shadow-e1' : 'text-fg-subtle hover:text-fg'
+                className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors duration-200 motion-reduce:transition-none ${
+                  devicePreview === 'mobile' ? 'bg-surface text-fg shadow-e1 font-semibold' : 'text-fg-muted hover:text-fg'
                 }`}
               >
                 <Icon name="smartphone" size={16} />
-                Di Động (Mobile)
+                Di Động
               </button>
             </div>
           </div>
 
           {/* SERP Frame */}
-          <div className={`p-5 sm:p-6 bg-surface-muted border border-line-subtle rounded-lg ${
+          <div className={`rounded-lg border border-line bg-surface-muted p-5 sm:p-6 ${
             devicePreview === 'mobile' ? 'max-w-md mx-auto shadow-e2' : 'max-w-3xl'
           }`}>
             <div className="space-y-1.5 font-sans">
@@ -424,7 +477,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
                   V
                 </div>
                 <div className="leading-tight">
-                  <div className="font-medium text-fg text-sm">VCUBE Vietnam</div>
+                  <div className="font-medium text-fg text-sm">VCUBE Việt Nam</div>
                   <div className="text-xs text-fg-muted truncate">
                     {canonicalUrl ? (
                       <>
@@ -460,7 +513,7 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
                   <a href="#quote" onClick={(e) => e.preventDefault()} className="text-info hover:underline text-xs font-medium block">
                     Báo Giá CAD Trực Tuyến
                   </a>
-                  <span className="text-xs text-fg-muted line-clamp-1">Tải file STL, chọn vật liệu, tính giá tự động.</span>
+                  <span className="text-xs text-fg-muted line-clamp-1">Tải tệp STL, chọn vật liệu, tính giá tự động.</span>
                 </div>
                 <div>
                   <a href="#materials" onClick={(e) => e.preventDefault()} className="text-info hover:underline text-xs font-medium block">
@@ -476,44 +529,44 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
 
       {/* TAB 3: SOCIAL MEDIA SHARING CARDS */}
       {activeTab === 'social' && (
-        <div className="bg-surface p-6 rounded-lg space-y-6 shadow-e1">
+        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
           <div>
-            <h3 className="text-base font-bold text-fg flex items-center gap-2">
-              <Icon name="share" size={24} className="text-primary" />
+            <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
+              <Icon name="share" size={22} className="text-fg-muted" />
               Mô Phỏng Thẻ Chia Sẻ Mạng Xã Hội (Facebook, Zalo, LinkedIn)
             </h3>
-            <p className="text-xs text-fg-subtle mt-0.5">
-              Hình ảnh và tiêu đề sẽ xuất hiện khi người dùng copy đường link VCUBE chia sẻ lên tin nhắn hoặc mạng xã hội.
+            <p className="text-xs text-fg-subtle mt-1">
+              Hình ảnh và tiêu đề sẽ xuất hiện khi người dùng sao chép đường link VCUBE chia sẻ lên tin nhắn hoặc mạng xã hội.
             </p>
           </div>
 
-          <div className="max-w-xl mx-auto border border-line rounded-lg overflow-hidden shadow-e1 bg-surface">
+          <div className="mx-auto max-w-xl overflow-hidden rounded-lg border border-line bg-surface shadow-e1">
             {/* Social Post Image */}
-            <div className="aspect-[1.91/1] bg-surface-muted relative overflow-hidden border-b border-line-subtle">
+            <div className="relative aspect-[1.91/1] overflow-hidden border-b border-line-subtle bg-surface-muted">
               {/* Chưa cấu hình ⇒ trạng thái TRỐNG: KHÔNG gọi ảnh OG bịa của bên thứ ba. */}
               {ogImage ? (
                 <img
                   src={ogImage}
-                  alt="Social Card"
+                  alt="Thẻ chia sẻ mạng xã hội"
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-xs text-fg-muted">Chưa cấu hình ảnh OG (OpenGraph).</span>
+                  <span className="text-xs text-fg-muted">Chưa cấu hình ảnh chia sẻ.</span>
                 </div>
               )}
-              <div className="absolute top-3 left-3 px-2.5 py-1 bg-surface-inverse/70 backdrop-blur-xs text-on-inverse text-xs font-bold rounded-lg flex items-center gap-1.5">
+              <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full border border-line bg-surface/90 px-2.5 py-1 text-xs font-medium text-fg-muted backdrop-blur-sm">
                 <span className="w-2 h-2 rounded-full bg-positive"></span>
                 vcube.vn
               </div>
             </div>
 
             {/* Social Post Meta Body */}
-            <div className="p-4 bg-canvas space-y-1.5">
-              <span className="text-xs font-mono uppercase tracking-widest text-fg-subtle">
-                VCUBE.VN // PRECISION MANUFACTURING
+            <div className="space-y-1.5 bg-surface-muted p-4">
+              <span className="font-mono text-xs uppercase tracking-wider text-fg-subtle">
+                VCUBE.VN // CHẾ TÁC CHÍNH XÁC
               </span>
-              <h4 className="text-sm sm:text-base font-bold text-fg line-clamp-2 leading-snug">
+              <h4 className="text-sm sm:text-base font-semibold tracking-tight text-fg line-clamp-2 leading-snug">
                 {metaTitle}
               </h4>
               <p className="text-xs text-fg-muted line-clamp-2 leading-relaxed">
@@ -526,17 +579,17 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
 
       {/* TAB 4: SCHEMA.ORG & ROBOTS */}
       {activeTab === 'schema' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Robots Indexing Settings */}
-          <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e0">
-            <h3 className="text-sm font-bold text-fg flex items-center gap-2">
-              <Icon name="smart_toy" size={24} className="text-primary" />
-              Cấu Hình Thu Thập Dữ Liệu (Robots &amp; Sitemap)
+          <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-5">
+            <h3 className="text-base font-semibold tracking-tight text-fg flex items-center gap-2">
+              <Icon name="smart_toy" size={22} className="text-fg-muted" />
+              Cấu Hình Thu Thập Dữ Liệu (Bot &amp; Sơ đồ trang)
             </h3>
 
-            <div className="flex items-center justify-between p-4 bg-canvas border border-line-subtle rounded-lg">
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-line-subtle bg-surface-muted p-4">
               <div>
-                <span className="text-xs font-bold text-fg block">Cho phép Bot Tìm Kiếm Index (Index, Follow)</span>
+                <span className="text-sm font-medium text-fg block">Cho phép Bot Tìm Kiếm Thu Thập (index, follow)</span>
                 <span className="text-xs text-fg-subtle">
                   {robotsIndex === true
                     ? 'Đang kích hoạt: Googlebot được phép thu thập toàn bộ trang.'
@@ -548,29 +601,31 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
               <button
                 type="button"
                 onClick={() => handleChange('seoRobotsIndex', !robotsIndex)}
-                className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
-                  robotsIndex ? 'bg-primary' : 'bg-line'
+                aria-label="Bật/tắt cho phép bot tìm kiếm index"
+                aria-pressed={robotsIndex === true}
+                className={`flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition-colors duration-200 motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  robotsIndex ? 'bg-primary' : 'bg-line-control'
                 }`}
               >
                 <div
-                  className={`bg-surface w-4 h-4 rounded-full shadow-e2 transform transition-transform ${
-                    robotsIndex ? 'translate-x-6' : 'translate-x-0'
+                  className={`h-4 w-4 rounded-full bg-surface shadow-e2 transform transition-transform ${
+                    robotsIndex ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>
             </div>
 
-            <div className="p-4 bg-canvas border border-line-subtle rounded-lg space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-fg">Sitemap XML Tự Động</span>
-                <span className="text-xs font-mono font-bold text-fg-muted bg-surface-muted px-2 py-0.5 rounded-sm">
+            <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-fg">Sơ Đồ Trang XML Tự Động</span>
+                <span className="rounded-sm bg-surface px-2 py-0.5 font-mono text-xs font-medium text-fg-muted">
                   {isVi ? 'Chưa kiểm tra' : 'Not checked'}
                 </span>
               </div>
               <div className="flex justify-end">
                 <InfoTip label="Sitemap.xml chứa những trang nào?">
                   Sơ đồ trang web được tạo động tại{' '}
-                  <code className="text-primary font-mono">/sitemap.xml</code> bao gồm toàn bộ trang sản phẩm và
+                  <code className="text-fg font-mono">/sitemap.xml</code> bao gồm toàn bộ trang sản phẩm và
                   trang công nghệ in.
                 </InfoTip>
               </div>
@@ -578,13 +633,13 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
           </div>
 
           {/* Schema.org Structured Data */}
-          <div className="bg-surface p-5 rounded-lg space-y-3 shadow-e0">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-fg flex items-center gap-2">
-                <Icon name="code" size={24} className="text-primary" />
-                Dữ Liệu Có Cấu Trúc (JSON-LD Schema)
+          <div className="rounded-lg border border-line-subtle bg-surface p-6 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-base font-semibold tracking-tight text-fg flex items-center gap-2">
+                <Icon name="code" size={22} className="text-fg-muted" />
+                Dữ Liệu Có Cấu Trúc (JSON-LD)
               </h3>
-              <span className="text-xs font-mono bg-primary-tint text-primary font-bold px-2 py-0.5 rounded-sm">
+              <span className="rounded-sm bg-primary-tint px-2 py-0.5 font-mono text-xs font-medium text-fg">
                 Schema.org
               </span>
             </div>
@@ -592,7 +647,8 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
               rows={8}
               value={structuredData}
               onChange={(e) => handleChange('seoStructuredData', e.target.value)}
-              className="w-full px-3 py-2 bg-surface-inverse text-accent font-mono text-xs rounded-lg border border-surface-inverse-raised focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              aria-label="Dữ liệu có cấu trúc JSON-LD"
+              className="w-full resize-none rounded-md border border-surface-inverse-raised bg-surface-inverse px-3 py-2 font-mono text-xs text-accent focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <p className="text-xs text-fg-subtle">
               Dữ liệu JSON-LD giúp Google hiểu rõ thông tin xưởng in, địa chỉ văn phòng và tính năng báo giá 3D.

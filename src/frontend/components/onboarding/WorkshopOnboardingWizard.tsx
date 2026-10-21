@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Button } from '@frontend/ui';
+import { Button, Input, Select } from '@frontend/ui';
 import { formatCurrency, formatNumber } from '@frontend/lib/format';
 import {
   Printer,
@@ -324,7 +324,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       return;
     }
     if (!address.trim() || !contactPhone.trim() || !contactEmail.trim()) {
-      onShowToast?.('Vui lòng nhập đủ địa chỉ xưởng, hotline điều phối và email kỹ thuật!');
+      onShowToast?.('Vui lòng nhập đủ địa chỉ xưởng, số điện thoại điều phối và email kỹ thuật!');
       setCurrentStep(1);
       return;
     }
@@ -462,81 +462,92 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       );
     } else {
       onShowToast?.(
-        `Đã lưu hồ sơ xưởng cùng ${machines.length} máy in và ${materials.length} vật liệu. Trạng thái: chờ Quản trị viên duyệt (Pending).`
+        `Đã lưu hồ sơ xưởng cùng ${machines.length} máy in và ${materials.length} vật liệu. Trạng thái: chờ quản trị viên duyệt.`
       );
     }
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto my-6 px-4 font-sans text-fg">
+    <div className="mx-auto my-6 w-full max-w-5xl px-4 font-sans text-fg">
       {/* Top Header Card */}
-      <div className="bg-surface rounded-lg shadow-e1 overflow-hidden mb-6">
-        <div className="bg-surface-inverse p-6 text-on-inverse flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="mb-6 overflow-hidden rounded-xl border border-line bg-surface">
+        <div className="flex flex-col items-start justify-between gap-4 border-b border-line-subtle p-6 md:flex-row md:items-center">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-lg bg-on-inverse/10 backdrop-blur-md flex items-center justify-center border border-line shadow-e0">
-              <Printer className="w-8 h-8 text-primary" />
+            <div className="grid size-14 place-items-center rounded-lg border border-line bg-surface-muted text-fg">
+              <Printer className="size-6" aria-hidden="true" />
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-tint border border-primary/30 text-xs font-semibold text-primary mb-1">
-                <Sparkles className="w-3.5 h-3.5" />
-                MES Hub Onboarding Wizard
+              <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-tint px-2.5 py-1 text-xs font-medium text-fg">
+                <Sparkles className="size-3.5" aria-hidden="true" />
+                Đăng ký đối tác xưởng in (MES)
               </div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-                Đăng Ký Đối Tác Xưởng In 3D (MES Partner)
+              <h1 className="text-2xl font-bold tracking-tight text-fg">
+                Đăng ký đối tác xưởng in 3D (MES)
               </h1>
-              <p className="text-sm text-primary/90 mt-0.5">
+              <p className="mt-0.5 text-sm text-fg-muted">
                 Khai báo cơ sở sản xuất của xưởng để VCUBE đối chiếu khi phân công đơn in
               </p>
             </div>
           </div>
 
           {currentStep < 4 && (
-            <div className="flex items-center gap-2 bg-on-inverse/10 px-3 py-1.5 rounded-lg border border-line text-xs text-accent">
-              <Clock className="w-4 h-4 text-primary" />
-              <span>3 bước: cơ sở · máy in · vật liệu</span>
+            <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-muted px-3 py-1.5 text-xs text-fg-muted">
+              <Clock className="size-4" aria-hidden="true" />
+              <span>3 bước khai báo: cơ sở · máy in · vật liệu</span>
             </div>
           )}
         </div>
 
-        {/* Progress Step Bar */}
+        {/* Progress Step Bar — 4 bước, §3.6 (xong = đen đặc, hiện tại = viền đen). */}
         {currentStep < 4 && (
-          <div className="grid grid-cols-3 border-b border-line-subtle bg-canvas/80">
+          <div className="flex items-center gap-2 border-b border-line-subtle bg-surface-muted/50 p-4">
             {[
               { step: 1, label: 'Thông Tin Xưởng', sub: 'Địa chỉ & khu vực', icon: Building2 },
               { step: 2, label: 'Khai Báo Máy In', sub: 'Đơn giá giờ & khổ in', icon: Printer },
-              { step: 3, label: 'Nhựa Tồn Kho', sub: 'Loại nhựa & Giá nhập', icon: Layers }
+              { step: 3, label: 'Nhựa Tồn Kho', sub: 'Loại nhựa & Giá nhập', icon: Layers },
+              { step: 4, label: 'Xác Nhận & Gửi', sub: 'Chờ duyệt', icon: Check }
             ].map(item => {
-              const Icon = item.icon;
+              const ItemIcon = item.icon;
               const isActive = currentStep === item.step;
               const isCompleted = currentStep > item.step;
               return (
-                <div
-                  key={item.step}
-                  onClick={() => {
-                    if (isCompleted) setCurrentStep(item.step as any);
-                  }}
-                  className={`p-4 flex items-center gap-3 transition-colors ${
-                    isCompleted ? 'cursor-pointer hover:bg-positive-tint/60' : ''
-                  } ${isActive ? 'bg-surface border-b-2 border-primary' : ''}`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
-                      isCompleted
-                        ? 'bg-positive text-primary-fg shadow-e1'
-                        : isActive
-                        ? 'bg-primary text-primary-fg shadow-e1'
-                        : 'bg-line-subtle text-fg-muted'
+                <React.Fragment key={item.step}>
+                  {item.step > 1 ? (
+                    <div
+                      aria-hidden="true"
+                      className={`hidden h-0.5 flex-1 sm:block ${currentStep >= item.step ? 'bg-primary' : 'bg-line-subtle'}`}
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={!isCompleted}
+                    aria-current={isActive ? 'step' : undefined}
+                    onClick={() => {
+                      if (isCompleted) setCurrentStep(item.step as any);
+                    }}
+                    className={`flex items-center gap-2 rounded-md px-1 py-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 motion-reduce:transition-none ${
+                      isCompleted ? 'cursor-pointer hover:bg-surface-muted' : ''
                     }`}
                   >
-                    {isCompleted ? <Check className="w-5 h-5" /> : item.step}
-                  </div>
-                  <div className="hidden sm:block">
-                    <div className={`text-xs font-bold uppercase tracking-wider ${isActive ? 'text-primary' : 'text-fg-muted'}`}>
-                      {item.label}
+                    <div
+                      className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold ${
+                        isCompleted
+                          ? 'bg-primary text-primary-fg'
+                          : isActive
+                          ? 'border-2 border-primary text-primary'
+                          : 'bg-surface-muted text-fg-muted'
+                      }`}
+                    >
+                      {isCompleted ? <Check className="size-4" aria-hidden="true" /> : <ItemIcon className="size-4" aria-hidden="true" />}
                     </div>
-                    <div className="text-xs text-fg-subtle font-medium">{item.sub}</div>
-                  </div>
-                </div>
+                    <div className="hidden sm:block">
+                      <div className={`text-xs font-semibold uppercase tracking-wider ${isActive ? 'text-fg' : 'text-fg-muted'}`}>
+                        {item.label}
+                      </div>
+                      <div className="text-xs font-medium text-fg-muted">{item.sub}</div>
+                    </div>
+                  </button>
+                </React.Fragment>
               );
             })}
           </div>
@@ -547,125 +558,127 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {/* STEP 1: Workshop Information */}
       {/* ========================================================================= */}
       {currentStep === 1 && (
-        <div className="bg-surface rounded-lg shadow-e1 p-6 md:p-8 space-y-6">
+        <div className="space-y-6 rounded-xl border border-line bg-surface p-6 sm:p-8">
           <div>
-            <h2 className="text-lg font-bold text-fg flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-primary" />
+            <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
+              <Building2 className="size-5 text-fg-muted" aria-hidden="true" />
               Bước 1: Khai báo thông tin cơ sở sản xuất & Khu vực địa lý
             </h2>
-            <p className="text-sm text-fg-subtle mt-1">
+            <p className="mt-1 text-sm text-fg-muted">
               Khu vực này được lưu vào hồ sơ xưởng để VCUBE đối chiếu khi phân công đơn in.
             </p>
           </div>
 
           {initialData?.verifiedStatus === 'Pending' && (
-            <div className="p-4 rounded-lg bg-warning-tint/80 border border-warning/30 text-xs text-warning flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-col justify-between gap-3 rounded-lg border border-info/20 bg-info-tint p-4 text-sm text-info sm:flex-row sm:items-center">
               <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <span>
                   Hồ sơ xưởng <strong>{initialData?.workshopName}</strong> đã được gửi và đang ở trạng thái{' '}
-                  <strong>Pending</strong> (chờ Quản trị viên duyệt). Bạn có thể khai lại hồ sơ bên dưới,
+                  <strong>Chờ duyệt</strong> (chờ quản trị viên duyệt). Bạn có thể khai lại hồ sơ bên dưới,
                   hoặc mở bảng điều khiển của xưởng ngay.
                 </span>
               </div>
               {onSkipToDashboard && (
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="shrink-0"
                   onClick={onSkipToDashboard}
-                  className="shrink-0 px-4 py-2 rounded-lg bg-surface border border-warning/40 text-warning font-bold"
                 >
                   Mở bảng điều khiển
-                </button>
+                </Button>
               )}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {/* Workshop Name */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
-                Tên Xưởng In / Hub Gia Công <span className="text-danger">*</span>
+            <div className="space-y-2">
+              <label htmlFor="w1a-workshop-name" className="flex items-center gap-1 text-sm font-medium text-fg">
+                Tên xưởng in / đầu mối gia công <span className="text-danger">*</span>
               </label>
-              <input
+              <Input
+                id="w1a-workshop-name"
                 type="text"
                 value={workshopName}
                 onChange={e => setWorkshopName(e.target.value)}
-                placeholder="VD: FabLab CNC & 3D Printing Cầu Giấy"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-line-control focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
+                placeholder="VD: Xưởng in CNC & 3D Cầu Giấy"
               />
               <span className="text-xs text-fg-subtle">Tên thương hiệu xưởng sẽ hiển thị trên tem đóng gói bưu phẩm</span>
             </div>
 
             {/* Hotline Phone */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-fg-subtle" />
-                Số Điện Thoại Điều Phối Hotline <span className="text-danger">*</span>
+            <div className="space-y-2">
+              <label htmlFor="w1a-workshop-phone" className="flex items-center gap-1 text-sm font-medium text-fg">
+                <Phone className="size-3.5 text-fg-subtle" aria-hidden="true" />
+                Số điện thoại điều phối <span className="text-danger">*</span>
               </label>
-              <input
+              <Input
+                id="w1a-workshop-phone"
                 type="text"
                 value={contactPhone}
                 onChange={e => setContactPhone(e.target.value)}
-                placeholder="Nhập hotline kỹ thuật"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-line-control focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
+                placeholder="Nhập số điện thoại kỹ thuật"
               />
               <span className="text-xs text-fg-subtle">Nhận thông báo đơn hàng hỏa tốc qua Zalo / SMS</span>
             </div>
 
             {/* Contact Email */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5 text-fg-subtle" />
-                Email Kỹ Thuật Tiếp Nhận File 3D <span className="text-danger">*</span>
+            <div className="space-y-2">
+              <label htmlFor="w1a-workshop-email" className="flex items-center gap-1 text-sm font-medium text-fg">
+                <Mail className="size-3.5 text-fg-subtle" aria-hidden="true" />
+                Email kỹ thuật tiếp nhận tệp 3D <span className="text-danger">*</span>
               </label>
-              <input
+              <Input
+                id="w1a-workshop-email"
                 type="email"
                 value={contactEmail}
                 onChange={e => setContactEmail(e.target.value)}
                 placeholder="VD: tech@xuongin3d.vn"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-line-control focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
               />
             </div>
           </div>
 
           {/* Full Address */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-fg-subtle" />
+          <div className="space-y-2">
+            <label htmlFor="w1a-workshop-address" className="flex items-center gap-1 text-sm font-medium text-fg">
+              <MapPin className="size-3.5 text-fg-subtle" aria-hidden="true" />
               Địa Chỉ Chi Tiết Xưởng In <span className="text-danger">*</span>
             </label>
-            <input
+            <Input
+              id="w1a-workshop-address"
               type="text"
               value={address}
               onChange={e => setAddress(e.target.value)}
               placeholder="Số nhà, ngõ/đường, Phường/Xã, Quận/Huyện, Tỉnh/TP"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-line-control focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm"
             />
           </div>
 
           {/* Khu vực phục vụ của xưởng (Bắc / Trung / Nam) */}
           <div className="space-y-2 pt-2">
-            <label className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1.5">
-              <Zap className="w-4 h-4 text-warning" />
+            <label className="flex items-center gap-1.5 text-sm font-medium text-fg">
+              <Zap className="size-4 text-warning" aria-hidden="true" />
               Khu Vực Phục Vụ (Bắc / Trung / Nam) <span className="text-danger">*</span>
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {[
                 {
                   id: 'Bắc',
-                  title: 'Miền Bắc (Hub Hà Nội)',
+                  title: 'Miền Bắc (đầu mối Hà Nội)',
                   desc: 'Hà Nội, Hải Phòng, Bắc Ninh, Quảng Ninh...',
                   tag: 'Xưởng tại miền Bắc'
                 },
                 {
                   id: 'Trung',
-                  title: 'Miền Trung (Hub Đà Nẵng)',
+                  title: 'Miền Trung (đầu mối Đà Nẵng)',
                   desc: 'Đà Nẵng, Huế, Quảng Nam, Quảng Ngãi...',
                   tag: 'Xưởng tại miền Trung'
                 },
                 {
                   id: 'Nam',
-                  title: 'Miền Nam (Hub TP.HCM)',
+                  title: 'Miền Nam (đầu mối TP.HCM)',
                   desc: 'TP.HCM, Bình Dương, Đồng Nai, Long An...',
                   tag: 'Xưởng tại miền Nam'
                 }
@@ -676,22 +689,26 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     type="button"
                     key={item.id}
                     onClick={() => setRegion(item.id as any)}
-                    className={`p-4 rounded-lg border-2 text-left transition-all relative ${
+                    aria-pressed={isSel}
+                    className={`relative rounded-lg border p-4 text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       isSel
-                        ? 'border-primary bg-primary-tint/50 shadow-e1 ring-2 ring-primary/20'
-                        : 'border-line-subtle hover:border-line bg-surface'
+                        ? 'border-primary bg-primary-tint ring-1 ring-primary'
+                        : 'border-line-subtle bg-surface hover:border-line-control hover:bg-surface-muted'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-sm text-fg">{item.title}</span>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-fg">{item.title}</span>
                       {isSel && (
-                        <div className="w-5 h-5 rounded-full bg-primary text-primary-fg flex items-center justify-center">
-                          <Check className="w-3.5 h-3.5" />
+                        <div className="grid size-5 place-items-center rounded-full bg-primary text-primary-fg">
+                          <Check className="size-3.5" aria-hidden="true" />
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-fg-subtle line-clamp-2">{item.desc}</p>
-                    <div className="mt-2 inline-block px-2 py-0.5 rounded-sm bg-surface-muted text-xs font-semibold text-fg-muted">
+                    {/* A11Y-03: nền `primary-tint` khi selected làm `fg-subtle` chỉ còn 4.37:1
+                        (12px) ⇒ dùng `fg-muted` (6.63:1) cho mô tả của ô đang chọn; ô thường
+                        giữ `fg-subtle`. */}
+                    <p className={`line-clamp-2 text-xs ${isSel ? 'text-fg-muted' : 'text-fg-subtle'}`}>{item.desc}</p>
+                    <div className="mt-2 inline-block rounded-sm bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted">
                       {item.tag}
                     </div>
                   </button>
@@ -701,43 +718,46 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           </div>
 
           {/* Electricity base rate */}
-          <div className="p-4 bg-canvas rounded-lg border border-line-subtle flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex flex-col items-start justify-between gap-3 rounded-lg border border-line-subtle bg-surface-muted p-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-md bg-warning-tint text-warning flex items-center justify-center shrink-0">
-                <Zap className="w-5 h-5" />
+              <div className="grid size-10 shrink-0 place-items-center rounded-md bg-warning-tint text-warning">
+                <Zap className="size-5" aria-hidden="true" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-fg">Đơn giá điện cơ sở của xưởng (VND/kWh)</h4>
+                <h4 className="text-sm font-semibold text-fg">Đơn giá điện cơ sở của xưởng</h4>
                 <p className="text-xs text-fg-subtle">Để trống nếu xưởng chưa khai — hệ thống KHÔNG tự điền đơn giá điện</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={electricityRate}
-                placeholder="Chưa khai"
-                onChange={e => setElectricityRate(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-28 px-3 py-1.5 rounded-lg border border-line-control text-right font-bold text-sm"
-              />
-              <span className="text-xs font-semibold text-fg-muted">đ/kWh</span>
+              <div className="w-28">
+                <Input
+                  type="number"
+                  numeric
+                  aria-label="Đơn giá điện cơ sở của xưởng (₫/kWh)"
+                  align="right"
+                  value={electricityRate}
+                  placeholder="Chưa khai"
+                  onChange={e => setElectricityRate(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="font-semibold"
+                />
+              </div>
+              <span className="text-xs font-medium text-fg-muted">₫/kWh</span>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="pt-4 border-t border-line-subtle flex items-center justify-between">
+          <div className="flex items-center justify-between border-t border-line-subtle pt-4">
             {onCancel ? (
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-4 py-2 text-sm font-semibold text-fg-muted hover:text-fg transition-colors"
-              >
+              <Button type="button" variant="ghost" onClick={onCancel}>
                 Hủy bỏ
-              </button>
+              </Button>
             ) : (
               <div />
             )}
-            <button
+            <Button
               type="button"
+              variant="primary"
+              trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}
               onClick={() => {
                 if (!workshopName.trim()) {
                   onShowToast?.('Vui lòng nhập tên xưởng in!');
@@ -745,11 +765,9 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 }
                 setCurrentStep(2);
               }}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-all"
             >
               Tiếp tục: Khai báo máy in
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -758,19 +776,22 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {/* STEP 2: Declare 3D Printers with Live Calculations */}
       {/* ========================================================================= */}
       {currentStep === 2 && (
-        <div className="bg-surface rounded-lg shadow-e1 p-6 md:p-8 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-6 rounded-xl border border-line bg-surface p-6 sm:p-8">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <h2 className="text-lg font-bold text-fg flex items-center gap-2">
-                <Printer className="w-5 h-5 text-primary" />
+              <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
+                <Printer className="size-5 text-fg-muted" aria-hidden="true" />
                 Bước 2: Khai báo đội ngũ máy in & Đơn giá giờ máy
               </h2>
-              <p className="text-sm text-fg-subtle mt-0.5">
+              <p className="mt-0.5 text-sm text-fg-muted">
                 Chọn từ các máy mẫu có sẵn hoặc thêm máy tùy biến. Đơn giá giờ máy là con số DUY NHẤT được lưu vào hồ sơ xưởng.
               </p>
             </div>
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              className="shrink-0"
+              leadingIcon={<Plus className="size-4" aria-hidden="true" />}
               onClick={() => {
                 setTempMachineName(`Máy In 3D FDM #${machines.length + 1}`);
                 setTempMachineType('FDM');
@@ -780,34 +801,32 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 setTempVolumeZ('');
                 setIsAddingMachine(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-inverse hover:bg-surface-inverse text-on-inverse text-xs font-bold shrink-0 transition-colors shadow-e1"
             >
-              <Plus className="w-4 h-4" />
               Thêm Máy In Khác
-            </button>
+            </Button>
           </div>
 
           {/* Preset Quick Selectors */}
           <div className="space-y-2">
-            <span className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-warning" />
+            <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+              <Sparkles className="size-3.5 text-warning" aria-hidden="true" />
               Chọn nhanh máy mẫu phổ biến để nạp cấu hình chuẩn:
             </span>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               {POPULAR_PRINTER_PRESETS.map(preset => (
                 <button
                   type="button"
                   key={preset.id}
                   onClick={() => handleSelectPreset(preset)}
-                  className="p-2.5 rounded-lg border border-line-subtle hover:border-primary hover:bg-primary-tint/40 text-left transition-all group"
+                  className="group rounded-lg border border-line-subtle p-3 text-left transition-colors duration-200 hover:border-line-control hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-0.5">
+                  <div className="mb-0.5 text-xs font-medium uppercase tracking-wider text-fg-muted">
                     {preset.brand}
                   </div>
-                  <div className="font-bold text-xs text-fg group-hover:text-primary line-clamp-1">
+                  <div className="line-clamp-1 text-sm font-semibold text-fg group-hover:text-fg">
                     {preset.name}
                   </div>
-                  <div className="text-xs text-fg-subtle mt-1">
+                  <div className="mt-1 text-xs text-fg-subtle">
                     {preset.technology} • {preset.buildVolumeMm.x}×{preset.buildVolumeMm.y}×
                     {preset.buildVolumeMm.z} mm
                   </div>
@@ -818,112 +837,123 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {/* Machine Addition/Edit Modal / Form */}
           {isAddingMachine && (
-            <div className="p-5 rounded-lg bg-primary-tint border border-primary/30 space-y-4 shadow-e1 animate-fadeIn">
+            <div className="space-y-4 rounded-lg border border-line bg-surface-muted p-5">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-fg flex items-center gap-2">
-                  <Printer className="w-4 h-4 text-primary" />
+                <h3 className="flex items-center gap-2 text-base font-semibold tracking-tight text-fg">
+                  <Printer className="size-4 text-fg-muted" aria-hidden="true" />
                   Cấu hình chi tiết máy in
                 </h3>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setIsAddingMachine(false)}
-                  className="text-xs font-semibold text-fg-subtle hover:text-fg"
                 >
                   Đóng lại
-                </button>
+                </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Machine Name */}
-                <div className="sm:col-span-2 space-y-1">
-                  <label className="text-xs font-semibold text-fg-muted">Tên máy in / Ký hiệu định danh</label>
-                  <input
+                <div className="space-y-2 sm:col-span-2">
+                  <label htmlFor="w1a-machine-name" className="text-sm font-medium text-fg">Tên máy in / Ký hiệu định danh</label>
+                  <Input
+                    id="w1a-machine-name"
                     type="text"
                     value={tempMachineName}
                     onChange={e => setTempMachineName(e.target.value)}
                     placeholder="VD: Bambu Lab X1C - Máy số 1"
-                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-medium focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
                 {/* Machine Tech */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-fg-muted">Công nghệ in</label>
-                  <select
+                <div className="space-y-2">
+                  <label htmlFor="w1a-machine-tech" className="text-sm font-medium text-fg">Công nghệ in</label>
+                  <Select
+                    id="w1a-machine-tech"
                     value={tempMachineType}
                     onChange={e => setTempMachineType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-medium focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="FDM">FDM / FFF (Sợi nhựa)</option>
-                    <option value="SLA">SLA / MSLA (Quang hóa Resin)</option>
-                    <option value="SLS">SLS (Bột laser nung kết)</option>
-                  </select>
+                    options={[
+                      { value: 'FDM', label: 'FDM / FFF (Sợi nhựa)' },
+                      { value: 'SLA', label: 'SLA / MSLA (Quang hóa Resin)' },
+                      { value: 'SLS', label: 'SLS (Bột laser nung kết)' },
+                    ]}
+                  />
                 </div>
 
                 {/* Build Volume */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-fg-muted">Khổ in (X × Y × Z mm)</label>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-fg">Khổ in (X × Y × Z mm)</label>
                   <div className="grid grid-cols-3 gap-1">
-                    <input
+                    <Input
                       type="number"
+                      numeric
+                      aria-label="Khổ in trục X (mm)"
                       value={tempVolumeX}
                       onChange={e => setTempVolumeX(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="X"
-                      className="px-2 py-2 rounded-lg border border-line-control text-xs text-center font-bold"
+                      className="px-2 text-center font-semibold"
                     />
-                    <input
+                    <Input
                       type="number"
+                      numeric
+                      aria-label="Khổ in trục Y (mm)"
                       value={tempVolumeY}
                       onChange={e => setTempVolumeY(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="Y"
-                      className="px-2 py-2 rounded-lg border border-line-control text-xs text-center font-bold"
+                      className="px-2 text-center font-semibold"
                     />
-                    <input
+                    <Input
                       type="number"
+                      numeric
+                      aria-label="Khổ in trục Z (mm)"
                       value={tempVolumeZ}
                       onChange={e => setTempVolumeZ(e.target.value === '' ? '' : Number(e.target.value))}
                       placeholder="Z"
-                      className="px-2 py-2 rounded-lg border border-line-control text-xs text-center font-bold"
+                      className="px-2 text-center font-semibold"
                     />
                   </div>
                 </div>
 
                 {/* Đơn giá giờ máy — CỘT CÓ THẬT `workshop_machines.hourly_rate` */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-fg-muted flex items-center justify-between">
+                <div className="space-y-2">
+                  <label htmlFor="w1a-machine-rate" className="flex items-center justify-between gap-2 text-sm font-medium text-fg">
                     <span>Đơn giá giờ máy (VND/giờ)</span>
-                    <span className="text-xs text-fg-subtle">Để trống = chưa khai</span>
+                    <span className="text-xs font-normal text-fg-subtle">Để trống = chưa khai</span>
                   </label>
-                  <input
+                  <Input
+                    id="w1a-machine-rate"
                     type="number"
                     step="1000"
+                    numeric
                     value={tempHourlyRate}
                     onChange={e => setTempHourlyRate(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 60000"
-                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-bold text-fg"
+                    className="font-semibold"
                   />
                 </div>
 
                 {/* Save button inside modal */}
                 <div className="flex items-end">
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    fullWidth
                     onClick={handleSaveMachine}
-                    className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-colors"
                   >
                     Lưu Máy In Này
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               {/* ĐƠN GIÁ GIỜ MÁY — con số DUY NHẤT được lưu (`workshop_machines.hourly_rate`) */}
-              <div className="p-4 rounded-lg bg-surface border border-primary/30 shadow-e1 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex flex-col items-center justify-between gap-4 rounded-lg border border-line bg-surface p-4 md:flex-row">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-md bg-primary-tint text-primary flex items-center justify-center shrink-0">
-                    <Coins className="w-5 h-5" />
+                  <div className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-tint text-fg">
+                    <Coins className="size-5" aria-hidden="true" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
                       Đơn giá giờ máy sẽ ghi vào hồ sơ
                     </span>
                     <div className="text-xs text-fg-subtle">
@@ -933,11 +963,11 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   </div>
                 </div>
 
-                <div className="p-2 px-3 rounded-lg bg-positive-tint border border-positive/30 text-right">
-                  <div className="text-xs uppercase font-bold text-positive">Đơn giá / giờ</div>
-                  <div className="text-sm font-extrabold text-positive">
+                <div className="rounded-lg border border-positive/20 bg-positive-tint px-3 py-2 text-right">
+                  <div className="text-xs font-medium uppercase tracking-wider text-positive">Đơn giá / giờ</div>
+                  <div className="font-mono text-sm font-semibold tabular-nums text-positive">
                     {currentHourlyRate != null
-                      ? `${formatCurrency(currentHourlyRate)}/h`
+                      ? `${formatCurrency(currentHourlyRate)}/giờ`
                       : '— chưa khai'}
                   </div>
                 </div>
@@ -947,26 +977,26 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {/* Current declared machines list */}
           <div className="space-y-3">
-            <div className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-fg-muted">
               <span>Danh sách máy in của xưởng ({machines.length} máy sẵn sàng)</span>
-              <span className="text-fg-subtle font-normal">Trạng thái mặc định: Free (Sẵn sàng nhận lệnh)</span>
+              <span className="font-normal normal-case text-fg-subtle">Trạng thái mặc định: Rảnh (sẵn sàng nhận lệnh)</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {machines.map((machine, idx) => {
                 return (
                   <div
                     key={machine.id}
-                    className="p-4 rounded-lg border border-line-subtle hover:border-line bg-surface shadow-e1 relative flex flex-col justify-between gap-3"
+                    className="relative flex flex-col justify-between gap-3 rounded-lg border border-line bg-surface p-4 transition-all duration-300 hover:border-line hover:shadow-e1 motion-reduce:transition-none"
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-sm bg-primary-tint text-primary flex items-center justify-center font-bold text-xs">
+                          <div className="grid size-8 place-items-center rounded-sm bg-primary-tint text-xs font-semibold text-fg">
                             #{idx + 1}
                           </div>
                           <div>
-                            <h4 className="font-bold text-sm text-fg">{machine.machineName}</h4>
+                            <h4 className="text-sm font-semibold text-fg">{machine.machineName}</h4>
                             <div className="text-xs text-fg-subtle">
                               {machine.machineType} • {machine.buildVolumeMm?.x}×{machine.buildVolumeMm?.y}×{machine.buildVolumeMm?.z} mm
                             </div>
@@ -976,17 +1006,18 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                         <button
                           type="button"
                           onClick={() => handleRemoveMachine(machine.id)}
-                          className="text-fg-subtle hover:text-danger p-1 transition-colors"
-                          title="Xóa máy in"
+                          className="inline-flex items-center justify-center rounded-md p-2 text-fg-subtle transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 max-md:min-w-11"
+                          title="Xoá máy in"
+                          aria-label={`Xóa máy in ${machine.machineName}`}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="size-4" aria-hidden="true" />
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-line-subtle text-xs">
+                      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line-subtle pt-3 text-xs">
                         <div>
                           <div className="text-xs text-fg-subtle">Khổ in (mm)</div>
-                          <div className="font-semibold text-fg-muted tabular-nums">
+                          <div className="font-mono font-semibold tabular-nums text-fg-muted">
                             {machine.buildVolumeMm
                               ? `${machine.buildVolumeMm.x}×${machine.buildVolumeMm.y}×${machine.buildVolumeMm.z}`
                               : '—'}
@@ -994,19 +1025,19 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                         </div>
                         <div>
                           <div className="text-xs text-fg-subtle">Đơn giá giờ máy</div>
-                          <div className="font-semibold text-fg tabular-nums">
+                          <div className="font-mono font-semibold tabular-nums text-fg">
                             {machine.hourlyRate != null
-                              ? `${formatCurrency(machine.hourlyRate)}/h`
+                              ? `${formatCurrency(machine.hourlyRate)}/giờ`
                               : 'Chưa khai'}
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs bg-canvas px-2.5 py-1.5 rounded-lg border border-line-subtle">
+                    <div className="flex items-center justify-between rounded-md border border-line-subtle bg-surface-muted px-2.5 py-1.5 text-xs">
                       <span className="text-fg-subtle">Phân loại: {machine.machineType}</span>
-                      <span className="inline-flex items-center gap-1 font-semibold text-positive">
-                        <span className="w-1.5 h-1.5 rounded-full bg-positive" />
+                      <span className="inline-flex items-center gap-1 font-medium text-positive">
+                        <span aria-hidden="true" className="size-1.5 rounded-full bg-positive" />
                         Trạng thái: Sẵn sàng
                       </span>
                     </div>
@@ -1017,17 +1048,19 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           </div>
 
           {/* Action buttons */}
-          <div className="pt-4 border-t border-line-subtle flex items-center justify-between">
-            <button
+          <div className="flex items-center justify-between border-t border-line-subtle pt-4">
+            <Button
               type="button"
+              variant="ghost"
+              leadingIcon={<ArrowLeft className="size-4" aria-hidden="true" />}
               onClick={() => setCurrentStep(1)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-fg-muted hover:text-fg transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
               Quay lại Bước 1
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="primary"
+              trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}
               onClick={() => {
                 if (machines.length === 0) {
                   onShowToast?.('Vui lòng khai báo tối thiểu 1 máy in!');
@@ -1035,11 +1068,9 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 }
                 setCurrentStep(3);
               }}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-all"
             >
               Tiếp tục: Khai báo tồn kho nhựa
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -1048,19 +1079,22 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {/* STEP 3: Declare Material / Filament Inventory */}
       {/* ========================================================================= */}
       {currentStep === 3 && (
-        <div className="bg-surface rounded-lg shadow-e1 p-6 md:p-8 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-6 rounded-xl border border-line bg-surface p-6 sm:p-8">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <h2 className="text-lg font-bold text-fg flex items-center gap-2">
-                <Layers className="w-5 h-5 text-primary" />
+              <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
+                <Layers className="size-5 text-fg-muted" aria-hidden="true" />
                 Bước 3: Khai báo phôi nhựa & Vật liệu tồn kho ban đầu
               </h2>
-              <p className="text-sm text-fg-subtle mt-0.5">
+              <p className="mt-0.5 text-sm text-fg-muted">
                 Khai báo các cuộn nhựa đang có tại xưởng. Dữ liệu được lưu vào vật liệu của chính xưởng bạn.
               </p>
             </div>
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              className="shrink-0"
+              leadingIcon={<Plus className="size-4" aria-hidden="true" />}
               onClick={() => {
                 setTempMaterialName('');
                 setTempMaterialType('PLA');
@@ -1068,108 +1102,114 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                 setTempStockGrams('');
                 setIsAddingMaterial(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-inverse hover:bg-surface-inverse text-on-inverse text-xs font-bold shrink-0 transition-colors shadow-e1"
             >
-              <Plus className="w-4 h-4" />
               Thêm Cuộn Nhựa Mới
-            </button>
+            </Button>
           </div>
 
           {/* Material Modal Form */}
           {isAddingMaterial && (
-            <div className="p-5 rounded-lg bg-primary-tint border border-primary/30 space-y-4 shadow-e1 animate-fadeIn">
+            <div className="space-y-4 rounded-lg border border-line bg-surface-muted p-5">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-fg flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-primary" />
+                <h3 className="flex items-center gap-2 text-base font-semibold tracking-tight text-fg">
+                  <Plus className="size-4 text-fg-muted" aria-hidden="true" />
                   Khai báo cuộn phôi nhựa mới
                 </h3>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setIsAddingMaterial(false)}
-                  className="text-xs font-semibold text-fg-subtle hover:text-fg"
                 >
                   Đóng lại
-                </button>
+                </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Material Name */}
-                <div className="sm:col-span-2 space-y-1">
-                  <label className="text-xs font-semibold text-fg-muted">Tên cuộn nhựa / Thương hiệu</label>
-                  <input
+                <div className="space-y-2 sm:col-span-2">
+                  <label htmlFor="w1a-material-name" className="text-sm font-medium text-fg">Tên cuộn nhựa / Thương hiệu</label>
+                  <Input
+                    id="w1a-material-name"
                     type="text"
                     value={tempMaterialName}
                     onChange={e => setTempMaterialName(e.target.value)}
                     placeholder="VD: eSUN PLA+ Đen Mờ, SUNLU PETG..."
-                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-medium focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
                 {/* Material Type */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-fg-muted">Loại vật liệu</label>
-                  <select
+                <div className="space-y-2">
+                  <label htmlFor="w1a-material-type" className="text-sm font-medium text-fg">Loại vật liệu</label>
+                  <Select
+                    id="w1a-material-type"
                     value={tempMaterialType}
                     onChange={e => setTempMaterialType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-medium focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="PLA">PLA / PLA+ (Phổ biến, dễ in)</option>
-                    <option value="PETG">PETG (Bền cơ, chịu nước ngoài trời)</option>
-                    <option value="ABS">ABS / ASA (Chịu nhiệt, vỏ xe máy)</option>
-                    <option value="TPU">TPU (Nhựa dẻo đàn hồi)</option>
-                    <option value="PC">Polycarbonate (PC siêu cứng)</option>
-                    <option value="Resin">Resin Quang Hóa 8K/12K (Mịn sắc nét)</option>
-                  </select>
+                    options={[
+                      { value: 'PLA', label: 'PLA / PLA+ (Phổ biến, dễ in)' },
+                      { value: 'PETG', label: 'PETG (Bền cơ, chịu nước ngoài trời)' },
+                      { value: 'ABS', label: 'ABS / ASA (Chịu nhiệt, vỏ xe máy)' },
+                      { value: 'TPU', label: 'TPU (Nhựa dẻo đàn hồi)' },
+                      { value: 'PC', label: 'Polycarbonate (PC siêu cứng)' },
+                      { value: 'Resin', label: 'Resin Quang Hóa 8K/12K (Mịn sắc nét)' },
+                    ]}
+                  />
                 </div>
 
                 {/* Initial Stock in Grams */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-fg-muted">Tồn kho ban đầu (Gram)</label>
-                  <input
+                <div className="space-y-2">
+                  <label htmlFor="w1a-material-stock" className="text-sm font-medium text-fg">Tồn kho ban đầu (Gram)</label>
+                  <Input
+                    id="w1a-material-stock"
                     type="number"
                     step="500"
+                    numeric
                     value={tempStockGrams}
                     onChange={e => setTempStockGrams(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 3000g = 3 cuộn"
-                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-bold text-primary"
+                    className="font-semibold"
                   />
                 </div>
 
                 {/* Price per KG */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-fg-muted">Đơn giá nhập (VND/kg)</label>
-                  <input
+                <div className="space-y-2">
+                  <label htmlFor="w1a-material-price" className="text-sm font-medium text-fg">Đơn giá nhập (VND/kg)</label>
+                  <Input
+                    id="w1a-material-price"
                     type="number"
                     step="10000"
+                    numeric
                     value={tempPricePerKg}
                     onChange={e => setTempPricePerKg(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 250000"
-                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-bold text-fg"
+                    className="font-semibold"
                   />
                 </div>
 
                 {/* Low stock threshold — do XUONG khai, khong tu dien */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-fg-muted">
+                <div className="space-y-2">
+                  <label htmlFor="w1a-material-threshold" className="text-sm font-medium text-fg">
                     Ngưỡng cảnh báo tồn kho (gram)
                   </label>
-                  <input
+                  <Input
+                    id="w1a-material-threshold"
                     type="number"
                     step="100"
+                    numeric
                     value={tempLowStockThreshold}
                     onChange={e => setTempLowStockThreshold(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="VD: 1000"
-                    className="w-full px-3 py-2 rounded-lg border border-line-control text-sm font-bold text-fg"
+                    className="font-semibold"
                   />
                 </div>
 
                 {/* Color Swatch Picker */}
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-fg-muted flex items-center justify-between">
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="flex items-center justify-between gap-2 text-sm font-medium text-fg">
                     <span>Màu sắc phôi: {tempColorName}</span>
-                    <span className="text-xs text-fg-subtle font-mono">{tempColorHex}</span>
+                    <span className="font-mono text-xs font-normal text-fg-subtle">{tempColorHex}</span>
                   </label>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-wrap items-center gap-2">
                     {PRESET_MATERIAL_PALETTE.map(p => (
                       <button
                         type="button"
@@ -1178,10 +1218,11 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                           setTempColorHex(p.hex);
                           setTempColorName(p.name);
                         }}
-                        className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                          tempColorHex === p.hex ? 'scale-115 border-primary ring-2 ring-primary/30' : 'border-line'
+                        aria-pressed={tempColorHex === p.hex}
+                        className={`size-7 rounded-full border-2 transition-transform duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-11 motion-reduce:transition-none ${
+                          tempColorHex === p.hex ? 'ring-2 ring-ring ring-offset-1' : ''
                         }`}
-                        style={{ backgroundColor: p.hex }}
+                        style={{ backgroundColor: p.hex, borderColor: tempColorHex === p.hex ? 'var(--color-ring)' : 'var(--color-line-control)' }}
                         title={p.name}
                       />
                     ))}
@@ -1192,7 +1233,8 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                         setTempColorHex(e.target.value);
                         setTempColorName('Màu tự chọn');
                       }}
-                      className="w-7 h-7 rounded-full cursor-pointer border border-line-control p-0 overflow-hidden"
+                      aria-label="Màu tùy chỉnh"
+                      className="size-7 cursor-pointer overflow-hidden rounded-full border border-line-control p-0 max-md:size-11"
                       title="Màu tùy chỉnh"
                     />
                   </div>
@@ -1200,13 +1242,14 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
                 {/* Save button */}
                 <div className="flex items-end">
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    fullWidth
                     onClick={handleSaveMaterial}
-                    className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-colors"
                   >
                     Lưu Cuộn Nhựa Này
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1214,32 +1257,32 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {/* Declared Materials List */}
           <div className="space-y-3">
-            <div className="text-xs font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-fg-muted">
               <span>Danh mục phôi sẵn sàng ({materials.length} loại nhựa)</span>
-              <span className="text-fg-subtle font-normal">
+              <span className="font-normal normal-case text-fg-subtle">
                 Tổng khối lượng: {formatNumber(materials.reduce((acc, m) => acc + m.currentStockGrams, 0))} g
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {materials.map(mat => (
                 <div
                   key={mat.id}
-                  className="p-4 rounded-lg border border-line-subtle hover:border-line bg-surface shadow-e1 flex items-center justify-between gap-3"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface p-4 transition-all duration-300 hover:border-line hover:shadow-e1 motion-reduce:transition-none"
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-md border border-line shadow-e0 flex items-center justify-center shrink-0"
+                      className="grid size-10 shrink-0 place-items-center rounded-md border border-line"
                       style={{ backgroundColor: mat.colorHex }}
                     >
                       <span
-                        className="text-xs font-bold uppercase tracking-wider px-1 rounded-sm bg-surface-inverse/70 text-on-inverse"
+                        className="rounded-sm bg-surface-inverse/80 px-1 text-xs font-semibold uppercase tracking-wider text-on-inverse"
                       >
                         {mat.materialType}
                       </span>
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-fg">{mat.materialName}</h4>
+                      <h4 className="text-sm font-semibold text-fg">{mat.materialName}</h4>
                       <div className="text-xs text-fg-subtle">
                         {mat.colorName || 'Chuẩn'} • Giá nhập: {formatCurrency(mat.pricePerKg)}/kg
                       </div>
@@ -1248,7 +1291,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <div className="text-xs font-extrabold text-primary">
+                      <div className="font-mono text-sm font-semibold tabular-nums text-fg">
                         {(mat.currentStockGrams / 1000).toFixed(1)} kg
                       </div>
                       <div className="text-xs text-fg-subtle">
@@ -1259,10 +1302,11 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                     <button
                       type="button"
                       onClick={() => handleRemoveMaterial(mat.id)}
-                      className="text-fg-subtle hover:text-danger p-1 transition-colors"
-                      title="Xóa vật liệu"
+                      className="inline-flex items-center justify-center rounded-md p-2 text-fg-subtle transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 max-md:min-w-11"
+                      title="Xoá vật liệu"
+                      aria-label={`Xóa vật liệu ${mat.materialName}`}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="size-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -1271,41 +1315,36 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           </div>
 
           {/* Notice about Auto Price Update & Audit Log */}
-          <div className="p-4 rounded-lg bg-warning-tint/80 border border-warning/30 text-warning text-xs flex items-start gap-3">
-            <Info className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 rounded-lg border border-warning/20 bg-warning-tint p-4 text-xs text-warning">
+            <Info className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
             <div>
-              <span className="font-bold">Lưu ý về cơ chế cập nhật đơn giá và kiểm kê:</span>
+              <span className="font-semibold">Lưu ý về cơ chế cập nhật đơn giá và kiểm kê:</span>
               <p className="mt-0.5 text-warning">
-                Mỗi lần ghi nhập/xuất kho ở bảng điều khiển, hệ thống lưu một dòng vào <code className="bg-warning-tint px-1 py-0.5 rounded-sm font-mono">material_inventory_logs</code> để kiểm toán. Đơn giá nhập bạn khai ở đây không tự đổi đơn giá báo cho khách.
+                Mỗi lần ghi nhập/xuất kho ở bảng điều khiển, hệ thống lưu một dòng vào <code className="rounded-sm bg-surface px-1 py-0.5 font-mono">material_inventory_logs</code> để kiểm toán. Đơn giá nhập bạn khai ở đây không tự đổi đơn giá báo cho khách.
               </p>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="pt-4 border-t border-line-subtle flex items-center justify-between">
-            <button
+          <div className="flex items-center justify-between border-t border-line-subtle pt-4">
+            <Button
               type="button"
+              variant="ghost"
+              leadingIcon={<ArrowLeft className="size-4" aria-hidden="true" />}
               onClick={() => setCurrentStep(2)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-fg-muted hover:text-fg transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
               Quay lại Bước 2
-            </button>
+            </Button>
             <Button
               size="md"
               loading={isSubmitting}
+              loadingLabel="Đang khởi tạo hồ sơ xưởng…"
               type="button"
               onClick={handleSubmitOnboarding}
               disabled={isSubmitting}
+              leadingIcon={<CheckCircle2 className="size-4" aria-hidden="true" />}
             >
-              {isSubmitting ? (
-                <span>Đang khởi tạo hồ sơ xưởng...</span>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                  Hoàn tất & Gửi hồ sơ phê duyệt
-                </>
-              )}
+              Hoàn tất &amp; Gửi hồ sơ phê duyệt
             </Button>
           </div>
         </div>
@@ -1315,39 +1354,39 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {/* STEP 4: Success & Pending Approval State (verified_status = 'Pending') */}
       {/* ========================================================================= */}
       {currentStep === 4 && submittedProfile && (
-        <div className="bg-surface rounded-lg shadow-e1 p-8 text-center space-y-6 animate-fadeIn">
-          <div className="w-20 h-20 rounded-full bg-warning-tint text-warning flex items-center justify-center mx-auto ring-8 ring-warning-tint">
-            <Clock className="w-10 h-10 animate-pulse motion-reduce:animate-none" />
+        <div className="space-y-6 rounded-xl border border-line bg-surface p-6 text-center sm:p-8">
+          <div className="mx-auto grid size-16 place-items-center rounded-lg border border-info/20 bg-info-tint text-info">
+            <Clock className="size-8" aria-hidden="true" />
           </div>
 
-          <div className="max-w-xl mx-auto space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-tint border border-warning/40 text-xs font-bold text-warning">
-              <span className="w-2 h-2 rounded-full bg-warning animate-ping motion-reduce:animate-none" />
-              verified_status: Pending (Chờ Admin Duyệt)
+          <div className="mx-auto max-w-xl space-y-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info-tint px-3 py-1 text-xs font-medium text-info">
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-info" />
+              verified_status: Pending — chờ quản trị viên duyệt
             </div>
-            <h2 className="text-2xl font-bold text-fg tracking-tight">
+            <h2 className="text-2xl font-bold tracking-tight text-fg">
               Đã Lưu Hồ Sơ Xưởng In
             </h2>
             <p className="text-sm text-fg-muted">
               Hồ sơ cơ sở <strong>"{submittedProfile.workshopName}"</strong> tại khu vực{' '}
-              <strong>Miền {submittedProfile.region}</strong> đã được lưu với trạng thái chờ duyệt (Pending).
+              <strong>Miền {submittedProfile.region}</strong> đã được lưu với trạng thái chờ duyệt.
             </p>
           </div>
 
           {/* Summary Card */}
-          <div className="max-w-lg mx-auto bg-canvas rounded-lg p-5 border border-line-subtle text-left space-y-3">
-            <div className="text-xs font-bold text-fg-subtle uppercase tracking-wider">
+          <div className="mx-auto max-w-lg space-y-3 rounded-lg border border-line-subtle bg-surface-muted p-5 text-left">
+            <div className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">
               Tóm tắt hồ sơ vừa khai báo:
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="text-fg-subtle">Mã định danh xưởng:</div>
-              <div className="font-mono font-bold text-fg">{submittedProfile.id}</div>
+              <div className="font-mono font-semibold text-fg">{submittedProfile.id}</div>
 
               <div className="text-fg-subtle">Số lượng máy in:</div>
-              <div className="font-bold text-fg">{machines.length} máy FDM/SLA</div>
+              <div className="font-semibold tabular-nums text-fg">{machines.length} máy FDM/SLA</div>
 
               <div className="text-fg-subtle">Tổng phôi nhựa tồn kho:</div>
-              <div className="font-bold text-fg">
+              <div className="font-semibold tabular-nums text-fg">
                 {(materials.reduce((a, b) => a + b.currentStockGrams, 0) / 1000).toFixed(1)} kg ({materials.length} cuộn)
               </div>
 
@@ -1362,17 +1401,19 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               <ShieldCheck className="w-4 h-4 text-info" />
               Các bước tiếp theo dành cho Đối tác Xưởng:
             </div>
-            <ul className="list-disc list-inside space-y-1 text-info/90 pl-1">
-              <li>Hồ sơ đang ở trạng thái <strong>Pending</strong>. Quyền xưởng chỉ có hiệu lực sau khi Quản trị viên chuyển <code className="font-mono">verified_status</code> sang <strong>Verified</strong>.</li>
+            <ul className="list-disc list-inside space-y-1 text-info pl-1">
+              <li>Hồ sơ đang ở trạng thái <strong>Chờ duyệt</strong>. Quyền xưởng chỉ có hiệu lực sau khi quản trị viên chuyển <code className="font-mono">verified_status</code> sang <strong>Đã duyệt</strong>.</li>
               <li>Bạn có thể mở bảng điều khiển xưởng in ngay để khai báo máy in, vật liệu và xem dữ liệu của chính xưởng mình.</li>
-              <li>Đầu mối liên hệ là hotline/email bạn vừa khai{submittedProfile.contactPhone ? `: ${submittedProfile.contactPhone}` : ''}.</li>
+              <li>Đầu mối liên hệ là số điện thoại/email bạn vừa khai{submittedProfile.contactPhone ? `: ${submittedProfile.contactPhone}` : ''}.</li>
             </ul>
           </div>
 
           {/* Action buttons */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
+          <div className="flex flex-col items-center justify-center gap-3 pt-2 sm:flex-row">
+            <Button
               type="button"
+              variant="primary"
+              className="w-full sm:w-auto"
               onClick={() => {
                 if (onSkipToDashboard) {
                   onSkipToDashboard();
@@ -1382,21 +1423,21 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                   window.location.reload();
                 }
               }}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-fg font-bold text-sm shadow-e1 transition-all"
             >
               Mở Bảng Điều Khiển Xưởng
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
               onClick={() => {
                 if (onNavigate) {
                   onNavigate('home');
                 }
               }}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-line hover:bg-canvas text-fg-muted font-semibold text-sm transition-all"
             >
               Về Trang Chủ VCUBE
-            </button>
+            </Button>
           </div>
         </div>
       )}

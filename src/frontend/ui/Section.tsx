@@ -83,7 +83,7 @@ export function Section({
                 id: titleId,
                 className: cn(
                   TITLE_SIZE[size],
-                  'font-semibold tracking-tight text-fg',
+                  'font-bold tracking-tight text-fg',
                 ),
               },
               title,

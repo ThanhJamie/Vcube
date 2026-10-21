@@ -8,10 +8,17 @@ import { useCartStore } from '../stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
-import { Icon, Button, EmptyState, Money } from '@frontend/ui';
-import { formatNumber } from '@frontend/lib/format';
+import { Icon, Button, Card, EmptyState, Field, Input, Money, Select } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
 import { OrderService } from '../../backend/services/orderService';
+
+/** Nhãn vai trò hiển thị VI (giá trị `role` trong DB là enum tiếng Anh — không render thô). */
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Quản trị viên',
+  designer: 'Tác giả 3D',
+  lab: 'Xưởng in',
+  customer: 'Khách hàng',
+};
 
 /**
  * Q1 (Đợt 8C §0 + data-honesty PC-03): ngân hàng / số tài khoản / tên pháp nhân nhận
@@ -187,7 +194,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         trackingCode: ''
       },
       payment: {
-        method: paymentMethod === 'vietqr' ? 'VietQR Chuyển Khoản' : paymentMethod === 'vnpay' ? 'VNPAY QR' : 'Thanh toán COD',
+        method: paymentMethod === 'vietqr' ? 'VietQR Chuyển Khoản' : paymentMethod === 'vnpay' ? 'VNPAY QR' : 'Thanh toán khi nhận hàng (COD)',
         // '' = chưa nhận được tiền, chưa có thời điểm thanh toán.
         paidDate: '',
         subtotalPhysical,
@@ -246,9 +253,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   // thanh toán rồi tạo đơn 0đ trong DB.
   if (cart.length === 0) {
     return (
-      <div className="min-h-dvh bg-canvas text-fg py-16 sm:py-24 px-4 sm:px-6 flex items-center justify-center">
+      <div className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-16 text-fg sm:px-6 sm:py-24">
+        {/* A11Y-01: h1 cấp trang DUY NHẤT (sr-only — giữ nguyên layout/density của trang).
+            Trước đây /checkout là view duy nhất không có heading cấp 1 (outline bắt đầu ở h2). */}
+        <h1 className="sr-only">Thanh Toán</h1>
         <EmptyState
           bordered
+          className="w-full max-w-md bg-surface"
           icon={<Icon name="shopping_cart" size={22} />}
           title={isVi ? 'Giỏ hàng của bạn đang trống' : 'Your cart is empty'}
           description={
@@ -257,7 +268,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               : 'Add a product or CAD file to your cart before checking out.'
           }
           action={
-            <Button onClick={() => onNavigate('cart')}>
+            <Button variant="primary" size="lg" onClick={() => onNavigate('cart')}>
               {isVi ? 'Về giỏ hàng' : 'Back to cart'}
             </Button>
           }
@@ -268,239 +279,225 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
   return (
     <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
+      {/* A11Y-01: h1 cấp trang DUY NHẤT. Đặt NGOÀI container `space-y-*` và dùng `sr-only`
+          (absolute) để không đổi layout/density; 3 tiêu đề mục bên dưới vẫn là `h2`. */}
+      <h1 className="sr-only">Thanh Toán</h1>
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         {/* Step Progress Tracker */}
-        <div className="bg-surface p-4 sm:p-5 rounded-lg shadow-e1">
-          <div className="flex items-center justify-between max-w-2xl mx-auto text-xs font-mono">
+        <Card variant="soft" padding="md" className="sm:p-5">
+          <div className="mx-auto flex max-w-2xl items-center justify-between text-xs">
             {/* Step 1 */}
             <button
+              type="button"
               onClick={() => onNavigate('cart')}
-              className="flex items-center gap-2 text-primary font-bold cursor-pointer"
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2 font-medium text-fg-muted transition-colors duration-200 hover:bg-surface-muted hover:text-fg max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <span className="w-6 h-6 rounded-full bg-positive-tint text-positive flex items-center justify-center text-xs">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-positive-tint text-xs text-positive">
                 ✓
               </span>
               <span className="hidden sm:inline">01. Giỏ hàng</span>
             </button>
 
-            <div className="h-0.5 w-12 sm:w-20 bg-primary"></div>
+            <div className="h-0.5 w-12 bg-positive sm:w-20"></div>
 
             {/* Step 2 (Active) */}
-            <div className="flex items-center gap-2 text-primary font-extrabold">
-              <span className="w-6 h-6 rounded-full bg-primary text-primary-fg flex items-center justify-center text-xs shadow-e1">
+            <div className="flex items-center gap-2 font-semibold text-fg">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs tabular-nums text-primary-fg">
                 2
               </span>
               <span>02. Thanh toán</span>
             </div>
 
-            <div className="h-0.5 w-12 sm:w-20 bg-line"></div>
+            <div className="h-0.5 w-12 bg-line sm:w-20"></div>
 
             {/* Step 3 */}
             <div className="flex items-center gap-2 text-fg-subtle">
-              <span className="w-6 h-6 rounded-full bg-line-subtle text-fg-muted flex items-center justify-center text-xs border border-line">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface-muted text-xs tabular-nums text-fg-muted">
                 3
               </span>
               <span className="hidden sm:inline">03. Hoàn tất & In 3D</span>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Account Authentication Banner */}
         {isLoggedIn ? (
-          <div className="bg-surface p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3 shadow-e1">
+          <Card variant="soft" padding="md" className="flex flex-col items-center justify-between gap-3 sm:flex-row">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-md bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
-                <Icon name="verified_user" size={24} />
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary-tint text-fg">
+                <Icon name="verified_user" size={20} />
               </div>
               <div>
-                <p className="font-bold text-xs text-fg">
+                <p className="text-sm font-semibold text-fg">
                   {isVi ? `Tài khoản đặt hàng: ${profile?.displayName || user?.email}` : `Ordering Account: ${profile?.displayName || user?.email}`}
                 </p>
-                <p className="text-xs text-fg-subtle font-mono">
+                <p className="text-xs text-fg-subtle">
                   {isVi
                     ? 'Đơn hàng sẽ tự động lưu vào kho lưu trữ số và cấp quyền theo dõi tiến độ in 3D.'
                     : 'Order will be stored in your digital library with real-time print tracking.'}
                 </p>
               </div>
             </div>
-            <span className="text-xs font-mono font-bold px-3 py-1 bg-primary/10 text-primary rounded-lg uppercase">
-              {profile?.role || '—'}
+            <span className="rounded-full border border-line bg-surface-muted px-2.5 py-1 font-mono text-xs font-medium uppercase text-fg-muted">
+              {ROLE_LABEL[profile?.role ?? 'customer'] ?? 'Khách hàng'}
             </span>
-          </div>
+          </Card>
         ) : (
-          <div className="bg-gradient-to-r from-positive-tint to-primary-tint border border-positive/30 p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3 shadow-e1">
+          <Card variant="soft" padding="md" className="flex flex-col items-center justify-between gap-3 sm:flex-row">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-md bg-positive text-primary-fg flex items-center justify-center font-bold shrink-0 shadow-e1">
-                <Icon name="bolt" size={24} />
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary-tint text-fg">
+                <Icon name="bolt" size={20} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <p className="font-bold text-xs text-positive">
-                    {isVi ? 'Chế độ Đặt Hàng Khách Vãng Lai (Guest Checkout)' : 'Guest Checkout Active'}
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-fg">
+                    {isVi ? 'Chế độ đặt hàng khách vãng lai' : 'Guest Checkout Active'}
                   </p>
-                  <span className="px-2 py-0.5 rounded-full bg-positive/20 text-positive text-xs font-mono font-bold">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info-tint px-2.5 py-1 text-xs font-medium text-info">
                     Không Cần Mật Khẩu
                   </span>
                 </div>
-                <p className="text-xs text-positive font-sans mt-0.5">
+                <p className="mt-0.5 text-xs text-fg-muted">
                   {isVi
-                    ? 'Bạn có thể đặt in trực tiếp bằng SĐT & Địa chỉ. Hệ thống tự động cấp Mã Truy Cập Riêng (Access Token) để tra cứu trạng thái đơn hàng.'
+                    ? 'Bạn có thể đặt in trực tiếp bằng SĐT & Địa chỉ. Hệ thống cấp một mã truy cập riêng để bạn tra cứu trạng thái đơn hàng.'
                     : 'Checkout instantly with phone & address. A secure token will be generated to track your fabrication live.'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex shrink-0 items-center gap-2">
               <Link
                 to="/auth/login?redirectTo=/checkout"
-                className="px-3.5 py-1.5 bg-surface hover:bg-positive-tint text-positive border border-positive/30 rounded-sm text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-line-control bg-surface px-3.5 py-2 text-sm font-medium text-fg transition-colors duration-200 hover:border-fg-subtle hover:bg-surface-muted max-md:min-h-11"
               >
                 <Icon name="login" size={16} />
                 <span>{isVi ? 'Đăng nhập nếu có tài khoản' : 'Sign In'}</span>
               </Link>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Checkout Main Form */}
-        <form onSubmit={handleCompleteOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+        <form onSubmit={handleCompleteOrder} className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           {/* Left Column: Form Fields */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="space-y-6 lg:col-span-8">
             {/* 1. Delivery & Contact Details */}
-            <div className="bg-surface p-6 sm:p-7 rounded-lg shadow-e1 space-y-5">
-              <h2 className="font-extrabold text-base text-fg flex items-center gap-2 border-b border-line pb-3.5 font-mono uppercase">
-                <Icon name="local_shipping" size={24} className="text-primary" />
+            <Card as="section" variant="soft" padding="lg" className="space-y-6">
+              <h2 className="flex items-center gap-2 border-b border-line-subtle pb-4 text-lg font-bold tracking-tight text-fg">
+                <Icon name="local_shipping" size={18} className="shrink-0 text-fg-muted" />
                 <span>1. Thông Tin Nhận Hàng & Lệnh Chế Tác</span>
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                <div>
-                  <label htmlFor="checkout-full-name" className="text-xs uppercase font-bold text-fg-subtle block mb-1.5">
-                    Họ và tên người nhận *
-                  </label>
-                  <input
-                    id="checkout-full-name"
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field id="checkout-full-name" label="Họ và tên người nhận" required>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  )}
+                </Field>
 
-                <div>
-                  <label htmlFor="checkout-phone" className="text-xs uppercase font-bold text-fg-subtle block mb-1.5">
-                    Số điện thoại nhận hàng *
-                  </label>
-                  <input
-                    id="checkout-phone"
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
+                <Field id="checkout-phone" label="Số điện thoại nhận hàng" required>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  )}
+                </Field>
 
-                <div className="sm:col-span-2">
-                  <label htmlFor="checkout-email" className="text-xs uppercase font-bold text-fg-subtle block mb-1.5">
-                    Email nhận file CAD & hóa đơn VAT *
-                  </label>
-                  <input
-                    id="checkout-email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
+                <Field id="checkout-email" label="Email nhận tệp CAD & hoá đơn VAT" required className="sm:col-span-2">
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  )}
+                </Field>
 
-                <div>
-                  <label htmlFor="checkout-city" className="text-xs uppercase font-bold text-fg-subtle block mb-1.5">
-                    Tỉnh / Thành phố *
-                  </label>
-                  <select
-                    id="checkout-city"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
-                  >
-                    <option value="" disabled>Chọn Tỉnh / Thành phố…</option>
-                    <option value="Hà Nội">Hà Nội (Hub Miền Bắc - 24h)</option>
-                    <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh (Hub Miền Nam - 24h)</option>
-                    <option value="Đà Nẵng">Đà Nẵng (Hub Miền Trung - 36h)</option>
-                    <option value="Hải Phòng">Hải Phòng</option>
-                    <option value="Bình Dương">Bình Dương</option>
-                    <option value="Đồng Nai">Đồng Nai</option>
-                    <option value="Cần Thơ">Cần Thơ</option>
-                    <option value="Tỉnh Thành Khác">Tỉnh Thành Khác</option>
-                  </select>
-                </div>
+                <Field id="checkout-city" label="Tỉnh / Thành phố" required>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                    >
+                      <option value="" disabled>Chọn Tỉnh / Thành phố…</option>
+                      <option value="Hà Nội">Hà Nội (đầu mối miền Bắc)</option>
+                      <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh (đầu mối miền Nam)</option>
+                      <option value="Đà Nẵng">Đà Nẵng (đầu mối miền Trung)</option>
+                      <option value="Hải Phòng">Hải Phòng</option>
+                      <option value="Bình Dương">Bình Dương</option>
+                      <option value="Đồng Nai">Đồng Nai</option>
+                      <option value="Cần Thơ">Cần Thơ</option>
+                      <option value="Tỉnh Thành Khác">Tỉnh Thành Khác</option>
+                    </Select>
+                  )}
+                </Field>
 
-                <div>
-                  <label htmlFor="checkout-district" className="text-xs uppercase font-bold text-fg-subtle block mb-1.5">
-                    Quận / Huyện / Khu Công Nghệ *
-                  </label>
-                  <input
-                    id="checkout-district"
-                    type="text"
-                    required
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
+                <Field id="checkout-district" label="Quận / Huyện / Khu Công Nghệ" required>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={district}
+                      onChange={(e) => setDistrict(e.target.value)}
+                    />
+                  )}
+                </Field>
 
-                <div className="sm:col-span-2">
-                  <label htmlFor="checkout-address" className="text-xs uppercase font-bold text-fg-subtle block mb-1.5">
-                    Địa chỉ chi tiết (Số nhà, tòa nhà, phòng Lab) *
-                  </label>
-                  <input
-                    id="checkout-address"
-                    type="text"
-                    required
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
+                <Field id="checkout-address" label="Địa chỉ chi tiết (Số nhà, tòa nhà, phòng Lab)" required className="sm:col-span-2">
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                  )}
+                </Field>
 
-                <div className="sm:col-span-2">
-                  <label htmlFor="checkout-note" className="text-xs uppercase font-bold text-fg-subtle block mb-1.5">
-                    Ghi chú kỹ thuật dung sai cho kỹ sư vận hành xưởng
-                  </label>
-                  <textarea
-                    id="checkout-note"
-                    rows={2}
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    className="w-full bg-canvas border border-line-control px-3.5 py-2.5 text-xs text-fg rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
+                <Field id="checkout-note" label="Ghi chú kỹ thuật dung sai cho kỹ sư vận hành xưởng" optionalLabel={null} className="sm:col-span-2">
+                  {(control) => (
+                    <textarea
+                      {...control}
+                      rows={2}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      className="min-h-20 w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle transition-colors duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring aria-invalid:border-danger"
+                    />
+                  )}
+                </Field>
               </div>
-            </div>
+            </Card>
 
             {/* 2. Payment Method Selection */}
-            <div className="bg-surface p-6 sm:p-7 rounded-lg shadow-e1 space-y-4">
-              <h2 className="font-extrabold text-base text-fg flex items-center gap-2 border-b border-line pb-3.5 font-mono uppercase">
-                <Icon name="payments" size={24} className="text-primary" />
+            <Card as="section" variant="soft" padding="lg" className="space-y-5">
+              <h2 className="flex items-center gap-2 border-b border-line-subtle pb-4 text-lg font-bold tracking-tight text-fg">
+                <Icon name="payments" size={18} className="shrink-0 text-fg-muted" />
                 <span>2. Phương Thức Thanh Toán</span>
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {/* Method 1: VietQR */}
                 <label
                   htmlFor="checkout-payment-vietqr"
                   onClick={() => setPaymentMethod('vietqr')}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
+                  className={`flex cursor-pointer flex-col justify-between gap-2 rounded-md border p-3 transition-colors duration-200 ${
                     paymentMethod === 'vietqr'
-                      ? 'border-primary bg-primary/5 shadow-e1'
-                      : 'border-line bg-surface hover:border-primary'
+                      ? 'border-primary bg-surface ring-2 ring-ring/20'
+                      : 'border-line bg-surface-muted hover:border-fg-subtle'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <Icon name="qr_code_2" size={24} className="text-primary" />
+                    <Icon name="qr_code_2" size={20} className="text-fg-muted" />
                     <input
                       id="checkout-payment-vietqr"
                       type="radio"
@@ -511,8 +508,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     />
                   </div>
                   <div>
-                    <strong className="text-xs text-fg block">VietQR Ngân Hàng</strong>
-                    <span className="text-xs text-fg-subtle">Tự động điền số tiền & xác nhận 2s</span>
+                    <strong className="block text-sm font-semibold text-fg">VietQR Ngân Hàng</strong>
+                    <span className="text-xs text-fg-muted">Chuyển khoản — VCUBE đối soát thủ công</span>
                   </div>
                 </label>
 
@@ -520,14 +517,14 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 <label
                   htmlFor="checkout-payment-vnpay"
                   onClick={() => setPaymentMethod('vnpay')}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
+                  className={`flex cursor-pointer flex-col justify-between gap-2 rounded-md border p-3 transition-colors duration-200 ${
                     paymentMethod === 'vnpay'
-                      ? 'border-primary bg-primary/5 shadow-e1'
-                      : 'border-line bg-surface hover:border-primary'
+                      ? 'border-primary bg-surface ring-2 ring-ring/20'
+                      : 'border-line bg-surface-muted hover:border-fg-subtle'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <Icon name="account_balance_wallet" size={24} className="text-primary" />
+                    <Icon name="account_balance_wallet" size={20} className="text-fg-muted" />
                     <input
                       id="checkout-payment-vnpay"
                       type="radio"
@@ -538,8 +535,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     />
                   </div>
                   <div>
-                    <strong className="text-xs text-fg block">Cổng VNPAY QR</strong>
-                    <span className="text-xs text-fg-subtle">Thẻ ATM / Visa / Ví VNPAY</span>
+                    <strong className="block text-sm font-semibold text-fg">Cổng VNPAY QR</strong>
+                    <span className="text-xs text-fg-muted">Chưa kết nối cổng — xác nhận thủ công</span>
                   </div>
                 </label>
 
@@ -547,16 +544,16 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 <label
                   htmlFor="checkout-payment-cod"
                   onClick={() => physicalItems.length > 0 && setPaymentMethod('cod')}
-                  className={`p-4 rounded-lg border-2 transition-all flex flex-col justify-between space-y-2 ${
+                  className={`flex flex-col justify-between gap-2 rounded-md border p-3 transition-colors duration-200 ${
                     physicalItems.length === 0
-                      ? 'opacity-40 border-line cursor-not-allowed'
+                      ? 'cursor-not-allowed border-line bg-surface-muted opacity-40'
                       : paymentMethod === 'cod'
-                      ? 'border-primary bg-primary/5 shadow-e1 cursor-pointer'
-                      : 'border-line bg-surface hover:border-primary cursor-pointer'
+                      ? 'cursor-pointer border-primary bg-surface ring-2 ring-ring/20'
+                      : 'cursor-pointer border-line bg-surface-muted hover:border-fg-subtle'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <Icon name="handshake" size={24} className="text-primary" />
+                    <Icon name="handshake" size={20} className="text-fg-muted" />
                     <input
                       id="checkout-payment-cod"
                       type="radio"
@@ -568,8 +565,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     />
                   </div>
                   <div>
-                    <strong className="text-xs text-fg block">Thanh Toán COD</strong>
-                    <span className="text-xs text-fg-subtle">
+                    <strong className="block text-sm font-semibold text-fg">Thanh toán khi nhận hàng</strong>
+                    <span className="text-xs text-fg-muted">
                       {physicalItems.length === 0 ? 'Chỉ áp dụng hàng in 3D' : 'Nhận hàng & kiểm tra QC'}
                     </span>
                   </div>
@@ -578,48 +575,48 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
               {/* VietQR Instructions Box */}
               {paymentMethod === 'vietqr' && (
-                <div className="p-4 bg-canvas border border-line rounded-lg font-mono text-xs space-y-2">
-                  <div className="flex items-center justify-between text-primary font-bold">
+                <div className="space-y-3 rounded-lg border border-line-subtle bg-surface-muted p-4 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-fg">
                     <span>Thông Tin Chuyển Khoản:</span>
                     {/* PC-03: không được quảng cáo "Tự động duyệt" khi chưa có cổng thanh toán. */}
-                    <span className="text-xs bg-warning-tint text-warning px-2 py-0.5 rounded-sm">
+                    <span className="rounded-full border border-warning/20 bg-warning-tint px-2.5 py-1 text-xs font-medium text-warning">
                       Thanh toán mô phỏng — xác nhận thủ công
                     </span>
                   </div>
                   {hasTransferInfo ? (
-                    <div className="grid grid-cols-2 gap-2 text-xs text-fg-muted">
+                    <div className="grid grid-cols-1 gap-2 text-xs text-fg-muted sm:grid-cols-2">
                       {bankName && (
-                        <div>Ngân hàng: <strong className="text-fg">{bankName}</strong></div>
+                        <div>Ngân hàng: <strong className="font-semibold text-fg">{bankName}</strong></div>
                       )}
                       {bankAccount && (
-                        <div>Số tài khoản: <strong className="text-primary">{bankAccount}</strong></div>
+                        <div>Số tài khoản: <strong className="font-mono font-semibold text-fg">{bankAccount}</strong></div>
                       )}
                       {accountHolder && (
-                        <div>Chủ tài khoản: <strong className="text-fg">{accountHolder}</strong></div>
+                        <div>Chủ tài khoản: <strong className="font-semibold text-fg">{accountHolder}</strong></div>
                       )}
-                      <div>
-                        Số tiền: <Money as="strong" value={totalAmount} size="sm" className="text-primary" />
+                      <div className="font-mono tabular-nums">
+                        Số tiền: <Money as="strong" value={totalAmount} size="base" className="font-mono font-semibold text-fg" />
                       </div>
-                      <div className="col-span-2">
-                        Nội dung chuyển khoản: <strong className="text-warning">VCUBE {phone.replace(/\s/g, '') || '<SĐT>'}</strong>
+                      <div className="sm:col-span-2">
+                        Nội dung chuyển khoản: <strong className="font-mono font-semibold text-warning">VCUBE {phone.replace(/\s/g, '') || '<SĐT>'}</strong>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-3 bg-warning-tint border border-warning/30 rounded-md space-y-2 text-xs text-fg-muted">
-                      <p className="font-bold text-warning">
+                    <div className="space-y-2 rounded-md border border-warning/20 bg-warning-tint p-3 text-xs text-fg-muted">
+                      <p className="font-semibold text-warning">
                         {isVi
                           ? 'Chưa cấu hình thông tin chuyển khoản — liên hệ VCUBE'
                           : 'Transfer details not configured — contact VCUBE'}
                       </p>
                       <p className="leading-relaxed">
                         {isVi
-                          ? `VCUBE chưa khai báo ngân hàng, số tài khoản và tên pháp nhân nhận chuyển khoản. Vui lòng liên hệ VCUBE để nhận thông tin chính xác trước khi chuyển ${formatNumber(totalAmount)} đ.`
-                          : `VCUBE has not configured a receiving bank account. Contact VCUBE for the correct details before transferring ${formatNumber(totalAmount)} đ.`}
+                          ? 'VCUBE chưa khai báo ngân hàng, số tài khoản và tên pháp nhân nhận chuyển khoản. Vui lòng liên hệ VCUBE để nhận thông tin chính xác trước khi chuyển khoản.'
+                          : 'VCUBE has not configured a receiving bank account. Contact VCUBE for the correct details before transferring.'}
                       </p>
                       {canConfigureTransferInfo && (
                         <Link
                           to="/admin"
-                          className="inline-flex items-center gap-1.5 font-mono font-bold text-primary hover:underline"
+                          className="inline-flex items-center gap-1.5 font-semibold text-fg hover:underline max-md:min-h-11"
                         >
                           <Icon name="settings" size={16} />
                           <span>{isVi ? 'Cấu hình ngay (Cấu hình → Pháp lý & Định danh)' : 'Configure now (Settings → Legal & Identity)'}</span>
@@ -627,26 +624,26 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                       )}
                     </div>
                   )}
-                  <p className="text-xs text-fg-subtle leading-relaxed pt-1">
+                  <p className="pt-1 leading-relaxed text-fg-muted">
                     {isVi
                       ? 'Đơn hàng sẽ ở trạng thái CHỜ THANH TOÁN cho tới khi VCUBE đối soát được khoản chuyển. Xưởng chỉ bắt đầu in sau khi thanh toán được xác nhận.'
                       : 'The order stays AWAITING PAYMENT until the transfer is reconciled. Production starts only after payment is confirmed.'}
                   </p>
                 </div>
               )}
-            </div>
+            </Card>
 
             {/* 3. Electronic VAT Invoice Toggle */}
-            <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1 space-y-3 font-mono">
-              <label htmlFor="checkout-needs-vat-invoice" className="flex items-center gap-2.5 cursor-pointer select-none">
+            <Card as="section" variant="soft" padding="lg" className="space-y-4">
+              <label htmlFor="checkout-needs-vat-invoice" className="flex min-h-11 cursor-pointer select-none items-center gap-3">
                 <input
                   id="checkout-needs-vat-invoice"
                   type="checkbox"
                   checked={needsVatInvoice}
                   onChange={(e) => setNeedsVatInvoice(e.target.checked)}
-                  className="w-4 h-4 rounded-sm text-primary accent-primary"
+                  className="size-4 shrink-0 rounded-sm text-primary accent-primary"
                 />
-                <span className="text-xs font-bold text-fg">
+                <span className="text-sm font-medium text-fg">
                   {vat
                     ? `Yêu cầu xuất hóa đơn điện tử ${vatLabel(vat.rate)} cho Doanh nghiệp / Dự án`
                     : 'Yêu cầu xuất hóa đơn điện tử cho Doanh nghiệp / Dự án (VAT chưa được cấu hình)'}
@@ -654,134 +651,126 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               </label>
 
               {needsVatInvoice && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-line text-xs">
-                  <div>
-                    <label htmlFor="checkout-vat-company-name" className="text-xs uppercase font-bold text-fg-subtle block mb-1">
-                      Tên doanh nghiệp / Đơn vị *
-                    </label>
-                    <input
-                      id="checkout-vat-company-name"
-                      type="text"
-                      placeholder="CÔNG TY TNHH CÔNG NGHỆ..."
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      className="w-full bg-canvas border border-line-control px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="checkout-vat-tax-code" className="text-xs uppercase font-bold text-fg-subtle block mb-1">
-                      Mã số thuế *
-                    </label>
-                    <input
-                      id="checkout-vat-tax-code"
-                      type="text"
-                      placeholder="Nhập mã số thuế"
-                      value={taxId}
-                      onChange={(e) => setTaxId(e.target.value)}
-                      className="w-full bg-canvas border border-line-control px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="checkout-vat-address" className="text-xs uppercase font-bold text-fg-subtle block mb-1">
-                      Địa chỉ đăng ký kinh doanh *
-                    </label>
-                    <input
-                      id="checkout-vat-address"
-                      type="text"
-                      placeholder="Tầng 5, Tòa nhà Innovation, Cầu Giấy, Hà Nội"
-                      value={companyAddress}
-                      onChange={(e) => setCompanyAddress(e.target.value)}
-                      className="w-full bg-canvas border border-line-control px-3 py-2 text-xs rounded-lg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                  </div>
+                <div className="grid grid-cols-1 gap-4 rounded-lg border border-line-subtle bg-surface-muted p-4 sm:grid-cols-2">
+                  <Field id="checkout-vat-company-name" label="Tên doanh nghiệp / Đơn vị" required>
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="text"
+                        placeholder="CÔNG TY TNHH CÔNG NGHỆ..."
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                  <Field id="checkout-vat-tax-code" label="Mã số thuế" required>
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="text"
+                        placeholder="Nhập mã số thuế"
+                        value={taxId}
+                        onChange={(e) => setTaxId(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                  <Field id="checkout-vat-address" label="Địa chỉ đăng ký kinh doanh" required className="sm:col-span-2">
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="text"
+                        placeholder="Tầng 5, Tòa nhà Sáng Tạo, Cầu Giấy, Hà Nội"
+                        value={companyAddress}
+                        onChange={(e) => setCompanyAddress(e.target.value)}
+                      />
+                    )}
+                  </Field>
                 </div>
               )}
-            </div>
+            </Card>
           </div>
 
           {/* Right Column: Order Manifest Sidebar */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="bg-surface border border-line rounded-lg p-6 shadow-e2 space-y-6 lg:sticky lg:top-24">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <h2 className="font-extrabold text-base text-fg font-mono uppercase tracking-wide">
+          <div className="space-y-6 lg:col-span-4">
+            <Card variant="soft" padding="lg" className="space-y-6 lg:sticky lg:top-24">
+              <div className="flex items-center justify-between gap-3 border-b border-line-subtle pb-4">
+                <h2 className="text-lg font-bold tracking-tight text-fg">
                   Đơn Hàng ({cart.length} mục)
                 </h2>
                 <button
                   type="button"
                   onClick={() => onNavigate('cart')}
-                  className="text-xs font-mono font-bold text-primary hover:underline cursor-pointer"
+                  className="inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-fg-muted transition-colors duration-200 hover:bg-surface-muted hover:text-fg max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Sửa giỏ hàng
                 </button>
               </div>
 
               {/* Items Mini-list */}
-              <div className="max-h-60 overflow-y-auto space-y-3 divide-y divide-line/60 pr-1 scrollbar-none">
+              <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
                 {cart.map((item) => (
-                  <div key={item.id} className="pt-2 flex items-center gap-3 font-mono text-xs">
+                  <div key={item.id} className="flex items-center gap-3 rounded-md border border-line-subtle p-2 text-xs">
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-12 h-12 rounded-md object-cover border border-line bg-surface-muted shrink-0"
+                      className="h-12 w-12 shrink-0 rounded-md border border-line-subtle bg-surface-muted object-cover"
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-fg truncate text-xs">{item.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-fg">{item.name}</p>
                       <p className="text-xs text-fg-subtle">
-                        {item.type === 'digital' ? 'Bản quyền CAD' : `${item.material} • Qty: ${item.quantity}`}
+                        {item.type === 'digital' ? 'Bản quyền CAD' : `${item.material} • SL: ${item.quantity}`}
                       </p>
                     </div>
-                    <span className="font-bold text-fg text-xs shrink-0">
-                      <Money value={item.price * item.quantity} size="sm" className="font-bold text-fg" />
-                    </span>
+                    <Money value={item.price * item.quantity} size="base" className="shrink-0 font-mono font-semibold tabular-nums text-right text-fg" />
                   </div>
                 ))}
               </div>
 
               {/* Price Calculation */}
-              <div className="space-y-2.5 text-xs font-mono text-fg-muted border-t border-line pt-4">
-                <div className="flex justify-between">
+              <div className="space-y-3 border-t border-line-subtle pt-4 text-sm text-fg-muted">
+                <div className="flex justify-between gap-4 text-sm">
                   <span>Tạm tính sản phẩm:</span>
-                  <Money value={subtotal} size="sm" className="font-bold text-fg" />
+                  <Money value={subtotal} size="base" className="font-mono font-semibold tabular-nums text-right text-fg" />
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-4 text-sm">
                   <span>Phí vận chuyển:</span>
-                  <span className={`font-bold ${shippingFee === 0 ? 'text-positive' : 'text-fg'}`}>
-                    {shippingFee === 0 ? 'Miễn phí' : `${formatNumber(shippingFee)} đ`}
+                  <span className={`text-right font-mono tabular-nums ${shippingFee === 0 ? 'font-semibold text-positive' : 'font-semibold text-fg'}`}>
+                    {shippingFee === 0 ? 'Miễn phí' : (
+                      <Money value={shippingFee} size="base" className="font-mono font-semibold tabular-nums" />
+                    )}
                   </span>
                 </div>
 
                 {appliedDiscount > 0 && (
-                  <div className="flex justify-between text-positive font-bold">
+                  <div className="flex justify-between gap-4 text-sm font-semibold text-positive">
                     <span>Mã ưu đãi đã áp dụng:</span>
-                    <span>- <Money value={appliedDiscount} size="sm" className="text-positive" /></span>
+                    <span className="text-right font-mono tabular-nums">- <Money value={appliedDiscount} size="base" className="font-mono text-positive" /></span>
                   </div>
                 )}
 
                 {vat ? (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-4 text-sm">
                     <span>{vatLabel(vat.rate)}:</span>
-                    <Money value={vat.amount} size="sm" className="font-bold text-fg" />
+                    <Money value={vat.amount} size="base" className="font-mono font-semibold tabular-nums text-right text-fg" />
                   </div>
                 ) : pricingError ? (
-                  <p className="text-xs text-danger leading-relaxed">
+                  <p className="text-xs leading-relaxed text-danger">
                     {isVi ? `Không đọc được cấu hình VAT: ${pricingError}` : `Could not read VAT configuration: ${pricingError}`}
                   </p>
                 ) : vatPending ? (
-                  <p className="text-xs text-fg-subtle leading-relaxed">
+                  <p className="text-xs leading-relaxed text-fg-subtle">
                     {isVi ? 'Đang đọc cấu hình VAT…' : 'Loading VAT configuration…'}
                   </p>
                 ) : (
-                  <p className="text-xs text-fg-subtle leading-relaxed">{vatNotConfiguredLabel(isVi)}</p>
+                  <p className="text-xs leading-relaxed text-fg-subtle">{vatNotConfiguredLabel(isVi)}</p>
                 )}
 
-                <div className="pt-3 border-t border-line flex justify-between items-baseline">
-                  <span className="text-sm font-bold text-fg">Tổng thanh toán:</span>
+                <div className="flex items-baseline justify-between gap-4 border-t border-line-subtle pt-4">
+                  <span className="text-lg font-bold text-fg">Tổng thanh toán:</span>
                   <div className="text-right">
-                    <span className="font-mono text-xl font-black text-primary block">
-                      <Money value={totalAmount} className="font-mono text-xl font-black text-primary" />
-                    </span>
-                    <span className="text-xs text-fg-subtle block">
+                    <Money value={totalAmount} size="heading" className="block font-mono tabular-nums text-right text-fg" />
+                    <span className="block text-xs text-fg-subtle">
                       {vatTotalNote(isVi, vatRate)}
                     </span>
                   </div>
@@ -792,18 +781,18 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               {orderError && (
                 <div
                   role="alert"
-                  className="p-3 bg-danger-tint border border-danger/40 rounded-lg font-mono text-xs space-y-1"
+                  className="space-y-1 rounded-md border border-danger/20 bg-danger-tint p-3 text-sm text-danger"
                 >
-                  <p className="font-bold text-danger flex items-center gap-1.5">
+                  <p className="flex items-center gap-1.5 font-semibold">
                     <Icon name="error" size={16} className="shrink-0" />
                     <span>{isVi ? 'ĐƠN HÀNG CHƯA ĐƯỢC TẠO' : 'ORDER NOT CREATED'}</span>
                   </p>
-                  <p className="text-fg-muted leading-relaxed">
+                  <p className="text-xs leading-relaxed">
                     {isVi
                       ? 'Hệ thống chưa ghi được đơn vào cơ sở dữ liệu, nên đơn CHƯA tồn tại. Chi tiết lỗi:'
                       : 'The order was not written to the database, so it does NOT exist. Error detail:'}
                   </p>
-                  <p className="text-danger break-words">{orderError}</p>
+                  <p className="break-words text-xs">{orderError}</p>
                 </div>
               )}
 
@@ -813,17 +802,16 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 variant="primary"
                 size="lg"
                 fullWidth
-                disabled={isProcessing}
-                className="font-mono font-bold text-xs uppercase tracking-wider shadow-e2"
-                leadingIcon={<Icon name={isProcessing ? 'hourglass_top' : 'check_circle'} size={18} />}
+                loading={isProcessing}
+                loadingLabel="ĐANG KHỞI TẠO ĐƠN HÀNG..."
               >
-                <span>{isProcessing ? 'ĐANG KHỞI TẠO ĐƠN HÀNG...' : 'XÁC NHẬN & TẠO ĐƠN HÀNG'}</span>
+                <span>XÁC NHẬN &amp; TẠO ĐƠN HÀNG</span>
               </Button>
 
-              <p className="text-xs font-mono text-center text-fg-subtle leading-snug">
+              <p className="text-xs text-center leading-snug text-fg-subtle">
                 Bằng việc xác nhận đặt hàng, bạn đồng ý với Điều khoản Chế tác & Bản quyền thương mại của VCUBE.
               </p>
-            </div>
+            </Card>
           </div>
         </form>
       </div>

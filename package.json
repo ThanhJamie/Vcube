@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "check": "node scripts/run-checks.mjs"
+    "check": "node scripts/run-checks.mjs",
+    "skills:sync": "node scripts/sync-mattpocock-skills.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.114.0",

@@ -17,6 +17,7 @@
     { "id": "test-catalog-sync", "cmd": "npx tsx scripts/test-catalog-sync.ts" },
     { "id": "verify-rls", "cmd": "node scripts/verify-rls.mjs --json", "live": true },
     { "id": "inspect-db", "cmd": "node scripts/inspect-db.mjs", "live": true },
-    { "id": "doc-refs", "cmd": "node scripts/check-doc-refs.mjs --warn", "advisory": true, "optional": true }
+    { "id": "doc-refs", "cmd": "node scripts/check-doc-refs.mjs --warn", "advisory": true, "optional": true },
+    { "id": "doc-freshness", "cmd": "node scripts/check-doc-freshness.mjs", "advisory": true, "optional": true }
   ]
 }

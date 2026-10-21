@@ -94,7 +94,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const { isLoggedIn, loading } = useAuth();
   // Chờ khôi phục phiên trước khi redirect: nếu không, deep-link (F5 / tab mới) tới
   // /orders, /assets… sẽ bị đẩy về /auth/login dù phiên Supabase còn hợp lệ.
-  if (loading) return null;
+  // UI-001 (P1): trước đây trả `null` ⇒ màn TRẮNG trong lúc khôi phục phiên, không có
+  // phản hồi cho người dùng khi mạng chậm/Supabase paused. Nay render skeleton của
+  // route (component có sẵn) — KHÔNG đổi logic auth/redirect: hết loading vẫn rẽ nhánh
+  // `!isLoggedIn` như cũ.
+  if (loading) return <PageSkeleton />;
   if (!isLoggedIn) {
     return <Navigate to="/auth/login" replace />;
   }
@@ -212,12 +216,13 @@ const ProductDetailRoute: React.FC<{
         <Icon name="precision_manufacturing" size={36} className="text-fg-subtle" />
         <h2 className="font-bold text-lg text-fg">Không tìm thấy bản vẽ CAD này</h2>
         <p className="text-xs text-fg-subtle">Mô hình bạn đang tìm có thể đã được lưu trữ hoặc thay đổi mã định danh.</p>
-        <button
+        <Button
+          variant="primary"
+          size="lg"
           onClick={() => onNavigate('explore')}
-          className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg font-mono text-xs uppercase font-bold rounded-full shadow-e1 cursor-pointer"
         >
           Quay lại Kho Bản Vẽ
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -325,35 +330,37 @@ const OrderNotFoundView: React.FC<{
           : 'Chúng tôi không có đơn hàng nào khớp với mã bạn mở. Vui lòng tra cứu lại bằng mã đơn kèm token.'}
       </p>
       <div className="flex flex-col sm:flex-row justify-center gap-2 pt-1">
-        <button
+        <Button
+          variant="primary"
+          size="lg"
           onClick={() => onNavigate('tracking')}
-          className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg font-mono text-xs uppercase font-bold rounded-full shadow-e1 cursor-pointer"
         >
           Tra cứu đơn hàng
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
           onClick={() => onNavigate('my_orders')}
-          className="px-5 py-2.5 border border-line-control hover:bg-canvas text-fg font-mono text-xs uppercase font-bold rounded-full cursor-pointer"
         >
           Đơn hàng của tôi
-        </button>
+        </Button>
       </div>
     </div>
   </div>
 );
 
 /* --------------------------------------------------------------------------
-   Chrome (shell) cho khu ĐÃ ĐĂNG NHẬP: `/lab` và `/designer`.
+   Shell cho khu ĐÃ ĐĂNG NHẬP: `/lab` và `/designer`.
 
    Vì sao đặt ở đây mà không nằm trong từng view: mỗi route chỉ được có ĐÚNG MỘT
-   tầng chrome. `LabRoute` có 3 nhánh (đang tải · wizard onboarding · bảng điều
+   tầng khung. `LabRoute` có 3 nhánh (đang tải · wizard onboarding · bảng điều
    khiển) và cả 3 đều phải nằm trong cùng một `AppShell` — nếu để view tự bọc thì
-   nhánh wizard sẽ mất chrome và thành ngõ cụt (không còn Header storefront vì
+   nhánh wizard sẽ mất khung và thành ngõ cụt (không còn Header storefront vì
    `MainApp` đã ẩn Header cho `/lab`).
 
    Dùng đúng primitive của Đợt 11A: `AppShell` + `SideNav` (240px/64px) + `Topbar`
    (56px), nội dung `max-w-[1400px]`, drawer mobile bằng `Sheet side="left"`, có
-   skip-link. Không tự dựng lại chrome mới.
+   skip-link. Không tự dựng lại khung mới.
 
    ⚠️ `id` của mục nav PHẢI khớp tab id trong view tương ứng:
       - `/lab`      -> `TabId` của `views/WorkshopSettingsView.tsx`
@@ -421,19 +428,18 @@ const DashboardShell: React.FC<{
 
   return (
     <AppShell
-      chrome
       collapsed={collapsed}
       mobileOpen={mobileOpen}
       onMobileOpenChange={setMobileOpen}
       navLabel={navLabel}
       sidebar={
         <SideNav
+          variant="pill"
           label={navLabel}
           collapsed={collapsed}
           onCollapsedChange={setCollapsed}
           activeId={activeId}
           onSelect={(id) => navigate(`${basePath}/${id}`)}
-          tone="chrome"
           groups={groups.map((group) => ({
             id: group.label,
             label: group.label,
@@ -461,7 +467,7 @@ const DashboardShell: React.FC<{
           }
           brand={
             <span className="flex min-w-0 items-center gap-2">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-fg">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-brand text-xs font-bold text-fg shadow-soft">
                 V
               </span>
               <span className="hidden min-w-0 flex-col leading-tight sm:flex">
@@ -514,7 +520,7 @@ const LabDashboardShell: React.FC<{ children: React.ReactNode }> = ({ children }
       basePath="/lab"
       activeId={known ? String(tab) : 'queue'}
       groups={LAB_NAV}
-      brandTitle="VCUBE Lab"
+      brandTitle="Xưởng in VCUBE"
       brandHint="Xưởng in (MES)"
       navLabel="Điều hướng xưởng in"
     >
@@ -532,7 +538,7 @@ const DesignerDashboardShell: React.FC<{ children: React.ReactNode }> = ({ child
       basePath="/designer"
       activeId={known ? String(tab) : 'overview'}
       groups={DESIGNER_NAV}
-      brandTitle="Designer Studio"
+      brandTitle="Xưởng thiết kế"
       brandHint="Tác giả & bản quyền"
       navLabel="Điều hướng studio tác giả"
     >
@@ -1114,14 +1120,19 @@ function MainApp() {
   };
 
   /**
-   * Khu dùng chrome RIÊNG (không render Header/Footer storefront) — mỗi màn chỉ có
-   * MỘT tầng chrome (15-ui-audit.md §2):
+   * Khu dùng khung RIÊNG (không render Header/Footer storefront) — mỗi màn chỉ có
+   * MỘT tầng khung (15-ui-audit.md §2):
    *   - `admin`    : AdminDashboardView tự có sidebar + breadcrumb.
    *   - `lab`      : AppShell (LabDashboardShell) — Đợt 11B nhóm 1.
    *   - `designer` : AppShell (DesignerDashboardShell) — Đợt 11B nhóm 1.
-   * Trước Đợt 11B chỉ có `admin`, nên `/lab` và `/designer` bị 2 tầng chrome chồng nhau.
+   * Trước Đợt 11B chỉ có `admin`, nên `/lab` và `/designer` bị 2 tầng khung chồng nhau.
    */
   const CHROMELESS_SCREENS = ['admin', 'lab', 'designer'];
+  // D-F (Lead duyệt 2026-10-20) — UI-016: ẩn FAB trên 2 route có thanh mua cố định
+  // (`ProductDetailView`/`PersonalizeView` render bar `fixed bottom-0 z-sticky`). FAB nằm
+  // ở `z-drawer` (40) > `z-sticky` (10) nên trước đây đè nút "Đặt In 3D" ở 390 trong lúc
+  // chờ logic auto-hide (~400ms/scroll-settle). Không đổi route; chỉ bỏ FAB khỏi cây.
+  const FAB_HIDDEN_SCREENS = ['product_detail', 'personalize'];
 
   // Derive active screen for Header navigation highlight
   const getCurrentScreenFromPath = (): string => {
@@ -1489,7 +1500,7 @@ function MainApp() {
   const labRouteElement = (
     <RoleGuard
       allowedRoles={['lab', 'workshop', 'admin']}
-      featureName={language === 'vi' ? 'Bảng Điều Khiển Xưởng In (MES Hub)' : 'Print Lab Control (MES Hub)'}
+      featureName="Bảng điều khiển xưởng in (MES)"
       onNavigate={handleNavigate}
     >
       <LabRoute onNavigate={handleNavigate} onShowToast={showToast} />
@@ -1499,8 +1510,8 @@ function MainApp() {
   return (
     <div className="min-h-dvh flex flex-col bg-canvas text-fg">
       {/*
-        P1 §3: /admin* có chrome riêng (breadcrumb + avatar + nút "Xem Cửa Hàng"
-        trong AdminDashboardView) nên KHÔNG render thanh storefront — trước đây 2 tầng chrome
+        P1 §3: /admin* có khung riêng (breadcrumb + avatar + nút "Xem Cửa Hàng"
+        trong AdminDashboardView) nên KHÔNG render thanh storefront — trước đây 2 tầng khung
         chồng nhau, tốn ~72px và rối định hướng (15-ui-audit.md §2).
       */}
       {!CHROMELESS_SCREENS.includes(currentScreen) && (
@@ -1740,7 +1751,7 @@ function MainApp() {
             element={
               <RoleGuard
                 allowedRoles={['designer', 'admin']}
-                featureName={language === 'vi' ? 'Studio Tác Giả & Quản Lý Ấn Phẩm' : '3D Designer Studio & Publications'}
+                featureName={language === 'vi' ? 'Xưởng thiết kế & Quản lý ấn phẩm' : '3D Designer Studio & Publications'}
                 onNavigate={handleNavigate}
               >
                 <DesignerDashboardShell>
@@ -1763,7 +1774,7 @@ function MainApp() {
             element={
               <RoleGuard
                 allowedRoles={['designer', 'admin']}
-                featureName={language === 'vi' ? 'Studio Tác Giả & Quản Lý Ấn Phẩm' : '3D Designer Studio & Publications'}
+                featureName={language === 'vi' ? 'Xưởng thiết kế & Quản lý ấn phẩm' : '3D Designer Studio & Publications'}
                 onNavigate={handleNavigate}
               >
                 <DesignerDashboardShell>
@@ -1870,60 +1881,80 @@ function MainApp() {
 
       {/*
         Floating Quick Support Button — CHỈ storefront.
-        U0-3: FAB là chrome của storefront nhưng trước đây hiện ở MỌI màn, kể cả /admin
-        (đè lên điều khiển của dashboard). `CHROMELESS_SCREENS` là các màn đã có chrome
+        U0-3: FAB là lớp nổi của storefront nhưng trước đây hiện ở MỌI màn, kể cả /admin
+        (đè lên điều khiển của dashboard). `CHROMELESS_SCREENS` là các màn đã có khung
         riêng nên FAB bị loại hẳn khỏi cây (không chỉ ẩn bằng CSS).
+        D-F/UI-016: ẩn thêm ở `FAB_HIDDEN_SCREENS` (PDP/Personalize có bottom-bar).
       */}
-      {!CHROMELESS_SCREENS.includes(currentScreen) && (
+      {!CHROMELESS_SCREENS.includes(currentScreen) && !FAB_HIDDEN_SCREENS.includes(currentScreen) && (
       <button
         ref={fabRef}
         onClick={() => setIsChatOpen(true)}
         aria-hidden={isFabHidden || undefined}
         tabIndex={isFabHidden ? -1 : undefined}
-        className={`fixed bottom-6 right-6 z-drawer px-4 py-3 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse shadow-e3 border border-fg-muted/30 flex items-center gap-2.5 font-sans text-xs transition-all duration-200 motion-reduce:transition-none hover:scale-105 touch-target-btn rounded-full cursor-pointer ${
+        className={`fixed bottom-6 right-6 z-drawer flex items-center gap-2.5 rounded-md bg-primary hover:bg-primary-hover px-4 py-3 font-sans text-xs text-primary-fg shadow-e2 border border-transparent transition-all duration-200 motion-reduce:transition-none active:scale-[0.97] touch-target-btn cursor-pointer ${
           isFabHidden ? 'opacity-0 pointer-events-none invisible' : 'opacity-100'
         }`}
         aria-label={t('liveSupportAria', 'Tư vấn kỹ thuật trực tuyến', 'Live technical consultation')}
       >
-        <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none"></span>
-        <Icon name="support_agent" size={20} className="text-on-inverse" />
+        <span className="w-2 h-2 rounded-full bg-brand animate-pulse motion-reduce:animate-none"></span>
+        <Icon name="support_agent" size={20} className="text-primary-fg" />
         <span className="font-bold text-xs uppercase tracking-widest hidden sm:inline font-tech">
           {t('supportAssistant', 'Trợ lý tự động', 'Automated assistant')}
         </span>
       </button>
       )}
 
-      {/* Interactive Toast Notification Queue via useUIStore */}
-      <div className="fixed bottom-6 left-6 z-toast flex flex-col gap-2 pointer-events-none max-w-sm w-full">
+      {/* Interactive Toast Notification Queue via useUIStore.
+          UI-012 (a11y): container là LIVE REGION thường trực — nếu chỉ gắn role khi có
+          toast thì screen reader không kịp đăng ký vùng và bỏ qua thông báo. */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="false"
+        className="fixed bottom-6 left-6 z-toast flex flex-col gap-2 pointer-events-none max-w-sm w-full"
+      >
         {toastQueue.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto px-4 py-3 border shadow-e3 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200 rounded-sm text-on-inverse ${
+            className={`pointer-events-auto px-4 py-3 border bg-surface text-fg shadow-soft flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200 rounded-lg ${
               toast.type === 'error'
-                ? 'bg-danger border-danger/40 text-primary-fg'
+                ? 'border-danger/20'
                 : toast.type === 'warning'
-                ? 'bg-warning border-warning/40 text-primary-fg'
+                ? 'border-warning/20'
                 : toast.type === 'success'
-                ? 'bg-surface-inverse border-positive/40 text-on-inverse'
-                : 'bg-surface-inverse border-accent/30 text-on-inverse'
+                ? 'border-positive/20'
+                : 'border-line'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Icon name={toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'check_circle' : 'info'} size={20} className="text-accent" />
+              <Icon
+                name={toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'check_circle' : 'info'}
+                size={20}
+                className={
+                  toast.type === 'error'
+                    ? 'text-danger'
+                    : toast.type === 'warning'
+                    ? 'text-warning'
+                    : toast.type === 'success'
+                    ? 'text-positive'
+                    : 'text-info'
+                }
+              />
               <span className="text-xs font-sans font-semibold">{toast.message}</span>
             </div>
             <div className="flex items-center gap-2">
               {toast.undoAction && (
                 <button
                   onClick={toast.undoAction}
-                  className="px-2 py-0.5 bg-on-inverse/10 hover:bg-on-inverse/20 text-xs font-mono rounded-full text-accent underline cursor-pointer"
+                  className="px-2 py-0.5 bg-surface-muted hover:bg-line text-xs font-mono rounded-md text-fg underline cursor-pointer"
                 >
                   Hoàn tác
                 </button>
               )}
               <button
                 onClick={() => removeToast(toast.id)}
-                className="text-fg-subtle hover:text-on-inverse cursor-pointer"
+                className="text-fg-subtle hover:text-fg cursor-pointer"
                 aria-label="Đóng thông báo"
               >
                 <Icon name="close" size={18} />
@@ -1966,14 +1997,16 @@ function MainApp() {
       />
 
       {/*
-        P1: /admin* có chrome quản trị riêng (AdminDashboardView) ⇒ không render cả
+        P1: /admin* có khung quản trị riêng (AdminDashboardView) ⇒ không render cả
         header lẫn footer storefront. Footer storefront là nội dung bán hàng
         (dịch vụ, địa chỉ xưởng, dung sai chế tạo) — vô nghĩa trong app quản trị.
       */}
       {/* Industrial Aesthetic Footer with Dynamic Admin Content */}
       {!CHROMELESS_SCREENS.includes(currentScreen) && (
-        <footer className="bg-surface-inverse text-on-inverse border-t border-surface-inverse-raised pt-12 pb-6 mt-auto">
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 space-y-8">
+        <footer className="bg-surface-inverse text-on-inverse border-t border-on-inverse/10 pt-12 pb-6 mt-auto">
+          {/* CC-10 (W5): cùng container với header/hero/lưới sản phẩm (`max-w-7xl`) để gutter
+              header = footer trên mọi trang; trước đây footer 1440px còn header 1280px. */}
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
             <div className={`grid grid-cols-1 sm:grid-cols-2 ${role === 'admin' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
               {/* Col 1: Brand & Bio */}
               <div className="space-y-3">
@@ -1981,19 +2014,19 @@ function MainApp() {
                   <span className="font-display font-black text-2xl tracking-tighter text-on-inverse uppercase italic">
                     VCUBE
                   </span>
-                  <span className="text-xs font-sans uppercase tracking-[0.2em] text-accent border-l border-line pl-2">
-                    Vietnam
+                  <span className="text-xs font-sans uppercase tracking-[0.2em] text-accent border-l border-on-inverse/20 pl-2">
+                    Việt Nam
                   </span>
                 </div>
                 <p className="text-xs text-on-inverse/70 leading-relaxed font-sans">
                   {t('footerAbout', 'Nền tảng sản xuất bồi đắp và chế tác linh kiện cơ khí chính xác cho xưởng và phòng R&D.', 'Additive manufacturing and precision mechanical fabrication platform for workshops and R&D teams.')}
                 </p>
                 {siteContent.toleranceSpec ? (
-                  <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-inverse-raised text-accent text-xs font-tech uppercase tracking-wider rounded-sm border border-line-subtle">
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-inverse-raised text-accent text-xs font-tech uppercase tracking-wider rounded-sm border border-on-inverse/15">
                     <span>{t('footerToleranceLabel', 'Dung sai chế tạo:', 'Fabrication tolerance:')} {siteContent.toleranceSpec}</span>
                   </div>
                 ) : (
-                  <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-inverse-raised text-on-inverse/80 text-xs font-mono tracking-wider rounded-sm border border-line-subtle">
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-inverse-raised text-on-inverse/80 text-xs font-mono tracking-wider rounded-sm border border-on-inverse/15">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent" />
                     <span>{language === 'vi' ? 'Tiêu chuẩn chế tạo công nghiệp' : 'Industrial Manufacturing Standard'}</span>
                   </div>
@@ -2008,7 +2041,7 @@ function MainApp() {
                 <ul className="space-y-2 text-on-inverse/70">
                   <li>
                     <button onClick={() => handleNavigate('explore')} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
-                      {t('footerMarketplace', 'Marketplace linh kiện 3D', '3D Parts Marketplace')}
+                      {t('footerMarketplace', 'Sàn linh kiện 3D', '3D Parts Marketplace')}
                     </button>
                   </li>
                   <li>
@@ -2038,7 +2071,7 @@ function MainApp() {
                   <ul className="space-y-2 text-on-inverse/70">
                     <li>
                       <button onClick={() => handleNavigate('admin')} className="hover:text-on-inverse transition-colors text-left font-bold text-accent cursor-pointer">
-                        ForgeControl Admin Console
+                        Bảng điều khiển quản trị
                       </button>
                     </li>
                     <li>
@@ -2081,8 +2114,8 @@ function MainApp() {
               </div>
             </div>
 
-            <div className="pt-8 border-t border-surface-inverse-raised flex flex-col sm:flex-row items-center justify-between text-xs text-on-inverse/70 font-sans gap-4">
-              <p>{t('footerRights', '© 2026 VCUBE Vietnam Industrial Fabrication. Bảo lưu mọi quyền.', '© 2026 VCUBE Vietnam Industrial Fabrication. All rights reserved.')}</p>
+            <div className="pt-8 border-t border-on-inverse/15 flex flex-col sm:flex-row items-center justify-between text-xs text-on-inverse/70 font-sans gap-4">
+              <p>{t('footerRights', '© 2026 VCUBE Việt Nam. Bảo lưu mọi quyền.', '© 2026 VCUBE Vietnam Industrial Fabrication. All rights reserved.')}</p>
               <div className="flex items-center gap-4">
                 <span>{t('footerCadSecurity', 'Bảo mật dữ liệu CAD/STL', 'CAD/STL Data Security')}</span>
                 <span>•</span>

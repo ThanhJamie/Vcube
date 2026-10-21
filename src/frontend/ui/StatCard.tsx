@@ -42,6 +42,12 @@ export interface StatCardProps {
   loading?: boolean;
   className?: string;
   onClick?: () => void;
+  /**
+   * A11Y-06: tên truy cập cho thẻ KPI có `onClick` (thẻ thành `role="button"`).
+   * Mặc định suy ra `Xem chi tiết <label>`; truyền tay khi đích đến khác
+   * (ví dụ "Xem doanh thu 7 ngày"). Không ảnh hưởng hiển thị.
+   */
+  actionLabel?: string;
 }
 
 const TONE: Record<StatDeltaTone, string> = {
@@ -71,6 +77,7 @@ export function StatCard({
   loading = false,
   className,
   onClick,
+  actionLabel,
 }: StatCardProps) {
   const iconNode = isValidElement(icon)
     ? icon
@@ -101,10 +108,17 @@ export function StatCard({
       padding="md"
       interactive={Boolean(onClick)}
       onClick={onClick}
+      /* A11Y-06: trước đây tên truy cập = ghép label + value + delta + hint (rất dài, không
+         gợi ý đích đến). Chỉ đặt khi thẻ thực sự tương tác để không đè nội dung tĩnh. */
+      aria-label={
+        onClick
+          ? actionLabel ?? `Xem chi tiết ${typeof label === 'string' ? label : 'số liệu'}`
+          : undefined
+      }
       className={cn('flex flex-col gap-2', className)}
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-fg-muted">{label}</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{label}</p>
         {iconNode ? (
           <span aria-hidden="true" className="shrink-0 text-fg-subtle">
             {iconNode}
@@ -112,7 +126,7 @@ export function StatCard({
         ) : null}
       </div>
 
-      <p className="text-2xl font-semibold tabular-nums tracking-tight text-fg">{value}</p>
+      <p className="text-2xl font-bold tabular-nums tracking-tight text-fg">{value}</p>
 
       {delta ? (
         <p className={cn('flex flex-wrap items-center gap-1 text-xs tabular-nums', TONE[tone])}>

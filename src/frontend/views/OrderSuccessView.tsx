@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Order } from '../../types';
 import { useLanguage } from '../context/LanguageContext';
-import { Icon, Button } from '@frontend/ui';
+import { Icon, Button, Badge, Card } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency, formatDateTime } from '../lib/format';
 
 /**
@@ -50,48 +50,48 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
   return (
     <div className="min-h-dvh bg-canvas text-fg py-8 sm:py-12 px-4 sm:px-6 md:px-12">
       <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
-        {/* Main Success Card */}
-        <div className="bg-surface p-6 sm:p-10 rounded-lg text-center space-y-6 shadow-e2">
+        {/* Main Success Card — reading template (§4.3 v3): soft panel */}
+        <Card variant="soft" padding="lg" className="mx-auto max-w-3xl text-center space-y-6 sm:p-8">
           {/* Success Icon */}
-          <div className="w-16 h-16 bg-positive-tint text-positive rounded-lg flex items-center justify-center mx-auto shadow-e0">
-            <Icon name="check_circle" size={30} className="font-bold" />
+          <div className="mx-auto grid size-12 place-items-center rounded-full bg-positive-tint text-positive">
+            <Icon name="check_circle" size={24} />
           </div>
 
           <div>
-            <div className="flex items-center justify-center gap-2 font-mono text-xs text-fg-subtle uppercase tracking-wider mb-2">
-              <span className="w-2 h-2 rounded-full bg-positive animate-pulse motion-reduce:animate-none"></span>
+            <div className="flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-wider text-fg-muted mb-2">
+              <span className="w-2 h-2 rounded-full bg-positive"></span>
               <span>Đơn Hàng Đã Được Khởi Tạo Thành Công</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-fg">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-fg">
               Xác Nhận Đơn Hàng Thành Công
             </h1>
             <p className="text-xs font-mono text-fg-subtle mt-2">
-              Mã đơn: <strong className="text-primary text-sm">{order.orderNumber}</strong> • Ngày tạo: {orderDateText(order.date)}
+              Mã đơn: <strong className="text-fg text-sm tabular-nums">{order.orderNumber}</strong> • Ngày tạo: {orderDateText(order.date)}
             </p>
           </div>
 
           {/* Guest Checkout Access Token Badge */}
           {order.secureAccessToken && (
-            <div className="bg-gradient-to-r from-positive-tint to-primary-tint border border-positive/30 rounded-lg p-4 text-left shadow-e1 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-positive flex items-center gap-1.5">
-                  <Icon name="key" size={16} className="text-positive" />
-                  <span>MÃ TRA CỨU KHÁCH VÃNG LAI (GUEST ACCESS TOKEN)</span>
+            <div className="rounded-lg border border-dashed border-line bg-surface-muted p-4 text-left space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-mono text-xs font-semibold text-fg-muted flex items-center gap-1.5 uppercase tracking-wider">
+                  <Icon name="key" size={16} className="text-fg-muted" />
+                  <span>Mã tra cứu khách vãng lai</span>
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-positive-tint text-positive font-mono text-xs font-bold">
+                <Badge variant="neutral" size="sm">
                   Không Cần Mật Khẩu
-                </span>
+                </Badge>
               </div>
-              <p className="text-xs text-positive font-sans">
+              <p className="text-xs text-fg-muted font-sans">
                 Bạn đang đặt hàng ở chế độ Khách Vãng Lai. Hãy lưu mã này để tra cứu trạng thái in và tiến độ đơn hàng bất kỳ lúc nào:
               </p>
               <div className="flex items-center gap-2 pt-1">
-                <code className="px-3 py-1.5 bg-surface border border-positive/30 rounded-lg text-xs font-mono font-bold text-positive select-all flex-1 truncate">
+                <code className="px-3 py-2 bg-surface border border-line rounded-md text-xs font-mono font-semibold text-fg select-all flex-1 truncate">
                   {order.secureAccessToken}
                 </code>
                 <Button
                   size="sm"
-                  variant="primary"
+                  variant="secondary"
                   onClick={() => {
                     navigator.clipboard?.writeText(order.secureAccessToken!);
                     setCopiedToken(true);
@@ -108,12 +108,12 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
           {/* Next-steps stepper — trạng thái lấy từ ĐƠN ĐÃ LƯU, không hứa trước.
               OT-08: trước đây màn này khẳng định "Thanh toán — Đã xác nhận" cho một
               đơn vừa tạo trong trình duyệt vài trăm ms trước đó. */}
-          <div className="py-6 border-y border-line grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs font-mono">
+          <div className="py-6 border-y border-line-subtle grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs font-mono">
             {/* Stage 1 — phụ thuộc phương thức thanh toán thật */}
-            <div className={`space-y-1.5 p-2 rounded-lg border ${
-              isPaid ? 'bg-positive-tint border-positive/30' : 'bg-warning-tint border-warning/30'
+            <div className={`space-y-1.5 p-3 rounded-lg border ${
+              isPaid ? 'bg-positive-tint border-positive/20' : 'bg-warning-tint border-warning/20'
             }`}>
-              <div className={`w-6 h-6 flex items-center justify-center mx-auto text-xs font-bold rounded-full ${
+              <div className={`mx-auto grid size-6 place-items-center text-xs font-bold rounded-full ${
                 isPaid ? 'bg-positive text-primary-fg' : 'bg-warning text-primary-fg'
               }`}>
                 {isPaid ? '✓' : '!'}
@@ -129,18 +129,18 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
             </div>
 
             {/* Stage 2 — chỉ "đang duyệt" khi đơn đã qua bước thanh toán */}
-            <div className={`space-y-1.5 p-2 rounded-lg border ${
+            <div className={`space-y-1.5 p-3 rounded-lg border ${
               canStartProduction
-                ? 'bg-primary/10 border-primary/30'
-                : 'bg-canvas border-line opacity-60'
+                ? 'bg-info-tint border-info/20'
+                : 'bg-surface-muted border-line'
             }`}>
-              <div className={`w-6 h-6 flex items-center justify-center mx-auto text-xs font-bold rounded-full ${
-                canStartProduction ? 'bg-primary text-primary-fg' : 'bg-line text-fg'
+              <div className={`mx-auto grid size-6 place-items-center text-xs font-bold rounded-full ${
+                canStartProduction ? 'bg-primary text-primary-fg' : 'bg-line text-fg-muted'
               }`}>
                 2
               </div>
-              <p className="font-bold text-xs text-fg">{isVi ? '2. Duyệt file & cắt lớp' : '2. File review & slicing'}</p>
-              <p className="text-xs text-fg-subtle">
+              <p className={`font-bold text-xs ${canStartProduction ? 'text-fg' : 'text-fg-muted'}`}>{isVi ? '2. Duyệt tệp & cắt lớp' : '2. File review & slicing'}</p>
+              <p className={canStartProduction ? 'text-xs text-info' : 'text-xs text-fg-muted'}>
                 {canStartProduction
                   ? (isVi ? 'Xưởng sẽ tiếp nhận' : 'Workshop will pick up')
                   : (isVi ? 'Chờ xác nhận thanh toán' : 'Waiting for payment')}
@@ -148,43 +148,43 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
             </div>
 
             {/* Stage 3 */}
-            <div className="space-y-1.5 p-2 rounded-lg bg-canvas border border-line opacity-60">
-              <div className="w-6 h-6 bg-line text-fg flex items-center justify-center mx-auto text-xs font-bold rounded-full">
+            <div className="space-y-1.5 p-3 rounded-lg bg-surface-muted border border-line">
+              <div className="mx-auto grid size-6 place-items-center bg-line text-fg-muted text-xs font-bold rounded-full">
                 3
               </div>
-              <p className="font-bold text-xs text-fg">{isVi ? '3. Lên bàn in 3D' : '3. Queue on printer'}</p>
-              <p className="text-xs text-fg-subtle">{isVi ? 'Chưa gán máy in' : 'No printer assigned yet'}</p>
+              <p className="font-bold text-xs text-fg-muted">{isVi ? '3. Lên bàn in 3D' : '3. Queue on printer'}</p>
+              <p className="text-xs text-fg-muted">{isVi ? 'Chưa gán máy in' : 'No printer assigned yet'}</p>
             </div>
 
             {/* Stage 4 — không hứa hẹn dung sai khi chưa có hồ sơ đo kiểm */}
-            <div className="space-y-1.5 p-2 rounded-lg bg-canvas border border-line opacity-60">
-              <div className="w-6 h-6 bg-line text-fg flex items-center justify-center mx-auto text-xs font-bold rounded-full">
+            <div className="space-y-1.5 p-3 rounded-lg bg-surface-muted border border-line">
+              <div className="mx-auto grid size-6 place-items-center bg-line text-fg-muted text-xs font-bold rounded-full">
                 4
               </div>
-              <p className="font-bold text-xs text-fg">{isVi ? '4. Giao hàng' : '4. Delivery'}</p>
-              <p className="text-xs text-fg-subtle">{isVi ? 'Chưa có mã vận đơn' : 'No tracking code yet'}</p>
+              <p className="font-bold text-xs text-fg-muted">{isVi ? '4. Giao hàng' : '4. Delivery'}</p>
+              <p className="text-xs text-fg-muted">{isVi ? 'Chưa có mã vận đơn' : 'No tracking code yet'}</p>
             </div>
           </div>
 
           {/* Instant Digital CAD Download Box (If order contains CAD items) */}
           {hasDigitalItems && (
-            <div className="p-4 bg-primary/5 border border-primary/30 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+            <div className="p-4 bg-surface-muted border border-line rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-md bg-primary text-primary-fg flex items-center justify-center shrink-0">
-                  <Icon name="folder_zip" size={24} />
+                  <Icon name="folder_zip" size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-xs text-fg">{isVi ? 'Bản quyền file CAD trong đơn' : 'CAD licences in this order'}</h4>
-                  <p className="text-xs text-fg-subtle font-mono">
+                  <h4 className="font-bold text-xs text-fg">{isVi ? 'Bản quyền tệp CAD trong đơn' : 'CAD licences in this order'}</h4>
+                  <p className="text-xs text-fg-muted font-mono">
                     {isVi
-                      ? 'File nằm trong Kho Tệp CAD. Tình trạng tải trực tiếp hiển thị theo quyền thực tế của từng file.'
+                      ? 'Tệp nằm trong Kho Tệp CAD. Tình trạng tải trực tiếp hiển thị theo quyền thực tế của từng tệp.'
                       : 'Files live in the CAD library. Direct download availability reflects each file’s real entitlement.'}
                   </p>
                 </div>
               </div>
               {order.secureAccessToken ? (
                 // Đơn khách (guest): `/assets` nằm sau đăng nhập ⇒ KHÔNG dẫn vào ngõ cụt.
-                <p className="text-xs font-mono text-fg-subtle max-w-[16rem] text-right">
+                <p className="text-xs font-mono text-fg-muted max-w-[16rem] text-right">
                   {isVi
                     ? 'Đăng nhập bằng email đặt hàng để mở Kho Tệp CAD.'
                     : 'Sign in with the order email to open the CAD library.'}
@@ -208,7 +208,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
               <Button
                 size="lg"
                 variant="primary"
-                className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider font-bold"
+                className="w-full sm:w-auto font-mono"
                 onClick={() => onNavigate('tracking', { orderId: order.id })}
                 leadingIcon={<Icon name="sensors" size={18} />}
               >
@@ -219,23 +219,23 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
             <Button
               size="lg"
               variant="secondary"
-              className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider font-bold"
+              className="w-full sm:w-auto font-mono"
               onClick={() => onOpenInvoice(order)}
               leadingIcon={<Icon name="receipt_long" size={18} />}
             >
               <span>{isVi ? 'Xem / In hoá đơn' : 'View / print invoice'}</span>
             </Button>
           </div>
-        </div>
+        </Card>
 
         {/* Order Details & Summary Card */}
-        <div className="bg-surface p-5 sm:p-7 rounded-lg shadow-e1 space-y-5">
-          <h2 className="font-extrabold text-sm sm:text-base text-fg flex items-center gap-2 border-b border-line pb-3.5 font-mono uppercase">
-            <Icon name="inventory_2" size={20} className="text-primary" />
+        <Card variant="soft" padding="md" className="sm:p-6 space-y-5">
+          <h2 className="flex items-center gap-2 border-b border-line-subtle pb-3 font-mono text-sm font-semibold uppercase tracking-wider text-fg">
+            <Icon name="inventory_2" size={18} className="text-fg-muted" />
             <span>Danh Sách Linh Kiện & Dịch Vụ ({order.items.length})</span>
           </h2>
 
-          <div className="divide-y divide-line">
+          <div className="divide-y divide-line-subtle">
             {order.items.map((item) => (
               <div key={item.id} className="py-3.5 flex items-center justify-between text-xs font-mono">
                 <div className="flex items-center gap-3.5 truncate">
@@ -251,25 +251,25 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
                     </p>
                   </div>
                 </div>
-                <span className="font-bold text-xs text-fg shrink-0 ml-3">
+                <span className="font-bold text-xs text-fg shrink-0 ml-3 font-mono tabular-nums text-right">
                   {formatCurrency(item.price * item.quantity)}
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="pt-3.5 border-t border-line flex items-center justify-between text-xs font-mono">
+          <div className="pt-3 border-t border-line-subtle flex items-center justify-between text-xs font-mono">
             <span className="text-xs text-fg-subtle uppercase">Phương thức thanh toán:</span>
-            <span className="font-bold text-fg">{order.payment.method}</span>
+            <span className="font-bold text-fg">{order.payment.method || '—'}</span>
           </div>
 
           <div className="flex items-center justify-between text-xs font-mono">
             <span className="text-xs text-fg-subtle uppercase">{isVi ? 'Tổng tiền đơn hàng:' : 'Order total:'}</span>
-            <span className="font-mono font-black text-base sm:text-lg text-primary">
+            <span className="font-mono font-semibold text-base sm:text-lg text-fg tabular-nums text-right">
               {formatCurrency(order.payment.total)}
             </span>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

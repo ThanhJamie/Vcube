@@ -65,16 +65,18 @@ export function EmptyState({
         className,
       )}
     >
+      {/* Ô icon 48px: v3 nâng `--radius-lg` lên 20px nên `rounded-lg` ở đây sẽ thành
+          gần tròn (bẫy A19) — dùng `rounded-md` (12px, ~0.5 cạnh) là bán kính đúng. */}
       <span
         aria-hidden="true"
-        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface-muted text-fg-subtle"
+        className="grid size-12 shrink-0 place-items-center rounded-md bg-surface-muted text-fg-subtle"
       >
         {iconNode}
       </span>
 
       <div className="flex max-w-prose flex-col gap-1">
-        <p className="text-sm font-semibold text-fg">{title}</p>
-        <p className="text-xs text-fg-muted">{description}</p>
+        <p className="text-base font-semibold text-fg">{title}</p>
+        <p className="max-w-sm text-sm text-fg-muted">{description}</p>
       </div>
 
       {action ? <div className="flex flex-wrap items-center justify-center gap-2">{action}</div> : null}

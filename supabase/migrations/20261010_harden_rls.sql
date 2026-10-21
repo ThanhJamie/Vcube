@@ -1123,7 +1123,9 @@ declare
     'vcube_cad_files_admin_all',
     'vcube_cad_files_buyer_read',
     'vcube_cad_files_order_files_read',
-    'vcube_cad_files_digital_owner_rw'
+    'vcube_cad_files_digital_owner_rw',
+    -- W2b / T25 (20261013110000_storage_scheme.sql): chủ file tự quản trong cad/<uid>/
+    'vcube_cad_files_cad_owner_rw'
   ];
 begin
   if to_regclass('storage.objects') is null then
@@ -1211,7 +1213,7 @@ begin
   else
     raise warning 'cad-files: chưa tạo được policy người mua (thiếu orders.user_id/items). Dùng signed URL.';
   end if;
-  -- cad-files (3/3): DESIGNER tự quản file số của mình — quy ước digital/<auth.uid()>/...
+  -- cad-files (3/4): DESIGNER tự quản file số của mình — quy ước digital/<auth.uid()>/...
   -- ĐÂY LÀ ĐIỀU KIỆN SỐNG CÒN của mục 1a (bán file số): bucket cad-files là PRIVATE và trước
   -- policy này chỉ có admin + người mua, nên designer KHÔNG upload/tải được file của chính
   -- mình ⇒ tính năng lõi của chợ 3 bên không chạy được.
@@ -1228,6 +1230,23 @@ begin
                     and (storage.foldername(name))[1] = 'digital'
                     and (storage.foldername(name))[2] = (select auth.uid())::text)$pol$;
   raise notice 'OK    cad-files: designer tự quản file số trong digital/<uid>/';
+
+  -- cad-files (4/4): CHỦ FILE tự quản file CAD (upload/báo giá) — quy ước cad/<auth.uid()>/<uuid>/<file>,
+  -- scheme chốt tại T25. Định nghĩa dưới đây TRÙNG khớp với migration forward
+  -- 20261013110000_storage_scheme.sql (file đó vẫn là nguồn chạy trên prod). Giữ ở harden để khi
+  -- harden được chạy lại (rebuild), bước 8.2 KHÔNG dọn mất policy này — nó nằm trong v_ok.
+  -- Phạm vi hẹp có chủ ý: chỉ đúng thư mục cấp 1 = 'cad' và cấp 2 = uid của người gọi, nên chủ A
+  -- KHÔNG chạm được file của chủ B. File phẳng cũ `cad/<file>` (foldername[2] NULL) không khớp.
+  execute 'drop policy if exists vcube_cad_files_cad_owner_rw on storage.objects';
+  execute $pol$create policy vcube_cad_files_cad_owner_rw on storage.objects
+             for all to authenticated
+             using (bucket_id = 'cad-files'
+                    and (storage.foldername(name))[1] = 'cad'
+                    and (storage.foldername(name))[2] = (select auth.uid())::text)
+             with check (bucket_id = 'cad-files'
+                    and (storage.foldername(name))[1] = 'cad'
+                    and (storage.foldername(name))[2] = (select auth.uid())::text)$pol$;
+  raise notice 'OK    cad-files: chủ file tự quản trong cad/<uid>/';
 end
 $do$;
 
@@ -1301,6 +1320,11 @@ declare
     'pricing_global_settings','workshop_accessories',
     'app_settings','setting_audit','warranty_claims','order_files','reviews','digital_assets','cart_items','quotes','kyc_records','order_items','workshop_commission_terms',
     'custom_design_requests'
+    -- ⚠️ CỐ Ý KHÔNG có designer_payout_info (SEC-01/T20 — 20261013090000 tạo bảng + 4 policy):
+    -- bước 9 chỉ quét policy trên bảng nằm trong v_tables, nên payout policies KHÔNG bị chạm.
+    -- Nếu thêm bảng vào đây: không thêm 4 policy vào v_keep ⇒ bước 9 xoá sạch policy của bảng;
+    -- còn thêm cả 4 policy vào v_keep ⇒ `scripts/lint-rls-migration.mjs` báo "allowlist chết" vì
+    -- harden không tạo chúng (bảng chỉ tồn tại SAU 20261013090000, chạy sau file này).
   ];
 begin
   for rec in

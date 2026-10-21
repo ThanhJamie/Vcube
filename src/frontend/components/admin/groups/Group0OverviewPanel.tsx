@@ -258,10 +258,10 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
       <Card padding="lg">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <span className="inline-flex items-center rounded-sm border border-line bg-surface-muted px-2.5 py-0.5 font-tech text-xs font-bold uppercase tracking-wider text-fg-muted">
+            <span className="inline-flex items-center rounded-sm border border-line bg-surface-muted px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-fg-muted">
               {isVi ? 'Tổng quan' : 'Overview'}
             </span>
-            <h2 className="text-lg font-bold text-fg mt-2 flex items-center gap-2.5">
+            <h2 className="text-lg font-bold tracking-tight text-fg mt-2 flex items-center gap-2.5">
               <Icon name="dashboard" size={24} className="text-primary" />
               {isVi ? 'Tổng Quan Điều Hành Hệ Sinh Thái VCUBE' : 'VCUBE Executive Operations Hub'}
             </h2>
@@ -275,16 +275,16 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-lg" role="group" aria-label={isVi ? 'Chọn kỳ báo cáo' : 'Reporting period'}>
+            <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-line bg-surface-muted p-1" role="group" aria-label={isVi ? 'Chọn kỳ báo cáo' : 'Reporting period'}>
               {(['today', 'week', 'month', 'quarter'] as const).map((tf) => (
                 <button
                   key={tf}
                   type="button"
                   aria-pressed={timeframe === tf}
                   onClick={() => setTimeframe(tf)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+                  className={`rounded-sm px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
                     timeframe === tf
-                      ? 'bg-surface text-primary shadow-e1'
+                      ? 'bg-surface text-fg shadow-e1 font-semibold'
                       : 'text-fg-muted hover:text-fg'
                   }`}
                 >
@@ -392,7 +392,7 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
       <Card padding="lg">
         <CardHeader className="border-b border-line-subtle pb-3">
           <div>
-            <span className="inline-flex items-center rounded-sm border border-line bg-surface-muted px-2 py-0.5 font-tech text-xs font-bold text-fg-muted">
+            <span className="inline-flex items-center rounded-sm border border-line bg-surface-muted px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-fg-muted">
               INKIRI
             </span>
             <CardTitle className="text-lg mt-2 flex items-center gap-2">
@@ -454,7 +454,7 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
               </span>
             </div>
             {alerts.length > 0 && (
-              <span className="text-xs font-tech font-bold px-2 py-0.5 bg-warning-tint text-warning rounded-full">
+              <span className="text-xs font-semibold tabular-nums px-2 py-0.5 bg-warning-tint text-warning border border-warning/20 rounded-full">
                 {alerts.length}
               </span>
             )}
@@ -589,7 +589,7 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
                       />
                       <span className="font-bold text-fg truncate">{segment.label}</span>
                     </span>
-                    <span className="font-tech font-bold text-fg tabular-nums shrink-0">
+                    <span className="font-mono font-bold text-fg tabular-nums shrink-0">
                       {segment.count} · {Math.round(segment.percent)}%
                     </span>
                   </li>
@@ -633,7 +633,7 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
               title={isVi ? 'Chưa có sản phẩm nào' : 'No product yet'}
               description={
                 isVi
-                  ? 'Bảng products chưa có bản ghi nào, nên catalog đang rỗng.'
+                  ? 'Bảng products chưa có bản ghi nào, nên danh mục đang rỗng.'
                   : 'The products table has no row, so the catalog is empty.'
               }
               icon={<Icon name="inventory_2" size={20} />}
@@ -647,15 +647,15 @@ export const Group0OverviewPanel: React.FC<Group0OverviewPanelProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="p-3 rounded-lg bg-surface-muted">
                 <div className="text-fg-subtle">{isVi ? 'Sản phẩm' : 'Products'}</div>
-                <div className="font-tech font-bold text-lg text-fg tabular-nums">{products.length}</div>
+                <div className="font-mono font-bold text-lg text-fg tabular-nums">{products.length}</div>
               </div>
               <div className="p-3 rounded-lg bg-surface-muted">
                 <div className="text-fg-subtle">{isVi ? 'Vật liệu' : 'Materials'}</div>
-                <div className="font-tech font-bold text-lg text-fg tabular-nums">{materials.length}</div>
+                <div className="font-mono font-bold text-lg text-fg tabular-nums">{materials.length}</div>
               </div>
               <div className="p-3 rounded-lg bg-surface-muted">
                 <div className="text-fg-subtle">{isVi ? 'Phụ kiện' : 'Accessories'}</div>
-                <div className="font-tech font-bold text-lg text-fg tabular-nums">{accessories.length}</div>
+                <div className="font-mono font-bold text-lg text-fg tabular-nums">{accessories.length}</div>
               </div>
             </div>
           )}

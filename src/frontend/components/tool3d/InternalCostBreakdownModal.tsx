@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DetailedCostBreakdown, PrinterProfile } from '../../types';
-import { formatNumber } from '@frontend/lib/format';
+import { formatCurrency, formatNumber } from '@frontend/lib/format';
 import { Icon, Modal, Money } from '@frontend/ui';
 
 /**
@@ -45,8 +45,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
   const [overrideSuccessMsg, setOverrideSuccessMsg] = useState<string>('');
   const [overrideError, setOverrideError] = useState<string>('');
 
-  if (!isOpen) return null;
-
+  // W2-NEW-1 (StrictMode): luôn mount <Modal>, chỉ đổi prop `open`; không return null.
   /** Tỷ trọng an toàn: `baseCost` = 0/không hợp lệ ⇒ `—`, KHÔNG `Infinity%`/`NaN%`. */
   const sharePercent = (value: number): string =>
     Number.isFinite(breakdown.baseCost) && breakdown.baseCost > 0
@@ -78,7 +77,7 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
       return;
     }
     if (newPrice < breakdown.costPrice) {
-      setOverrideError(`Giá bán điều chỉnh không được thấp hơn giá vốn xuất xưởng (${formatNumber(breakdown.costPrice)} đ).`);
+      setOverrideError(`Giá bán điều chỉnh không được thấp hơn giá vốn xuất xưởng (${formatCurrency(breakdown.costPrice)}).`);
       return;
     }
     if (!overrideReason.trim()) {
@@ -86,61 +85,61 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
       return;
     }
     onApplyOverride?.(newPrice, overrideReason);
-    setOverrideSuccessMsg(`Đã ghi đè đơn giá: ${formatNumber(newPrice)} đ/cái`);
+    setOverrideSuccessMsg(`Đã ghi đè đơn giá: ${formatCurrency(newPrice)}/cái`);
   };
 
   const costItems = [
     {
-      title: '1. Chi phí Vật liệu (Filament / Resin)',
+      title: '1. Chi phí vật liệu (nhựa in / nhựa lỏng)',
       amount: breakdown.materialCost,
       percent: sharePercent(breakdown.materialCost),
-      details: `${breakdown.totalFilamentGrams}g nhựa (Model: ${breakdown.modelGrams}g + Support: ${breakdown.supportGrams}g + Purge: ${breakdown.purgeGrams}g + Brim: ${breakdown.brimRaftGrams}g) × ${breakdown.materialCostPerGram} đ/g • Nguồn khối lượng: ${sourceText(GRAMS_SOURCE_TEXT, breakdown.gramsSource)}`
+      details: `${breakdown.totalFilamentGrams} g nhựa (mô hình: ${breakdown.modelGrams} g + vật liệu đỡ: ${breakdown.supportGrams} g + xả nhựa: ${breakdown.purgeGrams} g + viền đế: ${breakdown.brimRaftGrams} g) × ${breakdown.materialCostPerGram} ₫/g • Nguồn khối lượng: ${sourceText(GRAMS_SOURCE_TEXT, breakdown.gramsSource)}`
     },
     {
-      title: '2. Chi phí Điện năng tiêu thụ',
+      title: '2. Chi phí điện năng tiêu thụ',
       amount: breakdown.electricityCost,
       percent: sharePercent(breakdown.electricityCost),
-      details: `${breakdown.averagePowerKW} kW (Công suất TB) × ${breakdown.printHours}h × ${formatNumber(breakdown.electricityRatePerKWh)} đ/kWh`
+      details: `${breakdown.averagePowerKW} kW (công suất trung bình) × ${breakdown.printHours} h × ${formatNumber(breakdown.electricityRatePerKWh)} ₫/kWh`
     },
     {
-      title: '3. Khấu hao máy & Vật tư hao mòn (Nozzle/Plate)',
+      title: '3. Khấu hao máy & vật tư hao mòn (đầu phun / bàn in)',
       amount: breakdown.machineOperatingCost,
       percent: sharePercent(breakdown.machineOperatingCost),
-      details: `Khấu hao: ${formatNumber(breakdown.machineDepreciationCost)}đ + Bảo trì/Vật tư: ${formatNumber(breakdown.maintenanceAndConsumablesCost)}đ (${currentPrinter.name})`
+      details: `Khấu hao: ${formatCurrency(breakdown.machineDepreciationCost)} + bảo trì/vật tư: ${formatCurrency(breakdown.maintenanceAndConsumablesCost)} (${currentPrinter.name})`
     },
     {
-      title: '4. Chi phí Nhân công kỹ thuật (Labor)',
+      title: '4. Chi phí nhân công kỹ thuật',
       amount: breakdown.laborCost,
       percent: sharePercent(breakdown.laborCost),
       // R1/R4: in DUNG so phut va DON GIA dang dung trong ban tinh (`DetailedCostBreakdown`).
       // Truoc day dong nay hardcode "Review 4p + Setup 5p + ... + Pack 3p @ 65.000đ/h" nen van in
       // 65.000đ/h ke ca khi `pricing_global_settings.labor_hourly_rate_vnd` dat don gia khac.
       details:
-        `${breakdown.totalLaborMinutes} phút phân bổ (Review ${breakdown.fileReviewLaborMinutes}p`
-        + ` + Setup ${breakdown.setupLaborMinutes}p`
-        + ` + Gỡ support ${breakdown.supportRemovalMinutes}p`
-        + ` + Post-process ${breakdown.postProcessingLaborMinutes}p`
-        + ` + QC ${breakdown.qcLaborMinutes}p`
-        + ` + Pack ${breakdown.packagingLaborMinutes}p)`
-        + ` @ ${formatNumber(breakdown.laborHourlyRate)} đ/h`
+        `${breakdown.totalLaborMinutes} phút phân bổ (kiểm duyệt ${breakdown.fileReviewLaborMinutes} phút`
+        + ` + chuẩn bị ${breakdown.setupLaborMinutes} phút`
+        + ` + gỡ vật liệu đỡ ${breakdown.supportRemovalMinutes} phút`
+        + ` + hậu xử lý ${breakdown.postProcessingLaborMinutes} phút`
+        + ` + kiểm tra chất lượng ${breakdown.qcLaborMinutes} phút`
+        + ` + đóng gói ${breakdown.packagingLaborMinutes} phút)`
+        + ` @ ${formatCurrency(breakdown.laborHourlyRate)}/giờ`
     },
     {
-      title: '5. Phụ kiện & Đóng gói tiêu chuẩn',
+      title: '5. Phụ kiện & đóng gói tiêu chuẩn',
       amount: breakdown.accessoriesCost,
       percent: sharePercent(breakdown.accessoriesCost),
-      details: 'Hộp carton sóng, túi zip chống ẩm, hạt hút ẩm, màng xốp nổ PE Foam'
+      details: 'Hộp carton sóng, túi zip chống ẩm, hạt hút ẩm, màng xốp nổ PE'
     },
     {
-      title: '6. Chi phí Cố định phân bổ (Overhead)',
+      title: '6. Chi phí cố định phân bổ',
       amount: breakdown.overheadPerUnit,
       percent: sharePercent(breakdown.overheadPerUnit),
-      details: 'Mặt bằng xưởng, bản quyền phần mềm Slicer/CAD, internet, quản lý'
+      details: 'Mặt bằng xưởng, bản quyền phần mềm cắt lớp/CAD, internet, quản lý'
     }
   ];
 
   return (
     <Modal
-      open
+      open={isOpen}
       onClose={onClose}
       size="xl"
       showCloseButton={false}
@@ -149,14 +148,14 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
         <span>
           <span className="flex flex-wrap items-center gap-2 mb-1">
             <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold">
-              PRC-006 // Báo Cáo Giá Vốn &amp; Lợi Nhuận Nội Bộ (Internal Costing)
+              PRC-006 // Báo cáo giá vốn &amp; lợi nhuận nội bộ
             </span>
-            <span className="px-2 py-0.5 text-xs bg-danger-tint text-danger font-bold rounded-sm border border-danger/40">
-              Chỉ Dành Cho Kỹ Sư &amp; Quản Đốc
+            <span className="px-2 py-0.5 text-xs bg-danger-tint text-danger font-bold rounded-sm border border-danger/20">
+              Chỉ dành cho kỹ sư &amp; quản đốc
             </span>
           </span>
           <span className="block font-sans font-bold text-base sm:text-lg text-fg">
-            Cấu Trúc Chi Phí &amp; Định Giá: {fileName}
+            Cấu trúc chi phí &amp; định giá: {fileName}
           </span>
         </span>
       }
@@ -166,33 +165,33 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
           
           {/* Top KPI Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 bg-surface-muted rounded-sm">
-              <span className="text-xs uppercase font-sans text-fg-muted font-bold block">Giá Vốn Xuất Xưởng (1 cái)</span>
-              <span className="font-tech text-base font-bold text-fg mt-1 block">
+            <div className="p-3.5 bg-surface-muted border border-line-subtle rounded-md">
+              <span className="text-xs uppercase font-sans text-fg-muted font-bold block">Giá vốn xuất xưởng (1 cái)</span>
+              <span className="font-mono tabular-nums text-base font-bold text-fg mt-1 block">
                 <Money value={breakdown.costPrice} />
               </span>
               <span className="text-xs text-fg-muted">Gồm {(breakdown.failureReserveRate * 100).toFixed(0)}% dự phòng hỏng</span>
             </div>
 
-            <div className="p-3.5 bg-primary-tint/60 border border-primary/30 rounded-sm">
-              <span className="text-xs uppercase font-sans text-primary font-bold block">Giá Bán Đề Xuất (1 cái)</span>
-              <span className="font-tech text-base font-bold text-primary mt-1 block">
-                <Money value={breakdown.finalSellingPriceRounded} className="text-primary font-bold" />
+            <div className="p-3.5 bg-primary-tint border border-line rounded-md">
+              <span className="text-xs uppercase font-sans text-fg-muted font-bold block">Giá bán đề xuất (1 cái)</span>
+              <span className="font-mono tabular-nums text-base font-bold text-fg mt-1 block">
+                <Money value={breakdown.finalSellingPriceRounded} className="text-fg font-bold" />
               </span>
-              <span className="text-xs text-primary">Markup {breakdown.targetMarkupPercent}% • Margin {breakdown.calculatedGrossMarginPercent}%</span>
+              <span className="text-xs text-fg-muted">Hệ số nhân {breakdown.targetMarkupPercent}% • Biên lợi nhuận {breakdown.calculatedGrossMarginPercent}%</span>
             </div>
 
-            <div className="p-3.5 bg-positive-tint/60 border border-positive/40 rounded-sm">
-              <span className="text-xs uppercase font-sans text-positive font-bold block">Lợi Nhuận Gộp Tổng Lô (x{quantity})</span>
-              <span className="font-tech text-base font-bold text-positive mt-1 block">
+            <div className="p-3.5 bg-positive-tint border border-positive/20 rounded-md">
+              <span className="text-xs uppercase font-sans text-positive font-bold block">Lợi nhuận gộp tổng lô (x{quantity})</span>
+              <span className="font-mono tabular-nums text-base font-bold text-positive mt-1 block">
                 <Money value={totalBatchGrossProfit} signed className="text-positive font-bold" />
               </span>
               <span className="text-xs text-positive">Sau khi trừ giá vốn</span>
             </div>
 
-            <div className="p-3.5 bg-surface-muted rounded-sm">
-              <span className="text-xs uppercase font-sans text-fg-muted font-bold block">Thời Gian Máy Chạy</span>
-              <span className="font-tech text-base font-bold text-fg mt-1 block">
+            <div className="p-3.5 bg-surface-muted border border-line-subtle rounded-md">
+              <span className="text-xs uppercase font-sans text-fg-muted font-bold block">Thời gian máy chạy</span>
+              <span className="font-mono tabular-nums text-base font-bold text-fg mt-1 block">
                 {breakdown.printHours} giờ / cái
               </span>
               <span className="text-xs text-fg-muted">Tổng lô: {(breakdown.printHours * quantity).toFixed(1)}h</span>
@@ -212,53 +211,82 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
             <div className="flex items-center justify-between">
               <h3 className="font-sans font-bold text-sm text-fg flex items-center gap-1.5">
                 <Icon name="bar_chart" size={18} className="text-primary" />
-                Bảng Bóc Tách Chi Phí Sản Xuất Cơ Sở (Base Cost Breakdown)
+                Bảng bóc tách chi phí sản xuất cơ sở
               </h3>
               <span className="text-xs font-tech font-bold text-fg-muted">
-                Tổng Base Cost: {formatNumber(breakdown.baseCost)} đ
+                Tổng giá vốn cơ sở: {formatCurrency(breakdown.baseCost)}
               </span>
             </div>
 
-            <div className="border border-line-subtle rounded-sm overflow-hidden">
-              <table className="w-full text-left text-xs font-sans">
-                <thead className="bg-surface-muted text-fg-muted text-xs uppercase tracking-wider border-b border-line-subtle">
+            {/* UI-020 (390): modal không ép cuộn ngang bảng 640px — dưới md render card list
+                cùng dữ liệu `costItems`; từ md trở lên giữ bảng mật độ console. */}
+            <div className="space-y-2 md:hidden">
+              {costItems.map((item, idx) => (
+                <div key={idx} className="rounded-md border border-line bg-surface p-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="min-w-0 break-words text-sm font-semibold text-fg">{item.title}</span>
+                    <Money value={item.amount} as="span" className="shrink-0 font-bold text-fg" />
+                  </div>
+                  <p className="break-words text-xs text-fg-muted">{item.details}</p>
+                  <span className="block font-mono text-xs tabular-nums text-fg-muted">Tỷ trọng: {item.percent}%</span>
+                </div>
+              ))}
+              <div className="space-y-1 rounded-md border border-warning/20 bg-warning-tint p-3">
+                <span className="text-sm font-semibold text-warning">7. Dự phòng in hỏng</span>
+                <p className="break-words text-xs text-warning">
+                  Tỷ lệ rủi ro {(breakdown.failureReserveRate * 100).toFixed(0)}% dựa trên góc nhô &amp; số màu in
+                </p>
+                <div className="flex items-center justify-between gap-2 font-mono text-xs text-warning">
+                  <span className="tabular-nums">{(breakdown.failureReserveRate * 100).toFixed(0)}%</span>
+                  <Money value={breakdown.failureReserveCost} signed className="font-bold text-warning" />
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 rounded-md border border-line bg-surface-muted p-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-fg">= Tổng giá vốn xuất xưởng (một cái)</span>
+                <Money value={breakdown.costPrice} className="font-bold text-fg" />
+              </div>
+            </div>
+
+            <div className="hidden border border-line rounded-lg overflow-x-auto md:block">
+              <table className="w-full text-left text-sm font-sans">
+                <thead className="bg-surface-muted text-fg-subtle text-xs uppercase tracking-wider">
                   <tr>
-                    <th className="p-3">Hạng Mục Chi Phí</th>
-                    <th className="p-3">Công Thức & Diễn Giải Chi Tiết</th>
-                    <th className="p-3 text-right">Tỷ Trọng</th>
-                    <th className="p-3 text-right">Chi Phí (VNĐ)</th>
+                    <th className="h-10 px-4 text-left font-semibold">Hạng Mục Chi Phí</th>
+                    <th className="h-10 px-4 text-left font-semibold">Công Thức &amp; Diễn Giải Chi Tiết</th>
+                    <th className="h-10 px-4 text-right font-semibold">Tỷ Trọng</th>
+                    <th className="h-10 px-4 text-right font-semibold">Chi phí (₫)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line-subtle">
                   {costItems.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-surface-muted">
-                      <td className="p-3 font-semibold text-fg whitespace-nowrap">{item.title}</td>
-                      <td className="p-3 text-fg-muted text-xs font-sans">{item.details}</td>
-                      <td className="p-3 text-right font-tech text-fg-muted">{item.percent}%</td>
-                      <td className="p-3 text-right font-tech font-bold text-fg"><Money value={item.amount} as="span" className="font-bold text-fg" /></td>
+                    <tr key={idx} className="border-t border-line-subtle hover:bg-surface-muted/60">
+                      <td className="px-4 py-3 font-semibold text-fg whitespace-nowrap">{item.title}</td>
+                      <td className="px-4 py-3 text-fg-muted text-xs font-sans">{item.details}</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums text-fg-muted">{item.percent}%</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-fg"><Money value={item.amount} as="span" className="font-bold text-fg" /></td>
                     </tr>
                   ))}
                   
                   {/* Failure Reserve Row */}
-                  <tr className="bg-warning-tint/50 text-warning font-semibold">
-                    <td className="p-3">7. Dự phòng in hỏng (Failure Reserve)</td>
-                    <td className="p-3 text-xs">
-                      Tỷ lệ rủi ro {(breakdown.failureReserveRate * 100).toFixed(0)}% dựa trên độ dốc Overhang & số màu in
+                  <tr className="bg-warning-tint text-warning border-t border-line-subtle font-semibold">
+                    <td className="px-4 py-3">7. Dự phòng in hỏng</td>
+                    <td className="px-4 py-3 text-xs">
+                      Tỷ lệ rủi ro {(breakdown.failureReserveRate * 100).toFixed(0)}% dựa trên góc nhô & số màu in
                     </td>
-                    <td className="p-3 text-right font-tech">{(breakdown.failureReserveRate * 100).toFixed(0)}%</td>
-                    <td className="p-3 text-right font-tech font-bold text-warning">
+                    <td className="px-4 py-3 text-right font-mono tabular-nums">{(breakdown.failureReserveRate * 100).toFixed(0)}%</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-warning">
                       <Money value={breakdown.failureReserveCost} signed className="text-warning font-bold" />
                     </td>
                   </tr>
 
                   {/* Summary Cost Price Row */}
-                  <tr className="bg-surface-inverse text-on-inverse font-bold">
-                    <td className="p-3 uppercase tracking-wider" colSpan={2}>
-                      = TỔNG GIÁ VỐN XUẤT XƯỞNG (COST PRICE / UNIT)
+                  <tr className="bg-surface-muted text-fg border-t border-line-subtle font-bold">
+                    <td className="px-4 py-3 uppercase tracking-wider" colSpan={2}>
+                      = TỔNG GIÁ VỐN XUẤT XƯỞNG (MỘT CÁI)
                     </td>
-                    <td className="p-3 text-right font-tech">100%</td>
-                    <td className="p-3 text-right font-tech text-primary text-sm">
-                      <Money value={breakdown.costPrice} className="text-primary font-bold" />
+                    <td className="px-4 py-3 text-right font-mono tabular-nums">100%</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-lg font-bold text-fg">
+                      <Money value={breakdown.costPrice} className="text-fg font-bold" />
                     </td>
                   </tr>
                 </tbody>
@@ -267,97 +295,103 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
           </div>
 
           {/* Reverse Fee Calculation & Pricing Math */}
-          <div className="bg-surface-muted p-4 rounded-lg space-y-3">
+          <div className="bg-surface-muted border border-line-subtle p-4 rounded-lg space-y-3">
             <h4 className="font-sans font-bold text-xs uppercase tracking-wider text-fg flex items-center gap-1.5">
               <Icon name="functions" size={18} className="text-primary" />
-              Giải Ngược Phí Sàn & Thuật Toán Tính Giá Bán (Reverse Fee Formula)
+              Giải ngược phí sàn & thuật toán tính giá bán
             </h4>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 bg-surface rounded-sm">
-                <span className="text-fg-muted block text-xs uppercase">1. Markup Mục Tiêu</span>
-                <span className="font-tech font-bold text-base text-fg mt-0.5 block">{breakdown.targetMarkupPercent}%</span>
-                <span className="text-xs text-fg-muted">Giá trước phí: {formatNumber(breakdown.preFeeSellingPrice)} đ</span>
+              <div className="p-3 bg-surface border border-line-subtle rounded-md">
+                <span className="text-fg-muted block text-xs uppercase">1. Hệ số nhân mục tiêu</span>
+                <span className="font-mono tabular-nums font-bold text-base text-fg mt-0.5 block">{breakdown.targetMarkupPercent}%</span>
+                <span className="text-xs text-fg-muted">Giá trước phí: {formatCurrency(breakdown.preFeeSellingPrice)}</span>
               </div>
 
-              <div className="p-3 bg-surface rounded-sm">
-                <span className="text-fg-muted block text-xs uppercase">2. Phí Biến Đổi Theo Doanh Thu</span>
-                <span className="font-tech font-bold text-base text-fg mt-0.5 block">{totalVariableFeePercent}% Tổng</span>
+              <div className="p-3 bg-surface border border-line-subtle rounded-md">
+                <span className="text-fg-muted block text-xs uppercase">2. Phí biến đổi theo doanh thu</span>
+                <span className="font-mono tabular-nums font-bold text-base text-fg mt-0.5 block">{totalVariableFeePercent}% Tổng</span>
                 <span className="text-xs text-fg-muted">
-                  Platform {breakdown.platformCommissionPercent}% + Cổng TT {breakdown.paymentGatewayFeePercent}% + Royalty {breakdown.designerRoyaltyPercent}%
+                  Phí sàn {breakdown.platformCommissionPercent}% + cổng thanh toán {breakdown.paymentGatewayFeePercent}% + phí bản quyền {breakdown.designerRoyaltyPercent}%
                 </span>
               </div>
 
-              <div className="p-3 bg-surface rounded-sm">
-                <span className="text-fg-muted block text-xs uppercase">3. Biên Lợi Nhuận Gộp Thực (Gross Margin)</span>
-                <span className="font-tech font-bold text-base text-positive mt-0.5 block">{breakdown.calculatedGrossMarginPercent}%</span>
+              <div className="p-3 bg-surface border border-line-subtle rounded-md">
+                <span className="text-fg-muted block text-xs uppercase">3. Biên lợi nhuận gộp thực</span>
+                <span className="font-mono tabular-nums font-bold text-base text-positive mt-0.5 block">{breakdown.calculatedGrossMarginPercent}%</span>
                 <span className="text-xs text-positive">Lãi ròng trên doanh thu bán</span>
               </div>
             </div>
 
-            <div className="p-3 bg-surface rounded-sm font-mono text-xs text-fg-muted">
+            <div className="p-3 bg-surface border border-line-subtle rounded-md font-mono text-xs text-fg-muted">
               <code>
-                SellingPrice = (CostPrice × (1 + Markup)) ÷ (1 − (PlatformFee% + PaymentFee% + Royalty%)) = 
-                ({formatNumber(breakdown.costPrice)} × {markupMultiplier}) ÷ (1 − {variableFeeRate}) = <strong><Money value={breakdown.finalSellingPriceRounded} className="font-bold" /></strong> (Làm tròn lên 1.000đ)
+                Giá bán = (Giá vốn × (1 + hệ số nhân)) ÷ (1 − (phí sàn + phí thanh toán + phí bản quyền)) =
+                ({formatCurrency(breakdown.costPrice)} × {markupMultiplier}) ÷ (1 − {variableFeeRate}) = <strong><Money value={breakdown.finalSellingPriceRounded} className="font-bold" /></strong> (làm tròn lên 1.000 ₫)
               </code>
             </div>
           </div>
 
           {/* Admin Manual Price Override Box */}
-          <div className="bg-warning/10 border border-warning/40 p-4 rounded-lg space-y-3">
+          <div className="bg-warning-tint border border-warning/20 p-4 rounded-lg space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-bold text-xs uppercase tracking-wider text-warning flex items-center gap-1.5">
                 <Icon name="edit_note" size={18} />
-                Ghi Đè Giá Bán Thủ Công (Admin / Operator Override)
+                Ghi đè giá bán thủ công (quản trị / vận hành)
               </span>
-              <span className="text-xs text-warning">Yêu cầu nhập lý do lưu Audit Trail</span>
+              <span id="override-audit-note" className="text-xs text-warning">Yêu cầu nhập lý do để lưu vết kiểm toán</span>
             </div>
 
             <form onSubmit={handleSaveOverride} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
               <div className="sm:col-span-4">
-                <label className="text-xs font-sans uppercase tracking-wider font-bold text-warning block mb-1">
-                  Đơn giá mới (VNĐ / cái)
+                <label htmlFor="override-price-input" className="text-xs font-sans uppercase tracking-wider font-bold text-warning block mb-1">
+                  Đơn giá mới (₫ / cái)
                 </label>
                 <input
+                  id="override-price-input"
                   type="number"
                   min={breakdown.costPrice}
                   step="1000"
                   value={overridePriceInput}
                   onChange={(e) => setOverridePriceInput(e.target.value)}
-                  className="w-full bg-surface border border-warning/40 p-2 text-xs font-tech font-bold text-fg rounded-sm focus:outline-none focus:border-warning focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-invalid={Boolean(overrideError)}
+                  aria-describedby={overrideError ? 'override-audit-note override-form-error' : 'override-audit-note'}
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm font-mono font-bold text-fg focus:outline-none focus:border-warning focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 
               <div className="sm:col-span-5">
-                <label className="text-xs font-sans uppercase tracking-wider font-bold text-warning block mb-1">
+                <label htmlFor="override-reason-input" className="text-xs font-sans uppercase tracking-wider font-bold text-warning block mb-1">
                   Lý do điều chỉnh (Bắt buộc)
                 </label>
                 <input
+                  id="override-reason-input"
                   type="text"
                   placeholder="Ví dụ: Khách hàng thân thiết VIP, đơn dự án cơ khí..."
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
-                  className="w-full bg-surface border border-warning/40 p-2 text-xs text-fg rounded-sm focus:outline-none focus:border-warning focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-invalid={Boolean(overrideError)}
+                  aria-describedby={overrideError ? 'override-audit-note override-form-error' : 'override-audit-note'}
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg focus:outline-none focus:border-warning focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 
               <div className="sm:col-span-3">
                 <button
                   type="submit"
-                  className="w-full py-2 px-3 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse text-xs font-sans uppercase tracking-wider font-bold rounded-sm transition-colors"
+                  className="w-full h-10 max-md:min-h-11 px-4 bg-primary hover:bg-primary-hover text-primary-fg text-sm font-semibold rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  Áp Dụng Override
+                  Áp dụng ghi đè
                 </button>
               </div>
             </form>
 
             {overrideError && (
-              <div role="alert" className="text-xs text-danger font-bold bg-danger-tint p-2 rounded-sm">
+              <div id="override-form-error" role="alert" className="text-xs text-danger font-semibold bg-danger-tint border border-danger/20 p-2.5 rounded-md">
                 {overrideError}
               </div>
             )}
             {overrideSuccessMsg && (
-              <div className="text-xs text-positive font-bold bg-positive-tint p-2 rounded-sm">
+              <div className="text-xs text-positive font-semibold bg-positive-tint border border-positive/20 p-2.5 rounded-md">
                 {overrideSuccessMsg}
               </div>
             )}
@@ -371,10 +405,11 @@ export const InternalCostBreakdownModal: React.FC<InternalCostBreakdownModalProp
             Mã hiệu thuật toán: <code className="font-mono text-fg">VCUBE-PRC-V2.4</code>
           </span>
           <button
+            type="button"
             onClick={onClose}
-            className="px-6 py-2.5 bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse text-xs font-sans uppercase tracking-widest font-bold transition-colors rounded-sm"
+            className="h-10 max-md:min-h-11 px-4 bg-surface hover:bg-surface-muted border border-line-control text-fg text-sm font-semibold transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Đóng Báo Cáo Nội Bộ
+            Đóng báo cáo nội bộ
           </button>
         </div>
     </Modal>

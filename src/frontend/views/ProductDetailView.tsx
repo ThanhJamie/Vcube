@@ -27,12 +27,23 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
  * Tiền VND: thiếu giá trị ⇒ `—` (không bịa `0 đ`).
  * `0` KHÔNG phải một mức giá: `price_digital` / `price_physical` = 0 nghĩa là người bán KHÔNG
  * bán kênh đó. Cùng luật với `ExploreView.tsx` (`Number.isFinite(value) && value > 0 ? … : EMPTY_VALUE`).
+ * Ký hiệu tiền: `₫` (D-B của Lead, thống nhất với `formatCurrency`/`Money`).
  */
 const vnd = (v: unknown, locale: string): string =>
-  isNum(v) && v > 0 ? `${formatNumber(v, { locale, maximumFractionDigits: 0 })} đ` : EMPTY_VALUE;
+  isNum(v) && v > 0 ? `${formatNumber(v, { locale, maximumFractionDigits: 0 })} ₫` : EMPTY_VALUE;
 
 /** Nhãn giấy phép trung thực khi người bán chưa khai (T3). */
 const LICENSE_UNSET = '— (người bán chưa khai báo)';
+
+/** Bước cấu hình có số thứ tự — dùng chấm tròn `primary-tint` để quét nhanh thứ tự. */
+const StepNumber: React.FC<{ n: number }> = ({ n }) => (
+  <span
+    aria-hidden="true"
+    className="grid size-6 shrink-0 place-items-center rounded-full bg-primary-tint font-mono text-xs font-bold text-primary"
+  >
+    {n}
+  </span>
+);
 
 export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   product,
@@ -172,7 +183,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const handleAddDigital = () => {
     if (digitalPrice === null) {
       onShowToast(isVi
-        ? `Bản vẽ "${product.name}" không mở bán kênh file số (giá file số không lớn hơn 0) nên chưa thể mua.`
+        ? `Bản vẽ "${product.name}" không mở bán kênh tệp số (giá tệp số không lớn hơn 0) nên chưa thể mua.`
         : `"${product.name}" is not sold as a CAD file (its CAD price is not greater than 0), so it cannot be purchased.`);
       return;
     }
@@ -194,7 +205,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     };
 
     onAddToCart(item);
-    onShowToast(isVi ? `Đã thêm File 3D "${product.name}" vào giỏ hàng!` : `Added 3D CAD file "${product.name}" to cart!`);
+    onShowToast(isVi ? `Đã thêm tệp 3D "${product.name}" vào giỏ hàng!` : `Added 3D CAD file "${product.name}" to cart!`);
   };
 
   const modelGeometryType = product.id.includes('gear')
@@ -206,18 +217,26 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     : 'box';
 
   const specItems = [
-    { label: 'Kích Thước Phủ Bì', value: product.specs?.dimensions || EMPTY_VALUE },
-    { label: 'Khối Lượng Nhựa In', value: product.specs?.weight || EMPTY_VALUE },
-    { label: 'Độ Phân Giải Lớp In', value: product.specs?.resolution || EMPTY_VALUE },
+    { label: 'Kích Thước Phủ Bì', value: product.specs?.dimensions || EMPTY_VALUE, numeric: true },
+    { label: 'Khối Lượng Nhựa In', value: product.specs?.weight || EMPTY_VALUE, numeric: true },
+    { label: 'Độ Phân Giải Lớp In', value: product.specs?.resolution || EMPTY_VALUE, numeric: true },
     { label: 'Công Nghệ Gia Công', value: product.specs?.technology || EMPTY_VALUE },
-    { label: 'Thời Gian In Dự Kiến', value: product.printTime || EMPTY_VALUE },
-    { label: 'Định Dạng File Nguồn', value: product.cadFormat || EMPTY_VALUE },
+    { label: 'Thời Gian In Dự Kiến', value: product.printTime || EMPTY_VALUE, numeric: true },
+    { label: 'Định Dạng Tệp Nguồn', value: product.cadFormat || EMPTY_VALUE },
     { label: 'Loại Giấy Phép', value: product.licenseType || LICENSE_UNSET },
     { label: isVi ? 'Dung Sai Lắp Ghép' : 'Fit tolerance', value: isVi ? 'Chưa có hồ sơ đo kiểm' : 'No inspection record' },
   ];
 
+  const tabButtonClass = (active: boolean) =>
+    /* A11Y-05: pill 31px cao ở 390 ⇒ `max-md:min-h-11` (desktop giữ nguyên). */
+    `shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3 py-1.5 max-md:min-h-11 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      active ? 'bg-surface font-semibold text-fg shadow-soft' : 'text-fg-muted hover:text-fg'
+    }`;
+
+  const hasGalleryImages = imageList.length > 0;
+
   return (
-    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-8 px-4 sm:px-6 md:px-12 pb-24 lg:pb-12">
+    <div className="min-h-dvh bg-canvas pb-28 text-fg lg:pb-12">
       <SEOHead
         title={product.name}
         description={product.description || (isVi ? `Chi tiết mô hình CAD và thông số in 3D ${product.name} tại VCUBE.` : `Specifications and 3D printing details for ${product.name} at VCUBE.`)}
@@ -250,769 +269,858 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         }}
       />
 
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        {/* Breadcrumbs & Quick Action Bar */}
-        <Card padding="sm" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <nav className="flex items-center gap-2 text-xs font-mono text-fg-muted overflow-x-auto pb-1 scrollbar-none">
-            <button
-              onClick={() => onNavigate('home')}
-              className="hover:text-primary transition-colors whitespace-nowrap font-bold cursor-pointer"
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div className="space-y-6 sm:space-y-8">
+          {/* Breadcrumbs & quick actions — tách khỏi card để giảm "card soup" */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <nav
+              aria-label="Đường dẫn sản phẩm"
+              className="flex min-w-0 items-center gap-1.5 overflow-x-auto pb-1 font-mono text-xs text-fg-muted scrollbar-none"
             >
-              VCUBE 3D
-            </button>
-            <span aria-hidden="true">/</span>
-            <button
-              onClick={() => onNavigate('explore')}
-              className="hover:text-primary transition-colors whitespace-nowrap cursor-pointer"
-            >
-              {isVi ? 'Khám phá CAD' : 'Catalog'}
-            </button>
-            <span aria-hidden="true">/</span>
-            <span className="text-primary font-bold uppercase truncate max-w-[120px] sm:max-w-[180px]">
-              {product.category}
-            </span>
-            <span aria-hidden="true">/</span>
-            <span className="text-fg font-bold truncate max-w-[180px] sm:max-w-xs">
-              {product.name}
-            </span>
-          </nav>
-
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <Button size="sm" variant="secondary"
-              onClick={() => {
-                setIsBookmarked(!isBookmarked);
-                onShowToast(isBookmarked ? (isVi ? 'Đã bỏ lưu bản vẽ' : 'Removed from bookmarks') : (isVi ? 'Đã lưu bản vẽ vào mục yêu thích!' : 'Bookmarked!'));
-              }}
-              title="Lưu bản vẽ"
-              leadingIcon={
-                <Icon
-                  name={isBookmarked ? 'bookmark' : 'bookmark_border'}
-                  size={16}
-                  fill={isBookmarked ? 'currentColor' : 'none'}
-                  className={isBookmarked ? 'text-warning-strong' : 'text-fg-muted'}
-                />
-              }
-            >
-              <span className="font-mono">{isBookmarked ? (isVi ? 'Đã lưu' : 'Saved') : (isVi ? 'Lưu' : 'Save')}</span>
-            </Button>
-
-            <Button size="sm" variant="secondary"
-              onClick={() => {
-                navigator.clipboard?.writeText(window.location.href);
-                onShowToast(isVi ? 'Đã sao chép liên kết sản phẩm!' : 'Copied link to clipboard!');
-              }}
-              title="Chia sẻ link"
-              leadingIcon={<Icon name="share" size={16} />}
-            >
-              <span className="font-mono">Share</span>
-            </Button>
-          </div>
-        </Card>
-
-        {/* Main Product Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
-          {/* Left Column: 3D Viewport / Image Gallery & Detailed Technical Tabs */}
-          <div className="lg:col-span-7 space-y-6">
-            {/* View Mode Switcher Header */}
-            <Card padding="sm" className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-1 bg-surface-muted border border-line-subtle p-0.5 rounded-md min-w-0 overflow-x-auto scrollbar-none">
-                <Button size="sm" variant={viewMode === '3d' ? 'primary' : 'ghost'}
-                  onClick={() => setViewMode('3d')}
-                  leadingIcon={<Icon name="3d_rotation" size={16} />}
-                >
-                  <span>3D Interactive Canvas</span>
-                </Button>
-                <Button size="sm" variant={viewMode === 'image' ? 'primary' : 'ghost'}
-                  onClick={() => setViewMode('image')}
-                  leadingIcon={<Icon name="photo_library" size={16} />}
-                >
-                  <span>Gallery ({imageList.length})</span>
-                </Button>
-              </div>
-
-              {viewMode === '3d' ? (
-                <Button size="sm" variant={isWireframe ? 'primary' : 'secondary'}
-                  className="max-md:w-full"
-                  onClick={() => setIsWireframe(!isWireframe)}
-                >
-                  Mesh Wireframe
-                </Button>
-              ) : (
-                <span className="text-xs font-mono text-fg-muted">
-                  {imageList.length} góc chụp thực tế
-                </span>
-              )}
-            </Card>
-
-            {/* Viewer Display Frame */}
-            {viewMode === '3d' ? (
-              <Card padding="md" className="bg-surface text-fg border border-line shadow-e2 relative flex flex-col justify-between h-[420px] sm:h-[480px]">
-                {/* HUD Top Bar */}
-                <div className="w-full flex items-center justify-between z-sticky text-fg-muted font-mono text-xs uppercase tracking-wider mb-2">
-                  <span className="flex items-center gap-1.5 bg-surface-muted px-2.5 py-1 rounded-md border border-line">
-                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse motion-reduce:animate-none"></span>
-                    <span className="font-bold text-fg">WebGL 360° Inspection</span>
-                  </span>
-                  <span className="bg-surface-muted px-2.5 py-1 rounded-md border border-line text-primary font-bold truncate ml-2">
-                    Vật liệu: {selectedMaterial || EMPTY_VALUE}
-                  </span>
-                </div>
-
-                {/* 3D Model Rendering Canvas */}
-                <div className="flex-1 w-full h-full relative rounded-md overflow-hidden">
-                  <CanvasErrorBoundary fallbackHeight="h-full">
-                    <ThreeModelViewer
-                      modelType={modelGeometryType}
-                      color={selectedColor?.hex}
-                      wireframe={isWireframe}
-                      className="h-full w-full"
-                    />
-                  </CanvasErrorBoundary>
-                </div>
-
-                {/* HUD Bottom Bar */}
-                <div className="w-full flex items-center justify-between z-sticky text-fg-muted font-mono text-xs uppercase tracking-widest bg-surface-muted px-3 py-1.5 rounded-md border border-line mt-2">
-                  <span>Xoay: Kéo chuột • Zoom: Cuộn bánh xe</span>
-                  <span className="font-bold">{isVi ? 'Lưới (watertight): —' : 'Mesh (watertight): —'}</span>
-                </div>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                <div className="relative aspect-4/3 bg-surface-muted border border-line rounded-lg overflow-hidden flex items-center justify-center">
-                  {imageList.length > 0 ? (
-                    <img
-                      src={imageList[selectedImageIndex]}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs font-mono text-fg-subtle">
-                      {isVi ? 'Người bán chưa tải ảnh lên' : 'Seller has not uploaded images'}
-                    </span>
-                  )}
-                  {imageList.length > 0 && (
-                    <span className="absolute bottom-3 right-3 bg-surface/90 text-fg text-xs font-mono px-2.5 py-1 rounded-md border border-line tabular-nums shadow-e1">
-                      Ảnh {selectedImageIndex + 1} / {imageList.length}
-                    </span>
-                  )}
-                </div>
-
-                {/* Image Thumbnails Strip */}
-                {imageList.length > 0 && (
-                  <div className="flex items-center gap-2.5 overflow-x-auto py-1 scrollbar-none">
-                    {imageList.map((img, idx) => (
-                      <button
-                        key={img}
-                        onClick={() => setSelectedImageIndex(idx)}
-                        aria-label={isVi ? `Xem ảnh ${idx + 1}` : `View image ${idx + 1}`}
-                        className={`w-18 h-18 rounded-md border-2 shrink-0 transition overflow-hidden cursor-pointer ${
-                          selectedImageIndex === idx
-                            ? 'border-primary ring-2 ring-primary/30'
-                            : 'border-line-subtle opacity-70 hover:opacity-100'
-                        }`}
-                      >
-                        <img src={img} alt="" className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Batch Production Co-Printing Progress Card */}
-            {product.batchProgress && (
-              <Card padding="md" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="w-2 h-2 rounded-full bg-positive animate-pulse motion-reduce:animate-none"></span>
-                    <span className="font-mono text-xs uppercase tracking-wider font-bold text-fg">
-                      Đợt Sản Xuất Gom Chung
-                    </span>
-                    <Badge variant="info">Co-printing VCUBE</Badge>
-                  </div>
-                  <p className="text-xs text-fg-muted leading-relaxed">
-                    Đã đăng ký <strong className="text-fg tabular-nums">{product.batchProgress.current}/{product.batchProgress.total}</strong> đơn. Dự kiến bấm máy xuất xưởng vào ngày <strong className="text-primary">{product.batchProgress.targetDate}</strong>.
-                  </p>
-                </div>
-                <ProgressBar
-                  value={product.batchProgress.current}
-                  max={product.batchProgress.total}
-                  className="w-full sm:w-40 shrink-0"
-                />
-              </Card>
-            )}
-
-            {/* Technical Detail Tabs: Overview, Specs & Tolerances, Reviews, Slicing */}
-            <Card padding="lg">
-              <div
-                role="tablist"
-                aria-label={isVi ? 'Nội dung chi tiết sản phẩm' : 'Product detail sections'}
-                className="flex border-b border-line-subtle gap-4 sm:gap-6 text-xs font-mono uppercase tracking-wider mb-6 overflow-x-auto scrollbar-none"
+              <button
+                type="button"
+                onClick={() => onNavigate('home')}
+                className="cursor-pointer whitespace-nowrap rounded-sm px-1 font-bold text-fg transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <button
-                  type="button"
-                  role="tab"
-                  id="pdp-tab-desc"
-                  aria-selected={activeTab === 'desc'}
-                  aria-controls="pdp-panel-desc"
-                  onClick={() => setActiveTab('desc')}
-                  className={`pb-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                    activeTab === 'desc'
-                      ? 'border-primary text-primary font-bold'
-                      : 'border-transparent text-fg-muted hover:text-fg'
-                  }`}
-                >
-                  {isVi ? 'Tổng quan & Kết cấu' : 'Overview & Features'}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  id="pdp-tab-specs"
-                  aria-selected={activeTab === 'specs'}
-                  aria-controls="pdp-panel-specs"
-                  onClick={() => setActiveTab('specs')}
-                  className={`pb-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                    activeTab === 'specs'
-                      ? 'border-primary text-primary font-bold'
-                      : 'border-transparent text-fg-muted hover:text-fg'
-                  }`}
-                >
-                  {isVi ? 'Thông số & Dung sai' : 'Specs & Tolerances'}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  id="pdp-tab-reviews"
-                  aria-selected={activeTab === 'reviews'}
-                  aria-controls="pdp-panel-reviews"
-                  onClick={() => setActiveTab('reviews')}
-                  className={`pb-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                    activeTab === 'reviews'
-                      ? 'border-primary text-primary font-bold'
-                      : 'border-transparent text-fg-muted hover:text-fg'
-                  }`}
-                >
-                  {isVi ? `Đánh giá (${reviewsCountLabel})` : `Reviews (${reviewsCountLabel})`}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  id="pdp-tab-slicing"
-                  aria-selected={activeTab === 'slicing'}
-                  aria-controls="pdp-panel-slicing"
-                  onClick={() => setActiveTab('slicing')}
-                  className={`pb-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                    activeTab === 'slicing'
-                      ? 'border-primary text-primary font-bold'
-                      : 'border-transparent text-fg-muted hover:text-fg'
-                  }`}
-                >
-                  {isVi ? 'Profile In & Slicing' : 'Slicing Profiles'}
-                </button>
-              </div>
+                VCUBE
+              </button>
+              <span aria-hidden="true" className="text-fg-subtle">/</span>
+              <button
+                type="button"
+                onClick={() => onNavigate('explore')}
+                className="cursor-pointer whitespace-nowrap rounded-sm px-1 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Khám phá CAD
+              </button>
+              <span aria-hidden="true" className="text-fg-subtle">/</span>
+              <span className="max-w-[120px] truncate text-primary sm:max-w-[180px]">
+                {product.category}
+              </span>
+              <span aria-hidden="true" className="text-fg-subtle">/</span>
+              <span className="max-w-[180px] truncate font-bold text-fg sm:max-w-xs">
+                {product.name}
+              </span>
+            </nav>
 
-              {/* Tab 1: Overview */}
-              {activeTab === 'desc' && (
-                <div
-                  role="tabpanel"
-                  id="pdp-panel-desc"
-                  aria-labelledby="pdp-tab-desc"
-                  className="space-y-4 text-sm text-fg-muted leading-relaxed"
-                >
-                  <Card padding="md" className="bg-surface-muted text-base text-fg font-medium leading-relaxed">
-                    {product.description || EMPTY_VALUE}
-                  </Card>
-                  <div>
-                    <span className="font-mono text-xs uppercase tracking-wider text-fg-muted block mb-3 font-bold">
-                      {isVi ? 'Đặc tính kết cấu kỹ thuật:' : 'Engineering Characteristics:'}
-                    </span>
-                    {(product.features || []).length === 0 ? (
-                      <p className="text-xs text-fg-muted">{isVi ? 'Người bán chưa khai đặc tính kết cấu.' : 'The seller has not declared engineering characteristics.'}</p>
-                    ) : (
-                      <ul className="space-y-2.5 text-xs text-fg">
-                        {(product.features || []).map((f, i) => (
-                          <Card key={i} as="li" padding="sm" className="bg-surface-muted flex items-start gap-2.5">
-                            <span className="font-mono text-xs text-fg-muted font-bold tabular-nums">0{i + 1}.</span>
-                            <span className="leading-snug">{f}</span>
-                          </Card>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              )}
+            <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setIsBookmarked(!isBookmarked);
+                  onShowToast(isBookmarked ? (isVi ? 'Đã bỏ lưu bản vẽ' : 'Removed from bookmarks') : (isVi ? 'Đã lưu bản vẽ vào mục yêu thích!' : 'Bookmarked!'));
+                }}
+                title="Lưu bản vẽ"
+                leadingIcon={
+                  <Icon
+                    name={isBookmarked ? 'bookmark' : 'bookmark_border'}
+                    size={16}
+                    fill={isBookmarked ? 'currentColor' : 'none'}
+                    className={isBookmarked ? 'text-warning-strong' : 'text-fg-muted'}
+                  />
+                }
+              >
+                <span className="font-mono">{isBookmarked ? (isVi ? 'Đã lưu' : 'Saved') : (isVi ? 'Lưu' : 'Save')}</span>
+              </Button>
 
-              {/* Tab 2: Technical Specs — `KeyValue` (nhãn/giá trị ngữ nghĩa <dl>) */}
-              {activeTab === 'specs' && (
-                <div role="tabpanel" id="pdp-panel-specs" aria-labelledby="pdp-tab-specs" className="space-y-3">
-                  <KeyValue items={specItems} columns={2} variant="panel" labelWidth="8.5rem" />
-                  <p className="flex items-center gap-1.5 text-xs text-fg-muted">
-                    <Icon name="info" size={16} className="shrink-0" />
-                    <span>
-                      {isVi
-                        ? 'Ô nào người bán chưa khai thì hiện dấu gạch, hệ thống không tự đoán.'
-                        : 'Fields the seller has not declared show a dash — nothing is guessed.'}
-                    </span>
-                  </p>
-                </div>
-              )}
-
-              {/* Tab 3: Reviews */}
-              {activeTab === 'reviews' && (
-                <div role="tabpanel" id="pdp-panel-reviews" aria-labelledby="pdp-tab-reviews" className="space-y-4">
-                  {showRating ? (
-                    <Card padding="md" className="bg-surface-muted flex items-center gap-5">
-                      <div className="text-center pr-5 border-r border-line-subtle">
-                        <span className="font-mono text-3xl font-bold text-fg tabular-nums">
-                          {ratingValue}
-                        </span>
-                        <div className="flex items-center justify-center gap-0.5 mt-1" role="img" aria-label={`${ratingValue}/5`}>
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <Star
-                              key={i}
-                              size={16}
-                              aria-hidden="true"
-                              className={i <= Math.round(ratingValue as number) ? 'text-warning-strong' : 'text-line-control'}
-                              fill={i <= Math.round(ratingValue as number) ? 'currentColor' : 'none'}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs uppercase text-fg-muted font-mono block mt-1 tabular-nums">
-                          {reviewsCountLabel} {isVi ? 'đánh giá' : 'reviews'}
-                        </span>
-                      </div>
-                    </Card>
-                  ) : (
-                    <Card padding="none">
-                      <EmptyState
-                        size="sm"
-                        icon={<Icon name="chat" size={20} />}
-                        title={isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
-                        description={isVi ? 'Bản vẽ này chưa có đánh giá nào từ đơn hàng thật.' : 'This design has no reviews from real orders yet.'}
-                        action={
-                          <InfoTip label={isVi ? 'Vì sao chưa có đánh giá?' : 'Why no reviews yet?'}>
-                            {isVi
-                              ? 'VCUBE chỉ hiển thị đánh giá đến từ đơn hàng thật, nên bản vẽ chưa phát sinh đơn sẽ không có điểm.'
-                              : 'VCUBE only shows reviews that come from real orders, so a design without orders has no score.'}
-                          </InfoTip>
-                        }
-                      />
-                    </Card>
-                  )}
-                </div>
-              )}
-
-              {/* Tab 4: Slicing Profiles — chỉ in thông số đã khai ở cấp SẢN PHẨM.
-                  KHÔNG hardcode profile máy (Bambu X1C 215–230°C…) và KHÔNG gắn nhãn
-                  "In được" cho mọi sản phẩm: đó là khẳng định không có nguồn. */}
-              {activeTab === 'slicing' && (
-                <div role="tabpanel" id="pdp-panel-slicing" aria-labelledby="pdp-tab-slicing" className="space-y-3 text-xs font-mono">
-                  <div className="p-3.5 bg-canvas border border-line rounded-md text-fg-muted">
-                    {isVi
-                      ? 'Thông số cắt lớp ở cấp sản phẩm. Nhiệt độ đùn/bàn in phụ thuộc vật liệu & máy cụ thể — xưởng xác nhận khi báo giá.'
-                      : 'Product-level slicing parameters. Extruder/bed temperatures depend on the specific material and machine — the workshop confirms them in the quote.'}
-                  </div>
-                  <Card padding="sm" className="bg-surface-muted font-mono space-y-1.5">
-                    <div className="flex justify-between">
-                      <span className="text-fg-muted">{isVi ? 'Độ phân giải lớp:' : 'Layer resolution:'}</span>
-                      <span className="font-bold text-fg">{product.specs?.resolution || EMPTY_VALUE}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-fg-muted">{isVi ? 'Infill mặc định:' : 'Default infill:'}</span>
-                      <span className="font-bold text-fg">{product.specs?.infillDefault || EMPTY_VALUE}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-fg-muted">{isVi ? 'Công nghệ gia công:' : 'Technology:'}</span>
-                      <span className="font-bold text-fg">{product.specs?.technology || EMPTY_VALUE}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-fg-muted">{isVi ? 'Kích thước phủ bì:' : 'Overall size:'}</span>
-                      <span className="font-bold text-fg">{product.specs?.dimensions || EMPTY_VALUE}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-fg-muted">{isVi ? 'Nhiệt độ đùn / bàn in:' : 'Extruder / bed temp:'}</span>
-                      <span className="font-bold text-fg-subtle">{EMPTY_VALUE}</span>
-                    </div>
-                  </Card>
-                </div>
-              )}
-            </Card>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  navigator.clipboard?.writeText(window.location.href);
+                  onShowToast(isVi ? 'Đã sao chép liên kết sản phẩm!' : 'Copied link to clipboard!');
+                }}
+                title="Chia sẻ liên kết sản phẩm"
+                leadingIcon={<Icon name="share" size={16} />}
+              >
+                <span className="font-mono">Chia sẻ</span>
+              </Button>
+            </div>
           </div>
 
-          {/* Right Column: Dual Persona Buying Box & Smart Configurator */}
-          <div className="lg:col-span-5 space-y-6">
-            <Card padding="lg" className="space-y-6 shadow-e1 lg:sticky lg:top-24">
-              {/* Product Header */}
-              <div>
-                <div className="flex items-center justify-between text-xs mb-2 font-mono gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs text-primary font-bold uppercase truncate">
-                      {product.designer || EMPTY_VALUE}
-                    </span>
-                    <Badge variant="neutral">{product.cadFormat || EMPTY_VALUE}</Badge>
+          {/* Product headline — tiêu đề/hạng đánh giá nằm trên cùng mọi viewport */}
+          <header className="space-y-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary">
+                {product.designer || EMPTY_VALUE}
+              </span>
+              <Badge variant="neutral">{product.cadFormat || EMPTY_VALUE}</Badge>
+              {/* T3: `rating` NULL hoặc `reviewsCount = 0` ⇒ KHÔNG hiện sao. */}
+              {showRating ? (
+                <span className="flex items-center gap-1 font-mono text-xs font-bold text-fg tabular-nums">
+                  <Star size={14} className="text-warning-strong" fill="currentColor" aria-hidden="true" />
+                  {ratingValue} ({reviewsCountLabel} đánh giá)
+                </span>
+              ) : (
+                <span className="font-mono text-xs text-fg-muted">
+                  {isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
+                </span>
+              )}
+            </div>
+            <h1 className="text-2xl font-bold leading-snug tracking-tight text-fg sm:text-3xl">
+              {product.name}
+            </h1>
+            <p className="font-mono text-xs text-fg-muted">
+              SKU: {product.sku || EMPTY_VALUE}
+            </p>
+          </header>
+
+          {/* Template Detail §4.3: 7/5 — trái 3D/thư viện, phải báo giá sticky */}
+          <div className="grid grid-cols-1 items-start gap-6 sm:gap-8 lg:grid-cols-12">
+            {/* LEFT 7 — 3D viewport / gallery (hàng 1) */}
+            <div className="space-y-6 lg:col-span-7 lg:col-start-1 lg:row-start-1">
+              <Card variant="soft" padding="none" className="overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
+                  <div
+                    role="group"
+                    aria-label="Chế độ xem sản phẩm"
+                    className="inline-flex min-w-0 items-center gap-1 overflow-x-auto rounded-full border border-line bg-surface-muted p-1 scrollbar-none"
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={viewMode === '3d'}
+                      onClick={() => setViewMode('3d')}
+                      className={tabButtonClass(viewMode === '3d')}
+                    >
+                      <Icon name="3d_rotation" size={16} className="mr-1.5 inline align-[-3px]" aria-hidden="true" />
+                      Khung 3D
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={viewMode === 'image'}
+                      onClick={() => setViewMode('image')}
+                      className={tabButtonClass(viewMode === 'image')}
+                    >
+                      <Icon name="photo_library" size={16} className="mr-1.5 inline align-[-3px]" aria-hidden="true" />
+                      Thư viện ảnh ({imageList.length})
+                    </button>
                   </div>
-                  {/* T3: `rating` NULL hoặc `reviewsCount = 0` ⇒ KHÔNG hiện sao. */}
-                  {showRating ? (
-                    <span className="text-xs text-fg font-bold flex items-center gap-1 shrink-0 tabular-nums">
-                      <Star size={14} className="text-warning-strong" fill="currentColor" aria-hidden="true" />
-                      {ratingValue} ({reviewsCountLabel})
-                    </span>
+
+                  {viewMode === '3d' ? (
+                    <Button
+                      size="sm"
+                      variant={isWireframe ? 'primary' : 'secondary'}
+                      onClick={() => setIsWireframe(!isWireframe)}
+                      aria-pressed={isWireframe}
+                    >
+                      Lưới khung
+                    </Button>
                   ) : (
-                    <span className="text-xs text-fg-muted shrink-0">
-                      {isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
+                    <span className="font-mono text-xs text-fg-muted">
+                      {imageList.length} góc chụp thực tế
                     </span>
                   )}
                 </div>
 
-                <h1 className="text-xl sm:text-2xl font-extrabold text-fg leading-snug">
-                  {product.name}
-                </h1>
-                <span className="text-xs font-mono text-fg-muted block mt-1">
-                  SKU: {product.sku || EMPTY_VALUE}
-                </span>
-              </div>
+                {viewMode === '3d' ? (
+                  <>
+                    {/* Viewport tối graphite (D7) — chỉ soften khung/HUD, không đổi scene/ánh sáng */}
+                    <div className="relative mx-3 mb-3 overflow-hidden rounded-md bg-surface-inverse sm:mx-4 sm:mb-4">
+                      <div className="h-[380px] sm:h-[440px] lg:h-[480px]">
+                        <CanvasErrorBoundary fallbackHeight="h-full">
+                          <ThreeModelViewer
+                            modelType={modelGeometryType}
+                            color={selectedColor?.hex}
+                            wireframe={isWireframe}
+                            className="h-full w-full rounded-none border-0"
+                          />
+                        </CanvasErrorBoundary>
+                      </div>
 
-              {/* DUAL PERSONA: DIGITAL CAD ASSET CARD */}
-              <div className="p-4 rounded-md border border-primary/30 bg-primary/5 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Icon name="folder_zip" size={16} className="text-primary shrink-0" />
-                    <span className="font-mono text-xs uppercase font-bold text-primary">
-                      Bản Quyền Tải File CAD Gốc
-                    </span>
-                  </div>
-                  <span className="font-mono text-base font-bold text-primary tabular-nums shrink-0">
-                    {vnd(digitalPrice, locale)}
-                  </span>
-                </div>
-
-                {/* R4: bo hai khang dinh khong co nguon — "da kiem tra ket cau luoi (watertight)"
-                    va "kem Commercial License". Chi neu dinh dang tep va loai giay phep CO THAT;
-                    chua khai ⇒ `— (người bán chưa khai báo)`. */}
-                <p className="text-xs text-fg-muted leading-relaxed">
-                  Tệp CAD gốc của sản phẩm{product.cadFormat ? ` (${product.cadFormat})` : ''}. Loại giấy phép:{' '}
-                  <strong className="text-fg">{product.licenseType || LICENSE_UNSET}</strong>
-                </p>
-
-                <Button size="md" fullWidth
-                  onClick={handleAddDigital}
-                  disabled={digitalPrice === null}
-                  leadingIcon={<Icon name="download" size={16} />}
-                >
-                  <span>{isVi ? 'Mua & Tải File CAD Ngay' : 'Buy CAD License'}</span>
-                </Button>
-                {digitalPrice === null && (
-                  <p className="text-xs text-danger">
-                    {isVi
-                      ? 'Người bán không mở bán kênh file số cho sản phẩm này (price_digital không lớn hơn 0) nên chưa thể mua.'
-                      : 'The seller does not sell this product as a CAD file (price_digital is not greater than 0), so it cannot be purchased yet.'}
-                  </p>
-                )}
-              </div>
-
-              {/* DUAL PERSONA: PHYSICAL 3D PRINT CONFIGURATOR */}
-              <div className="pt-2 border-t border-line-subtle space-y-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <Icon name="precision_manufacturing" size={16} className="text-fg" />
-                    <span className="font-mono text-xs uppercase font-bold text-fg">
-                      Cấu Hình Đặt In 3D Hoàn Thiện
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-mono text-lg font-extrabold text-fg block tabular-nums">
-                      {vnd(orderTotal, locale)}
-                    </span>
-                    {volumeDiscountPercent > 0 && (
-                      <span className="text-xs font-mono text-positive font-bold block">
-                        Đã giảm {volumeDiscountPercent}% ({applicableDiscountTier?.label})
+                      {/* HUD chip §3.8 — MỘT chip góc trái; không đè toolbar CAD của viewer
+                          (toolbar nằm góc phải trong component ThreeModelViewer). */}
+                      <span className="pointer-events-none absolute left-3 top-3 z-panel inline-flex max-w-[55%] items-center gap-2 rounded-full border border-line bg-surface/90 px-3 py-1 font-mono text-xs shadow-soft backdrop-blur-sm">
+                        <span className="size-2 shrink-0 rounded-full bg-primary animate-pulse motion-reduce:animate-none" aria-hidden="true" />
+                        <span className="truncate font-bold text-fg">WebGL 360°</span>
                       </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line-subtle px-3 py-2.5 font-mono text-xs text-fg-muted sm:px-4">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Icon name="touch_app" size={16} className="shrink-0 text-fg-subtle" aria-hidden="true" />
+                        Kéo để xoay · Cuộn để phóng to
+                      </span>
+                      <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>
+                          Vật liệu: <strong className="font-bold text-fg">{selectedMaterial || EMPTY_VALUE}</strong>
+                        </span>
+                        <span className="font-bold">Lưới (kín nước): {EMPTY_VALUE}</span>
+                      </span>
+                    </div>
+                    <p className="border-t border-line-subtle px-3 py-2 text-xs leading-relaxed text-fg-muted sm:px-4">
+                      Mô hình 3D minh hoạ theo danh mục — không phải tệp CAD gốc của sản phẩm. Số đo thật nằm ở tab
+                      “Thông số &amp; Dung sai”.
+                    </p>
+                  </>
+                ) : (
+                  <div className="space-y-3 px-3 pb-4 sm:px-4">
+                    <div className="relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-md bg-surface-muted">
+                      {hasGalleryImages ? (
+                        <img
+                          src={imageList[selectedImageIndex]}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 px-6 text-center">
+                          <Icon name="photo_library" size={28} className="text-fg-subtle" aria-hidden="true" />
+                          <span className="font-mono text-xs text-fg-muted">
+                            {isVi ? 'Người bán chưa tải ảnh lên' : 'Seller has not uploaded images'}
+                          </span>
+                        </div>
+                      )}
+                      {hasGalleryImages && (
+                        <span className="absolute bottom-3 right-3 rounded-full border border-line bg-surface/90 px-3 py-1 font-mono text-xs text-fg-muted tabular-nums backdrop-blur-sm">
+                          Ảnh {selectedImageIndex + 1} / {imageList.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {hasGalleryImages && (
+                      <div className="flex items-center gap-2.5 overflow-x-auto py-1 scrollbar-none">
+                        {imageList.map((img, idx) => (
+                          <button
+                            key={img}
+                            type="button"
+                            onClick={() => setSelectedImageIndex(idx)}
+                            aria-label={isVi ? `Xem ảnh ${idx + 1}` : `View image ${idx + 1}`}
+                            aria-pressed={selectedImageIndex === idx}
+                            className={`h-18 w-18 shrink-0 cursor-pointer overflow-hidden rounded-md border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                              selectedImageIndex === idx
+                                ? 'border-primary ring-2 ring-primary'
+                                : 'border-line opacity-70 hover:opacity-100'
+                            }`}
+                          >
+                            <img src={img} alt="" className="h-full w-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
-                </div>
+                )}
+              </Card>
 
-                {/* 1. Material Selector */}
-                <div>
-                  <label className="text-xs font-mono uppercase font-bold text-fg-muted block mb-2 flex items-center justify-between">
-                    <span>1. Vật liệu chế tạo:</span>
-                    <span className="text-primary font-bold text-xs">
-                      {selectedMaterialObj?.strength || EMPTY_VALUE}
-                    </span>
-                  </label>
-                  {declaredMaterials.length === 0 ? (
-                    <p className="text-xs text-danger">
-                      {isVi
-                        ? 'Người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in — hệ thống không tự gán một vật liệu thay thế.'
-                        : 'The seller has not declared supported materials, so this print cannot be ordered — no substitute material is assigned automatically.'}
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {declaredMaterials.map((mat) => {
-                        const isSelected = selectedMaterial === mat;
-                        return (
-                          <Button
-                            key={mat}
-                            size="sm"
-                            fullWidth
-                            variant={isSelected ? 'primary' : 'secondary'}
-                            onClick={() => setSelectedMaterial(mat)}
-                            className="font-mono"
-                          >
-                            <span className="truncate">{mat}</span>
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Khuyến nghị kỹ thuật cho vật liệu cao cấp (R3) */}
-                <MaterialTechnicalAdvisory
-                  materialName={selectedMaterial}
-                  isVi={isVi}
-                />
-
-                {/* Data-honesty: không cộng chênh lệch vật liệu, và cũng KHÔNG bịa hệ số nào — nói rõ. */}
-                <p className="text-xs text-fg-muted mt-2 leading-relaxed">
-                  {isVi
-                    ? 'Đơn giá in theo giá niêm yết của sản phẩm — chưa gồm chênh lệch vật liệu (xưởng xác nhận khi báo giá).'
-                    : 'The print price is the product list price — material price differences are not included (the workshop confirms them in the quote).'}
-                </p>
-
-                {/* 2. Color Swatches Picker — `rounded-full` GIỮ (đúng hình dạng ô màu tròn) */}
-                <div>
-                  <label className="text-xs font-mono uppercase font-bold text-fg-muted block mb-2">
-                    2. Sắc thái hoàn thiện:{' '}
-                    <span className="text-fg font-bold">{selectedColor?.name || EMPTY_VALUE}</span>
-                  </label>
-                  {colorOptions.length === 0 ? (
-                    <p className="text-xs text-fg-muted">
-                      {isVi ? 'Người bán chưa khai báo màu sắc.' : 'The seller has not declared colours.'}
-                    </p>
-                  ) : (
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      {colorOptions.map((c) => (
-                        <button
-                          key={c.name}
-                          onClick={() => c.available && setSelectedColorName(c.name)}
-                          disabled={!c.available}
-                          aria-label={c.available ? c.name : `${c.name} (Hết hàng)`}
-                          className={`relative w-8 h-8 rounded-full border-2 transition touch-target-btn cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            selectedColor?.name === c.name
-                              ? 'border-primary scale-110 ring-2 ring-primary/30'
-                              : 'border-line-subtle hover:scale-105'
-                          } ${!c.available ? 'opacity-40 cursor-not-allowed' : ''}`}
-                          style={{ backgroundColor: c.hex }}
-                          title={c.available ? c.name : `${c.name} (Hết hàng)`}
-                        >
-                          {selectedColor?.name === c.name && (
-                            <Icon name="check" size={16} className="text-primary-fg absolute inset-0 m-auto font-bold" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. Layer Resolution */}
-                <div>
-                  <label className="text-xs font-mono uppercase font-bold text-fg-muted block mb-1.5">
-                    3. Độ phân giải lớp in (Layer Height)
-                  </label>
-                  <select
-                    value={resolution}
-                    onChange={(e) => setResolution(e.target.value)}
-                    className="w-full bg-canvas border border-line-control rounded-md p-2.5 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
-                  >
-                    <option value="0.12 mm (Chính xác vi mô)">0.12 mm — Bề mặt siêu mịn / Dung sai ngặt</option>
-                    <option value="0.16 mm (Tiêu chuẩn kỹ thuật)">0.16 mm — Tiêu chuẩn kỹ thuật (Khuyên dùng)</option>
-                    <option value="0.20 mm (In nhanh tiêu chuẩn)">0.20 mm — In nhanh tiết kiệm</option>
-                  </select>
-                </div>
-
-                {/* 4. Custom Laser Engraving — phí khắc CHỈ hiện khi cấu hình có thật */}
-                {product.isCustomizable && (
-                  <div>
-                    <label className="text-xs font-mono uppercase font-bold text-fg-muted block mb-1.5 flex items-center justify-between gap-2">
-                      <span>4. Khắc laser tên dự án / số hiệu:</span>
-                      <span className={`text-xs font-bold tabular-nums ${engravingFee !== null && engravingFee > 0 ? 'text-primary' : 'text-fg-muted'}`}>
-                        {engravingFee !== null && engravingFee > 0 ? `+${vnd(engravingFee, locale)}` : EMPTY_VALUE}
+              {/* Batch Production Co-Printing Progress Card */}
+              {product.batchProgress && (
+                <Card variant="soft" padding="md" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="size-2 rounded-full bg-positive animate-pulse motion-reduce:animate-none" aria-hidden="true" />
+                      <span className="font-mono text-xs font-bold uppercase tracking-wider text-fg">
+                        Đợt sản xuất gom chung
                       </span>
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={25}
-                      placeholder="VD: VCUBE-LAB-01..."
-                      value={customEngraving}
-                      onChange={(e) => setCustomEngraving(e.target.value)}
-                      className="w-full bg-canvas border border-line-control rounded-md px-3 py-2 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                    {engravingBlocked && (
-                      <p className="flex items-start gap-1.5 text-xs text-danger mt-1.5">
-                        <Icon name="error" size={16} className="shrink-0 mt-0.5" />
-                        <span>
-                          {isVi
-                            ? 'Chưa cấu hình phí khắc laser (customEngravingFee) nên chưa thể đặt khắc. Quản trị viên nhập ở /admin, mục Cấu hình giá.'
-                            : 'The laser engraving fee (customEngravingFee) is not configured, so engraving cannot be ordered yet. An admin can set it in /admin, Pricing configuration.'}
-                        </span>
+                      <Badge variant="info">In gom VCUBE</Badge>
+                    </div>
+                    <p className="text-xs leading-relaxed text-fg-muted">
+                      Đã đăng ký <strong className="tabular-nums text-fg">{product.batchProgress.current}/{product.batchProgress.total}</strong> đơn. Dự kiến bấm máy xuất xưởng vào ngày <strong className="text-fg">{product.batchProgress.targetDate}</strong>.
+                    </p>
+                  </div>
+                  <ProgressBar
+                    value={product.batchProgress.current}
+                    max={product.batchProgress.total}
+                    className="w-full shrink-0 sm:w-40"
+                  />
+                </Card>
+              )}
+            </div>
+
+            {/* RIGHT 5 — báo giá sticky + cấu hình (span 2 hàng để sticky chạy hết cột) */}
+            <div className="space-y-5 lg:col-span-5 lg:col-start-8 lg:row-span-2 lg:row-start-1">
+              <div className="z-sticky lg:sticky lg:top-24">
+                <Card variant="soft" padding="lg" className="space-y-5">
+                  {/* Tổng tiền — phân cấp lớn nhất trong card */}
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-mono text-xs uppercase tracking-wider text-fg-muted">
+                        Tổng đặt in · {quantity} cái
+                      </span>
+                      {volumeDiscountPercent > 0 && (
+                        <Badge variant="success" size="sm">Giảm {volumeDiscountPercent}%</Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="font-mono text-3xl font-bold tabular-nums text-fg">
+                        {vnd(orderTotal, locale)}
+                      </span>
+                      <span className="font-mono text-xs text-fg-muted tabular-nums">
+                        Đơn giá {vnd(dynamicPricePhysical, locale)} / cái
+                      </span>
+                    </div>
+                    {volumeDiscountPercent > 0 && applicableDiscountTier?.label && (
+                      <p className="font-mono text-xs font-bold text-positive">
+                        {applicableDiscountTier.label}
                       </p>
                     )}
                   </div>
-                )}
 
-                {/* 5. Quantity Counter & Volume Discount */}
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono uppercase font-bold text-fg-muted">Số lượng:</span>
-                    <div className="flex items-center border border-line-control rounded-md bg-surface overflow-hidden">
-                      <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Giảm số lượng' : 'Decrease quantity'}
+                  {/* Số lượng — dùng chung cho cả đặt in và kênh tệp CAD */}
+                  <div className="flex items-center justify-between gap-3 border-t border-line-subtle pt-4">
+                    <span className="text-sm font-medium text-fg">Số lượng đặt in</span>
+                    <div className="flex items-center overflow-hidden rounded-md border border-line-control bg-surface">
+                      <Button
+                        iconOnly
+                        size="sm"
+                        variant="ghost"
+                        aria-label={isVi ? 'Giảm số lượng' : 'Decrease quantity'}
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
                         leadingIcon={<Minus size={16} aria-hidden="true" />}
                       />
-                      <span className="px-4 py-1.5 font-mono text-xs font-bold text-fg border-x border-line-subtle tabular-nums">
+                      <span className="min-w-10 border-x border-line-subtle px-3 text-center font-mono text-sm font-bold tabular-nums text-fg">
                         {quantity}
                       </span>
-                      <Button iconOnly size="sm" variant="ghost" aria-label={isVi ? 'Tăng số lượng' : 'Increase quantity'}
+                      <Button
+                        iconOnly
+                        size="sm"
+                        variant="ghost"
+                        aria-label={isVi ? 'Tăng số lượng' : 'Increase quantity'}
                         onClick={() => setQuantity(quantity + 1)}
                         leadingIcon={<Icon name="add" size={16} />}
                       />
                     </div>
                   </div>
-                </div>
 
-                {/* Primary Physical Order Action */}
-                <Button size="lg" fullWidth className="font-mono"
-                  onClick={handleAddPhysical}
-                  disabled={isAdding || purchaseBlocked}
-                  leadingIcon={<Icon name="shopping_bag" size={16} />}
-                >
-                  <span>{isAdding ? 'ĐANG XỬ LÝ...' : (isVi ? 'ĐẶT GIA CÔNG IN 3D' : 'ORDER 3D PRINT')} ({vnd(orderTotal, locale)})</span>
-                </Button>
+                  {/* CTA mua — CHỈ desktop. Dưới lg, thanh đặt hàng cố định thay thế
+                      để mỗi viewport chỉ có một CTA chính (UI-008). */}
+                  <div className="hidden space-y-2.5 lg:block">
+                    <Button
+                      size="lg"
+                      fullWidth
+                      onClick={handleAddPhysical}
+                      disabled={isAdding || purchaseBlocked}
+                      leadingIcon={<Icon name="shopping_bag" size={16} />}
+                    >
+                      <span>{isAdding ? 'Đang xử lý…' : 'Đặt in 3D'}</span>
+                      <span className="font-mono tabular-nums">— {vnd(orderTotal, locale)}</span>
+                    </Button>
 
-                {physicalPrice === null && (
-                  <p className="text-xs text-danger">
+                    <Button
+                      size="md"
+                      variant="secondary"
+                      fullWidth
+                      onClick={handleAddDigital}
+                      disabled={digitalPrice === null}
+                      leadingIcon={<Icon name="download" size={16} />}
+                    >
+                      <span>Mua tệp CAD</span>
+                      {digitalPrice !== null && (
+                        <span className="font-mono tabular-nums text-fg-muted">— {vnd(digitalPrice, locale)}</span>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Lý do kênh bị khoá — luôn hiển thị (kể cả mobile, nơi CTA nằm ở thanh dưới) */}
+                  {digitalPrice === null && (
+                    <p className="text-xs leading-relaxed text-danger">
+                      {isVi
+                        ? 'Người bán không mở bán kênh tệp số cho sản phẩm này (price_digital không lớn hơn 0) nên chưa thể mua.'
+                        : 'The seller does not sell this product as a CAD file (price_digital is not greater than 0), so it cannot be purchased yet.'}
+                    </p>
+                  )}
+                  {physicalPrice === null && (
+                    <p className="text-xs leading-relaxed text-danger">
+                      {isVi
+                        ? 'Người bán không mở bán kênh in vật lý cho sản phẩm này (price_physical không lớn hơn 0) nên chưa thể đặt in.'
+                        : 'The seller does not sell this product as a physical print (price_physical is not greater than 0), so it cannot be ordered yet.'}
+                    </p>
+                  )}
+                  {materialBlocked && physicalPrice !== null && (
+                    <p className="text-xs leading-relaxed text-danger">
+                      {isVi
+                        ? 'Chưa chọn được vật liệu vì người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in.'
+                        : 'No material can be selected because the seller has not declared supported materials, so the print cannot be ordered.'}
+                    </p>
+                  )}
+
+                  <p className="text-xs leading-relaxed text-fg-muted">
                     {isVi
-                      ? 'Người bán không mở bán kênh in vật lý cho sản phẩm này (price_physical không lớn hơn 0) nên chưa thể đặt in.'
-                      : 'The seller does not sell this product as a physical print (price_physical is not greater than 0), so it cannot be ordered yet.'}
+                      ? 'Đơn giá in theo giá niêm yết của sản phẩm — chưa gồm chênh lệch vật liệu (xưởng xác nhận khi báo giá).'
+                      : 'The print price is the product list price — material price differences are not included (the workshop confirms them in the quote).'}
                   </p>
-                )}
 
-                {materialBlocked && physicalPrice !== null && (
-                  <p className="text-xs text-danger">
-                    {isVi
-                      ? 'Chưa chọn được vật liệu vì người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in.'
-                      : 'No material can be selected because the seller has not declared supported materials, so the print cannot be ordered.'}
-                  </p>
-                )}
+                  <Button
+                    size="md"
+                    variant="ghost"
+                    fullWidth
+                    onClick={() => onNavigate('personalize', { product })}
+                    leadingIcon={<Icon name="draw" size={16} className="text-primary" />}
+                  >
+                    Tuỳ biến 3D & khắc laser
+                  </Button>
 
-                {/* 3D Personalization & Laser Engraving Action */}
-                <Button size="lg" fullWidth variant="secondary" className="font-mono"
-                  onClick={() => onNavigate('personalize', { product })}
-                  leadingIcon={<Icon name="draw" size={16} className="text-primary" />}
-                >
-                  <span>TÙY BIẾN 3D & KHẮC LASER RIÊNG</span>
-                </Button>
-              </div>
-
-              {/* Guarantees Badges */}
-              <div className="pt-4 border-t border-line-subtle grid grid-cols-2 gap-3 text-xs font-mono text-fg-muted">
-                <div className="flex items-center gap-1.5">
-                  <Icon name="verified" size={16} className="text-primary" />
-                  <span>{isVi ? 'Dung sai theo thoả thuận' : 'Tolerance as agreed'}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Icon name="local_shipping" size={16} className="text-primary" />
-                  <span>{isVi ? 'Giao toàn quốc' : 'Nationwide delivery'}</span>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
-
-        {/* Compatible & Related CAD Models Section */}
-        {relatedProducts.length > 0 && (
-          <div className="pt-8 border-t border-line-subtle space-y-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="font-extrabold text-lg text-fg">
-                  {isVi ? 'Linh Kiện Thường Được In Cùng' : 'Frequently Co-Printed Parts'}
-                </h3>
-                <p className="text-xs text-fg-muted font-mono">
-                  {isVi ? 'Các module cơ khí và phụ kiện cùng hệ sinh thái thiết kế' : 'Compatible mechanical modules & accessories'}
-                </p>
-              </div>
-              <Button variant="ghost" size="sm" className="text-primary shrink-0"
-                onClick={() => onNavigate('explore')}
-                trailingIcon={<Icon name="arrow_forward" size={16} />}
-              >
-                <span>{isVi ? 'Xem tất cả' : 'View all'}</span>
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {relatedProducts.map((rel) => (
-                <Card
-                  key={rel.id}
-                  as="button"
-                  interactive
-                  padding="md"
-                  className="flex items-center gap-4 text-left w-full"
-                  onClick={() => onNavigate('product_detail', { product: rel })}
-                >
-                  <img
-                    src={rel.thumbnailUrl || rel.images?.[0]}
-                    alt={rel.name}
-                    className="w-16 h-16 object-cover rounded-md border border-line-subtle shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-mono text-primary font-bold uppercase block truncate">
-                      {rel.category}
-                    </span>
-                    <h4 className="font-bold text-xs text-fg truncate">
-                      {rel.name}
-                    </h4>
-                    <div className="flex items-center justify-between mt-1 text-xs font-mono">
-                      <span className="text-fg-muted tabular-nums">
-                        CAD: {vnd(rel.priceDigital, locale)}
-                      </span>
-                      <span className="font-bold text-fg tabular-nums">
-                        {vnd(rel.pricePhysical, locale)}
-                      </span>
+                  {/* Guarantees Badges — mức cam kết hiện có, không phải số đo bịa */}
+                  <div className="grid grid-cols-2 gap-2 border-t border-line-subtle pt-4 font-mono text-xs text-fg-muted">
+                    <div className="flex items-center gap-1.5">
+                      <Icon name="verified" size={16} className="shrink-0 text-primary" />
+                      <span>{isVi ? 'Dung sai theo thoả thuận' : 'Tolerance as agreed'}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Icon name="local_shipping" size={16} className="shrink-0 text-primary" />
+                      <span>{isVi ? 'Giao toàn quốc' : 'Nationwide delivery'}</span>
                     </div>
                   </div>
                 </Card>
-              ))}
+              </div>
+
+              {/* Card cấu hình — nội dung dài, không sticky */}
+              <Card variant="soft" padding="lg" className="space-y-6">
+                {/* Kênh tệp CAD gốc: chỉ NÊU thông tin thật, CTA mua ở khung báo giá phía trên */}
+                <section className="space-y-2.5" aria-labelledby="pdp-cad-license">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 id="pdp-cad-license" className="flex items-center gap-2 text-sm font-semibold text-fg">
+                      <Icon name="folder_zip" size={16} className="shrink-0 text-primary" />
+                      Tệp CAD gốc & giấy phép
+                    </h2>
+                    <span className="font-mono text-sm font-bold tabular-nums text-fg">
+                      {vnd(digitalPrice, locale)}
+                    </span>
+                  </div>
+                  {/* R4: bo hai khang dinh khong co nguon — "da kiem tra ket cau luoi (watertight)"
+                      va "kem Commercial License". Chi neu dinh dang tep va loai giay phep CO THAT;
+                      chua khai ⇒ `— (người bán chưa khai báo)`. */}
+                  <p className="text-xs leading-relaxed text-fg-muted">
+                    Tệp CAD gốc của sản phẩm{product.cadFormat ? ` (${product.cadFormat})` : ''}. Loại giấy phép:{' '}
+                    <strong className="text-fg">{product.licenseType || LICENSE_UNSET}</strong>
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 rounded-md bg-surface-muted p-3 font-mono text-xs">
+                    <div>
+                      <span className="block text-fg-muted">Định dạng</span>
+                      <span className="font-bold text-fg">{product.cadFormat || EMPTY_VALUE}</span>
+                    </div>
+                    <div>
+                      <span className="block text-fg-muted">Giấy phép</span>
+                      <span className="font-bold text-fg">{product.licenseType || EMPTY_VALUE}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="space-y-5 border-t border-line-subtle pt-5" aria-labelledby="pdp-config">
+                  <h2 id="pdp-config" className="flex items-center gap-2 text-sm font-semibold text-fg">
+                    <Icon name="precision_manufacturing" size={16} className="shrink-0 text-primary" />
+                    Cấu hình đặt in 3D
+                  </h2>
+
+                  {/* 1. Material Selector */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <StepNumber n={1} />
+                        <span className="text-sm font-medium text-fg">Vật liệu chế tạo</span>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-primary">
+                        {selectedMaterialObj?.strength || EMPTY_VALUE}
+                      </span>
+                    </div>
+                    {declaredMaterials.length === 0 ? (
+                      <p className="text-xs leading-relaxed text-danger">
+                        {isVi
+                          ? 'Người bán chưa khai vật liệu hỗ trợ nên chưa thể đặt in — hệ thống không tự gán một vật liệu thay thế.'
+                          : 'The seller has not declared supported materials, so this print cannot be ordered — no substitute material is assigned automatically.'}
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {declaredMaterials.map((mat) => {
+                          const isSelected = selectedMaterial === mat;
+                          return (
+                            <Button
+                              key={mat}
+                              size="sm"
+                              fullWidth
+                              variant={isSelected ? 'primary' : 'secondary'}
+                              onClick={() => setSelectedMaterial(mat)}
+                              aria-pressed={isSelected}
+                              className="font-mono"
+                            >
+                              <span className="truncate">{mat}</span>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Khuyến nghị kỹ thuật cho vật liệu cao cấp (R3) */}
+                  <MaterialTechnicalAdvisory
+                    materialName={selectedMaterial}
+                    isVi={isVi}
+                  />
+
+                  {/* 2. Color Swatches Picker — `rounded-full` GIỮ (đúng hình dạng ô màu tròn) */}
+                  <div className="space-y-2.5 border-t border-line-subtle pt-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <StepNumber n={2} />
+                        <span className="text-sm font-medium text-fg">Sắc thái hoàn thiện</span>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-fg">
+                        {selectedColor?.name || EMPTY_VALUE}
+                      </span>
+                    </div>
+                    {colorOptions.length === 0 ? (
+                      <p className="text-xs text-fg-muted">
+                        {isVi ? 'Người bán chưa khai báo màu sắc.' : 'The seller has not declared colours.'}
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        {colorOptions.map((c) => (
+                          <button
+                            key={c.name}
+                            type="button"
+                            onClick={() => c.available && setSelectedColorName(c.name)}
+                            disabled={!c.available}
+                            aria-label={c.available ? c.name : `${c.name} (Hết hàng)`}
+                            aria-pressed={selectedColor?.name === c.name}
+                            className={`relative size-8 cursor-pointer rounded-full border transition duration-200 touch-target-btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                              selectedColor?.name === c.name
+                                ? 'border-primary ring-2 ring-primary ring-offset-2'
+                                : 'border-line hover:border-line-control'
+                            } ${!c.available ? 'cursor-not-allowed opacity-40' : ''}`}
+                            style={{ backgroundColor: c.hex }}
+                            title={c.available ? c.name : `${c.name} (Hết hàng)`}
+                          >
+                            {selectedColor?.name === c.name && (
+                              <Icon name="check" size={16} className="absolute inset-0 m-auto font-bold text-primary-fg" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Layer Resolution */}
+                  <div className="space-y-2 border-t border-line-subtle pt-4">
+                    <label htmlFor="pdp-layer-height" className="flex items-center gap-2 text-sm font-medium text-fg">
+                      <StepNumber n={3} />
+                      Độ phân giải lớp in
+                    </label>
+                    <select
+                      id="pdp-layer-height"
+                      value={resolution}
+                      onChange={(e) => setResolution(e.target.value)}
+                      className="h-10 max-md:min-h-11 w-full cursor-pointer rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="0.12 mm (Chính xác vi mô)">0.12 mm — Bề mặt siêu mịn / Dung sai ngặt</option>
+                      <option value="0.16 mm (Tiêu chuẩn kỹ thuật)">0.16 mm — Tiêu chuẩn kỹ thuật (Khuyên dùng)</option>
+                      <option value="0.20 mm (In nhanh tiêu chuẩn)">0.20 mm — In nhanh tiết kiệm</option>
+                    </select>
+                  </div>
+
+                  {/* 4. Custom Laser Engraving — phí khắc CHỈ hiện khi cấu hình có thật */}
+                  {product.isCustomizable && (
+                    <div className="space-y-2 border-t border-line-subtle pt-4">
+                      <label htmlFor="pdp-engraving" className="flex items-center justify-between gap-2 text-sm font-medium text-fg">
+                        <span className="flex items-center gap-2">
+                          <StepNumber n={4} />
+                          Khắc laser tên dự án / số hiệu
+                        </span>
+                        <span className={`font-mono text-xs font-bold tabular-nums ${engravingFee !== null && engravingFee > 0 ? 'text-primary' : 'text-fg-muted'}`}>
+                          {engravingFee !== null && engravingFee > 0 ? `+${vnd(engravingFee, locale)}` : EMPTY_VALUE}
+                        </span>
+                      </label>
+                      <input
+                        id="pdp-engraving"
+                        type="text"
+                        maxLength={25}
+                        placeholder="VD: VCUBE-LAB-01…"
+                        value={customEngraving}
+                        onChange={(e) => setCustomEngraving(e.target.value)}
+                        className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      {engravingBlocked && (
+                        <p className="mt-1.5 flex items-start gap-1.5 text-xs text-danger">
+                          <Icon name="error" size={16} className="mt-0.5 shrink-0" />
+                          <span>
+                            {isVi
+                              ? 'Chưa cấu hình phí khắc laser (customEngravingFee) nên chưa thể đặt khắc. Quản trị viên nhập ở /admin, mục Cấu hình giá.'
+                              : 'The laser engraving fee (customEngravingFee) is not configured, so engraving cannot be ordered yet. An admin can set it in /admin, Pricing configuration.'}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </section>
+              </Card>
+            </div>
+
+            {/* TABS — con thứ 3 của grid: desktop hàng 2 cột trái, mobile sau khối báo giá */}
+            <div className="lg:col-span-7 lg:col-start-1 lg:row-start-2">
+              <Card variant="soft" padding="lg">
+            <div
+              role="tablist"
+              aria-label={isVi ? 'Nội dung chi tiết sản phẩm' : 'Product detail sections'}
+              className="nav-fade-right mb-6 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-line bg-surface-muted p-1 scrollbar-none"
+            >
+              <button
+                type="button"
+                role="tab"
+                id="pdp-tab-desc"
+                aria-selected={activeTab === 'desc'}
+                aria-controls="pdp-panel-desc"
+                onClick={() => setActiveTab('desc')}
+                className={tabButtonClass(activeTab === 'desc')}
+              >
+                {isVi ? 'Tổng quan & Kết cấu' : 'Overview & Features'}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="pdp-tab-specs"
+                aria-selected={activeTab === 'specs'}
+                aria-controls="pdp-panel-specs"
+                onClick={() => setActiveTab('specs')}
+                className={tabButtonClass(activeTab === 'specs')}
+              >
+                {isVi ? 'Thông số & Dung sai' : 'Specs & Tolerances'}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="pdp-tab-reviews"
+                aria-selected={activeTab === 'reviews'}
+                aria-controls="pdp-panel-reviews"
+                onClick={() => setActiveTab('reviews')}
+                className={tabButtonClass(activeTab === 'reviews')}
+              >
+                {showRating ? (isVi ? `Đánh giá (${reviewsCountLabel})` : `Reviews (${reviewsCountLabel})`) : (isVi ? 'Đánh giá' : 'Reviews')}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="pdp-tab-slicing"
+                aria-selected={activeTab === 'slicing'}
+                aria-controls="pdp-panel-slicing"
+                onClick={() => setActiveTab('slicing')}
+                className={tabButtonClass(activeTab === 'slicing')}
+              >
+                {isVi ? 'Hồ sơ in & cắt lớp' : 'Slicing Profiles'}
+              </button>
+            </div>
+
+            {/* Tab 1: Overview */}
+            {activeTab === 'desc' && (
+              <div
+                role="tabpanel"
+                id="pdp-panel-desc"
+                aria-labelledby="pdp-tab-desc"
+                className="space-y-4 text-sm leading-relaxed text-fg-muted"
+              >
+                <div className="rounded-lg bg-surface-muted p-4 text-base font-medium leading-relaxed text-fg">
+                  {product.description || EMPTY_VALUE}
+                </div>
+                <div>
+                  <span className="mb-3 block font-mono text-xs font-bold uppercase tracking-wider text-fg-muted">
+                    {isVi ? 'Đặc tính kết cấu kỹ thuật' : 'Engineering Characteristics'}
+                  </span>
+                  {(product.features || []).length === 0 ? (
+                    <p className="text-xs text-fg-muted">{isVi ? 'Người bán chưa khai đặc tính kết cấu.' : 'The seller has not declared engineering characteristics.'}</p>
+                  ) : (
+                    <ul className="space-y-2.5 text-xs text-fg">
+                      {(product.features || []).map((f, i) => (
+                        <li key={i} className="flex items-start gap-2.5 rounded-md bg-surface-muted p-3">
+                          <span className="font-mono text-xs font-bold tabular-nums text-fg-muted">0{i + 1}.</span>
+                          <span className="leading-snug">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Technical Specs — `KeyValue` (nhãn/giá trị ngữ nghĩa <dl>) */}
+            {activeTab === 'specs' && (
+              <div role="tabpanel" id="pdp-panel-specs" aria-labelledby="pdp-tab-specs" className="space-y-3">
+                <KeyValue items={specItems} columns={2} variant="panel" labelWidth="8.5rem" />
+                <p className="flex items-center gap-1.5 text-xs text-fg-muted">
+                  <Icon name="info" size={16} className="shrink-0" />
+                  <span>
+                    {isVi
+                      ? 'Ô nào người bán chưa khai thì hiện dấu gạch, hệ thống không tự đoán.'
+                      : 'Fields the seller has not declared show a dash — nothing is guessed.'}
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {/* Tab 3: Reviews */}
+            {activeTab === 'reviews' && (
+              <div role="tabpanel" id="pdp-panel-reviews" aria-labelledby="pdp-tab-reviews" className="space-y-4">
+                {showRating ? (
+                  <div className="flex flex-col gap-4 rounded-lg bg-surface-muted p-4 sm:flex-row sm:items-center sm:gap-6">
+                    <div className="border-r-0 border-line-subtle text-center sm:border-r sm:pr-6">
+                      <span className="font-mono text-3xl font-bold tabular-nums text-fg">
+                        {ratingValue}
+                      </span>
+                      <div className="mt-1 flex items-center justify-center gap-0.5" role="img" aria-label={`${ratingValue}/5`}>
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <Star
+                            key={i}
+                            size={16}
+                            aria-hidden="true"
+                            className={i <= Math.round(ratingValue as number) ? 'text-warning-strong' : 'text-line-control'}
+                            fill={i <= Math.round(ratingValue as number) ? 'currentColor' : 'none'}
+                          />
+                        ))}
+                      </div>
+                      <span className="mt-1 block font-mono text-xs uppercase tabular-nums text-fg-muted">
+                        {reviewsCountLabel} {isVi ? 'đánh giá' : 'reviews'}
+                      </span>
+                    </div>
+                    <p className="max-w-md text-xs leading-relaxed text-fg-muted">
+                      {isVi
+                        ? 'Điểm trung bình chỉ tính các đánh giá đến từ đơn hàng thật trên VCUBE. Bản vẽ chưa phát sinh đơn sẽ không có điểm.'
+                        : 'The average only counts reviews that come from real VCUBE orders. A design without orders has no score.'}
+                    </p>
+                  </div>
+                ) : (
+                  <EmptyState
+                    size="sm"
+                    icon={<Icon name="chat" size={20} />}
+                    title={isVi ? 'Chưa có đánh giá' : 'No reviews yet'}
+                    description={isVi ? 'Bản vẽ này chưa có đánh giá nào từ đơn hàng thật.' : 'This design has no reviews from real orders yet.'}
+                    action={
+                      <InfoTip label={isVi ? 'Vì sao chưa có đánh giá?' : 'Why no reviews yet?'}>
+                        {isVi
+                          ? 'VCUBE chỉ hiển thị đánh giá đến từ đơn hàng thật, nên bản vẽ chưa phát sinh đơn sẽ không có điểm.'
+                          : 'VCUBE only shows reviews that come from real orders, so a design without orders has no score.'}
+                      </InfoTip>
+                    }
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Tab 4: Slicing Profiles — chỉ in thông số đã khai ở cấp SẢN PHẨM.
+                KHÔNG hardcode profile máy (Bambu X1C 215–230°C…) và KHÔNG gắn nhãn
+                "In được" cho mọi sản phẩm: đó là khẳng định không có nguồn. */}
+            {activeTab === 'slicing' && (
+              <div role="tabpanel" id="pdp-panel-slicing" aria-labelledby="pdp-tab-slicing" className="space-y-3 font-mono text-xs">
+                <div className="rounded-md border border-line-subtle bg-surface-muted p-3.5 text-fg-muted">
+                  {isVi
+                    ? 'Thông số cắt lớp ở cấp sản phẩm. Nhiệt độ đùn/bàn in phụ thuộc vật liệu & máy cụ thể — xưởng xác nhận khi báo giá.'
+                    : 'Product-level slicing parameters. Extruder/bed temperatures depend on the specific material and machine — the workshop confirms them in the quote.'}
+                </div>
+                <div className="space-y-1.5 rounded-lg bg-surface-muted p-4 tabular-nums">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-fg-muted">{isVi ? 'Độ phân giải lớp:' : 'Layer resolution:'}</span>
+                    <span className="font-bold text-fg">{product.specs?.resolution || EMPTY_VALUE}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-fg-muted">{isVi ? 'Độ đặc mặc định:' : 'Default infill:'}</span>
+                    <span className="font-bold text-fg">{product.specs?.infillDefault || EMPTY_VALUE}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-fg-muted">{isVi ? 'Công nghệ gia công:' : 'Technology:'}</span>
+                    <span className="font-bold text-fg">{product.specs?.technology || EMPTY_VALUE}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-fg-muted">{isVi ? 'Kích thước phủ bì:' : 'Overall size:'}</span>
+                    <span className="font-bold text-fg">{product.specs?.dimensions || EMPTY_VALUE}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-fg-muted">{isVi ? 'Nhiệt độ đùn / bàn in:' : 'Extruder / bed temp:'}</span>
+                    <span className="font-bold text-fg-muted">{EMPTY_VALUE}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+              </Card>
             </div>
           </div>
-        )}
+
+          {/* Compatible & Related CAD Models Section */}
+          {relatedProducts.length > 0 && (
+            <div className="space-y-5 border-t border-line-subtle pt-8">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold tracking-tight text-fg">
+                    {isVi ? 'Linh Kiện Thường Được In Cùng' : 'Frequently Co-Printed Parts'}
+                  </h3>
+                  <p className="font-mono text-xs text-fg-muted">
+                    {isVi ? 'Các module cơ khí và phụ kiện cùng hệ sinh thái thiết kế' : 'Compatible mechanical modules & accessories'}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-primary"
+                  onClick={() => onNavigate('explore')}
+                  trailingIcon={<Icon name="arrow_forward" size={16} />}
+                >
+                  <span>{isVi ? 'Xem tất cả' : 'View all'}</span>
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {relatedProducts.map((rel) => (
+                  <Card
+                    key={rel.id}
+                    as="button"
+                    variant="soft"
+                    interactive
+                    padding="md"
+                    className="flex w-full items-center gap-4 text-left"
+                    onClick={() => onNavigate('product_detail', { product: rel })}
+                  >
+                    <img
+                      src={rel.thumbnailUrl || rel.images?.[0]}
+                      alt={rel.name}
+                      className="size-16 shrink-0 rounded-md border border-line-subtle object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate font-mono text-xs font-bold uppercase text-primary">
+                        {rel.category}
+                      </span>
+                      <h4 className="truncate text-xs font-bold text-fg">
+                        {rel.name}
+                      </h4>
+                      <div className="mt-1 flex items-center justify-between gap-2 font-mono text-xs">
+                        <span className="tabular-nums text-fg-muted">
+                          CAD: {vnd(rel.priceDigital, locale)}
+                        </span>
+                        <span className="font-bold tabular-nums text-fg">
+                          {vnd(rel.pricePhysical, locale)}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Mobile Sticky Order Bar (< lg screens) */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-sticky bg-surface backdrop-blur-md border-t border-line-subtle p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] shadow-e3 flex items-center justify-between gap-3">
-        <div>
-          <span className="text-xs uppercase font-mono text-fg-muted block">
-            {isVi ? 'Đơn giá in 3D' : 'Print Price'}
-          </span>
-          <span className="text-base font-mono font-bold text-fg tabular-nums">
-            {vnd(orderTotal, locale)}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="secondary"
-            onClick={handleAddDigital}
-            disabled={digitalPrice === null}
-            title={isVi ? 'Tải File CAD' : 'Download CAD file'}
-            leadingIcon={<Icon name="download" size={16} />}
-          >
-            <span>CAD</span>
-          </Button>
-          <Button size="sm"
-            onClick={handleAddPhysical}
-            disabled={isAdding || purchaseBlocked}
-            leadingIcon={<Icon name="precision_manufacturing" size={16} />}
-          >
-            <span>{isAdding ? '...' : (isVi ? 'Đặt In 3D' : 'Order Print')}</span>
-          </Button>
+      {/* Mobile Sticky Order Bar (< lg) — CTA duy nhất trong viewport (UI-008) */}
+      <div className="fixed inset-x-0 bottom-0 z-sticky border-t border-line bg-surface/95 p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] shadow-e2 backdrop-blur-md lg:hidden">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="block font-mono text-xs uppercase text-fg-muted">
+              {isVi ? 'Tổng đặt in' : 'Print total'}
+            </span>
+            <span className="block truncate font-mono text-base font-bold tabular-nums text-fg">
+              {vnd(orderTotal, locale)}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleAddDigital}
+              disabled={digitalPrice === null}
+              title={isVi ? 'Mua tệp CAD' : 'Buy CAD file'}
+              leadingIcon={<Icon name="download" size={16} />}
+            >
+              <span>Tệp CAD</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAddPhysical}
+              disabled={isAdding || purchaseBlocked}
+              leadingIcon={<Icon name="precision_manufacturing" size={16} />}
+            >
+              <span>{isAdding ? 'Đang xử lý…' : (isVi ? 'Đặt in 3D' : 'Order print')}</span>
+            </Button>
+          </div>
         </div>
       </div>
     </div>

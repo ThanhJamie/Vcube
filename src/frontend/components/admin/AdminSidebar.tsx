@@ -60,14 +60,14 @@ export function buildAdminNavGroups(
           label: isVi ? 'Mạng Lưới Xưởng In MES' : 'Workshop MES Network',
           icon: 'factory',
           badge: null,
-          badgeColor: 'bg-on-inverse/10 text-on-inverse border border-on-inverse/15'
+          badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'machines' as AdminNavSection,
-          label: isVi ? 'Đội Máy In 3D (Fleet)' : '3D Printer Fleet',
+          label: isVi ? 'Đội Máy In 3D' : '3D Printer Fleet',
           icon: 'print',
           badge: fleetBadge,
-          badgeColor: 'bg-on-inverse/10 text-on-inverse border border-on-inverse/15'
+          badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         }
       ]
     },
@@ -107,14 +107,14 @@ export function buildAdminNavGroups(
           label: isVi ? 'Danh Mục Nhựa & Resin' : 'Filaments & Resins',
           icon: 'layers',
           badge: materialsCount > 0 ? `${materialsCount}` : null,
-          badgeColor: 'bg-on-inverse/10 text-on-inverse border border-on-inverse/15'
+          badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'hardware' as AdminNavSection,
           label: isVi ? 'Phụ Kiện, Ốc Cấy & Nam Châm' : 'Hardware & Fasteners',
           icon: 'extension',
           badge: accessoriesCount > 0 ? `${accessoriesCount}` : null,
-          badgeColor: 'bg-on-inverse/10 text-on-inverse border border-on-inverse/15'
+          badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'quote-calc' as AdminNavSection,
@@ -132,21 +132,21 @@ export function buildAdminNavGroups(
           label: isVi ? 'Hàng Đợi & Kanban 8 Nấc' : '8-Stage MES Kanban',
           icon: 'precision_manufacturing',
           badge: activeJobsCount > 0 ? `${activeJobsCount}` : null,
-          badgeColor: 'bg-on-inverse/10 text-on-inverse border border-on-inverse/15'
+          badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'orders' as AdminNavSection,
-          label: isVi ? 'Đơn Hàng & Điều Phối Hub' : 'Orders & Dispatch',
+          label: isVi ? 'Đơn Hàng & Điều Phối Trạm In' : 'Orders & Dispatch',
           icon: 'receipt_long',
           badge: ordersCount > 0 ? `${ordersCount}` : null,
-          badgeColor: 'bg-on-inverse/10 text-on-inverse border border-on-inverse/15'
+          badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'inventory' as AdminNavSection,
           label: isVi ? 'Kho Vật Liệu & Vị Trí Kệ' : 'Warehouse Inventory',
           icon: 'shelves',
           badge: lowStockCount > 0 ? `${lowStockCount}` : null,
-          badgeColor: 'bg-on-inverse/10 text-on-inverse border border-on-inverse/15'
+          badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         }
       ]
     },
@@ -155,26 +155,26 @@ export function buildAdminNavGroups(
       items: [
         {
           id: 'products' as AdminNavSection,
-          label: isVi ? 'Sản Phẩm & Catalog 3D' : 'Products & Catalog',
+          label: isVi ? 'Sản Phẩm & Danh Mục 3D' : 'Products & Catalog',
           icon: 'inventory_2',
           badge: productsCount > 0 ? `${productsCount}` : null,
-          badgeColor: 'bg-on-inverse/10 text-on-inverse border border-on-inverse/15'
+          badgeColor: 'bg-surface-muted text-fg-muted border border-line'
         },
         {
           id: 'storefront' as AdminNavSection,
-          label: isVi ? 'Landing Page & CMS' : 'Landing Page CMS',
+          label: isVi ? 'Cấu Hình Trang Chủ' : 'Landing Page CMS',
           icon: 'storefront',
           badge: null
         },
         {
           id: 'seo' as AdminNavSection,
-          label: isVi ? 'Quản Trị SEO & Metadata' : 'SEO & Metadata',
+          label: isVi ? 'Quản Trị SEO & Thẻ Mô Tả' : 'SEO & Metadata',
           icon: 'travel_explore',
           badge: null
         },
         {
           id: 'settings' as AdminNavSection,
-          label: isVi ? 'Cài Đặt Xưởng & Cloud' : 'Settings & Cloud',
+          label: isVi ? 'Cài Đặt Xưởng & Hệ Thống' : 'Settings & Cloud',
           icon: 'settings',
           badge: null
         }

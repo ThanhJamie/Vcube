@@ -79,40 +79,44 @@ export class RouteErrorBoundary extends Component<Props, State> {
     return (
       <div
         role="alert"
-        className="flex min-h-[60vh] flex-1 flex-col items-center justify-center gap-4 px-4 py-10"
+        className="flex min-h-[60dvh] flex-1 flex-col items-center justify-center gap-4 px-4 py-10"
       >
         <EmptyState
           bordered
           icon={<Icon name="error" size={20} />}
           title="Trang này không hiển thị được"
-          description="Một lỗi xảy ra trong lúc render trang nên nội dung bị dừng. Thông báo lỗi thật ở ngay bên dưới."
-          action={
+          description={
             <>
-              <Button
-                variant="secondary"
-                size="sm"
-                leadingIcon={<Icon name="refresh" size={16} />}
-                onClick={this.handleRetry}
-              >
-                Thử lại
-              </Button>
+              Một lỗi xảy ra trong lúc render trang nên nội dung bị dừng. Thông báo lỗi thật ở ngay bên dưới.
               {this.props.onGoHome ? (
-                <Button
-                  size="sm"
-                  leadingIcon={<Icon name="home" size={16} />}
-                  onClick={this.handleGoHome}
-                >
-                  Về trang chủ
-                </Button>
+                <span className="mt-2 block">
+                  <button
+                    type="button"
+                    onClick={this.handleGoHome}
+                    className="cursor-pointer rounded-sm text-sm font-medium text-fg underline underline-offset-4 transition-colors duration-200 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Về trang chủ
+                  </button>
+                </span>
               ) : null}
             </>
+          }
+          action={
+            <Button
+              variant="secondary"
+              size="sm"
+              leadingIcon={<Icon name="refresh" size={16} />}
+              onClick={this.handleRetry}
+            >
+              Thử lại
+            </Button>
           }
         />
 
         {/* Nguyên văn thông báo lỗi — không viết lại, không rút gọn. */}
-        <div className="w-full max-w-2xl rounded-lg border border-danger/40 bg-danger-tint p-3">
-          <p className="mb-1 text-xs font-semibold text-fg">Thông báo lỗi (nguyên văn)</p>
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs text-danger">
+        <div className="w-full max-w-2xl rounded-lg border border-danger/20 bg-danger-tint p-6 text-danger">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-danger">Thông báo lỗi (nguyên văn)</p>
+          <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-sm text-danger">
             {this.state.errorMessage}
           </pre>
         </div>

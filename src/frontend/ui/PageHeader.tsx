@@ -81,7 +81,7 @@ export function PageHeader({
     <header className={cn('flex flex-col gap-block', className)}>
       {crumbs.length > 0 ? (
         <nav aria-label={breadcrumbLabel}>
-          <ol className="flex flex-wrap items-center gap-1 text-xs text-fg-muted">
+          <ol className="flex flex-wrap items-center gap-1 text-xs text-fg-subtle">
             {crumbs.map((item, index) => {
               const isLast = index === crumbs.length - 1;
               const key = `${index}-${typeof item.label === 'string' ? item.label : 'crumb'}`;
@@ -135,7 +135,7 @@ export function PageHeader({
             titleAs,
             {
               id: titleId,
-              className: 'text-xl font-semibold tracking-tight text-fg',
+              className: 'text-2xl font-bold tracking-tight text-fg',
             },
             title,
           )}

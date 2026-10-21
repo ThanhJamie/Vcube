@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { Icon, Modal } from '@frontend/ui';
+import { Button, Icon, Input, Modal } from '@frontend/ui';
 
 interface ChatSupportModalProps {
   isOpen: boolean;
@@ -20,8 +20,9 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
   ]);
   const [inputMessage, setInputMessage] = useState('');
 
-  if (!isOpen) return null;
-
+  // KHÔNG `return null` khi đóng: mount có điều kiện làm effect của `Modal` chạy
+  // mount→cleanup→mount dưới StrictMode, và `dialog.close()` trong cleanup đóng modal vừa
+  // mở ⇒ bấm nút trợ lý trông như nút chết. Luôn render, chỉ đổi prop `open`.
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
@@ -52,40 +53,42 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
     >
         {/* Header */}
         <div className="p-4 sm:p-5 bg-surface text-fg flex items-center justify-between border-b border-line">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-primary/10 text-primary flex items-center justify-center rounded-full border border-primary/20">
-              <Icon name="smart_toy" size={20} />
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid size-10 shrink-0 place-items-center rounded-md bg-brand text-fg shadow-soft">
+              <Icon name="smart_toy" size={20} aria-hidden="true" />
             </div>
-            <div>
-              <h3 className="font-bold text-sm text-fg">
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-semibold text-fg">
                 {t('supportAssistant', 'Trợ lý tự động', 'Automated assistant')}
               </h3>
-              <p className="text-xs text-fg-muted font-sans">Phản hồi tự động • Không phải kỹ sư trực ca</p>
+              <p className="truncate font-sans text-xs text-fg-muted">Phản hồi tự động • Không phải kỹ sư trực ca</p>
             </div>
           </div>
-          <button
+          <Button
+            iconOnly
+            variant="ghost"
+            size="sm"
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-surface-muted text-fg-muted hover:text-fg transition-colors touch-target-btn cursor-pointer"
             aria-label="Đóng trò chuyện"
           >
             <Icon name="close" size={20} />
-          </button>
+          </Button>
         </div>
 
         {/* Message history */}
-        <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-surface-muted">
+        <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-surface">
           {messages.map((m, i) => (
             <div key={i} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
               <div
-                className={`max-w-[85%] p-3.5 sm:p-4 text-xs leading-relaxed font-sans ${
+                className={`max-w-[85%] rounded-lg p-3 text-sm leading-relaxed font-sans ${
                   m.sender === 'user'
-                    ? 'bg-surface-inverse text-on-inverse border border-surface-inverse'
-                    : 'bg-surface text-fg border border-line-subtle'
+                    ? 'bg-primary text-primary-fg'
+                    : 'border-0 bg-surface-muted text-fg'
                 }`}
               >
                 {m.text}
               </div>
-              <span className="text-xs font-tech text-fg-muted mt-1 px-1">{m.time}</span>
+              <span className="text-xs font-tech text-fg-muted mt-1 px-1 tabular-nums">{m.time}</span>
             </div>
           ))}
         </div>
@@ -96,7 +99,7 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
             <button
               key={q}
               onClick={() => setInputMessage(q)}
-              className="px-3 py-1.5 rounded-full bg-surface-muted hover:bg-surface-inverse hover:text-on-inverse text-fg text-xs uppercase tracking-wider font-semibold border border-line-subtle shrink-0 transition-colors touch-target-btn whitespace-nowrap"
+              className="min-h-11 shrink-0 whitespace-nowrap rounded-full border border-line bg-surface-muted px-3.5 py-1.5 text-xs font-medium text-fg-muted transition-colors duration-200 hover:bg-canvas hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               {q}
             </button>
@@ -104,20 +107,18 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSend} className="p-3.5 sm:p-4 bg-surface border-t border-line-subtle flex gap-2 font-sans">
-          <input
+        <form onSubmit={handleSend} className="flex gap-2 border-t border-line-subtle bg-surface p-3.5 font-sans sm:p-4">
+          <Input
             type="text"
             placeholder="Nhập câu hỏi kỹ thuật..."
+            aria-label="Nhập câu hỏi kỹ thuật"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            className="flex-1 bg-surface-muted border border-line-control px-3 py-2.5 text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring font-sans"
+            className="flex-1"
           />
-          <button
-            type="submit"
-            className="px-5 py-2.5 rounded-full bg-surface-inverse hover:bg-surface-inverse-raised text-on-inverse text-xs font-sans uppercase tracking-widest font-bold transition-colors touch-target-btn"
-          >
+          <Button type="submit" variant="primary">
             Gửi
-          </button>
+          </Button>
         </form>
     </Modal>
   );

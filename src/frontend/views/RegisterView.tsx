@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Icon } from '@frontend/ui';
+import { Button, Card, Field, Icon, Input } from '@frontend/ui';
 import { ENABLE_GOOGLE_OAUTH } from '../components/AuthModal';
 
 interface RegisterViewProps {
@@ -20,7 +20,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [termsAgreed, setTermsAgreed] = useState(true);
+  // Đồng ý điều khoản là hành vi CHỦ ĐỘNG: mặc định chưa tick (QA register §Terms).
+  const [termsAgreed, setTermsAgreed] = useState(false);
   // T58 — tự chọn loại tài khoản khi đăng ký. Chỉ 'customer' | 'designer'; quyền
   // thật vẫn do trigger SQL trong public.user_profiles.role quyết định.
   const [signupRole, setSignupRole] = useState<'customer' | 'designer'>('customer');
@@ -155,156 +156,179 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] py-12 px-4 sm:px-6 flex items-center justify-center bg-canvas">
-      <div className="w-full max-w-2xl bg-surface shadow-e3 rounded-lg overflow-hidden animate-in fade-in duration-200">
+    <div className="flex min-h-[calc(100dvh-80px)] items-center justify-center bg-canvas px-4 py-12 sm:px-6">
+      <Card variant="soft" padding="lg" className="mx-auto w-full max-w-md sm:p-8">
 
         {/* Top Header Banner */}
-        <div className="px-6 sm:px-10 pt-8 pb-6 border-b border-line-subtle bg-canvas text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary text-primary-fg mb-3 shadow-e2">
-            <Icon name="person_add" size={26} />
+        <div className="text-center">
+          <div className="mx-auto mb-3 grid size-10 place-items-center rounded-md bg-primary text-primary-fg">
+            <Icon name="person_add" size={20} />
           </div>
-          <div className="font-mono text-xs font-bold text-fg-muted uppercase tracking-wider mb-1">
-            VCUBE HUBS
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+            Trung tâm VCUBE
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-fg">
+          <h1 className="text-2xl font-bold tracking-tight text-fg">
             {isVi ? 'Đăng Ký Tài Khoản' : 'Create Account'}
           </h1>
         </div>
 
         {/* Form Body */}
-        <div className="p-6 sm:p-10">
+        <div className="mt-6">
           {errorMessage && (
-            <div className="mb-6 p-3.5 rounded-md bg-danger-tint flex items-start gap-2.5 text-xs text-danger">
-              <Icon name="error" size={18} className="text-danger shrink-0 mt-0.5" />
-              <span className="leading-relaxed font-medium">{errorMessage}</span>
+            <div role="alert" className="mb-6 flex items-start gap-2 rounded-md border border-danger/20 bg-danger-tint p-3 text-sm text-danger">
+              <Icon name="error" size={16} className="mt-0.5 shrink-0 text-danger" />
+              <span className="font-medium leading-relaxed">{errorMessage}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="mb-6 p-3.5 rounded-md bg-positive-tint flex items-start gap-2.5 text-xs text-positive">
-              <Icon name="check_circle" size={18} className="text-positive shrink-0 mt-0.5" />
-              <span className="leading-relaxed font-medium">{successMessage}</span>
+            <div role="status" className="mb-6 flex items-start gap-2 rounded-md border border-positive/20 bg-positive-tint p-3 text-sm text-positive">
+              <Icon name="check_circle" size={16} className="mt-0.5 shrink-0 text-positive" />
+              <span className="font-medium leading-relaxed">{successMessage}</span>
             </div>
           )}
 
           {/* Vai trò: nói đúng sự thật — chọn Khách hàng/Nhà thiết kế, quyền cuối do DB */}
-          <div className="mb-6 p-3.5 rounded-md bg-info-tint flex items-start gap-2.5 text-xs text-info">
-            <Icon name="info" size={18} className="text-info shrink-0 mt-0.5" />
-            <div className="leading-relaxed font-medium space-y-0.5">
-              <p className="font-bold">
+          <div className="mb-6 flex items-start gap-2 rounded-lg border border-info/20 bg-info-tint p-4 text-sm text-info">
+            <Icon name="info" size={16} className="mt-0.5 shrink-0 text-info" />
+            <div className="space-y-0.5 font-medium leading-relaxed">
+              <p className="font-semibold">
                 {isVi ? 'Chọn loại tài khoản phù hợp.' : 'Choose the account type that fits.'}
               </p>
               <p>
                 {isVi
-                  ? 'Khách hàng dùng để mua và đặt in. Nhà thiết kế có thêm hồ sơ tác giả ở trạng thái chờ VCUBE duyệt để đăng bán mẫu 3D. Quyền cuối cùng được đọc từ hồ sơ trên máy chủ (user_profiles.role).'
+                  ? 'Khách hàng dùng để mua và đặt in. Tác giả 3D có thêm hồ sơ tác giả ở trạng thái chờ VCUBE duyệt để đăng bán mẫu 3D. Quyền cuối cùng được đọc từ hồ sơ trên máy chủ.'
                   : 'Customers buy and order prints. Designers also get a creator profile in Pending state for VCUBE to review before selling 3D models. The final role is read from the server-side profile (user_profiles.role).'}
               </p>
             </div>
           </div>
 
-          <form onSubmit={handleRegister} className="space-y-5 text-xs font-sans">
+          <form onSubmit={handleRegister} className="space-y-5">
             {/* T58 — lựa chọn loại tài khoản (chỉ Khách hàng / Nhà thiết kế) */}
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-fg-muted block mb-2">
+              <span id="signup-role-label" className="mb-2 block text-sm font-medium text-fg">
                 {isVi ? 'Loại tài khoản *' : 'Account type *'}
-              </label>
-              <div className="flex p-1 bg-surface-muted rounded-full text-xs font-sans font-bold">
+              </span>
+              <div
+                role="group"
+                aria-labelledby="signup-role-label"
+                className="inline-flex w-full items-center gap-1 rounded-full border border-line bg-surface-muted p-1"
+              >
                 <button
                   type="button"
                   onClick={() => setSignupRole('customer')}
                   aria-pressed={signupRole === 'customer'}
-                  className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    signupRole === 'customer' ? 'bg-surface text-primary shadow-e1 font-bold' : 'text-fg-subtle hover:text-fg'
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                    signupRole === 'customer'
+                      ? 'bg-surface font-semibold text-fg shadow-soft'
+                      : 'text-fg-muted hover:text-fg'
                   }`}
                 >
-                  <Icon name="person" size={18} />
+                  <Icon name="person" size={16} />
                   <span>{isVi ? 'Khách hàng' : 'Customer'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSignupRole('designer')}
                   aria-pressed={signupRole === 'designer'}
-                  className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    signupRole === 'designer' ? 'bg-surface text-primary shadow-e1 font-bold' : 'text-fg-subtle hover:text-fg'
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                    signupRole === 'designer'
+                      ? 'bg-surface font-semibold text-fg shadow-soft'
+                      : 'text-fg-muted hover:text-fg'
                   }`}
                 >
-                  <Icon name="design_services" size={18} />
-                  <span>{isVi ? 'Nhà thiết kế' : 'Designer'}</span>
+                  <Icon name="design_services" size={16} />
+                  <span>{isVi ? 'Tác giả 3D' : 'Designer'}</span>
                 </button>
               </div>
             </div>
 
-            {/* 2-Column: Full Name and Email */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-fg-muted block mb-2">
-                  {isVi ? 'Họ và tên *' : 'Full Name *'}
-                </label>
-                <div className="relative">
-                  <Icon name="badge" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder={isVi ? 'Nguyễn Văn Minh' : 'Nguyen Van Minh'}
-                    className="w-full bg-surface-muted border border-line-subtle pl-11 pr-4 py-3 text-sm text-fg rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all font-sans placeholder-fg-subtle"
-                  />
-                </div>
-              </div>
+            {/* Full Name and Email */}
+            <div className="grid grid-cols-1 gap-4">
+              <Field label={isVi ? 'Họ và tên *' : 'Full Name *'} required>
+                {(control) => (
+                  <div className="relative">
+                    <Icon
+                      name="badge"
+                      size={16}
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle"
+                    />
+                    <Input
+                      {...control}
+                      type="text"
+                      autoComplete="name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder={isVi ? 'Nguyễn Văn Minh' : 'Nguyen Van Minh'}
+                      className="pl-10"
+                    />
+                  </div>
+                )}
+              </Field>
 
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-fg-muted block mb-2">
-                  {isVi ? 'Địa chỉ Email *' : 'Email Address *'}
-                </label>
-                <div className="relative">
-                  <Icon name="mail" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="contact@doanhnghiep.vn"
-                    className="w-full bg-surface-muted border border-line-subtle pl-11 pr-4 py-3 text-sm text-fg rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all font-sans placeholder-fg-subtle"
-                  />
-                </div>
-              </div>
+              <Field label={isVi ? 'Địa chỉ Email *' : 'Email Address *'} required>
+                {(control) => (
+                  <div className="relative">
+                    <Icon
+                      name="mail"
+                      size={16}
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle"
+                    />
+                    <Input
+                      {...control}
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="contact@doanhnghiep.vn"
+                      className="pl-10"
+                    />
+                  </div>
+                )}
+              </Field>
             </div>
 
-            {/* 2-Column: Password & Confirm Password */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Password & Confirm Password */}
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-fg-muted block mb-2">
-                  {isVi ? 'Mật khẩu *' : 'Password *'}
-                </label>
-                <div className="relative">
-                  <Icon name="lock" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full bg-surface-muted border border-line-subtle pl-11 pr-11 py-3 text-sm text-fg rounded-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all font-sans placeholder-fg-subtle"
-                  />
-                  <button aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3 text-fg-subtle hover:text-fg cursor-pointer"
-                    tabIndex={-1}
-                  >
-                    <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={20} />
-                  </button>
-                </div>
+                <Field label={isVi ? 'Mật khẩu *' : 'Password *'} required>
+                  {(control) => (
+                    <div className="relative">
+                      <Icon
+                        name="lock"
+                        size={16}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle"
+                      />
+                      <Input
+                        {...control}
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••••••"
+                        className="pl-10 pr-12"
+                      />
+                      <Button
+                        iconOnly
+                        variant="ghost"
+                        size="sm"
+                        aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-0.5 top-1/2 -translate-y-1/2"
+                        leadingIcon={<Icon name={showPassword ? 'visibility_off' : 'visibility'} size={16} />}
+                      />
+                    </div>
+                  )}
+                </Field>
 
                 {/* Password Strength Meter */}
                 {password.length > 0 && (
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-2 space-y-1" role="status" aria-label={`Độ mạnh mật khẩu: ${strength.label}`}>
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-medium text-fg-subtle">{isVi ? 'Độ mạnh mật khẩu:' : 'Strength:'}</span>
                       <span className={strength.labelClass}>{strength.label}</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-1.5 h-1.5">
+                    <div className="grid h-1.5 grid-cols-3 gap-1.5">
                       <div className={`rounded-full transition-all ${strength.bar1}`}></div>
                       <div className={`rounded-full transition-all ${strength.bar2}`}></div>
                       <div className={`rounded-full transition-all ${strength.bar3}`}></div>
@@ -313,82 +337,85 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
                 )}
               </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-fg-muted block mb-2">
-                  {isVi ? 'Xác nhận lại mật khẩu *' : 'Confirm Password *'}
-                </label>
-                <div className="relative">
-                  <Icon name="lock_reset" size={20} className="absolute left-3.5 top-3 text-fg-subtle" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className={`w-full bg-surface-muted border pl-11 pr-4 py-3 text-sm text-fg rounded-md focus:outline-none transition-all font-sans placeholder-fg-subtle ${
-                      confirmPassword && confirmPassword !== password
-                        ? 'border-danger/30 focus:border-danger focus:ring-2 focus:ring-danger/15'
-                        : 'border-line-subtle focus:border-primary focus:ring-2 focus:ring-primary/15'
-                    }`}
-                  />
-                </div>
-                {confirmPassword && confirmPassword !== password && (
-                  <p className="text-xs text-danger mt-1 font-medium">
-                    {isVi ? 'Mật khẩu xác nhận không khớp.' : 'Passwords do not match.'}
-                  </p>
+              <Field
+                label={isVi ? 'Xác nhận lại mật khẩu *' : 'Confirm Password *'}
+                required
+                error={
+                  confirmPassword && confirmPassword !== password
+                    ? isVi
+                      ? 'Mật khẩu xác nhận không khớp.'
+                      : 'Passwords do not match.'
+                    : null
+                }
+              >
+                {(control) => (
+                  <div className="relative">
+                    <Icon
+                      name="lock_reset"
+                      size={16}
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle"
+                    />
+                    <Input
+                      {...control}
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="pl-10"
+                      invalid={Boolean(confirmPassword && confirmPassword !== password)}
+                    />
+                  </div>
                 )}
-              </div>
+              </Field>
             </div>
 
             {/* Terms Agreement */}
             <div className="pt-1">
-              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <label htmlFor="registerview-terms" className="flex cursor-pointer select-none items-start gap-2.5">
                 <input
+                  id="registerview-terms"
                   type="checkbox"
                   required
                   checked={termsAgreed}
                   onChange={(e) => setTermsAgreed(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded-sm border-line-control text-primary focus:ring-primary cursor-pointer"
+                  className="mt-0.5 size-4 cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
-                <span className="text-xs text-fg-muted leading-relaxed">
+                <span className="text-sm leading-relaxed text-fg-muted">
                   {isVi ? (
                     <>
                       Tôi đồng ý với{' '}
-                      <span className="text-primary font-semibold underline">Điều khoản dịch vụ</span> và{' '}
-                      <span className="text-primary font-semibold underline">Chính sách bảo mật</span> của VCube Hubs.
+                      <strong className="font-semibold text-fg">Điều khoản dịch vụ</strong> và{' '}
+                      <strong className="font-semibold text-fg">Chính sách bảo mật</strong> của VCUBE.
                     </>
                   ) : (
-                    'I agree to the Terms of Service and Data Privacy Policy of VCube Hubs.'
+                    'I agree to the Terms of Service and Data Privacy Policy of VCUBE.'
                   )}
                 </span>
               </label>
             </div>
 
             {/* Submit Button — CTA chính duy nhất của màn hình */}
-            <button
+            <Button
               type="submit"
-              disabled={isLoading || (confirmPassword !== '' && confirmPassword !== password)}
-              className="w-full py-3.5 bg-primary hover:bg-primary-hover text-primary-fg font-bold rounded-full shadow-e2 transition-all flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-50 mt-2"
+              variant="primary"
+              size="lg"
+              fullWidth
+              className="mt-2"
+              disabled={confirmPassword !== '' && confirmPassword !== password}
+              loading={isLoading}
+              loadingLabel={isVi ? 'Đang khởi tạo tài khoản...' : 'Creating Account...'}
+              trailingIcon={<Icon name="arrow_forward" size={16} />}
             >
-              {isLoading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-primary-fg/30 border-t-primary-fg rounded-full animate-spin motion-reduce:animate-none"></span>
-                  <span>{isVi ? 'Đang khởi tạo tài khoản...' : 'Creating Account...'}</span>
-                </>
-              ) : (
-                <>
-                  <span>{isVi ? 'Đăng Ký Tài Khoản' : 'Sign Up'}</span>
-                  <Icon name="arrow_forward" size={18} />
-                </>
-              )}
-            </button>
+              {isVi ? 'Đăng Ký Tài Khoản' : 'Sign Up'}
+            </Button>
 
             {awaitingEmailConfirm && !isLoading && (
               <Link
                 to="/auth/login"
-                className="w-full py-3 border border-line-subtle hover:bg-surface-muted bg-surface text-fg font-bold rounded-full transition-all flex items-center justify-center gap-2 text-xs cursor-pointer"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-md border border-line-control bg-surface text-base font-medium text-fg transition-colors duration-200 hover:border-fg-subtle hover:bg-surface-muted"
               >
-                <Icon name="login" size={18} />
+                <Icon name="login" size={16} />
                 <span>{isVi ? 'Đã xác nhận email — Đăng nhập' : 'Email confirmed — Sign in'}</span>
               </Link>
             )}
@@ -397,53 +424,57 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             {/* D7 — Google OAuth tam gac: xem `ENABLE_GOOGLE_OAUTH` o AuthModal.tsx */}
             {ENABLE_GOOGLE_OAUTH && (
               <>
-              <div className="relative py-2 flex items-center justify-center">
+              <div className="relative flex items-center justify-center py-1">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-line-subtle"></div>
                 </div>
-                <span className="relative bg-surface px-3 text-xs font-mono text-fg-subtle uppercase">
+                <span className="relative bg-surface px-3 text-xs text-fg-subtle uppercase">
                   {isVi ? 'Hoặc đăng ký nhanh qua' : 'Or quick register with'}
                 </span>
               </div>
 
               {/* Google SSO Button — hành động phụ */}
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="lg"
+                fullWidth
                 onClick={handleGoogleAuth}
-                disabled={isGoogleLoading}
-                className="w-full py-3 border border-line-subtle hover:bg-surface-muted bg-surface text-fg font-bold rounded-full transition-all flex items-center justify-center gap-2.5 text-xs cursor-pointer"
+                loading={isGoogleLoading}
+                leadingIcon={
+                  <svg className="size-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                }
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-                <span>{isVi ? 'Đăng ký với Google' : 'Sign up with Google'}</span>
-              </button>
+                {isVi ? 'Đăng ký với Google' : 'Sign up with Google'}
+              </Button>
               </>
             )}
           </form>
 
           {/* Switch to Login */}
-          <div className="mt-6 pt-5 border-t border-line-subtle text-center">
-            <p className="text-xs text-fg-subtle">
-              {isVi ? 'Đã có tài khoản trên VCube Hubs?' : 'Already have a VCube Hubs account?'}{' '}
+          <div className="mt-6 border-t border-line-subtle pt-6 text-center">
+            <p className="text-sm text-fg-muted">
+              {isVi ? 'Đã có tài khoản VCUBE?' : 'Already have a VCUBE account?'}{' '}
               <Link
                 to="/auth/login"
-                className="font-bold text-primary hover:underline cursor-pointer inline-flex items-center gap-0.5 ml-1"
+                className="ml-1 inline-flex items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
               >
                 <span>{isVi ? 'Đăng Nhập' : 'Sign In'}</span>
                 <Icon name="arrow_forward" size={16} />
@@ -451,7 +482,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             </p>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

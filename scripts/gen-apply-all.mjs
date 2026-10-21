@@ -12,8 +12,13 @@
  *   PHẦN 7 — supabase/migrations/20261012090000_sec02_open_requests.sql
  *   PHẦN 8 — supabase/migrations/20261012100000_check_constraints.sql
  *   PHẦN 9 — supabase/migrations/20261012130000_orders_broadcast.sql
- *   PHẦN 10 — supabase/scripts/bootstrap_admin.sql
- *   PHẦN 11 — kiểm chứng sau khi chạy (chỉ đọc, sinh từ script này)
+ *   PHẦN 10 — supabase/migrations/20261013090000_sec01_payout_table.sql
+ *   PHẦN 11 — supabase/migrations/20261013110000_storage_scheme.sql
+ *   PHẦN 12 — supabase/scripts/bootstrap_admin.sql
+ *   PHẦN 13 — kiểm chứng sau khi chạy (chỉ đọc, sinh từ script này)
+ *
+ * KHÔNG gom `20261013100000_drop_designer_bank_columns.sql` (cổng H — chỉ áp sau khi client
+ * mới deploy và đã kiểm chứng không còn writer/reader chạm 3 cột nhận tiền).
  *
  * (Số phần được suy động từ PARTS; thêm migration W2 vào PARTS là đủ.)
  *
@@ -30,15 +35,21 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const R = (p) => readFileSync(resolve(root, p), 'utf8');
 
-/* Chuẩn hoá literal email admin còn sót trong COMMENT của rls_helpers.sql (đoạn mô tả
- * anti-pattern đã gỡ). File gộp phải sạch literal này (acceptance T24:
- * `grep -c "chithanhso10" supabase/scripts/*.sql` = 0) nhưng KHÔNG được sửa file
- * migration gốc (không nằm trong OWNED). Chỉ ảnh hưởng nội dung COMMENT — không đổi
- * 1 ký tự SQL nào. */
+/* Chuẩn hoá các literal chỉ nằm trong COMMENT nhưng bị gate grep, KHÔNG được sửa file
+ * migration gốc (chỉ ảnh hưởng comment — không đổi 1 ký tự SQL nào):
+ *   1. email admin còn sót ở đoạn mô tả anti-pattern trong rls_helpers.sql
+ *      (acceptance T24: `grep -c "chithanhso10" supabase/scripts/*.sql` = 0);
+ *   2. tên file H-gated `20261013100000_drop_designer_bank_columns.sql` — file này KHÔNG
+ *      được gom (cổng H), nhưng comment của 20261013090000 có nhắc tên nó, nên bản gộp
+ *      phải không còn chuỗi `drop_designer_bank_columns` (acceptance W2b). */
 const HARDCODED_ADMIN_EMAIL = 'chithanhso10@gmail.com';
-const sanitizeEmbed = (sql) => sql.split(HARDCODED_ADMIN_EMAIL).join('<email admin cũ đã gỡ>');
+const H_GATED_MIGRATION_FILE = '20261013100000_drop_designer_bank_columns.sql';
+const sanitizeEmbed = (sql) =>
+  sql
+    .split(HARDCODED_ADMIN_EMAIL).join('<email admin cũ đã gỡ>')
+    .split(H_GATED_MIGRATION_FILE).join('migration gỡ cột riêng (cổng H, không gom)');
 
-/* Các migration W2 (20261011HHMMSS + 20261012HHMMSS) — gom vào bản gộp, chạy SAU
+/* Các migration W2/W2b (20261011HHMMSS → 20261013HHMMSS) — gom vào bản gộp, chạy SAU
  * 20261010_harden_rls.sql, theo ĐÚNG thứ tự tên file. SEC-02 chạy sau harden để gỡ nhánh
  * `designer_id is null` mà harden cũ từng tạo (xem 20261012090000_sec02_open_requests.sql). */
 const NEW_MIGRATION_FILES = [
@@ -48,6 +59,10 @@ const NEW_MIGRATION_FILES = [
   'supabase/migrations/20261012090000_sec02_open_requests.sql',
   'supabase/migrations/20261012100000_check_constraints.sql',
   'supabase/migrations/20261012130000_orders_broadcast.sql',
+  /* W2b (20261013*) — T20 bảng payout + T25 storage scheme, đúng thứ tự tên file.
+   * KHÔNG gom 20261013100000_drop_designer_bank_columns.sql: cổng H, chưa bundle. */
+  'supabase/migrations/20261013090000_sec01_payout_table.sql',
+  'supabase/migrations/20261013110000_storage_scheme.sql',
 ];
 const NEW_MIGRATIONS_SRC = NEW_MIGRATION_FILES.map(R).join('\n');
 
@@ -55,29 +70,46 @@ const NEW_MIGRATIONS_SRC = NEW_MIGRATION_FILES.map(R).join('\n');
  * KHÔNG hardcode số bảng / số policy. Bản trước hardcode "25 bảng" và "61 policy";
  * Đợt 10 (W2) thêm 3 bảng + 10 policy ⇒ PHẦN 5 in ra "kỳ vọng" sai, người dán file dễ
  * tưởng migration hỏng. Tính động thì lần sau tự khớp.
- *   * số bảng  : đếm `create table if not exists public.<tên>` trong baseline — khớp
- *                `information_schema.tables where table_type='BASE TABLE'` (view
- *                `pricing_config` không tính vì không phải BASE TABLE).
- *   * số policy: đọc allowlist `v_keep` (public) và `v_ok` (storage) của file hardening.
- *                Đây là nguồn đúng duy nhất: bước 9 của file đó xoá mọi policy không nằm
- *                trong `v_keep`, và `scripts/lint-rls-migration.mjs` assert "tạo == allowlist".
- * Tại thời điểm Đợt 10 (W2): 28 bảng · 71 policy bảng · 5 policy storage.
+ *   * số bảng  : đếm `create table if not exists public.<tên>` trong baseline CỘNG bảng do các
+ *                phần SAU harden tạo (`designer_payout_info`) — khớp `information_schema.tables
+ *                where table_type='BASE TABLE'` (view `pricing_config` không tính).
+ *   * số policy: đọc allowlist `v_keep` (public) và `v_ok` (storage) của file hardening —
+ *                nguồn đúng cho policy do harden quản (bước 9 xoá mọi policy không nằm trong
+ *                `v_keep`, `scripts/lint-rls-migration.mjs` assert "tạo == allowlist") — CỘNG
+ *                policy public do các phần SAU harden tạo trên bảng KHÔNG nằm trong `v_tables`
+ *                (bước 9 không quét tới nên chúng tồn tại; harden không tạo nên không thể nằm
+ *                trong `v_keep`, nếu thêm vào sẽ bị lint báo "allowlist chết").
+ * Tại thời điểm W2b: 32 bảng · 94 policy bảng · 7 policy storage.
  */
 const BASELINE_SRC = R('supabase/migrations/20260901_baseline_schema.sql');
 const HARDEN_SRC = R('supabase/migrations/20261010_harden_rls.sql');
 
-const tableCount = new Set(
+const baselineTables = new Set(
   [...BASELINE_SRC.matchAll(/create table if not exists public\.([a-z_]+)/g)].map((m) => m[1]),
-).size;
+);
+// Giữ tên `tableCount` cho phần "inspect-db phủ N bảng khai báo baseline" ở HEADER.
+const tableCount = baselineTables.size;
 
-function allowlistSize(sql, varName) {
+function allowlistSet(sql, varName) {
   const block = sql.match(new RegExp(varName + ' text\\[\\] := array\\[([\\s\\S]*?)\\];'));
   if (!block) throw new Error('Không tìm thấy allowlist ' + varName + ' trong 20261010_harden_rls.sql');
-  return new Set([...block[1].matchAll(/'([a-z0-9_]+)'/g)].map((m) => m[1])).size;
+  return new Set([...block[1].matchAll(/'([a-z0-9_]+)'/g)].map((m) => m[1]));
 }
 
-const publicPolicyCount = allowlistSize(HARDEN_SRC, 'v_keep');
-const storagePolicyCount = allowlistSize(HARDEN_SRC, 'v_ok');
+const keepPolicies = allowlistSet(HARDEN_SRC, 'v_keep');
+const storagePolicies = allowlistSet(HARDEN_SRC, 'v_ok');
+
+const postHardenTables = new Set(
+  [...NEW_MIGRATIONS_SRC.matchAll(/create table if not exists public\.([a-z_]+)/g)].map((m) => m[1]),
+);
+const expectedTableTotal = new Set([...baselineTables, ...postHardenTables]).size;
+
+const postHardenPublicPolicies = new Set(
+  [...NEW_MIGRATIONS_SRC.matchAll(/create policy\s+([a-z0-9_]+)\s+on\s+public\./gi)].map((m) => m[1]),
+);
+const publicPolicyCount = keepPolicies.size
+  + [...postHardenPublicPolicies].filter((n) => !keepPolicies.has(n)).length;
+const storagePolicyCount = storagePolicies.size;
 
 // Số mục của `scripts/inspect-db.mjs` — SUY ĐỘNG từ chính script đó, không hardcode: comment
 // trong file gộp từng ghi "19/19 bảng" trong khi danh sách đã phủ 31 mục (bài học T3).
@@ -107,7 +139,7 @@ const PARTS = [
   {
     n: 3,
     title: 'supabase/migrations/20261010_harden_rls.sql',
-    note: `HARDEN RLS — toàn bộ policy (${publicPolicyCount} policy bảng + ${storagePolicyCount} policy storage). Tự dọn policy cũ/lạ.`,
+    note: `HARDEN RLS — toàn bộ policy do file này tạo (${keepPolicies.size} policy bảng + ${storagePolicies.size} policy storage). Tự dọn policy cũ/lạ.`,
     //  Số policy TÍNH ĐỘNG từ allowlist v_keep/v_ok của chính file hardening.
     file: 'supabase/migrations/20261010_harden_rls.sql',
   },
@@ -149,6 +181,18 @@ const PARTS = [
   },
   {
     n: 10,
+    title: 'supabase/migrations/20261013090000_sec01_payout_table.sql',
+    note: 'SEC-01/T20 — bảng designer_payout_info tách PII thanh toán khỏi designer_profiles; 4 policy (chủ sở hữu + admin), RPC upsert_my_payout_info.',
+    file: 'supabase/migrations/20261013090000_sec01_payout_table.sql',
+  },
+  {
+    n: 11,
+    title: 'supabase/migrations/20261013110000_storage_scheme.sql',
+    note: 'T25 — storage scheme cad/<uid>/<uuid>/<file> + policy vcube_cad_files_cad_owner_rw (chủ file tự đọc/ghi/xoá).',
+    file: 'supabase/migrations/20261013110000_storage_scheme.sql',
+  },
+  {
+    n: 12,
     title: 'supabase/scripts/bootstrap_admin.sql',
     note: 'CẤP QUYỀN ADMIN — SỬA `v_email` (sentinel CHANGE_ME@example.com) thành email thật trước khi chạy, nếu không script sẽ raise exception.',
     file: 'supabase/scripts/bootstrap_admin.sql',
@@ -212,11 +256,11 @@ const VERIFY = `-- #############################################################
 -- nghĩa là migration đã áp đủ. Script này CHỈ ĐỌC: chỉ select trên catalog + đếm.
 -- ⚠️ Các con số "kỳ vọng" bên dưới được TÍNH ĐỘNG lúc sinh file (đếm lệnh create table
 -- if not exists trong 20260901 + đọc allowlist v_keep/v_ok của 20261010), KHÔNG hardcode:
--- tại thời điểm Đợt 10 (W2) là ${tableCount} bảng · ${publicPolicyCount} policy bảng ·
+-- tại thời điểm W2b là ${expectedTableTotal} bảng · ${publicPolicyCount} policy bảng ·
 -- ${storagePolicyCount} policy storage. Nếu số khi bạn dán KHÁC "kỳ vọng" ở đây thì
 -- migration CHƯA được áp đủ (hoặc còn policy lạ), KHÔNG phải lỗi của file này.
 
--- 5.1 — Tổng số bảng thật trong schema public (kỳ vọng ${tableCount})
+-- 5.1 — Tổng số bảng thật trong schema public (kỳ vọng ${expectedTableTotal})
 select count(*) as so_bang_public
   from information_schema.tables
  where table_schema = 'public' and table_type = 'BASE TABLE';
@@ -309,7 +353,7 @@ select count(*) as so_hang_app_settings,
 select id, email, role from public.user_profiles where role = 'admin';
 `;
 
-/* ------------------------------------------- D12(a): danh sách kỳ vọng của PHẦN 5
+/* ------------------------------------------- D12(a): danh sách kỳ vọng của phần kiểm chứng
  * MỘT nguồn duy nhất: các mảng dưới đây vừa SINH ra truy vấn của PHẦN 5, vừa được đối chiếu
  * với chính file migration NGAY LÚC SINH — TRƯỚC writeFileSync. Nếu ai đổi tên policy/trigger
  * mà quên cập nhật danh sách thì script FAIL to, thay vì ghi ra bản gộp có "kỳ vọng" đã cũ
@@ -350,6 +394,8 @@ const EXPECTED_STORAGE = [
   'vcube_cad_files_buyer_read',
   'vcube_cad_files_order_files_read',
   'vcube_cad_files_digital_owner_rw',
+  /* W2b / T25 — tạo ở 20261013110000, harden cũng tạo lại để rebuild không dọn mất. */
+  'vcube_cad_files_cad_owner_rw',
 ];
 /* W2 (20261012*) — vật thể mới do SEC-02 / check_constraints / orders_broadcast tạo. */
 const EXPECTED_REALTIME_POLICIES = ['orders_admin_realtime'];
@@ -359,7 +405,16 @@ const EXPECTED_CONSTRAINTS = [
   'orders_status_chk',
   'orders_status_stage_index_range_chk',
 ];
-const EXPECTED_FUNCTIONS = ['claim_design_request', 'orders_broadcast_status'];
+/* W2b (20261013*) — T20 bảng payout + 4 policy (kiểm bằng `create policy <tên>`, KHÔNG có
+ * nháy như policy harden tạo qua _vcube_make_policy ⇒ không dùng chung EXPECTED_POLICIES). */
+const EXPECTED_TABLES = ['designer_payout_info'];
+const EXPECTED_PAYOUT_POLICIES = [
+  'vcube_designer_payout_info_owner_select',
+  'vcube_designer_payout_info_owner_insert',
+  'vcube_designer_payout_info_owner_update',
+  'vcube_designer_payout_info_admin_all',
+];
+const EXPECTED_FUNCTIONS = ['claim_design_request', 'orders_broadcast_status', 'upsert_my_payout_info'];
 const EXPECTED_VIEWS = ['open_design_requests'];
 
 const W8_VERIFY = `
@@ -558,12 +613,42 @@ select 'policy realtime.messages orders_admin_realtime' as muc,
    and policyname = 'orders_admin_realtime';
 `;
 
-const VERIFY_ALL = VERIFY + W8_VERIFY + W2B_VERIFY;
+const W2C_VERIFY = `
+-- 5.31 — W2b / SEC-01-T20: bảng designer_payout_info phải tồn tại (PII thanh toán tách khỏi designer_profiles)
+select 'table public.designer_payout_info' as muc,
+       case when to_regclass('public.designer_payout_info') is not null then 'OK' else 'THIEU' end as ket_qua;
+
+-- 5.32 — W2b / T20: 4 policy của designer_payout_info (chủ sở hữu select/insert/update + admin all)
+select t.expected as policy, case when p.policyname is not null then 'OK' else 'THIEU' end as ket_qua
+  from (values ('vcube_designer_payout_info_owner_select'),
+               ('vcube_designer_payout_info_owner_insert'),
+               ('vcube_designer_payout_info_owner_update'),
+               ('vcube_designer_payout_info_admin_all')) as t(expected)
+  left join pg_policies p on p.schemaname = 'public' and p.policyname = t.expected
+ order by t.expected;
+
+-- 5.33 — W2b / T20: RPC chủ hồ sơ tự ghi thông tin nhận tiền (security definer) phải tồn tại
+select 'function upsert_my_payout_info' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = 'upsert_my_payout_info';
+
+-- 5.34 — W2b / T25: storage policy chủ file CAD tự quản trong cad/<uid>/ phải tồn tại
+select 'storage policy vcube_cad_files_cad_owner_rw' as muc,
+       case when count(*) = 1 then 'OK' else 'THIEU' end as ket_qua
+  from pg_policies
+ where schemaname = 'storage' and tablename = 'objects'
+   and policyname = 'vcube_cad_files_cad_owner_rw';
+`;
+
+const VERIFY_ALL = VERIFY + W8_VERIFY + W2B_VERIFY + W2C_VERIFY;
 
 /* TỰ KIỂM TRƯỚC KHI GHI (chạy trước writeFileSync ⇒ danh sách lệch thì KHÔNG ghi gì). */
 {
   const haystack = BASELINE_SRC + '\n' + HARDEN_SRC + '\n' + NEW_MIGRATIONS_SRC;
   const hasPolicy = (n) => haystack.includes("'" + n + "'");
+  const hasCreatedPolicy = (n) => new RegExp('create policy\\s+' + n + '\\b').test(haystack);
+  const hasTable = (n) => new RegExp('create table if not exists public\\.' + n + '\\b').test(haystack);
   const hasTrigger = (n) => new RegExp('\\b' + n + '\\b').test(haystack);
   const hasStoragePolicy = (n) => new RegExp('create policy\\s+' + n + '\\s+on\\s+storage\\.objects').test(haystack);
   const hasRealtimePolicy = (n) => new RegExp('create policy\\s+' + n + '\\s+on\\s+realtime\\.messages').test(haystack);
@@ -572,6 +657,8 @@ const VERIFY_ALL = VERIFY + W8_VERIFY + W2B_VERIFY;
   const hasView = (n) => new RegExp('create\\s+view\\s+(public\\.)?' + n + '\\b').test(haystack);
   const missing = []
     .concat(EXPECTED_POLICIES.filter((n) => !hasPolicy(n)).map((n) => 'policy: ' + n))
+    .concat(EXPECTED_PAYOUT_POLICIES.filter((n) => !hasCreatedPolicy(n)).map((n) => 'policy (create policy): ' + n))
+    .concat(EXPECTED_TABLES.filter((n) => !hasTable(n)).map((n) => 'table: ' + n))
     .concat(EXPECTED_TRIGGERS.filter((n) => !hasTrigger(n)).map((n) => 'trigger: ' + n))
     .concat(EXPECTED_STORAGE.filter((n) => !hasStoragePolicy(n)).map((n) => 'storage policy: ' + n))
     .concat(EXPECTED_REALTIME_POLICIES.filter((n) => !hasRealtimePolicy(n)).map((n) => 'realtime policy: ' + n))
@@ -585,7 +672,7 @@ const VERIFY_ALL = VERIFY + W8_VERIFY + W2B_VERIFY;
     console.log('  ⇒ KHÔNG ghi đè file gộp.');
     process.exit(1);
   }
-  console.log(`Tự kiểm PHẦN ${VERIFY_PART_N}: ${EXPECTED_POLICIES.length} policy + ${EXPECTED_TRIGGERS.length} trigger + ${EXPECTED_STORAGE.length} policy storage + ${EXPECTED_REALTIME_POLICIES.length} policy realtime + ${EXPECTED_CONSTRAINTS.length} constraint + ${EXPECTED_FUNCTIONS.length} function + ${EXPECTED_VIEWS.length} view — khớp file migration.`);
+  console.log(`Tự kiểm PHẦN ${VERIFY_PART_N}: ${EXPECTED_POLICIES.length} policy + ${EXPECTED_PAYOUT_POLICIES.length} policy payout + ${EXPECTED_TABLES.length} bảng + ${EXPECTED_TRIGGERS.length} trigger + ${EXPECTED_STORAGE.length} policy storage + ${EXPECTED_REALTIME_POLICIES.length} policy realtime + ${EXPECTED_CONSTRAINTS.length} constraint + ${EXPECTED_FUNCTIONS.length} function + ${EXPECTED_VIEWS.length} view — khớp file migration.`);
 }
 
 let out = HEADER;
@@ -616,7 +703,7 @@ console.log(`Đã sinh supabase/scripts/apply_all_manual.sql — ${lines} dòng,
 console.log('Các phần:');
 for (const p of PARTS) console.log(`  PHẦN ${p.n}/${PARTS_TOTAL} — ${p.title}`);
 console.log(`  PHẦN ${VERIFY_PART_N}   — kiểm chứng (${verifyQueries} truy vấn chỉ đọc, có kiểm policy/trigger)`);
-console.log(`Số kỳ vọng (tính động từ file gốc): ${tableCount} bảng · ${publicPolicyCount} policy bảng · ${storagePolicyCount} policy storage`);
+console.log(`Số kỳ vọng (tính động từ file gốc): ${expectedTableTotal} bảng · ${publicPolicyCount} policy bảng · ${storagePolicyCount} policy storage`);
 if (problems.length) {
   console.log('\nFAIL:');
   for (const x of problems) console.log('  - ' + x);

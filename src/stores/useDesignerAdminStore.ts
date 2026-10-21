@@ -19,12 +19,13 @@ import { supabase } from '../backend/supabase/client';
  * Vì vậy store này đọc/ghi thẳng bảng, với 2 nguyên tắc:
  *   * ĐỌC liệt kê CỘT AN TOÀN (không còn `select('*')` sau khi revoke quyền SELECT bảng) rồi
  *     map theo cột CÓ THẬT; trường nào bảng không có ⇒ `null` ⇒ UI hiện '—'. KHÔNG fixture,
- *     KHÔNG localStorage. bank/tax không nằm trong danh sách an toàn nữa.
+ *     KHÔNG localStorage. bank/tax KHÔNG còn nằm trong bảng (T20 phase 2 drop hẳn).
  *   * GHI chỉ những cột đã thấy trong dòng đọc được (`designerColumns`); thiếu cột ⇒ trả lỗi
  *     nói rõ tên cột, KHÔNG báo thành công giả.
  *
- * TODO(T0A-4): payout info (bank_name/bank_account/tax_id) sẽ đọc qua
- * `admin_get_designer_payout()` sau T0A-4 (RPC soạn ở T0A-3, áp sau khi client này deploy).
+ * T20: thông tin nhận tiền đã tách sang `public.designer_payout_info`. Store KHÔNG đọc cột
+ * bank_* từ `designer_profiles` nữa; admin xem qua `loadPayoutInfo(id)` (RPC
+ * `admin_get_designer_payout`), chủ hồ sơ ghi qua RPC `upsert_my_payout_info`.
  * ========================================================================== */
 
 /**
@@ -34,6 +35,17 @@ import { supabase } from '../backend/supabase/client';
 export const SAFE_DESIGNER_COLUMNS =
   'id, user_id, display_name, bio, portfolio_url, avatar_url, royalty_percent, verified_status, rating, total_sales, created_at, updated_at';
 
+/**
+ * Thông tin nhận tiền (T20) — nằm ở bảng `designer_payout_info`, KHÔNG nằm trong
+ * `designer_profiles`. Chỉ đọc được qua RPC `admin_get_designer_payout` (admin) hoặc
+ * `get_my_payout_info` (chủ hồ sơ).
+ */
+export interface DesignerPayoutInfo {
+  bankName: string | null;
+  bankAccount: string | null;
+  taxId: string | null;
+}
+
 export interface DesignerRow {
   id: string;
   userId: string | null;
@@ -41,8 +53,11 @@ export interface DesignerRow {
   bio: string | null;
   avatarUrl: string | null;
   portfolioUrl: string | null;
+  /** @deprecated T20: không còn trong `designer_profiles`; luôn `null`. Dùng `loadPayoutInfo()`. */
   bankName: string | null;
+  /** @deprecated T20: không còn trong `designer_profiles`; luôn `null`. Dùng `loadPayoutInfo()`. */
   bankAccount: string | null;
+  /** @deprecated T20: không còn trong `designer_profiles`; luôn `null`. Dùng `loadPayoutInfo()`. */
   taxId: string | null;
   /** `royalty_percent` (baseline) hoặc `default_royalty_percent` (schema cũ). `null` = chưa có. */
   royaltyPercent: number | null;
@@ -96,6 +111,13 @@ export interface DesignerAdminState {
     patch: { royaltyPercent?: number; badgeTier?: string }
   ) => Promise<{ success: boolean; error?: string }>;
 
+  /**
+   * T20: đọc thông tin nhận tiền của một designer qua RPC `admin_get_designer_payout`
+   * (chỉ admin gọi được — RPC tự raise 42501 với người khác). Trả `null` khi bị chặn,
+   * chưa khai báo, hoặc lỗi mạng — UI coi như "không có dữ liệu", không bịa.
+   */
+  loadPayoutInfo: (designerId: string) => Promise<DesignerPayoutInfo | null>;
+
   getDesignerStats: () => DesignerAdminStats;
 }
 
@@ -119,11 +141,11 @@ export const rowToDesignerRow = (d: Record<string, any>): DesignerRow => ({
   bio: strOrNull(d.bio),
   avatarUrl: strOrNull(d.avatar_url),
   portfolioUrl: strOrNull(d.portfolio_url),
-  // bank/tax KHÔNG còn trong `SAFE_DESIGNER_COLUMNS` ⇒ luôn `null` ⇒ UI hiện '—' (không crash).
-  // payout info sẽ đọc qua admin_get_designer_payout() sau T0A-4.
-  bankName: strOrNull(d.bank_name),
-  bankAccount: strOrNull(d.bank_account),
-  taxId: strOrNull(d.tax_id),
+  // T20: bank/tax KHÔNG còn nằm trong `designer_profiles` (đã tách sang
+  // `designer_payout_info`) ⇒ luôn `null`; admin xem qua `loadPayoutInfo()`.
+  bankName: null,
+  bankAccount: null,
+  taxId: null,
   royaltyPercent: numOrNull(d.royalty_percent ?? d.default_royalty_percent),
   verifiedStatus: strOrNull(d.verified_status),
   rating: numOrNull(d.rating),
@@ -228,6 +250,24 @@ export const useDesignerAdminStore = create<DesignerAdminState>((set, get) => ({
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Lỗi không xác định khi lưu hồ sơ designer.' };
+    }
+  },
+
+  loadPayoutInfo: async (designerId) => {
+    try {
+      const { data, error } = await supabase.rpc('admin_get_designer_payout', {
+        p_designer_id: designerId
+      });
+      if (error || !Array.isArray(data) || data.length === 0) return null;
+      const row = data[0] as Record<string, unknown>;
+      return {
+        bankName: strOrNull(row.bank_name),
+        bankAccount: strOrNull(row.bank_account),
+        taxId: strOrNull(row.tax_id)
+      };
+    } catch {
+      // RPC bị chặn (không phải admin) / lỗi mạng ⇒ coi như chưa có dữ liệu, KHÔNG bịa.
+      return null;
     }
   },
 

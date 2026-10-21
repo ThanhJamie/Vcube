@@ -30,6 +30,7 @@ import {
   Modal,
   PageHeader,
   Select,
+  Skeleton,
   StatCard,
   type DataTableColumn,
 } from '@frontend/ui';
@@ -74,12 +75,12 @@ export interface WorkshopSettingsViewProps {
 
 type TabId = 'queue' | 'machines' | 'materials' | 'accessories' | 'audit_trail' | 'preferences';
 
-/** Màu trạng thái máy in: Free=xanh lá · Busy=xanh dương · Maintenance=cam · Offline=đỏ. */
+/** Màu badge trạng thái máy in — §3.4 (tint + chữ đặc). */
 const MACHINE_STATUS_STYLE: Record<string, string> = {
-  Free: 'border-positive bg-positive text-primary-fg',
-  Busy: 'border-info bg-info text-primary-fg',
-  Maintenance: 'border-warning bg-warning text-primary-fg',
-  Offline: 'border-danger bg-danger text-primary-fg',
+  Free: 'border-positive/20 bg-positive-tint text-positive',
+  Busy: 'border-info/20 bg-info-tint text-info',
+  Maintenance: 'border-warning/20 bg-warning-tint text-warning',
+  Offline: 'border-danger/20 bg-danger-tint text-danger',
 };
 const MACHINE_STATUS_DOT: Record<string, string> = {
   Free: 'bg-positive',
@@ -88,12 +89,17 @@ const MACHINE_STATUS_DOT: Record<string, string> = {
   Offline: 'bg-danger',
 };
 
-/** 4 cột Kanban cho hàng đợi việc — gom từ 8 nấc pipeline MES. */
+/**
+ * 6 cột Kanban cho hàng đợi việc — vẫn gom từ ĐÚNG 8 nấc pipeline MES
+ * (`statusStageIndex` 0–7), không thêm/bớt đơn nào.
+ */
 const QUEUE_KANBAN_COLUMNS = [
-  { id: 'new', label: 'Đơn mới', min: 0, max: 1, color: 'border-line-subtle' },
-  { id: 'prep', label: 'Chuẩn bị file / Gắn máy', min: 2, max: 3, color: 'border-warning/40' },
-  { id: 'printing', label: 'Đang in', min: 4, max: 5, color: 'border-info/40' },
-  { id: 'post', label: 'Hậu kỳ & Đóng gói', min: 6, max: 7, color: 'border-positive/40' },
+  { id: 'new', label: 'Đơn mới', min: 0, max: 0, dot: 'bg-fg-subtle' },
+  { id: 'prep', label: 'Chuẩn bị file', min: 1, max: 2, dot: 'bg-warning' },
+  { id: 'queue', label: 'Chờ máy', min: 3, max: 3, dot: 'bg-warning' },
+  { id: 'printing', label: 'Đang in', min: 4, max: 5, dot: 'bg-info' },
+  { id: 'post', label: 'Hậu kỳ & Đóng gói', min: 6, max: 6, dot: 'bg-positive' },
+  { id: 'done', label: 'Xuất xưởng', min: 7, max: 7, dot: 'bg-positive' },
 ] as const;
 
 /**
@@ -108,6 +114,16 @@ const LAB_TAB_IDS: TabId[] = [
   'audit_trail',
   'preferences',
 ];
+
+/** Nhãn segmented control §3.6 — `setActiveTab` vẫn điều hướng `/lab/<id>`. */
+const LAB_TAB_LABELS: Record<TabId, string> = {
+  queue: 'Hàng đợi',
+  machines: 'Máy in',
+  materials: 'Vật liệu',
+  accessories: 'Phụ kiện',
+  audit_trail: 'Sổ kho',
+  preferences: 'Cấu hình',
+};
 
 /** Ô số gắn nhãn CHƯA CẤU HÌNH khi rỗng — KHÔNG mặc định một con số nào. */
 function parseRateInput(raw: string): number | null {
@@ -125,9 +141,9 @@ function digitsOnly(raw: string): string {
 // ('Đông' là giá trị cũ không còn dùng; nếu profile còn 'Đông' thì select hiển thị giá trị đó
 //  qua nhánh legacy bên dưới để không bị trắng.)
 const REGION_OPTIONS = [
-  { value: 'Bắc', label: 'Miền Bắc (Hub Hà Nội & lân cận)' },
-  { value: 'Trung', label: 'Miền Trung (Hub Đà Nẵng & lân cận)' },
-  { value: 'Nam', label: 'Miền Nam (Hub TP.HCM & lân cận)' },
+  { value: 'Bắc', label: 'Miền Bắc (đầu mối Hà Nội & lân cận)' },
+  { value: 'Trung', label: 'Miền Trung (đầu mối Đà Nẵng & lân cận)' },
+  { value: 'Nam', label: 'Miền Nam (đầu mối TP.HCM & lân cận)' },
 ];
 
 export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
@@ -991,7 +1007,8 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
                       void applyStage(row, idx, stage.shortLabel).finally(() => setBusyLabel(null));
                     }}
                     title={`Đặt nấc ${idx + 1}/8 — ${stage.label}`}
-                    className={`rounded-sm border px-1.5 py-0.5 text-xs transition-colors disabled:opacity-50 ${
+                    aria-label={`Đặt nấc ${idx + 1}/8 — ${stage.label}`}
+                    className={`inline-flex items-center justify-center rounded-sm border px-1.5 py-0.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 max-md:min-h-11 max-md:min-w-11 ${
                       stageIndex === idx
                         ? 'border-primary bg-primary text-primary-fg'
                         : 'border-line-control bg-surface text-fg-muted hover:bg-surface-muted'
@@ -1098,7 +1115,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
           const next = row.status === 'Free' ? 'Maintenance' : 'Free';
           return (
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-semibold ${style}`}>
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${style}`}>
                 <span className={`size-1.5 rounded-full ${dot}`} aria-hidden="true" />
                 {MY_MACHINE_STATUS_LABELS[row.status] ?? row.status}
               </span>
@@ -1198,7 +1215,11 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
               ? 'Hết hàng'
               : row.stockStatus === 'LowStock'
                 ? 'Sắp hết'
-                : row.stockStatus || 'Chưa khai'}
+                : row.stockStatus === 'Tracking'
+                  ? 'Đang theo dõi'
+                  : row.stockStatus === 'NotTracking'
+                    ? 'Chưa theo dõi'
+                    : 'Chưa khai'}
           </Badge>
         ),
       },
@@ -1230,7 +1251,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
         key: 'createdAt',
         header: 'Thời gian',
         render: (row) => (
-          <span className="text-xs text-fg-subtle">
+          <span className="font-mono text-xs tabular-nums text-fg-subtle">
             {row.createdAt ? formatDate(row.createdAt) : EMPTY_VALUE}
           </span>
         ),
@@ -1355,13 +1376,29 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
   /* ------------------------------------------------------------------ */
   if (authLoading || loadingProfile) {
     return (
-      <div className="mx-auto w-full max-w-3xl">
-          <EmptyState
-            live
-            icon={<RefreshCw className="size-5 animate-spin motion-reduce:animate-none" />}
-            title="Đang tải hồ sơ xưởng"
-            description="Đang đối chiếu tài khoản đăng nhập với hồ sơ xưởng để chỉ hiển thị dữ liệu của chính bạn."
-          />
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6" role="status" aria-label="Đang tải hồ sơ xưởng">
+        <div className="space-y-2">
+          <Skeleton variant="text" width="55%" height="1.75rem" />
+          <Skeleton variant="text" width="80%" />
+        </div>
+        <Skeleton variant="rect" height="2.5rem" rounded="md" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((card) => (
+            <div key={card} className="space-y-3 rounded-lg border border-line bg-surface p-4">
+              <Skeleton variant="text" width="50%" />
+              <Skeleton variant="text" width="70%" height="1.75rem" />
+              <Skeleton variant="text" width="40%" />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-3 rounded-lg border border-line bg-surface p-4">
+          {[0, 1, 2, 3, 4].map((row) => (
+            <Skeleton key={row} variant="text" width={row % 2 === 0 ? '90%' : '70%'} />
+          ))}
+        </div>
+        <p className="text-sm text-fg-muted">
+          Đang đối chiếu tài khoản đăng nhập với hồ sơ xưởng để chỉ hiển thị dữ liệu của chính bạn.
+        </p>
       </div>
     );
   }
@@ -1453,7 +1490,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
             {profile.contactPhone ? (
               <>
                 <span aria-hidden="true">•</span>
-                <span>Hotline: {profile.contactPhone}</span>
+                <span>Đường dây nóng: {profile.contactPhone}</span>
               </>
             ) : null}
           </span>
@@ -1477,6 +1514,30 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
           </>
         }
       />
+
+      {/* Segmented control §3.6 — URL `/lab/<tab>` vẫn là nguồn sự thật duy nhất. */}
+      <nav aria-label="Mục điều hướng xưởng" className="w-full overflow-x-auto">
+        <div className="inline-flex min-w-full items-center gap-1 rounded-full border border-line bg-surface-muted p-1 sm:min-w-0">
+          {LAB_TAB_IDS.map((tabId) => {
+            const isActive = activeTab === tabId;
+            return (
+              <button
+                key={tabId}
+                type="button"
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => setActiveTab(tabId)}
+                className={`inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 motion-reduce:transition-none ${
+                  isActive
+                    ? 'bg-surface font-semibold text-fg shadow-soft'
+                    : 'font-medium text-fg-muted hover:text-fg'
+                }`}
+              >
+                {LAB_TAB_LABELS[tabId]}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {/* Nội dung giữ nguyên margin riêng của từng khối (`mb-6`…) nên KHÔNG thêm gap
           ở đây — thêm gap sẽ cộng dồn và làm nhịp dọc sai lệch. */}
@@ -1510,7 +1571,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
           </div>
         ) : null}
 
-        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {activeTab === 'machines' ? (
             <>
               <StatCard
@@ -1520,7 +1581,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
                 hint={machines.length === 0 ? 'Chưa khai máy in nào' : `${formatNumber(stats.freeMachines)} đang rảnh`}
               />
               <StatCard
-                label="Đang in (Busy)"
+                label="Đang in"
                 value={formatNumber(machines.filter((m) => m.status === 'Busy').length)}
                 icon={<Printer className="size-4" />}
                 hint="Theo trạng thái xưởng tự đặt"
@@ -1637,7 +1698,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
           <section className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="flex items-center gap-2 text-base font-bold text-fg">
+                <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
                   <ClipboardList className="size-5 text-primary" aria-hidden="true" />
                   Hàng đợi việc của xưởng bạn
                 </h2>
@@ -1646,12 +1707,20 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
                   Nấc tiến độ dùng đúng 8 nấc khách nhìn thấy ở trang theo dõi đơn.
                 </p>
               </div>
-              <div className="flex items-center gap-1 rounded-md border border-line-subtle bg-surface p-1">
+              <div
+                role="group"
+                aria-label="Kiểu xem hàng đợi"
+                className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-muted p-1"
+              >
                 <button
                   type="button"
                   onClick={() => setQueueView('list')}
                   aria-pressed={queueView === 'list'}
-                  className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-bold transition-colors cursor-pointer ${queueView === 'list' ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:bg-canvas hover:text-fg'}`}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 motion-reduce:transition-none ${
+                    queueView === 'list'
+                      ? 'bg-surface font-semibold text-fg shadow-soft'
+                      : 'font-medium text-fg-muted hover:text-fg'
+                  }`}
                 >
                   <List className="size-4" aria-hidden="true" /> Danh sách
                 </button>
@@ -1659,7 +1728,11 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
                   type="button"
                   onClick={() => setQueueView('board')}
                   aria-pressed={queueView === 'board'}
-                  className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-bold transition-colors cursor-pointer ${queueView === 'board' ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:bg-canvas hover:text-fg'}`}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 motion-reduce:transition-none ${
+                    queueView === 'board'
+                      ? 'bg-surface font-semibold text-fg shadow-soft'
+                      : 'font-medium text-fg-muted hover:text-fg'
+                  }`}
                 >
                   <LayoutGrid className="size-4" aria-hidden="true" /> Kanban
                 </button>
@@ -1694,7 +1767,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
                 hasPartner ? (
                   <EmptyState
                     live
-                    icon={<span className="flex size-10 items-center justify-center rounded-md bg-primary-tint text-primary"><ClipboardList className="size-5" /></span>}
+                    icon={<ClipboardList className="size-5" />}
                     title="Chưa có đơn nào được giao cho xưởng bạn"
                     description={
                       `Hệ thống chưa giao đơn nào cho mã đối tác ${partnerId}. Hãy khai báo năng lực ` +
@@ -1714,7 +1787,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
                 ) : (
                   <EmptyState
                     live
-                    icon={<span className="flex size-10 items-center justify-center rounded-md bg-warning-tint text-warning"><TriangleAlert className="size-5" /></span>}
+                    icon={<TriangleAlert className="size-5" />}
                     title="Chưa gắn mã đối tác xưởng"
                     description="Hồ sơ xưởng của bạn chưa có partner_id nên không có đơn nào được giao. Hãy nhờ quản trị viên gắn mã đối tác."
                     action={
@@ -1729,42 +1802,50 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
             )}
 
             {queueView === 'board' && (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
                 {QUEUE_KANBAN_COLUMNS.map((col) => {
                   const items = orders.filter((o) => {
                     const idx = o.statusStageIndex ?? 0;
                     return idx >= col.min && idx <= col.max;
                   });
                   return (
-                    <div key={col.id} className={`rounded-lg border ${col.color} bg-surface-muted/40 p-3`}>
-                      <div className="mb-3 flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-fg">{col.label}</span>
-                        <span className="rounded-sm bg-surface px-1.5 py-0.5 font-mono text-xs font-bold tabular-nums text-fg-muted">{items.length}</span>
+                    <div key={col.id} className="rounded-lg border border-line-subtle bg-surface-muted/50 p-3">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+                          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${col.dot}`} />
+                          <span className="truncate">{col.label}</span>
+                        </span>
+                        <span className="rounded-sm border border-line bg-surface px-1.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-fg-muted">
+                          {items.length}
+                        </span>
                       </div>
                       <div className="space-y-2">
                         {items.length === 0 ? (
-                          <p className="rounded-md border border-dashed border-line-subtle px-3 py-4 text-center text-xs text-fg-subtle">
+                          <p className="rounded-md border border-dashed border-line-subtle bg-surface/50 px-3 py-4 text-center text-xs text-fg-subtle">
                             Không có đơn
                           </p>
                         ) : items.map((o) => (
-                          <div key={o.id} className="rounded-md border border-line-subtle bg-surface p-2.5 space-y-1">
+                          <div
+                            key={o.id}
+                            className="space-y-1 rounded-md border border-line bg-surface p-3 shadow-e0 transition-all duration-300 hover:border-line hover:shadow-e1 motion-reduce:transition-none"
+                          >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="font-mono text-xs font-bold text-fg truncate">{o.orderNumber}</span>
+                              <span className="truncate font-mono text-xs font-semibold text-fg">{o.orderNumber}</span>
                               {typeof o.layerProgress === 'number' ? (
                                 <span className="shrink-0 font-mono text-xs tabular-nums text-info">{o.layerProgress}%</span>
                               ) : null}
                             </div>
-                            <p className="truncate text-xs text-fg-muted">{o.items[0]?.name || EMPTY_VALUE}</p>
-                            <p className="font-mono text-xs text-fg-subtle truncate">
+                            <p className="truncate text-sm text-fg-muted">{o.items[0]?.name || EMPTY_VALUE}</p>
+                            <p className="truncate font-mono text-xs text-fg-subtle">
                               {formatNumber(o.items.reduce((s, it) => s + it.quantity, 0))} chi tiết
                               {o.items[0]?.material ? ` · ${o.items[0].material}` : ''}
                             </p>
-                            <p className="flex items-center gap-1 text-xs text-fg-subtle truncate">
-                              <Printer className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                            <p className="flex items-center gap-1 truncate text-xs text-fg-subtle">
+                              <Printer className="size-3.5 shrink-0 text-fg-subtle" aria-hidden="true" />
                               {machines.find((m) => m.id === o.assignedPrinterId)?.name || 'Chưa gắn máy'}
                             </p>
                             {o.estimatedDelivery ? (
-                              <p className="flex items-center gap-1 text-xs text-fg-subtle truncate">
+                              <p className="flex items-center gap-1 truncate text-xs text-fg-subtle">
                                 <Clock className="size-3.5 shrink-0" aria-hidden="true" /> Hạn: {formatDate(o.estimatedDelivery)}
                               </p>
                             ) : null}
@@ -1784,14 +1865,14 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
           <section className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="flex items-center gap-2 text-base font-bold text-fg">
+                <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
                   <Printer className="size-5 text-primary" aria-hidden="true" />
                   Máy in của xưởng bạn
                 </h2>
                 <p className="mt-0.5 text-xs text-fg-subtle">
                   Danh sách này lấy từ <code className="font-mono">workshop_machines</code> với{' '}
                   <code className="font-mono">workshop_id = {profile.id}</code>. Trạng thái do xưởng tự đặt,
-                  không phải telemetry từ máy.
+                  không phải số đo tự động từ máy.
                 </p>
               </div>
               <Button variant="primary" leadingIcon={<Printer className="size-4" />} onClick={() => openMachineModal()}>
@@ -1813,7 +1894,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
               emptyState={
                 <EmptyState
                   live
-                  icon={<span className="flex size-10 items-center justify-center rounded-md bg-primary-tint text-primary"><Printer className="size-5" /></span>}
+                  icon={<Printer className="size-5" />}
                   title="Xưởng bạn chưa khai máy in nào"
                   description="Chưa có hàng nào trong workshop_machines cho hồ sơ xưởng này. Khai báo máy in đầu tiên để bắt đầu nhận việc."
                   action={
@@ -1832,7 +1913,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
           <section className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="flex items-center gap-2 text-base font-bold text-fg">
+                <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
                   <Layers className="size-5 text-primary" aria-hidden="true" />
                   Vật liệu & tồn kho của xưởng bạn
                 </h2>
@@ -1872,7 +1953,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
               emptyState={
                 <EmptyState
                   live
-                  icon={<span className="flex size-10 items-center justify-center rounded-md bg-primary-tint text-primary"><Layers className="size-5" /></span>}
+                  icon={<Layers className="size-5" />}
                   title="Xưởng bạn chưa khai vật liệu nào"
                   description="Chưa có hàng nào trong workshop_materials cho hồ sơ xưởng này. Khai báo cuộn phôi đầu tiên rồi ghi phiếu nhập để theo dõi tồn."
                   action={
@@ -1909,7 +1990,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
           <section className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="flex items-center gap-2 text-base font-bold text-fg">
+                <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
                   <Package className="size-5 text-primary" aria-hidden="true" />
                   Phụ kiện riêng của xưởng bạn
                 </h2>
@@ -1937,7 +2018,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
               emptyState={
                 <EmptyState
                   live
-                  icon={<span className="flex size-10 items-center justify-center rounded-md bg-primary-tint text-primary"><Package className="size-5" /></span>}
+                  icon={<Package className="size-5" />}
                   title="Xưởng bạn chưa khai phụ kiện nào"
                   description="Chưa có hàng nào trong workshop_accessories cho hồ sơ xưởng này. Khai báo ốc cấy nhiệt, nam châm, hộp đóng gói… nếu xưởng có dùng."
                   action={
@@ -1955,7 +2036,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
         {activeTab === 'audit_trail' && (
           <section className="space-y-4">
             <div>
-              <h2 className="flex items-center gap-2 text-base font-bold text-fg">
+              <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
                 <ArrowUpRight className="size-5 text-primary" aria-hidden="true" />
                 Sổ kho của xưởng bạn
               </h2>
@@ -1989,7 +2070,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
               emptyState={
                 <EmptyState
                   live
-                  icon={<span className="flex size-10 items-center justify-center rounded-md bg-primary-tint text-primary"><ArrowUpRight className="size-5" /></span>}
+                  icon={<ArrowUpRight className="size-5" />}
                   title="Sổ kho chưa có dòng nào"
                   description={
                     materials.length === 0
@@ -2019,7 +2100,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
             <Card padding="lg">
               <form onSubmit={handleSavePreferences} className="flex flex-col gap-5">
                 <div>
-                  <h2 className="flex items-center gap-2 text-base font-bold text-fg">
+                  <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
                     <Settings className="size-5 text-primary" aria-hidden="true" />
                     Cấu hình xưởng & đơn giá riêng
                   </h2>
@@ -2163,7 +2244,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
         open={machineModalOpen}
         onClose={() => setMachineModalOpen(false)}
         title={editingMachine ? 'Chỉnh sửa máy in' : 'Khai báo máy in'}
-        description="Máy in thuộc xưởng của bạn. Trạng thái do bạn tự đặt, không phải telemetry."
+        description="Máy in thuộc xưởng của bạn. Trạng thái do bạn tự đặt, không phải số đo tự động từ thiết bị."
         size="lg"
         footer={
           <div className="flex items-center justify-end gap-2">

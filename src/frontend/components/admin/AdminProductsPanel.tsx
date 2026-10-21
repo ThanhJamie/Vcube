@@ -3,7 +3,7 @@ import { Product, ProductStatus } from '../../types';
 import { CATEGORIES } from '../../data/mockData';
 import { useLanguage } from '../../context/LanguageContext';
 import { dbService } from '../../../backend/supabase/database';
-import { ConfirmDialog, DataTable, EmptyState, Icon, Modal } from '@frontend/ui';
+import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';
 import { realProductImageUrl } from '@frontend/lib/productImage';
@@ -143,11 +143,11 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
 
     const priceDigital = newProductForm.priceDigital;
     if (priceDigital === undefined || !Number.isFinite(priceDigital)) {
-      onShowToast(isVi ? 'Vui lòng nhập Giá File STL (VNĐ)' : 'Please enter the STL file price (VND)');
+      onShowToast(isVi ? 'Vui lòng nhập Giá Tệp STL (VNĐ)' : 'Please enter the STL file price (VND)');
       return;
     }
     if (priceDigital < 0) {
-      onShowToast(isVi ? 'Giá File STL không được là số âm' : 'STL file price cannot be negative');
+      onShowToast(isVi ? 'Giá Tệp STL không được là số âm' : 'STL file price cannot be negative');
       return;
     }
 
@@ -208,11 +208,11 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
 
     const priceDigital = editingProduct.priceDigital;
     if (priceDigital === undefined || !Number.isFinite(priceDigital)) {
-      onShowToast(isVi ? 'Vui lòng nhập Giá File STL Số (VNĐ)' : 'Please enter the STL file price (VND)');
+      onShowToast(isVi ? 'Vui lòng nhập Giá Tệp STL Số (VNĐ)' : 'Please enter the STL file price (VND)');
       return;
     }
     if (priceDigital < 0) {
-      onShowToast(isVi ? 'Giá File STL Số không được là số âm' : 'STL file price cannot be negative');
+      onShowToast(isVi ? 'Giá Tệp STL Số không được là số âm' : 'STL file price cannot be negative');
       return;
     }
 
@@ -258,10 +258,10 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
               </div>
             )}
             <div>
-              <p className="font-bold text-fg max-w-[200px] truncate">{prod.name}</p>
-              <p className="text-xs text-fg-muted">{prod.designer || '—'}</p>
+              <p className="font-semibold text-fg max-w-[200px] truncate">{prod.name}</p>
+              <p className="text-xs text-fg-subtle">{prod.designer || '—'}</p>
               {prod.badge && (
-                <span className="inline-block text-xs font-tech font-bold px-1.5 py-0.5 bg-surface-inverse text-on-inverse rounded-sm mt-0.5">
+                <span className="mt-0.5 inline-block rounded-sm border border-line bg-primary-tint px-2 py-0.5 font-mono text-xs font-medium text-fg">
                   {prod.badge}
                 </span>
               )}
@@ -291,7 +291,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
     },
     {
       key: 'priceDigital',
-      header: isVi ? 'Giá File (STL)' : 'File price (STL)',
+      header: isVi ? 'Giá Tệp (STL)' : 'File price (STL)',
       numeric: true,
       value: (p) => p.priceDigital,
       render: (prod) => formatCurrency(prod.priceDigital),
@@ -304,21 +304,21 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
         const readiness = prod.productionReadiness || 'ready_to_print';
         if (readiness === 'ready_to_print') {
           return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-positive-tint text-positive border border-positive/30">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-positive/20 bg-positive-tint px-2.5 py-1 text-xs font-medium text-positive">
               ✓ {isVi ? 'Sẵn Sàng In' : 'Ready'}
             </span>
           );
         }
         if (readiness === 'missing_profile') {
           return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-warning-tint text-warning border border-warning/30">
-              ⚠ {isVi ? 'Thiếu Profile' : 'Missing profile'}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/20 bg-warning-tint px-2.5 py-1 text-xs font-medium text-warning">
+              ⚠ {isVi ? 'Thiếu hồ sơ cắt lớp' : 'Missing profile'}
             </span>
           );
         }
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-tech font-bold bg-info-tint text-info border border-info/30">
-            {isVi ? 'Cần CAD Review' : 'CAD review needed'}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info-tint px-2.5 py-1 text-xs font-medium text-info">
+            {isVi ? 'Cần duyệt CAD' : 'CAD review needed'}
           </span>
         );
       },
@@ -331,12 +331,12 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
         const status = (prod.status || 'published').toLowerCase();
         return (
           <select
-            value={status}
+            value={status} aria-label={isVi ? `Trạng thái ${prod.name}` : `Status for ${prod.name}`}
             onChange={(e) => {
               const nextStatus = e.target.value as ProductStatus;
               onUpdateProduct({ ...prod, status: nextStatus });
             }}
-            className={`text-xs font-mono font-bold px-2 py-1 rounded-lg border cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${
+            className={`h-10 cursor-pointer rounded-md border px-2.5 font-mono text-xs font-medium transition-colors duration-200 motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               status === 'published'
                 ? 'bg-positive-tint text-positive border-positive/30'
                 : status === 'draft'
@@ -357,22 +357,26 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
       align: 'right',
       render: (prod) => (
         <div className="flex items-center justify-end gap-1.5">
-          <button
+          <Button
+            iconOnly
+            variant="ghost"
+            size="sm"
             onClick={() => setEditingProduct({ ...prod })}
-            className="p-1.5 bg-surface border border-line hover:border-primary text-fg rounded-lg transition-colors cursor-pointer"
             aria-label={isVi ? `Sửa ${prod.name}` : `Edit ${prod.name}`}
             title={isVi ? 'Sửa sản phẩm' : 'Edit product'}
           >
             <Icon name="edit" size={16} />
-          </button>
-          <button
+          </Button>
+          <Button
+            iconOnly
+            variant="danger-ghost"
+            size="sm"
             onClick={() => handleDeleteProductConfirm(prod)}
-            className="p-1.5 bg-surface border border-danger/30 hover:bg-danger-tint text-danger rounded-lg transition-colors cursor-pointer"
             aria-label={isVi ? `Xoá ${prod.name}` : `Delete ${prod.name}`}
             title={isVi ? 'Xóa sản phẩm' : 'Delete product'}
           >
             <Icon name="delete" size={16} />
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -380,7 +384,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
   ], [isVi]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <ConfirmDialog
         open={pendingDeleteProduct !== null}
         tone="danger"
@@ -403,52 +407,73 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
         }}
       />
       {/* Header & Add Button Bar */}
-      <div className="bg-surface p-4 border border-line rounded-lg flex flex-col md:flex-row items-center justify-between gap-3 shadow-e1">
-        <div className="flex items-center gap-3 w-full md:w-auto flex-1 max-w-md">
-          <div className="relative w-full">
-            <Icon name="search" size={16} className="absolute left-3 top-2.5 text-fg-muted" />
-            <input
-              type="text"
-              placeholder={isVi ? 'Tìm theo tên sản phẩm, SKU...' : 'Search by name, SKU...'}
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-line-control rounded-lg text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-primary bg-surface-muted"
-            />
-          </div>
+      <div className="flex flex-col items-stretch justify-between gap-4 rounded-lg border border-line-subtle bg-surface p-4 md:flex-row md:items-end">
+        <div className="w-full max-w-md">
+          <Field id="admin-products-search" label={isVi ? 'Tìm sản phẩm' : 'Search products'} hideLabel optionalLabel={null}>
+            {(control) => (
+              <div className="relative">
+                <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+                <Input
+                  {...control}
+                  type="search"
+                  size="sm"
+                  placeholder={isVi ? 'Tìm theo tên sản phẩm, SKU...' : 'Search by name, SKU...'}
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            )}
+          </Field>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {/* Category Filter */}
-          <select
-            value={productCategoryFilter}
-            onChange={(e) => setProductCategoryFilter(e.target.value)}
-            className="px-3 py-2 border border-line-control rounded-lg text-xs font-bold bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
-          >
-            <option value="all">{isVi ? 'Tất Cả Danh Mục' : 'All Categories'}</option>
-            {CATEGORIES.filter(c => c.id !== 'all').map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <div className="w-full sm:w-44">
+            <Field id="admin-products-category" label={isVi ? 'Lọc theo danh mục' : 'Filter by category'} hideLabel optionalLabel={null}>
+              {(control) => (
+                <Select
+                  {...control}
+                  size="sm"
+                  value={productCategoryFilter}
+                  onChange={(e) => setProductCategoryFilter(e.target.value)}
+                >
+                  <option value="all">{isVi ? 'Tất Cả Danh Mục' : 'All Categories'}</option>
+                  {CATEGORIES.filter(c => c.id !== 'all').map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
 
           {/* Production Readiness Filter */}
-          <select
-            value={readinessFilter}
-            onChange={(e) => setReadinessFilter(e.target.value)}
-            className="px-3 py-2 border border-line-control rounded-lg text-xs font-bold bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
-          >
-            <option value="all">{isVi ? 'Tất Cả Chuẩn In' : 'All Readiness'}</option>
-            <option value="ready_to_print">{isVi ? 'Sẵn sàng in' : 'Ready to print'}</option>
-            <option value="missing_profile">{isVi ? '⚠ Thiếu Profile Slicing' : '⚠ Missing Profile'}</option>
-            <option value="cad_review_needed">{isVi ? '🔧 Cần Review CAD' : '🔧 CAD Review Needed'}</option>
-          </select>
+          <div className="w-full sm:w-44">
+            <Field id="admin-products-readiness" label={isVi ? 'Lọc theo chuẩn in' : 'Filter by readiness'} hideLabel optionalLabel={null}>
+              {(control) => (
+                <Select
+                  {...control}
+                  size="sm"
+                  value={readinessFilter}
+                  onChange={(e) => setReadinessFilter(e.target.value)}
+                >
+                  <option value="all">{isVi ? 'Tất Cả Chuẩn In' : 'All Readiness'}</option>
+                  <option value="ready_to_print">{isVi ? 'Sẵn sàng in' : 'Ready to print'}</option>
+                  <option value="missing_profile">{isVi ? '⚠ Thiếu hồ sơ cắt lớp' : '⚠ Missing Profile'}</option>
+                  <option value="cad_review_needed">{isVi ? '🔧 Cần duyệt CAD' : '🔧 CAD Review Needed'}</option>
+                </Select>
+              )}
+            </Field>
+          </div>
 
-          <button
+          <Button
+            variant="primary"
+            size="sm"
+            leadingIcon={<Icon name="add_circle" size={16} />}
             onClick={() => setIsNewProductModalOpen(true)}
-            className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-lg flex items-center gap-1.5 transition-colors shadow-e1 cursor-pointer"
           >
-            <Icon name="add_circle" size={16} />
             {isVi ? 'Thêm Sản Phẩm Mới' : 'Add New Product'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -477,112 +502,119 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
           size="lg"
           title={isVi ? 'Chỉnh Sửa Thông Tin Sản Phẩm' : 'Edit Product'}
         >
-            <form onSubmit={handleSaveEditProduct} className="space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="font-bold text-fg">Tên sản phẩm *</label>
-                <input
-                  type="text"
-                  value={editingProduct.name}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Mã SKU</label>
-                  <input
+            <form onSubmit={handleSaveEditProduct} className="space-y-5">
+              <Field label="Tên sản phẩm *" required requiredMark="" optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
                     type="text"
-                    value={editingProduct.sku || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, sku: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech"
+                    value={editingProduct.name}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                    required
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Danh mục</label>
-                  <select
-                    value={editingProduct.category}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
-                  >
-                    {CATEGORIES.filter(c => c.id !== 'all').map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
+                )}
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Mã SKU" optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={editingProduct.sku || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, sku: e.target.value })}
+                      className="font-mono"
+                    />
+                  )}
+                </Field>
+                <Field label="Danh mục" optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={editingProduct.category}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                    >
+                      {CATEGORIES.filter(c => c.id !== 'all').map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Giá Bản In Vật Lý (VNĐ) *</label>
-                  <input
-                    type="number"
-                    min={0}
-                    aria-required="true"
-                    value={editingProduct.pricePhysical ?? ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, pricePhysical: parseMoneyInput(e.target.value) })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech font-bold"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Giá File STL Số (VNĐ) *</label>
-                  <input
-                    type="number"
-                    min={0}
-                    aria-required="true"
-                    value={editingProduct.priceDigital ?? ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, priceDigital: parseMoneyInput(e.target.value) })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech"
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Giá Bản In Vật Lý (VNĐ) *" optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      min={0}
+                      aria-required="true"
+                      numeric
+                      value={editingProduct.pricePhysical ?? ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, pricePhysical: parseMoneyInput(e.target.value) })}
+                    />
+                  )}
+                </Field>
+                <Field label="Giá Tệp STL Số (VNĐ) *" optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      min={0}
+                      aria-required="true"
+                      numeric
+                      value={editingProduct.priceDigital ?? ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, priceDigital: parseMoneyInput(e.target.value) })}
+                    />
+                  )}
+                </Field>
               </div>
               <p className="text-xs text-fg-muted">
                 Xoá trắng ô giá = "chưa nhập": hệ thống chặn lưu và báo thiếu trường, KHÔNG tự
                 quay về 0. Nhập đúng số 0 nếu kênh này không bán.
               </p>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Độ Sẵn Sàng In (Readiness)</label>
-                  <select
-                    value={editingProduct.productionReadiness || 'ready_to_print'}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, productionReadiness: e.target.value as any })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
-                  >
-                    <option value="ready_to_print">Sẵn sàng in</option>
-                    <option value="missing_profile">⚠ Thiếu Profile Slicing</option>
-                    <option value="cad_review_needed">🔧 Cần CAD Review</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Trạng thái hiển thị</label>
-                  <select
-                    value={editingProduct.status}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value as any })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
-                  >
-                    <option value="Published">Đang Mở Bán (Published)</option>
-                    <option value="Out of Stock">Tạm Hết Hàng (Out of Stock)</option>
-                    <option value="Under Review">Đang Duyệt</option>
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Độ Sẵn Sàng In" optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={editingProduct.productionReadiness || 'ready_to_print'}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, productionReadiness: e.target.value as any })}
+                    >
+                      <option value="ready_to_print">Sẵn sàng in</option>
+                      <option value="missing_profile">⚠ Thiếu hồ sơ cắt lớp</option>
+                      <option value="cad_review_needed">🔧 Cần duyệt CAD</option>
+                    </Select>
+                  )}
+                </Field>
+                <Field label="Trạng thái hiển thị" optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={editingProduct.status}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value as any })}
+                    >
+                      <option value="Published">Đang mở bán</option>
+                      <option value="Out of Stock">Tạm hết hàng</option>
+                      <option value="Under Review">Đang Duyệt</option>
+                    </Select>
+                  )}
+                </Field>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-line">
-                <button
+              <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setEditingProduct(null)}
-                  className="px-4 py-2 bg-surface-muted hover:bg-line-subtle text-fg font-bold rounded-lg cursor-pointer"
                 >
                   Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg font-bold rounded-lg cursor-pointer"
-                >
+                </Button>
+                <Button type="submit" variant="primary">
                   Lưu Thay Đổi
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>
@@ -596,69 +628,77 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
           size="lg"
           title={isVi ? 'Thêm Sản Phẩm & Bản In Mới' : 'Add New Product'}
         >
-            <form onSubmit={handleSaveNewProduct} className="space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="font-bold text-fg">Tên sản phẩm *</label>
-                <input
-                  type="text"
-                  placeholder="VD: Khớp nối mềm Coupler 8x8mm"
-                  value={newProductForm.name}
-                  onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
-                  className="w-full p-2.5 border border-line-control rounded-lg text-xs font-bold"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Mã SKU (do bạn tự nhập)</label>
-                  <input
+            <form onSubmit={handleSaveNewProduct} className="space-y-5">
+              <Field label="Tên sản phẩm *" required requiredMark="" optionalLabel={null}>
+                {(control) => (
+                  <Input
+                    {...control}
                     type="text"
-                    placeholder={isVi ? 'Để trống nếu chưa có mã' : 'Leave empty if none'}
-                    value={newProductForm.sku}
-                    onChange={(e) => setNewProductForm({ ...newProductForm, sku: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech"
+                    placeholder="VD: Khớp nối mềm Coupler 8x8mm"
+                    value={newProductForm.name}
+                    onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
+                    required
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Danh mục</label>
-                  <select
-                    value={newProductForm.category}
-                    onChange={(e) => setNewProductForm({ ...newProductForm, category: e.target.value })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
-                  >
-                    {CATEGORIES.filter(c => c.id !== 'all').map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
+                )}
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Mã SKU (do bạn tự nhập)" optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      placeholder={isVi ? 'Để trống nếu chưa có mã' : 'Leave empty if none'}
+                      value={newProductForm.sku}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, sku: e.target.value })}
+                      className="font-mono"
+                    />
+                  )}
+                </Field>
+                <Field label="Danh mục" optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={newProductForm.category}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, category: e.target.value })}
+                    >
+                      {CATEGORIES.filter(c => c.id !== 'all').map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Giá Bản In (VNĐ) *</label>
-                  <input
-                    type="number"
-                    min={0}
-                    aria-required="true"
-                    placeholder={isVi ? 'Bắt buộc — nhập giá bản in' : 'Required — enter print price'}
-                    value={newProductForm.pricePhysical ?? ''}
-                    onChange={(e) => setNewProductForm({ ...newProductForm, pricePhysical: parseMoneyInput(e.target.value) })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech font-bold"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Giá File STL (VNĐ) *</label>
-                  <input
-                    type="number"
-                    min={0}
-                    aria-required="true"
-                    placeholder={isVi ? 'Bắt buộc — nhập giá file STL' : 'Required — enter STL file price'}
-                    value={newProductForm.priceDigital ?? ''}
-                    onChange={(e) => setNewProductForm({ ...newProductForm, priceDigital: parseMoneyInput(e.target.value) })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-tech"
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Giá Bản In (VNĐ) *" optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      min={0}
+                      aria-required="true"
+                      numeric
+                      placeholder={isVi ? 'Bắt buộc — nhập giá bản in' : 'Required — enter print price'}
+                      value={newProductForm.pricePhysical ?? ''}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, pricePhysical: parseMoneyInput(e.target.value) })}
+                    />
+                  )}
+                </Field>
+                <Field label="Giá Tệp STL (VNĐ) *" optionalLabel={null}>
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="number"
+                      min={0}
+                      aria-required="true"
+                      numeric
+                      placeholder={isVi ? 'Bắt buộc — nhập giá tệp STL' : 'Required — enter STL file price'}
+                      value={newProductForm.priceDigital ?? ''}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, priceDigital: parseMoneyInput(e.target.value) })}
+                    />
+                  )}
+                </Field>
               </div>
               <p className="text-xs text-fg-muted">
                 Giá là dữ liệu THẬT do bạn nhập. Bỏ trống ⇒ hệ thống chặn lưu và báo thiếu trường,
@@ -666,67 +706,66 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
               </p>
 
               {/* Q2 (data-honesty): ô nhập tính năng THẬT — mỗi dòng một tính năng. */}
-              <div className="space-y-1">
-                <label htmlFor="new-product-features" className="font-bold text-fg">
-                  Tính năng sản phẩm (mỗi dòng một tính năng)
-                </label>
-                <textarea
-                  id="new-product-features"
-                  rows={3}
-                  value={newProductFeaturesText}
-                  onChange={(e) => setNewProductFeaturesText(e.target.value)}
-                  placeholder={isVi ? 'Để trống nếu chưa xác nhận được tính năng nào' : 'Leave empty if none confirmed'}
-                  className="w-full p-2 border border-line-control rounded-lg text-xs"
-                />
-                <p className="text-xs text-fg-muted">
-                  Chỉ nhập tính năng đã xác nhận. Bỏ trống ⇒ sản phẩm không có tính năng nào, hệ thống
-                  không tự thêm.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Độ Sẵn Sàng In (Readiness)</label>
-                  <select
-                    value={newProductForm.productionReadiness || 'ready_to_print'}
-                    onChange={(e) => setNewProductForm({ ...newProductForm, productionReadiness: e.target.value as any })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs font-bold bg-surface"
-                  >
-                    <option value="ready_to_print">Sẵn sàng in</option>
-                    <option value="missing_profile">⚠ Thiếu Profile Slicing</option>
-                    <option value="cad_review_needed">🔧 Cần CAD Review</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-fg">Ảnh Sản Phẩm (URL) *</label>
-                  <input
-                    type="text"
-                    aria-required="true"
-                    placeholder="https://..."
-                    value={newProductForm.images?.[0] || ''}
-                    onChange={(e) => setNewProductForm({ ...newProductForm, images: [e.target.value] })}
-                    className="w-full p-2 border border-line-control rounded-lg text-xs"
+              <Field
+                label="Tính năng sản phẩm (mỗi dòng một tính năng)"
+                hint="Chỉ nhập tính năng đã xác nhận. Bỏ trống ⇒ sản phẩm không có tính năng nào, hệ thống không tự thêm."
+                optionalLabel={null}
+              >
+                {(control) => (
+                  <textarea
+                    {...control}
+                    rows={3}
+                    value={newProductFeaturesText}
+                    onChange={(e) => setNewProductFeaturesText(e.target.value)}
+                    placeholder={isVi ? 'Để trống nếu chưa xác nhận được tính năng nào' : 'Leave empty if none confirmed'}
+                    className="w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring aria-invalid:border-danger"
                   />
-                  <p className="text-xs text-fg-muted">
-                    Dán URL ảnh thật của sản phẩm — hệ thống không tự chèn ảnh mẫu.
-                  </p>
-                </div>
+                )}
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Độ Sẵn Sàng In" optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={newProductForm.productionReadiness || 'ready_to_print'}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, productionReadiness: e.target.value as any })}
+                    >
+                      <option value="ready_to_print">Sẵn sàng in</option>
+                      <option value="missing_profile">⚠ Thiếu hồ sơ cắt lớp</option>
+                      <option value="cad_review_needed">🔧 Cần duyệt CAD</option>
+                    </Select>
+                  )}
+                </Field>
+                <Field
+                  label="Ảnh Sản Phẩm (URL) *"
+                  hint="Dán URL ảnh thật của sản phẩm — hệ thống không tự chèn ảnh mẫu."
+                  optionalLabel={null}
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      aria-required="true"
+                      placeholder="https://..."
+                      value={newProductForm.images?.[0] || ''}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, images: [e.target.value] })}
+                    />
+                  )}
+                </Field>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-line">
-                <button
+              <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setIsNewProductModalOpen(false)}
-                  className="px-4 py-2 bg-surface-muted hover:bg-line-subtle text-fg font-bold rounded-lg cursor-pointer"
                 >
                   Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg font-bold rounded-lg cursor-pointer"
-                >
-                  Thêm Vào Catalog
-                </button>
+                </Button>
+                <Button type="submit" variant="primary">
+                  Thêm Vào Danh Mục
+                </Button>
               </div>
             </form>
         </Modal>

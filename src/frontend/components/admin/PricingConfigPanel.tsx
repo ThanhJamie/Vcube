@@ -20,7 +20,7 @@ import { INKIRI_REFERENCE_VALUES } from '../../../data/mockData';
 import { AccessoriesManager } from './AccessoriesManager';
 import { WarehouseInventoryPanel } from './WarehouseInventoryPanel';
 import { WorkshopEstimatorBOM } from './WorkshopEstimatorBOM';
-import { ConfirmDialog, Icon, InfoTip, Modal } from '@frontend/ui';
+import { ConfirmDialog, Icon, InfoTip, Modal, Button, Badge } from '@frontend/ui';
 
 interface PricingConfigPanelProps {
   initialSubTab?: 'formula' | 'materials' | 'printers' | 'accessories' | 'inventory' | 'estimator';
@@ -88,14 +88,14 @@ const referenceGlobalForm = (): {
 });
 
 const formatPreviewVnd = (v: number | null): string =>
-  v === null ? PREVIEW_NOT_CONFIGURED : `${formatNumber(v)} đ`;
+  v === null ? PREVIEW_NOT_CONFIGURED : `${formatNumber(v)} ₫`;
 
 /** Chênh lệch giữa giá trị ĐANG GÕ và giá trị ĐANG LƯU; thiếu một bên ⇒ nói rõ chưa đủ dữ liệu. */
 const formatPreviewDelta = (saved: number | null, typed: number | null): string => {
   if (saved === null || typed === null) return 'Chưa đủ dữ liệu';
   const delta = typed - saved;
   if (delta === 0) return 'Không đổi';
-  return `${delta > 0 ? '+' : '−'}${formatNumber(Math.abs(delta))} đ`;
+  return `${delta > 0 ? '+' : '−'}${formatNumber(Math.abs(delta))} ₫`;
 };
 
 /**
@@ -104,7 +104,7 @@ const formatPreviewDelta = (saved: number | null, typed: number | null): string 
  */
 const FieldError: React.FC<{ id: string; message?: string }> = ({ id, message }) =>
   message ? (
-    <p id={`${id}-error`} role="alert" className="text-xs text-danger mt-1 font-semibold">
+    <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-semibold text-danger">
       {message}
     </p>
   ) : null;
@@ -318,18 +318,18 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
     // công thức nữa. Giữ chúng ở đây sẽ chặn Lưu một cách vô nghĩa.
     // `defaultMachineDepreciationPerHour` cũng bỏ: bỏ trống thì engine TỰ TÍNH
     // = giá mua ÷ tuổi thọ của chính máy đó (xem `pricingEngine.resolveGlobalRates`).
-    { key: 'noSupportRemovalMinutes', label: 'Bóc support khi KHÔNG có support (phút)', min: 0 },
+    { key: 'noSupportRemovalMinutes', label: 'Bóc vật liệu đỡ khi KHÔNG có vật liệu đỡ (phút)', min: 0 },
     { key: 'fixedPackagingCost', label: 'Phí đóng gói cố định', min: 0 },
     { key: 'ipaSolventCost', label: 'Chi phí cồn IPA & dung môi', min: 0 },
     { key: 'multiColorPackagingExtra', label: 'Phụ phí đóng gói in đa màu', min: 0 },
     { key: 'overheadPerUnit', label: 'Chi phí quản lý mặt bằng xưởng', min: 0 },
-    { key: 'fileReviewLaborMinutes', label: 'Review file & Slicing', min: 0 },
-    { key: 'setupLaborMinutes', label: 'Setup máy & bàn in', min: 0 },
-    { key: 'supportRemovalMinutes', label: 'Tách Support', min: 0 },
-    { key: 'postProcessingLaborMinutes', label: 'Mài nhẵn Deburring', min: 0 },
+    { key: 'fileReviewLaborMinutes', label: 'Duyệt tệp & cắt lớp', min: 0 },
+    { key: 'setupLaborMinutes', label: 'Cài đặt máy & bàn in', min: 0 },
+    { key: 'supportRemovalMinutes', label: 'Tách vật liệu đỡ', min: 0 },
+    { key: 'postProcessingLaborMinutes', label: 'Mài nhẵn ba via', min: 0 },
     { key: 'qcLaborMinutes', label: 'Đo kiểm QC dung sai', min: 0 },
     { key: 'packagingLaborMinutes', label: 'Đóng gói hoàn thiện', min: 0 },
-    { key: 'defaultMarkupPercent', label: 'Lợi nhuận mục tiêu (Markup)', min: 0, max: 1000 },
+    { key: 'defaultMarkupPercent', label: 'Lợi nhuận mục tiêu (%)', min: 0, max: 1000 },
     { key: 'baseFailureReservePercent', label: 'Dự phòng rủi ro in lỗi cơ bản', min: 0, max: 100 },
     { key: 'lowPrintabilityExtraPercent', label: 'Phụ phí mô hình khó', min: 0, max: 100 },
     { key: 'multiColorExtraPercent', label: 'Phụ phí in nhiều màu AMS', min: 0, max: 100 },
@@ -341,12 +341,12 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
     { key: 'customLogoUploadFee', label: 'Phí xử lý & đùn logo', min: 0 },
     { key: 'economyDiscountPercent', label: 'Chiết khấu Gói Tiết Kiệm', min: 0, max: 100 },
     { key: 'expressRushSurchargePercent', label: 'Phụ phí Gói Hỏa Tốc', min: 0, max: 100 },
-    { key: 'supportVolumeRatioPercent', label: 'Tỷ lệ Support', min: 0, max: 100 },
-    { key: 'brimRaftGrams', label: 'Nhựa Brim/Raft', min: 0 },
-    { key: 'multiColorPurgeWasteGrams', label: 'Purge tháp xả / màu', min: 0 },
+    { key: 'supportVolumeRatioPercent', label: 'Tỷ lệ vật liệu đỡ', min: 0, max: 100 },
+    { key: 'brimRaftGrams', label: 'Nhựa đế bám/bè đỡ', min: 0 },
+    { key: 'multiColorPurgeWasteGrams', label: 'Xả nhựa tháp xả / màu', min: 0 },
     { key: 'multiColorToolChangeMins', label: 'Đổi màu AMS', min: 0 },
     { key: 'bulkOrderQuantityThreshold', label: 'Ngưỡng cảnh báo đơn lớn — số lượng (chiếc)', min: 1 },
-    { key: 'bulkOrderAmountThresholdVnd', label: 'Ngưỡng cảnh báo đơn lớn — số tiền (đ)', min: 0 },
+    { key: 'bulkOrderAmountThresholdVnd', label: 'Ngưỡng cảnh báo đơn lớn — số tiền (₫)', min: 0 },
   ];
 
   /** Ghi lỗi vào `issues` khi thiếu số hoặc ngoài khoảng. KHÔNG tự thay bằng số khác. */
@@ -572,7 +572,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
   const previewRows: { key: string; label: string; saved: number | null; typed: number | null }[] = [
     {
       key: 'vat',
-      label: `VAT của tiền hàng mẫu ${formatNumber(PREVIEW_EXAMPLE.goodsVnd)} đ`,
+      label: `VAT của tiền hàng mẫu ${formatNumber(PREVIEW_EXAMPLE.goodsVnd)} ₫`,
       saved: previewVatAmount(savedVatPercent),
       typed: previewVatAmount(typedVatPercent),
     },
@@ -640,8 +640,8 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
     requireNumber(issues, values, 'pricePerGram', 'Đơn giá tính khách / gram', { min: 0 });
     requireNumber(issues, values, 'unitPriceMultiplier', 'Hệ số đơn giá', { min: 0, exclusiveMin: true });
     requireNumber(issues, values, 'spoolWeightGrams', 'Khối lượng cuộn', { min: 0, exclusiveMin: true });
-    requireNumber(issues, values, 'extruderTempMin', 'Nhiệt độ đầu đùn Min', { min: 0, exclusiveMin: true });
-    requireNumber(issues, values, 'extruderTempMax', 'Nhiệt độ đầu đùn Max', { min: 0, exclusiveMin: true });
+    requireNumber(issues, values, 'extruderTempMin', 'Nhiệt độ đầu đùn tối thiểu', { min: 0, exclusiveMin: true });
+    requireNumber(issues, values, 'extruderTempMax', 'Nhiệt độ đầu đùn tối đa', { min: 0, exclusiveMin: true });
     requireNumber(issues, values, 'bedTemp', 'Nhiệt độ bàn in', { min: 0 });
     requireNumber(issues, values, 'stockRollsCount', 'Tồn kho (cuộn)', { min: 0 });
     // TÙY CHỌN (Đợt P): phụ phí dự phòng in hỏng riêng của vật liệu. Để trống = không cộng thêm;
@@ -896,44 +896,42 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
         }}
       />
       {/* Panel Header & Summary banner */}
-      <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-xl border border-line bg-surface p-6 sm:p-8">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 bg-accent/20 text-primary font-tech text-xs font-bold rounded-sm border border-accent/40 uppercase tracking-widest">
-                INKIRI 3D COST ENGINE v3.4
-              </span>
-              <span className="text-xs text-fg-muted">Mô hình định giá theo chuẩn xưởng in 3D công nghiệp</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="technical" className="uppercase tracking-wider">BỘ MÁY TÍNH CHI PHÍ IN 3D INKIRI v3.4</Badge>
+              <span className="text-sm text-fg-muted">Mô hình định giá theo chuẩn xưởng in 3D công nghiệp</span>
             </div>
-            <h2 className="mt-1 flex items-center gap-1.5 text-lg font-bold text-fg sm:text-xl">
+            <h2 className="mt-2 flex items-center gap-1.5 text-2xl font-bold tracking-tight text-fg">
               Quản Trị Bảng Giá, Nhựa In, Máy In & Thông Số Tính Phí Xưởng
               <InfoTip label="Giá thành gồm những biến số nào?">
                 Cấu hình các biến số ảnh hưởng trực tiếp đến giá thành: Tiền nhựa, điện năng, khấu hao máy in,
-                nhân công xử lý file/support, đóng gói và biên lợi nhuận.
+                nhân công xử lý tệp/vật liệu đỡ, đóng gói và biên lợi nhuận.
               </InfoTip>
             </h2>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Button
               type="button"
+              variant="secondary"
               id="inkiri-refill-reference"
               data-testid="inkiri-refill"
               onClick={refillFromInkiriReference}
-              title="Điền bộ số mẫu theo Inkiri vào form — KHÔNG ghi database cho tới khi anh bấm Lưu"
-              className="px-4 py-2 bg-surface border border-primary text-primary hover:bg-accent/15 text-xs font-bold rounded-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Điền bộ số mẫu theo Inkiri vào biểu mẫu — KHÔNG ghi cơ sở dữ liệu cho tới khi bấm Lưu"
+              leadingIcon={<Icon name="tune" size={16} />}
             >
-              <Icon name="tune" size={16} />
               Điền lại gợi ý Inkiri
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="primary"
               onClick={handleSaveFormula}
-              className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-sm transition-colors shadow-e1 flex items-center gap-1.5 cursor-pointer"
+              leadingIcon={<Icon name="save" size={16} />}
             >
-              <Icon name="save" size={16} />
               Lưu Toàn Bộ Cấu Hình
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -942,33 +940,33 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           <div
             role="status"
             data-testid="inkiri-reference-banner"
-            className="mt-4 flex flex-wrap items-center gap-2 rounded-sm border border-accent/50 bg-accent/10 p-3 text-xs text-fg"
+            className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-warning/20 bg-warning-tint p-4 text-xs text-fg"
           >
-            <p className="flex items-start gap-1.5 font-bold text-primary">
-              <Icon name="warning" size={16} className="text-primary shrink-0" />
+            <p className="flex items-start gap-1.5 font-bold text-warning">
+              <Icon name="warning" size={16} className="shrink-0 text-warning" />
               <span>Đang dùng giá trị mẫu theo Inkiri — chưa được xem xét cho VCUBE. Xem lại rồi bấm Lưu để áp dụng.</span>
             </p>
             <InfoTip label="Nguồn số mẫu, cảnh báo VAT và các ô cần anh quyết định" title="Về bộ số mẫu Inkiri">
               <span className="flex flex-col gap-2">
                 <span>
-                  Nguồn: <span className="font-tech">{INKIRI_REFERENCE_VALUES.source.label}</span> (
-                  <span className="font-tech">{INKIRI_REFERENCE_VALUES.source.url}</span>), ghi lại ngày
-                  <span className="font-tech"> {INKIRI_REFERENCE_VALUES.source.capturedAt}</span>. Chưa bấm Lưu
-                  thì KHÔNG có lệnh ghi nào tới database.
+                  Nguồn: <span className="font-mono tabular-nums">{INKIRI_REFERENCE_VALUES.source.label}</span> (
+                  <span className="font-mono tabular-nums">{INKIRI_REFERENCE_VALUES.source.url}</span>), ghi lại ngày
+                  <span className="font-mono tabular-nums"> {INKIRI_REFERENCE_VALUES.source.capturedAt}</span>. Chưa bấm Lưu
+                  thì KHÔNG có lệnh ghi nào tới cơ sở dữ liệu.
                 </span>
                 <span>
-                  <strong>VAT là con số PHÁP LÝ</strong> — anh phải tự xác nhận. Phí nền tảng · bản quyền · markup
+                  <strong>VAT là con số PHÁP LÝ</strong> — anh phải tự xác nhận. Phí nền tảng · bản quyền · hệ số lãi
                   là <strong>QUYẾT ĐỊNH KINH DOANH</strong>: số của Inkiri chỉ là điểm khởi đầu, KHÔNG phải chuẩn đúng.
                 </span>
                 <span>
                   Ô Inkiri KHÔNG thể biết (mô hình 3 bên: nền tảng · xưởng · nhà thiết kế) vẫn để TRỐNG và gắn nhãn
                   &ldquo;cần anh quyết định&rdquo;:
-                  <span className="font-tech"> {INKIRI_REFERENCE_VALUES.needsOwnerDecision.join(' · ')}</span>
+                  <span className="font-mono tabular-nums"> {INKIRI_REFERENCE_VALUES.needsOwnerDecision.join(' · ')}</span>
                 </span>
                 {formulaIsReference && (
                   <span>
                     Đang là số mẫu: <strong>công thức (mục 1–10)</strong> — còn
-                    <span className="font-tech"> {referenceHeldCount}/{referenceTotal}</span> ô giữ đúng số mẫu; các ô
+                    <span className="font-mono tabular-nums"> {referenceHeldCount}/{referenceTotal}</span> ô giữ đúng số mẫu; các ô
                     đang là số mẫu có <strong>viền NÉT ĐỨT</strong> để phân biệt với ô anh tự nhập. Hết số mẫu khi anh
                     bấm Lưu.
                   </span>
@@ -976,7 +974,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 {globalIsReference && (
                   <span>
                     Đang là số mẫu: <strong>mục 0 — VAT · điện · nhân công · phí nền tảng</strong> (bảng
-                    <span className="font-tech"> pricing_global_settings</span>) — bấm &ldquo;Lưu Cấu Hình Chung&rdquo;
+                    <span className="font-mono tabular-nums"> pricing_global_settings</span>) — bấm &ldquo;Lưu Cấu Hình Chung&rdquo;
                     để áp dụng.
                   </span>
                 )}
@@ -989,7 +987,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
         {dbFormulaState !== 'loaded' && (
           <div
             role="status"
-            className="mt-4 flex flex-wrap items-center gap-2 rounded-sm border border-warning/30 bg-warning-tint/60 p-3 text-xs font-semibold text-warning"
+            className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-warning/20 bg-warning-tint p-4 text-xs font-semibold text-warning"
           >
             {dbFormulaState === 'loading' && 'Đang đọc cấu hình công thức giá từ Supabase (bảng pricing_configs)…'}
             {dbFormulaState === 'missing' && (
@@ -1012,7 +1010,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
         <div
           role="tablist"
           aria-label="Các nhóm cấu hình định giá"
-          className="flex border-b border-line gap-2 mt-6 pt-2 overflow-x-auto"
+          className="mt-6 inline-flex flex-wrap items-center gap-1 rounded-md border border-line bg-surface-muted p-1"
         >
           <button
             type="button"
@@ -1021,10 +1019,10 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
             aria-selected={subTab === 'formula'}
             aria-controls="pricing-panel-formula"
             onClick={() => setSubTab('formula')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer max-md:min-h-11 ${
               subTab === 'formula'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-fg-muted hover:text-fg'
+                ? 'bg-surface text-fg shadow-e1 font-semibold'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="calculate" size={16} />
@@ -1038,10 +1036,10 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
             aria-selected={subTab === 'materials'}
             aria-controls="pricing-panel-materials"
             onClick={() => setSubTab('materials')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer max-md:min-h-11 ${
               subTab === 'materials'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-fg-muted hover:text-fg'
+                ? 'bg-surface text-fg shadow-e1 font-semibold'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="layers" size={16} />
@@ -1055,10 +1053,10 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
             aria-selected={subTab === 'printers'}
             aria-controls="pricing-panel-printers"
             onClick={() => setSubTab('printers')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer max-md:min-h-11 ${
               subTab === 'printers'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-fg-muted hover:text-fg'
+                ? 'bg-surface text-fg shadow-e1 font-semibold'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="precision_manufacturing" size={16} />
@@ -1072,10 +1070,10 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
             aria-selected={subTab === 'accessories'}
             aria-controls="pricing-panel-accessories"
             onClick={() => setSubTab('accessories')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer max-md:min-h-11 ${
               subTab === 'accessories'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-fg-muted hover:text-fg'
+                ? 'bg-surface text-fg shadow-e1 font-semibold'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="extension" size={16} />
@@ -1089,10 +1087,10 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
             aria-selected={subTab === 'inventory'}
             aria-controls="pricing-panel-inventory"
             onClick={() => setSubTab('inventory')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer max-md:min-h-11 ${
               subTab === 'inventory'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-fg-muted hover:text-fg'
+                ? 'bg-surface text-fg shadow-e1 font-semibold'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="shelves" size={16} />
@@ -1106,10 +1104,10 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
             aria-selected={subTab === 'estimator'}
             aria-controls="pricing-panel-estimator"
             onClick={() => setSubTab('estimator')}
-            className={`px-3 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer max-md:min-h-11 ${
               subTab === 'estimator'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-fg-muted hover:text-fg'
+                ? 'bg-surface text-fg shadow-e1 font-semibold'
+                : 'text-fg-muted hover:text-fg'
             }`}
           >
             <Icon name="receipt_long" size={16} />
@@ -1129,40 +1127,43 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
         >
 
           {/* KHO RIÊNG: pricing_global_settings — VAT · điện · nhân công (có audit log) */}
-          <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e1 border border-line">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
+          <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+            <div className="flex flex-col justify-between gap-3 border-b border-line-subtle pb-4 sm:flex-row sm:items-center">
               <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-sm bg-accent/20 text-primary flex items-center justify-center font-bold">
+                <span className="flex size-8 items-center justify-center rounded-sm bg-primary-tint font-bold text-primary">
                   <Icon name="receipt_long" size={18} />
                 </span>
                 <div>
-                  <h3 className="flex items-center gap-1.5 text-sm font-bold text-fg">
+                  <h3 className="flex items-center gap-1.5 text-base font-semibold tracking-tight text-fg">
                     0. Cấu Hình Chung Toàn Hệ Thống (VAT · Điện · Nhân Công)
                     <InfoTip label="Cấu hình chung được lưu ở đâu?">
-                      Lưu ở bảng <span className="font-tech">pricing_global_settings</span> (kho riêng, có audit).
+                      Lưu ở bảng <span className="font-mono tabular-nums">pricing_global_settings</span> (kho riêng, có audit).
                       Ô trống = <strong>chưa cấu hình</strong> — hệ thống KHÔNG tự điền một con số đoán.
                     </InfoTip>
                   </h3>
                 </div>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={handleSaveGlobalSettings}
                 disabled={globalSaving}
-                className="px-4 py-2 bg-primary hover:bg-primary-hover disabled:opacity-60 text-primary-fg text-xs font-bold rounded-sm transition-colors shadow-e1 flex items-center gap-1.5 cursor-pointer shrink-0"
+                loading={globalSaving}
+                loadingLabel="Đang lưu…"
+                leadingIcon={<Icon name="save" size={16} />}
+                className="shrink-0"
               >
-                <Icon name="save" size={16} />
-                {globalSaving ? 'Đang lưu…' : 'Lưu Cấu Hình Chung'}
-              </button>
+                Lưu Cấu Hình Chung
+              </Button>
             </div>
 
             <div
-              className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${
-                globalIsReference ? '[&_input]:border [&_input]:border-dashed [&_input]:border-primary [&_input]:bg-accent/10' : ''
+              className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 ${
+                globalIsReference ? '[&_input]:border-dashed [&_input]:border-warning [&_input]:bg-warning-tint/40' : ''
               }`}
             >
               <div>
-                <label htmlFor="pricing-global-vat" className="block text-xs font-semibold text-fg mb-1">
+                <label htmlFor="pricing-global-vat" className="mb-1.5 block text-sm font-medium text-fg">
                   Thuế VAT (%)
                 </label>
                 <input
@@ -1179,17 +1180,17 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     setGlobalIssues((prev) => { if (!('vatPercent' in prev)) return prev; const next = { ...prev }; delete next.vatPercent; return next; });
                   }}
                   aria-invalid={!!globalIssues.vatPercent}
-                  aria-describedby={globalIssues.vatPercent ? 'pricing-global-vat-error' : undefined}
-                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
+                  aria-describedby={globalIssues.vatPercent ? 'pricing-global-vat-error pricing-global-vat-hint' : 'pricing-global-vat-hint'}
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <FieldError id="pricing-global-vat" message={globalIssues.vatPercent} />
-                <p className="text-xs text-fg-muted mt-1">
+                <p id="pricing-global-vat-hint" className="mt-1.5 text-xs text-fg-muted">
                   Khoảng {VAT_MIN_PERCENT}–{VAT_MAX_PERCENT}%. Bỏ trống = chưa cấu hình (KHÔNG mặc định 8%).
                 </p>
               </div>
 
               <div>
-                <label htmlFor="pricing-global-electricity" className="block text-xs font-semibold text-fg mb-1">
+                <label htmlFor="pricing-global-electricity" className="mb-1.5 block text-sm font-medium text-fg">
                   Đơn giá điện toàn hệ thống (VNĐ / kWh)
                 </label>
                 <input
@@ -1205,15 +1206,15 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     setGlobalIssues((prev) => { if (!('electricityRateVnd' in prev)) return prev; const next = { ...prev }; delete next.electricityRateVnd; return next; });
                   }}
                   aria-invalid={!!globalIssues.electricityRateVnd}
-                  aria-describedby={globalIssues.electricityRateVnd ? 'pricing-global-electricity-error' : undefined}
-                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
+                  aria-describedby={globalIssues.electricityRateVnd ? 'pricing-global-electricity-error pricing-global-electricity-hint' : 'pricing-global-electricity-hint'}
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <FieldError id="pricing-global-electricity" message={globalIssues.electricityRateVnd} />
-                <p className="text-xs text-fg-muted mt-1">Bỏ trống = chưa cấu hình (KHÔNG mặc định 2850).</p>
+                <p id="pricing-global-electricity-hint" className="mt-1.5 text-xs text-fg-muted">Bỏ trống = chưa cấu hình (KHÔNG mặc định 2850).</p>
               </div>
 
               <div>
-                <label htmlFor="pricing-global-labor" className="block text-xs font-semibold text-fg mb-1">
+                <label htmlFor="pricing-global-labor" className="mb-1.5 block text-sm font-medium text-fg">
                   Đơn giá nhân công toàn hệ thống (VNĐ / giờ)
                 </label>
                 <input
@@ -1229,15 +1230,15 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     setGlobalIssues((prev) => { if (!('laborHourlyRateVnd' in prev)) return prev; const next = { ...prev }; delete next.laborHourlyRateVnd; return next; });
                   }}
                   aria-invalid={!!globalIssues.laborHourlyRateVnd}
-                  aria-describedby={globalIssues.laborHourlyRateVnd ? 'pricing-global-labor-error' : undefined}
-                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
+                  aria-describedby={globalIssues.laborHourlyRateVnd ? 'pricing-global-labor-error pricing-global-labor-hint' : 'pricing-global-labor-hint'}
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <FieldError id="pricing-global-labor" message={globalIssues.laborHourlyRateVnd} />
-                <p className="text-xs text-fg-muted mt-1">Bỏ trống = chưa cấu hình (KHÔNG mặc định 65000).</p>
+                <p id="pricing-global-labor-hint" className="mt-1.5 text-xs text-fg-muted">Bỏ trống = chưa cấu hình (KHÔNG mặc định 65000).</p>
               </div>
 
               <div>
-                <label htmlFor="pricing-global-marketplace-fee" className="block text-xs font-semibold text-fg mb-1">
+                <label htmlFor="pricing-global-marketplace-fee" className="mb-1.5 block text-sm font-medium text-fg">
                   Phí nền tảng toàn hệ thống (%)
                 </label>
                 <input
@@ -1254,48 +1255,48 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     setGlobalIssues((prev) => { if (!('marketplaceFeePercent' in prev)) return prev; const next = { ...prev }; delete next.marketplaceFeePercent; return next; });
                   }}
                   aria-invalid={!!globalIssues.marketplaceFeePercent}
-                  aria-describedby={globalIssues.marketplaceFeePercent ? 'pricing-global-marketplace-fee-error' : undefined}
-                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech font-bold text-fg focus:outline-hidden focus:border-primary"
+                  aria-describedby={globalIssues.marketplaceFeePercent ? 'pricing-global-marketplace-fee-error pricing-global-marketplace-fee-hint' : 'pricing-global-marketplace-fee-hint'}
+                  className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <FieldError id="pricing-global-marketplace-fee" message={globalIssues.marketplaceFeePercent} />
-                <p className="text-xs text-fg-muted mt-1">
-                  Cột <span className="font-tech">marketplace_fee_percent</span>, khoảng {MARKETPLACE_FEE_MIN_PERCENT}–{MARKETPLACE_FEE_MAX_PERCENT}%. Bỏ trống = chưa cấu hình (KHÔNG mặc định 8).
+                <p id="pricing-global-marketplace-fee-hint" className="mt-1.5 text-xs text-fg-muted">
+                  Cột <span className="font-mono tabular-nums">marketplace_fee_percent</span>, khoảng {MARKETPLACE_FEE_MIN_PERCENT}–{MARKETPLACE_FEE_MAX_PERCENT}%. Bỏ trống = chưa cấu hình (KHÔNG mặc định 8).
                 </p>
                 <p className="text-xs text-fg-muted mt-1 leading-relaxed">
-                  Đây là <strong>nguồn DUY NHẤT</strong> của phí nền tảng: engine đọc đúng cột này.
-                  Ô "Phí Platform" trong công thức (mục 5) đã bị <strong>vô hiệu</strong> — engine không đọc nữa.
+                  Đây là <strong>nguồn DUY NHẤT</strong> của phí nền tảng: bộ tính giá đọc đúng cột này.
+                  Ô "Phí nền tảng" trong công thức (mục 5) đã bị <strong>vô hiệu</strong> — bộ tính giá không đọc nữa.
                 </p>
               </div>
             </div>
 
             {/* BẢN XEM TRƯỚC TÁC ĐỘNG — ví dụ minh hoạ, tham số cố định in rõ bên dưới */}
-            <div className="border-t border-line/60 pt-3 space-y-2">
+            <div className="space-y-2 border-t border-line-subtle pt-4">
               <div className="flex items-center gap-1.5">
                 <Icon name="calculate" size={18} className="text-primary" />
-                <h4 className="text-xs font-bold text-fg">Xem trước tác động lên một ví dụ minh hoạ</h4>
+                <h4 className="text-sm font-semibold text-fg">Xem trước tác động lên một ví dụ minh hoạ</h4>
               </div>
               <p className="text-xs text-fg-muted leading-relaxed">
                 Ví dụ minh hoạ, tham số CỐ ĐỊNH: máy in {PREVIEW_EXAMPLE.powerKW} kW chạy {PREVIEW_EXAMPLE.printHours} giờ
                 ({formatNumber(PREVIEW_KWH)} kWh) · {PREVIEW_EXAMPLE.laborMinutes} phút nhân công ·
-                tiền hàng mẫu {formatNumber(PREVIEW_EXAMPLE.goodsVnd)} đ. Đây KHÔNG phải số liệu của một đơn hàng thật.
+                tiền hàng mẫu {formatNumber(PREVIEW_EXAMPLE.goodsVnd)} ₫. Đây KHÔNG phải số liệu của một đơn hàng thật.
               </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="text-fg-subtle uppercase font-mono">
-                      <th className="py-1.5 pr-3 font-bold">Hạng mục (ví dụ)</th>
-                      <th className="py-1.5 pr-3 font-bold text-right">Đang lưu (DB)</th>
-                      <th className="py-1.5 pr-3 font-bold text-right">Đang gõ</th>
-                      <th className="py-1.5 font-bold text-right">Chênh lệch</th>
+              <div className="overflow-x-auto rounded-lg border border-line">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-surface-muted text-xs uppercase tracking-wider text-fg-subtle">
+                    <tr>
+                      <th className="h-10 px-4 text-left font-semibold">Hạng mục (ví dụ)</th>
+                      <th className="h-10 px-4 text-right font-semibold">Đang lưu (DB)</th>
+                      <th className="h-10 px-4 text-right font-semibold">Đang gõ</th>
+                      <th className="h-10 px-4 text-right font-semibold">Chênh lệch</th>
                     </tr>
                   </thead>
-                  <tbody className="font-mono">
+                  <tbody className="font-mono tabular-nums">
                     {previewRows.map((row) => (
-                      <tr key={row.key} className="border-t border-line/60">
-                        <td className="py-1.5 pr-3 text-fg-muted">{row.label}</td>
-                        <td className="py-1.5 pr-3 text-right text-fg">{formatPreviewVnd(row.saved)}</td>
-                        <td className="py-1.5 pr-3 text-right text-fg">{formatPreviewVnd(row.typed)}</td>
-                        <td className={`py-1.5 text-right font-bold ${
+                      <tr key={row.key} className="border-t border-line-subtle hover:bg-surface-muted/60">
+                        <td className="px-4 py-2.5 text-fg-muted">{row.label}</td>
+                        <td className="px-4 py-2.5 text-right text-fg">{formatPreviewVnd(row.saved)}</td>
+                        <td className="px-4 py-2.5 text-right text-fg">{formatPreviewVnd(row.typed)}</td>
+                        <td className={`px-4 py-2.5 text-right font-bold ${
                           row.saved === null || row.typed === null
                             ? 'text-fg-subtle'
                             : row.typed === row.saved
@@ -1311,44 +1312,44 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
               </div>
             </div>
 
-            <p className="text-xs text-fg-muted italic border-t border-line/60 pt-2">
-              * Kho này là cấu hình CHUNG (VAT · điện · nhân công). Từ Đợt 9 (R1) pricing engine ĐỌC THẬT kho này:
-              thiếu đơn giá điện hoặc đơn giá nhân công ⇒ engine CHẶN tính giá và nêu đích danh tham số còn thiếu
-              (không còn rơi về 2850/65000 viết trong mã); <span className="font-tech">vat_percent</span> để trống
+            <p className="border-t border-line-subtle pt-3 text-xs italic text-fg-muted">
+              * Kho này là cấu hình CHUNG (VAT · điện · nhân công). Từ Đợt 9 (R1) bộ tính giá ĐỌC THẬT kho này:
+              thiếu đơn giá điện hoặc đơn giá nhân công ⇒ bộ tính giá CHẶN việc tính giá và nêu đích danh tham số còn thiếu
+              (không còn rơi về 2850/65000 viết trong mã); <span className="font-mono tabular-nums">vat_percent</span> để trống
               ⇒ mọi màn hình ẩn dòng VAT và ghi rõ "VAT chưa được cấu hình".
-              Các hệ số còn lại của công thức vẫn nằm ở bảng<span className="font-tech"> pricing_configs</span> bên dưới.
+              Các hệ số còn lại của công thức vẫn nằm ở bảng<span className="font-mono tabular-nums"> pricing_configs</span> bên dưới.
             </p>
           </div>
 
           <div
             className={`grid grid-cols-1 lg:grid-cols-3 gap-6 ${
-              formulaIsReference ? '[&_input]:border [&_input]:border-dashed [&_input]:border-primary [&_input]:bg-accent/10' : ''
+              formulaIsReference ? '[&_input]:border-dashed [&_input]:border-warning [&_input]:bg-warning-tint/40' : ''
             }`}
           >
 
             {/* Section 1: Electricity & Energy */}
-            <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e1">
-              <div className="flex items-center gap-2 border-b border-line pb-3">
+            <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+              <div className="flex items-center gap-2 border-b border-line-subtle pb-3">
                 <span className="w-8 h-8 rounded-sm bg-warning-tint text-warning flex items-center justify-center font-bold">
                   <Icon name="bolt" size={18} />
                 </span>
                 <div>
-                  <h3 className="font-bold text-sm text-fg">1. Đơn Giá Điện Năng</h3>
+                  <h3 className="text-base font-semibold tracking-tight text-fg">1. Đơn Giá Điện Năng</h3>
                   <p className="text-xs text-fg-muted">Điện sản xuất kinh doanh EVN</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-sm border border-warning/40 bg-warning-tint/40 space-y-2">
+              <div className="space-y-2 rounded-md border border-warning/20 bg-warning-tint p-4">
                 <p className="text-xs font-bold text-warning flex items-start gap-1.5">
                   <Icon name="warning" size={18} className="text-warning shrink-0" />
                   <span>Ô NÀY ĐÃ HẾT TÁC DỤNG — đừng nhập giá điện ở đây.</span>
                 </p>
                 <p className="text-xs text-fg-muted leading-relaxed">
-                  Nguồn thật là <span className="font-tech">pricing_global_settings.electricity_rate_vnd</span>, nhập ở
+                  Nguồn thật là <span className="font-mono tabular-nums">pricing_global_settings.electricity_rate_vnd</span>, nhập ở
                   <strong> mục 0 — Cấu hình Chung Toàn Hệ Thống</strong> phía trên. Giá trị còn lưu trong
-                  <span className="font-tech"> pricing_configs</span> chỉ để đọc lại cấu hình cũ — engine KHÔNG dùng.
+                  <span className="font-mono tabular-nums"> pricing_configs</span> chỉ để đọc lại cấu hình cũ — bộ tính giá KHÔNG dùng.
                 </p>
-                <label htmlFor="cfg-electricity-rate" className="block text-xs text-fg-muted mb-1">
+                <label htmlFor="cfg-electricity-rate" className="mb-1.5 block text-sm font-medium text-fg-muted">
                   Đơn giá điện trong công thức (đã ngừng dùng — nhập ở mục 0)
                 </label>
                 <input
@@ -1359,21 +1360,21 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   aria-describedby="cfg-electricity-rate-deprecated"
                   value={formulaForm.electricityRatePerKWh ?? ''}
                   placeholder="Không còn dùng"
-                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech text-fg-subtle cursor-not-allowed"
+                  className="h-10 w-full cursor-not-allowed rounded-md border border-line-control bg-surface-muted px-3 font-mono text-sm tabular-nums text-fg-subtle"
                 />
                 <p id="cfg-electricity-rate-deprecated" className="text-xs text-fg-subtle">
                   * Công thức điện: Công suất máy (kW) × Giờ in (h) × Đơn giá điện (mục 0).
                 </p>
               </div>
 
-              <div className="pt-2 border-t border-line/60 space-y-3">
-                <h4 className="font-bold text-xs text-fg flex items-center gap-1.5">
+              <div className="pt-2 border-t border-line-subtle space-y-3">
+                <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-fg">
                   <Icon name="precision_manufacturing" size={16} className="text-primary" />
                   Khấu Hao Máy In Cơ Sở
                 </h4>
 
                 <div>
-                  <label htmlFor="cfg-machine-depreciation" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-machine-depreciation" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Khấu hao máy in cơ sở (VNĐ / giờ)
                   </label>
                   <div className="relative">
@@ -1387,22 +1388,22 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       onChange={(e) => updateFormulaField('defaultMachineDepreciationPerHour', e.target.value)}
                       aria-invalid={!!formulaIssues.defaultMachineDepreciationPerHour}
                       aria-describedby={formulaIssues.defaultMachineDepreciationPerHour ? 'cfg-machine-depreciation-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface py-2 pl-3 pr-14 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
-                    <span className="absolute right-3 top-1.5 text-xs text-fg-muted font-tech">VNĐ/h</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-fg-muted font-mono tabular-nums">VNĐ/h</span>
                   </div>
                   <FieldError id="cfg-machine-depreciation" message={formulaIssues.defaultMachineDepreciationPerHour} />
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-line/60 space-y-3">
-                <h4 className="font-bold text-xs text-fg flex items-center gap-1.5">
+              <div className="pt-2 border-t border-line-subtle space-y-3">
+                <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-fg">
                   <Icon name="inventory" size={16} className="text-primary" />
                   Đóng Gói &amp; Vật Tư Hoàn Thiện
                 </h4>
 
                 <div>
-                  <label htmlFor="cfg-packaging" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-packaging" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Phí đóng gói cố định / sp (VNĐ)
                   </label>
                   <input
@@ -1415,13 +1416,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('fixedPackagingCost', e.target.value)}
                     aria-invalid={!!formulaIssues.fixedPackagingCost}
                     aria-describedby={formulaIssues.fixedPackagingCost ? 'cfg-packaging-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-packaging" message={formulaIssues.fixedPackagingCost} />
                 </div>
 
                 <div>
-                  <label htmlFor="cfg-ipa" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-ipa" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Chi phí cồn IPA &amp; dung môi hoàn thiện / sp (VNĐ)
                   </label>
                   <input
@@ -1434,14 +1435,14 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('ipaSolventCost', e.target.value)}
                     aria-invalid={!!formulaIssues.ipaSolventCost}
                     aria-describedby={formulaIssues.ipaSolventCost ? 'cfg-ipa-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-ipa" message={formulaIssues.ipaSolventCost} />
                   <p className="text-xs text-fg-muted mt-0.5">Rửa siêu âm, dung môi IPA 99%, sấy UV sạch nhựa</p>
                 </div>
 
                 <div>
-                  <label htmlFor="cfg-multicolor-packaging" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-multicolor-packaging" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Phụ phí đóng gói in đa màu (VNĐ)
                   </label>
                   <input
@@ -1454,14 +1455,14 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('multiColorPackagingExtra', e.target.value)}
                     aria-invalid={!!formulaIssues.multiColorPackagingExtra}
                     aria-describedby={formulaIssues.multiColorPackagingExtra ? 'cfg-multicolor-packaging-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-multicolor-packaging" message={formulaIssues.multiColorPackagingExtra} />
                 </div>
 
                 <div>
-                  <label htmlFor="cfg-overhead" className="block text-xs text-fg-muted mb-1">
-                    Chi phí quản lý mặt bằng xưởng / unit (VNĐ)
+                  <label htmlFor="cfg-overhead" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Chi phí quản lý mặt bằng xưởng / đơn vị (VNĐ)
                   </label>
                   <input
                     id="cfg-overhead"
@@ -1473,7 +1474,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('overheadPerUnit', e.target.value)}
                     aria-invalid={!!formulaIssues.overheadPerUnit}
                     aria-describedby={formulaIssues.overheadPerUnit ? 'cfg-overhead-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-overhead" message={formulaIssues.overheadPerUnit} />
                 </div>
@@ -1481,27 +1482,27 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
             </div>
 
             {/* Section 2: Labor & Technician Times */}
-            <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e1">
-              <div className="flex items-center gap-2 border-b border-line pb-3">
+            <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+              <div className="flex items-center gap-2 border-b border-line-subtle pb-3">
                 <span className="w-8 h-8 rounded-sm bg-info-tint text-info flex items-center justify-center font-bold">
                   <Icon name="engineering" size={18} />
                 </span>
                 <div>
-                  <h3 className="font-bold text-sm text-fg">2. Nhân Công & Quy Trình Kỹ Thuật</h3>
+                  <h3 className="text-base font-semibold tracking-tight text-fg">2. Nhân Công & Quy Trình Kỹ Thuật</h3>
                   <p className="text-xs text-fg-muted">Định mức công việc cho từng bước</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-sm border border-warning/40 bg-warning-tint/40 space-y-2">
+              <div className="space-y-2 rounded-md border border-warning/20 bg-warning-tint p-4">
                 <p className="text-xs font-bold text-warning flex items-start gap-1.5">
                   <Icon name="warning" size={18} className="text-warning shrink-0" />
                   <span>Ô NÀY ĐÃ HẾT TÁC DỤNG — đừng nhập lương giờ ở đây.</span>
                 </p>
                 <p className="text-xs text-fg-muted leading-relaxed">
-                  Nguồn thật là <span className="font-tech">pricing_global_settings.labor_hourly_rate_vnd</span>, nhập ở
-                  <strong> mục 0 — Cấu hình Chung Toàn Hệ Thống</strong>. Các ô PHÚT bên dưới thật sự được engine dùng.
+                  Nguồn thật là <span className="font-mono tabular-nums">pricing_global_settings.labor_hourly_rate_vnd</span>, nhập ở
+                  <strong> mục 0 — Cấu hình Chung Toàn Hệ Thống</strong>. Các ô PHÚT bên dưới thật sự được bộ tính giá dùng.
                 </p>
-                <label htmlFor="cfg-labor-rate" className="block text-xs text-fg-muted mb-1">
+                <label htmlFor="cfg-labor-rate" className="mb-1.5 block text-sm font-medium text-fg-muted">
                   Mức lương kỹ thuật viên trong công thức (đã ngừng dùng — nhập ở mục 0)
                 </label>
                 <input
@@ -1512,7 +1513,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   aria-describedby="cfg-labor-rate-deprecated"
                   value={formulaForm.laborHourlyRate ?? ''}
                   placeholder="Không còn dùng"
-                  className="w-full bg-surface-muted border border-line-control rounded-sm px-3 py-2 text-xs font-tech text-fg-subtle cursor-not-allowed"
+                  className="h-10 w-full cursor-not-allowed rounded-md border border-line-control bg-surface-muted px-3 font-mono text-sm tabular-nums text-fg-subtle"
                 />
                 <p id="cfg-labor-rate-deprecated" className="text-xs text-fg-subtle">
                   * Tiền công = (tổng số phút bên dưới ÷ 60) × Lương giờ (mục 0).
@@ -1521,8 +1522,8 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div>
-                  <label htmlFor="cfg-labor-file-review" className="block text-xs text-fg-muted mb-1">
-                    Review file & Slicing (phút)
+                  <label htmlFor="cfg-labor-file-review" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Duyệt tệp & cắt lớp (phút)
                   </label>
                   <input
                     id="cfg-labor-file-review"
@@ -1533,13 +1534,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('fileReviewLaborMinutes', e.target.value)}
                     aria-invalid={!!formulaIssues.fileReviewLaborMinutes}
                     aria-describedby={formulaIssues.fileReviewLaborMinutes ? 'cfg-labor-file-review-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-labor-file-review" message={formulaIssues.fileReviewLaborMinutes} />
                 </div>
                 <div>
-                  <label htmlFor="cfg-labor-setup" className="block text-xs text-fg-muted mb-1">
-                    Setup máy & bàn in (phút)
+                  <label htmlFor="cfg-labor-setup" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Cài đặt máy & bàn in (phút)
                   </label>
                   <input
                     id="cfg-labor-setup"
@@ -1550,13 +1551,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('setupLaborMinutes', e.target.value)}
                     aria-invalid={!!formulaIssues.setupLaborMinutes}
                     aria-describedby={formulaIssues.setupLaborMinutes ? 'cfg-labor-setup-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-labor-setup" message={formulaIssues.setupLaborMinutes} />
                 </div>
                 <div>
-                  <label htmlFor="cfg-labor-support" className="block text-xs text-fg-muted mb-1">
-                    Tách Support (phút)
+                  <label htmlFor="cfg-labor-support" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Tách vật liệu đỡ (phút)
                   </label>
                   <input
                     id="cfg-labor-support"
@@ -1567,7 +1568,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('supportRemovalMinutes', e.target.value)}
                     aria-invalid={!!formulaIssues.supportRemovalMinutes}
                     aria-describedby={formulaIssues.supportRemovalMinutes ? 'cfg-labor-support-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-labor-support" message={formulaIssues.supportRemovalMinutes} />
                 </div>
@@ -1575,8 +1576,8 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   <p className="text-xs font-bold text-warning mb-1" data-testid="can-anh-quyet-dinh">
                     cần anh quyết định — Inkiri không có tham số này
                   </p>
-                  <label htmlFor="cfg-labor-no-support" className="block text-xs text-fg-muted mb-1">
-                    Không dùng support (phút)
+                  <label htmlFor="cfg-labor-no-support" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Không dùng vật liệu đỡ (phút)
                   </label>
                   <input
                     id="cfg-labor-no-support"
@@ -1587,14 +1588,14 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('noSupportRemovalMinutes', e.target.value)}
                     aria-invalid={!!formulaIssues.noSupportRemovalMinutes}
                     aria-describedby={formulaIssues.noSupportRemovalMinutes ? 'cfg-labor-no-support-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-labor-no-support" message={formulaIssues.noSupportRemovalMinutes} />
-                  <p className="text-xs text-fg-muted mt-0.5">Dùng khi đơn KHÔNG có support (trước đây cứng 2 phút)</p>
+                  <p className="text-xs text-fg-muted mt-0.5">Dùng khi đơn KHÔNG có vật liệu đỡ (trước đây cứng 2 phút)</p>
                 </div>
                 <div>
-                  <label htmlFor="cfg-labor-post" className="block text-xs text-fg-muted mb-1">
-                    Mài nhẵn Deburring (phút)
+                  <label htmlFor="cfg-labor-post" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Mài nhẵn ba via (phút)
                   </label>
                   <input
                     id="cfg-labor-post"
@@ -1605,12 +1606,12 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('postProcessingLaborMinutes', e.target.value)}
                     aria-invalid={!!formulaIssues.postProcessingLaborMinutes}
                     aria-describedby={formulaIssues.postProcessingLaborMinutes ? 'cfg-labor-post-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-labor-post" message={formulaIssues.postProcessingLaborMinutes} />
                 </div>
                 <div>
-                  <label htmlFor="cfg-labor-qc" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-labor-qc" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Đo kiểm QC dung sai (phút)
                   </label>
                   <input
@@ -1622,12 +1623,12 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('qcLaborMinutes', e.target.value)}
                     aria-invalid={!!formulaIssues.qcLaborMinutes}
                     aria-describedby={formulaIssues.qcLaborMinutes ? 'cfg-labor-qc-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-labor-qc" message={formulaIssues.qcLaborMinutes} />
                 </div>
                 <div>
-                  <label htmlFor="cfg-labor-packaging" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-labor-packaging" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Đóng gói hoàn thiện (phút)
                   </label>
                   <input
@@ -1639,32 +1640,32 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('packagingLaborMinutes', e.target.value)}
                     aria-invalid={!!formulaIssues.packagingLaborMinutes}
                     aria-describedby={formulaIssues.packagingLaborMinutes ? 'cfg-labor-packaging-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-labor-packaging" message={formulaIssues.packagingLaborMinutes} />
                 </div>
               </div>
 
-              <div className="p-2.5 bg-info-tint/60 rounded-sm border border-info/30 text-xs text-info font-tech">
+              <div className="rounded-md border border-info/20 bg-info-tint p-3 font-mono text-xs tabular-nums text-info">
                 {totalLaborMins === null ? (
                   <>Tổng nhân công: <strong>Chưa cấu hình</strong> (còn định mức phút để trống)</>
                 ) : (
                   <>
                     Tổng nhân công: <strong>{totalLaborMins} phút</strong> / sản phẩm
-                    {laborCostPerUnit !== null && <> (~{formatNumber(laborCostPerUnit)} đ)</>}
+                    {laborCostPerUnit !== null && <> (~{formatNumber(laborCostPerUnit)} ₫)</>}
                   </>
                 )}
               </div>
             </div>
 
             {/* Section 3: Risk Reserve, Markup & Fees */}
-            <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e1">
-              <div className="flex items-center gap-2 border-b border-line pb-3">
+            <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+              <div className="flex items-center gap-2 border-b border-line-subtle pb-3">
                 <span className="w-8 h-8 rounded-sm bg-positive-tint text-positive flex items-center justify-center font-bold">
                   <Icon name="trending_up" size={18} />
                 </span>
                 <div>
-                  <h3 className="font-bold text-sm text-fg">3. Dự Phòng Rủi Ro & Lợi Nhuận</h3>
+                  <h3 className="text-base font-semibold tracking-tight text-fg">3. Dự Phòng Rủi Ro & Lợi Nhuận</h3>
                   <p className="text-xs text-fg-muted">Tỉ lệ in hỏng, thuế & biên lợi nhuận</p>
                 </div>
               </div>
@@ -1673,9 +1674,9 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <label htmlFor="cfg-markup" className="font-semibold text-fg">
-                      Lợi nhuận mục tiêu (Markup %)
+                      Lợi nhuận mục tiêu (%)
                     </label>
-                    <span className="font-bold text-primary font-tech">
+                    <span className="font-bold text-primary font-mono tabular-nums">
                       {isConfiguredNumber(formulaForm.defaultMarkupPercent) ? `${formulaForm.defaultMarkupPercent}%` : 'Chưa cấu hình'}
                     </span>
                   </div>
@@ -1695,7 +1696,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 </div>
 
                 <div>
-                  <label htmlFor="cfg-profit-mode" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-profit-mode" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Cách tính lợi nhuận
                   </label>
                   <select
@@ -1707,19 +1708,19 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       setFormulaForm((prev) => ({ ...prev, profitMode: value }));
                     }}
                     aria-describedby="cfg-profit-mode-help"
-                    className="w-full bg-surface-muted border border-line-control rounded-sm px-2.5 py-1.5 text-xs font-tech text-fg cursor-pointer"
+                    className="h-10 w-full cursor-pointer rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <option value="markup">Markup — lãi trên GIÁ VỐN (công thức hiện tại)</option>
-                    <option value="margin" disabled>Margin — lãi trên GIÁ BÁN (chưa hỗ trợ)</option>
+                    <option value="markup">Hệ số lãi — lãi trên GIÁ VỐN (công thức hiện tại)</option>
+                    <option value="margin" disabled>Biên lợi nhuận — lãi trên GIÁ BÁN (chưa hỗ trợ)</option>
                   </select>
                   <p id="cfg-profit-mode-help" className="text-xs text-fg-muted mt-1 leading-relaxed">
-                    Công thức hiện tại chỉ có <strong>Markup</strong>. Chọn <strong>Margin</strong> sẽ bị CHẶN kèm lỗi
-                    (không âm thầm tính bằng Markup) vì đó là ĐỔI CÔNG THỨC — ngoài phạm vi "chỉ đổi nguồn thông số".
+                    Công thức hiện tại chỉ có <strong>hệ số lãi</strong>. Chọn <strong>biên lợi nhuận</strong> sẽ bị CHẶN kèm lỗi
+                    (không âm thầm tính bằng hệ số lãi) vì đó là ĐỔI CÔNG THỨC — ngoài phạm vi "chỉ đổi nguồn thông số".
                   </p>
                 </div>
 
                 <div>
-                  <label htmlFor="cfg-failure-reserve" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-failure-reserve" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Dự phòng rủi ro in lỗi cơ bản (%)
                   </label>
                   <input
@@ -1732,7 +1733,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('baseFailureReservePercent', e.target.value)}
                     aria-invalid={!!formulaIssues.baseFailureReservePercent}
                     aria-describedby={formulaIssues.baseFailureReservePercent ? 'cfg-failure-reserve-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-failure-reserve" message={formulaIssues.baseFailureReservePercent} />
                 </div>
@@ -1752,7 +1753,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       onChange={(e) => updateFormulaField('lowPrintabilityExtraPercent', e.target.value)}
                       aria-invalid={!!formulaIssues.lowPrintabilityExtraPercent}
                       aria-describedby={formulaIssues.lowPrintabilityExtraPercent ? 'cfg-low-printability-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech text-fg"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <FieldError id="cfg-low-printability" message={formulaIssues.lowPrintabilityExtraPercent} />
                   </div>
@@ -1770,14 +1771,14 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       onChange={(e) => updateFormulaField('multiColorExtraPercent', e.target.value)}
                       aria-invalid={!!formulaIssues.multiColorExtraPercent}
                       aria-describedby={formulaIssues.multiColorExtraPercent ? 'cfg-multicolor-extra-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech text-fg"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <FieldError id="cfg-multicolor-extra" message={formulaIssues.multiColorExtraPercent} />
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-line/60 space-y-2">
-                  <h4 className="font-bold text-xs text-fg">Ngưỡng cảnh báo "đơn lớn" (chuyển sang kiểm duyệt)</h4>
+                <div className="pt-2 border-t border-line-subtle space-y-2">
+                  <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-fg">Ngưỡng cảnh báo "đơn lớn" (chuyển sang kiểm duyệt)</h4>
                   <p className="text-xs font-bold text-warning" data-testid="can-anh-quyet-dinh">
                     cần anh quyết định — Inkiri không có ngưỡng cảnh báo "đơn lớn"; hệ thống KHÔNG tự đoán số.
                   </p>
@@ -1796,7 +1797,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                         onChange={(e) => updateFormulaField('bulkOrderQuantityThreshold', e.target.value)}
                         aria-invalid={!!formulaIssues.bulkOrderQuantityThreshold}
                         aria-describedby={formulaIssues.bulkOrderQuantityThreshold ? 'cfg-bulk-qty-threshold-error' : undefined}
-                        className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech text-fg"
+                        className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                       <FieldError id="cfg-bulk-qty-threshold" message={formulaIssues.bulkOrderQuantityThreshold} />
                     </div>
@@ -1814,28 +1815,28 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                         onChange={(e) => updateFormulaField('bulkOrderAmountThresholdVnd', e.target.value)}
                         aria-invalid={!!formulaIssues.bulkOrderAmountThresholdVnd}
                         aria-describedby={formulaIssues.bulkOrderAmountThresholdVnd ? 'cfg-bulk-amount-threshold-error' : undefined}
-                        className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech text-fg"
+                        className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                       <FieldError id="cfg-bulk-amount-threshold" message={formulaIssues.bulkOrderAmountThresholdVnd} />
                     </div>
                   </div>
                   <p className="text-xs text-fg-muted leading-relaxed">
                     Vượt MỘT trong hai ngưỡng ⇒ báo giá kèm lý do "đơn lớn cần kỹ sư xếp khay".
-                    Trước đây hai số này cứng trong mã (50 chiếc / 15.000.000 đ).
+                    Trước đây hai số này cứng trong mã (50 chiếc / 15.000.000 ₫).
                   </p>
-                  <p className="text-xs text-fg-muted leading-relaxed border-t border-line/60 pt-2">
+                  <p className="text-xs text-fg-muted leading-relaxed border-t border-line-subtle pt-2">
                     ⚠️ Phụ phí <strong>vật liệu khó</strong> KHÔNG còn là thông số chung: nay khai theo TỪNG vật liệu
                     (<strong>tab Danh Mục Nhựa &amp; Resin → Sửa vật liệu → "Phụ Phí Dự Phòng In Hỏng Riêng"</strong>).
-                    Lý do: luật cũ nhận diện bằng chuỗi con trong <span className="font-tech">id</span>
+                    Lý do: luật cũ nhận diện bằng chuỗi con trong <span className="font-mono tabular-nums">id</span>
                     (nylon/resin/pa-cf) nên trên nền tảng có id khác nó im lặng không chạy.
                   </p>
                 </div>
 
-                <div className="pt-2 border-t border-line/60 space-y-2">
+                <div className="pt-2 border-t border-line-subtle space-y-2">
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <label htmlFor="cfg-platform-fee" className="text-fg-muted block mb-1">
-                        Phí Platform (đã ngừng dùng)
+                        Phí nền tảng (đã ngừng dùng)
                       </label>
                       <input
                         id="cfg-platform-fee"
@@ -1845,10 +1846,10 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                         aria-describedby="cfg-platform-fee-deprecated"
                         value={formulaForm.platformCommissionPercent ?? ''}
                         placeholder="Không còn dùng"
-                        className="w-full bg-surface-muted rounded-sm px-2 py-1 text-xs font-tech text-fg-subtle cursor-not-allowed"
+                        className="h-10 w-full cursor-not-allowed rounded-md border border-line-control bg-surface-muted px-2 text-right font-mono text-sm tabular-nums text-fg-subtle"
                       />
                       <p id="cfg-platform-fee-deprecated" className="text-xs text-warning mt-1 leading-relaxed">
-                        ⚠️ Engine KHÔNG đọc ô này. Phí nền tảng có MỘT nguồn: <strong>mục 0 — "Phí nền tảng toàn hệ thống (%)"</strong>.
+                        ⚠️ Bộ tính giá KHÔNG đọc ô này. Phí nền tảng có MỘT nguồn: <strong>mục 0 — "Phí nền tảng toàn hệ thống (%)"</strong>.
                       </p>
                     </div>
                     <div>
@@ -1865,7 +1866,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                         onChange={(e) => updateFormulaField('paymentGatewayFeePercent', e.target.value)}
                         aria-invalid={!!formulaIssues.paymentGatewayFeePercent}
                         aria-describedby={formulaIssues.paymentGatewayFeePercent ? 'cfg-gateway-fee-error' : undefined}
-                        className="w-full bg-surface-muted rounded-sm px-2 py-1 text-xs font-tech font-bold text-fg"
+                        className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                       <FieldError id="cfg-gateway-fee" message={formulaIssues.paymentGatewayFeePercent} />
                     </div>
@@ -1883,14 +1884,14 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                         onChange={(e) => updateFormulaField('designerRoyaltyPercent', e.target.value)}
                         aria-invalid={!!formulaIssues.designerRoyaltyPercent}
                         aria-describedby={formulaIssues.designerRoyaltyPercent ? 'cfg-royalty-error' : undefined}
-                        className="w-full bg-surface-muted rounded-sm px-2 py-1 text-xs font-tech font-bold text-fg"
+                        className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                       <FieldError id="cfg-royalty" message={formulaIssues.designerRoyaltyPercent} />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="cfg-rounding" className="block text-xs text-fg-muted mb-1">
+                    <label htmlFor="cfg-rounding" className="mb-1.5 block text-sm font-medium text-fg-muted">
                       Quy tắc làm tròn giá
                     </label>
                     <select
@@ -1899,12 +1900,12 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       onChange={(e) => updateFormulaSelect(e.target.value)}
                       aria-invalid={!!formulaIssues.roundingRule}
                       aria-describedby={formulaIssues.roundingRule ? 'cfg-rounding-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs text-fg font-medium"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       <option value="">— Chưa cấu hình —</option>
-                      <option value="1000">Làm tròn lên 1,000 đ (Khuyên dùng)</option>
-                      <option value="5000">Làm tròn lên 5,000 đ</option>
-                      <option value="10000">Làm tròn lên 10,000 đ</option>
+                      <option value="1000">Làm tròn lên 1.000 ₫ (Khuyên dùng)</option>
+                      <option value="5000">Làm tròn lên 5.000 ₫</option>
+                      <option value="10000">Làm tròn lên 10.000 ₫</option>
                     </select>
                     <FieldError id="cfg-rounding" message={formulaIssues.roundingRule} />
                   </div>
@@ -1914,20 +1915,21 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           </div>
 
           {/* Section 4: Volume Discount Tiers */}
-          <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e1">
-            <div className="flex items-center justify-between border-b border-line pb-3">
+          <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+            <div className="flex items-center justify-between border-b border-line-subtle pb-3">
               <div>
-                <h3 className="font-bold text-sm text-fg">4. Bảng Chiết Khấu Số Lượng (Volume Discount Tiers)</h3>
+                <h3 className="text-base font-semibold tracking-tight text-fg">4. Bảng Chiết Khấu Số Lượng</h3>
                 <p className="text-xs text-fg-muted">Tự động áp dụng mức giảm giá khi khách hàng đặt in số lượng lớn</p>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="sm"
+                leadingIcon={<Icon name="add" size={16} />}
                 onClick={handleAddDiscountTier}
-                className="px-3 py-1.5 bg-primary text-primary-fg hover:bg-primary-hover text-xs font-bold rounded-sm flex items-center gap-1 cursor-pointer transition-colors"
               >
-                <Icon name="add" size={16} />
                 Thêm Mốc Chiết Khấu
-              </button>
+              </Button>
             </div>
 
             {(formulaForm.volumeDiscounts ?? []).length === 0 && (
@@ -1936,21 +1938,21 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
               </p>
             )}
 
-            <div className="responsive-table-wrapper">
-              <table className="text-left text-xs font-sans">
-                <thead className="bg-surface-muted border-b border-line text-xs text-fg-muted uppercase tracking-wider">
+            <div className="responsive-table-wrapper overflow-x-auto rounded-lg border border-line">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-surface-muted text-xs uppercase tracking-wider text-fg-subtle">
                   <tr>
-                    <th className="p-3">Số lượng tối thiểu (Min)</th>
-                    <th className="p-3">Số lượng tối đa (Max)</th>
-                    <th className="p-3">Mức giảm giá (%)</th>
-                    <th className="p-3">Nhãn hiển thị khách hàng</th>
-                    <th className="p-3 text-right">Thao tác</th>
+                    <th className="h-10 px-4 text-left font-semibold">Số lượng tối thiểu</th>
+                    <th className="h-10 px-4 text-left font-semibold">Số lượng tối đa</th>
+                    <th className="h-10 px-4 text-left font-semibold">Mức giảm giá (%)</th>
+                    <th className="h-10 px-4 text-left font-semibold">Nhãn hiển thị khách hàng</th>
+                    <th className="h-10 px-4 text-right font-semibold">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line/40">
+                <tbody>
                   {(formulaForm.volumeDiscounts ?? []).map((tier, idx) => (
-                    <tr key={idx} className="hover:bg-canvas transition-colors">
-                      <td className="p-3">
+                    <tr key={idx} className="h-11 border-t border-line-subtle transition-colors hover:bg-surface-muted/60">
+                      <td className="px-4">
                         <label htmlFor={`tier-${idx}-min`} className="sr-only">{`Bậc ${idx + 1}: số lượng tối thiểu`}</label>
                         <input
                           id={`tier-${idx}-min`}
@@ -1961,11 +1963,11 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                           onChange={(e) => handleUpdateDiscountTier(idx, { minQty: numberOrUndefined(e.target.value) })}
                           aria-invalid={!!formulaIssues[`volumeDiscounts.${idx}.minQty`]}
                           aria-describedby={formulaIssues[`volumeDiscounts.${idx}.minQty`] ? `tier-${idx}-min-error` : undefined}
-                          className="w-24 bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech font-bold text-fg"
+                          className="h-9 max-md:min-h-11 w-24 rounded-md border border-line-control bg-surface px-2.5 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                         <FieldError id={`tier-${idx}-min`} message={formulaIssues[`volumeDiscounts.${idx}.minQty`]} />
                       </td>
-                      <td className="p-3">
+                      <td className="px-4">
                         <label htmlFor={`tier-${idx}-max`} className="sr-only">{`Bậc ${idx + 1}: số lượng tối đa`}</label>
                         <input
                           id={`tier-${idx}-max`}
@@ -1973,10 +1975,10 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                           placeholder="Không giới hạn"
                           value={tier.maxQty !== undefined ? tier.maxQty : ''}
                           onChange={(e) => handleUpdateDiscountTier(idx, { maxQty: numberOrUndefined(e.target.value) })}
-                          className="w-28 bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech text-fg"
+                          className="h-9 max-md:min-h-11 w-28 rounded-md border border-line-control bg-surface px-2.5 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </td>
-                      <td className="p-3">
+                      <td className="px-4">
                         <div className="flex items-center gap-1">
                           <label htmlFor={`tier-${idx}-discount`} className="sr-only">{`Bậc ${idx + 1}: mức giảm giá`}</label>
                           <input
@@ -1989,13 +1991,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                             onChange={(e) => handleUpdateDiscountTier(idx, { discountPercent: numberOrUndefined(e.target.value) })}
                             aria-invalid={!!formulaIssues[`volumeDiscounts.${idx}.discountPercent`]}
                             aria-describedby={formulaIssues[`volumeDiscounts.${idx}.discountPercent`] ? `tier-${idx}-discount-error` : undefined}
-                            className="w-20 bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech font-bold text-positive"
+                            className="h-9 max-md:min-h-11 w-20 rounded-md border border-line-control bg-surface px-2.5 text-right font-mono text-sm font-bold tabular-nums text-positive placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                           />
-                          <span className="font-tech text-xs font-bold text-positive">%</span>
+                          <span className="font-mono tabular-nums text-xs font-bold text-positive">%</span>
                         </div>
                         <FieldError id={`tier-${idx}-discount`} message={formulaIssues[`volumeDiscounts.${idx}.discountPercent`]} />
                       </td>
-                      <td className="p-3">
+                      <td className="px-4">
                         <label htmlFor={`tier-${idx}-label`} className="sr-only">{`Bậc ${idx + 1}: nhãn hiển thị`}</label>
                         <input
                           id={`tier-${idx}-label`}
@@ -2005,20 +2007,21 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                           onChange={(e) => handleUpdateDiscountTier(idx, { label: e.target.value })}
                           aria-invalid={!!formulaIssues[`volumeDiscounts.${idx}.label`]}
                           aria-describedby={formulaIssues[`volumeDiscounts.${idx}.label`] ? `tier-${idx}-label-error` : undefined}
-                          className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs text-fg"
+                          className="h-9 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-2.5 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                         <FieldError id={`tier-${idx}-label`} message={formulaIssues[`volumeDiscounts.${idx}.label`]} />
                       </td>
-                      <td className="p-3 text-right">
-                        <button
+                      <td className="px-4 text-right">
+                        <Button
                           type="button"
+                          iconOnly
+                          size="sm"
+                          variant="danger-ghost"
                           onClick={() => handleRemoveDiscountTier(idx)}
-                          className="text-danger hover:text-danger p-1 rounded-sm transition-colors cursor-pointer"
                           title="Xóa mốc"
                           aria-label={`Xóa bậc ${idx + 1}`}
-                        >
-                          <Icon name="delete" size={18} />
-                        </button>
+                          leadingIcon={<Icon name="delete" size={18} />}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -2029,20 +2032,20 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
 
           {/* Section 5: Customization & Service Addon Fees */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e1">
-              <div className="flex items-center gap-2 border-b border-line pb-3">
+            <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+              <div className="flex items-center gap-2 border-b border-line-subtle pb-3">
                 <span className="w-8 h-8 rounded-sm bg-info-tint text-info flex items-center justify-center font-bold">
                   <Icon name="edit_note" size={18} />
                 </span>
                 <div>
-                  <h3 className="font-bold text-sm text-fg">5. Phí Dịch Vụ Cá Nhân Hóa</h3>
+                  <h3 className="text-base font-semibold tracking-tight text-fg">5. Phí Dịch Vụ Cá Nhân Hóa</h3>
                   <p className="text-xs text-fg-muted">Khắc laser, đùn nổi & logo vector</p>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <label htmlFor="cfg-engraving-fee" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-engraving-fee" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Phí khắc tên / Laser / Chữ nổi (VNĐ)
                   </label>
                   <input
@@ -2055,14 +2058,14 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('customEngravingFee', e.target.value)}
                     aria-invalid={!!formulaIssues.customEngravingFee}
                     aria-describedby={formulaIssues.customEngravingFee ? 'cfg-engraving-fee-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-engraving-fee" message={formulaIssues.customEngravingFee} />
-                  <p className="text-xs text-fg-muted mt-1">Áp dụng khi khách yêu cầu khắc text cá nhân hóa trên sản phẩm</p>
+                  <p className="mt-1.5 text-xs text-fg-muted">Áp dụng khi khách yêu cầu khắc text cá nhân hóa trên sản phẩm</p>
                 </div>
 
                 <div>
-                  <label htmlFor="cfg-logo-fee" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-logo-fee" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Phí xử lý & Đùn Logo Doanh Nghiệp (VNĐ)
                   </label>
                   <input
@@ -2075,29 +2078,29 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('customLogoUploadFee', e.target.value)}
                     aria-invalid={!!formulaIssues.customLogoUploadFee}
                     aria-describedby={formulaIssues.customLogoUploadFee ? 'cfg-logo-fee-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-logo-fee" message={formulaIssues.customLogoUploadFee} />
-                  <p className="text-xs text-fg-muted mt-1">Xử lý vector SVG/PNG sang dạng 3D dập nổi/chìm</p>
+                  <p className="mt-1.5 text-xs text-fg-muted">Xử lý vector SVG/PNG sang dạng 3D dập nổi/chìm</p>
                 </div>
               </div>
             </div>
 
             {/* Section 6: Delivery Packages Config */}
-            <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e1">
-              <div className="flex items-center gap-2 border-b border-line pb-3">
+            <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+              <div className="flex items-center gap-2 border-b border-line-subtle pb-3">
                 <span className="w-8 h-8 rounded-sm bg-primary-tint text-primary flex items-center justify-center font-bold">
                   <Icon name="local_shipping" size={18} />
                 </span>
                 <div>
-                  <h3 className="font-bold text-sm text-fg">6. Gói Giao Hàng & Hỏa Tốc</h3>
+                  <h3 className="text-base font-semibold tracking-tight text-fg">6. Gói Giao Hàng & Hỏa Tốc</h3>
                   <p className="text-xs text-fg-muted">Chiết khấu ghép khay & phụ phí gấp</p>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <label htmlFor="cfg-economy-discount" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-economy-discount" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Chiết khấu Gói Tiết Kiệm (5-7 ngày) (%)
                   </label>
                   <div className="relative">
@@ -2111,16 +2114,16 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       onChange={(e) => updateFormulaField('economyDiscountPercent', e.target.value)}
                       aria-invalid={!!formulaIssues.economyDiscountPercent}
                       aria-describedby={formulaIssues.economyDiscountPercent ? 'cfg-economy-discount-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface py-2 pl-3 pr-10 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
-                    <span className="absolute right-3 top-1.5 text-xs text-fg-muted font-tech">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-fg-muted font-mono tabular-nums">%</span>
                   </div>
                   <FieldError id="cfg-economy-discount" message={formulaIssues.economyDiscountPercent} />
-                  <p className="text-xs text-fg-muted mt-1">Giảm giá cho khách chấp nhận chờ xưởng gom đủ mẻ in</p>
+                  <p className="mt-1.5 text-xs text-fg-muted">Giảm giá cho khách chấp nhận chờ xưởng gom đủ mẻ in</p>
                 </div>
 
                 <div>
-                  <label htmlFor="cfg-express-surcharge" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-express-surcharge" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Phụ phí Gói Hỏa Tốc 24H (%)
                   </label>
                   <div className="relative">
@@ -2134,32 +2137,32 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       onChange={(e) => updateFormulaField('expressRushSurchargePercent', e.target.value)}
                       aria-invalid={!!formulaIssues.expressRushSurchargePercent}
                       aria-describedby={formulaIssues.expressRushSurchargePercent ? 'cfg-express-surcharge-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-3 py-1.5 text-xs font-tech font-bold text-fg"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface py-2 pl-3 pr-10 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
-                    <span className="absolute right-3 top-1.5 text-xs text-fg-muted font-tech">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-fg-muted font-mono tabular-nums">%</span>
                   </div>
                   <FieldError id="cfg-express-surcharge" message={formulaIssues.expressRushSurchargePercent} />
-                  <p className="text-xs text-fg-muted mt-1">Phụ thu ưu tiên chen hàng vào máy và ca trực đêm</p>
+                  <p className="mt-1.5 text-xs text-fg-muted">Phụ thu ưu tiên chen hàng vào máy và ca trực đêm</p>
                 </div>
               </div>
             </div>
 
             {/* Section 7: Slicing Model Constants */}
-            <div className="bg-surface p-5 rounded-lg space-y-4 shadow-e1">
-              <div className="flex items-center gap-2 border-b border-line pb-3">
+            <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6">
+              <div className="flex items-center gap-2 border-b border-line-subtle pb-3">
                 <span className="w-8 h-8 rounded-sm bg-warning-tint text-warning flex items-center justify-center font-bold">
                   <Icon name="tune" size={18} />
                 </span>
                 <div>
-                  <h3 className="font-bold text-sm text-fg">7. Tham Số Slicing & Tháp Xả</h3>
-                  <p className="text-xs text-fg-muted">Hệ số tiêu hao support, brim & AMS</p>
+                  <h3 className="text-base font-semibold tracking-tight text-fg">7. Tham Số Cắt Lớp & Tháp Xả</h3>
+                  <p className="text-xs text-fg-muted">Hệ số tiêu hao vật liệu đỡ, đế bám & AMS</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  <label htmlFor="cfg-support-ratio" className="block text-xs text-fg-muted mb-1">
-                    Tỷ lệ Support (%)
+                  <label htmlFor="cfg-support-ratio" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Tỷ lệ vật liệu đỡ (%)
                   </label>
                   <input
                     id="cfg-support-ratio"
@@ -2171,13 +2174,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('supportVolumeRatioPercent', e.target.value)}
                     aria-invalid={!!formulaIssues.supportVolumeRatioPercent}
                     aria-describedby={formulaIssues.supportVolumeRatioPercent ? 'cfg-support-ratio-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-support-ratio" message={formulaIssues.supportVolumeRatioPercent} />
                 </div>
                 <div>
-                  <label htmlFor="cfg-brim-grams" className="block text-xs text-fg-muted mb-1">
-                    Nhựa Brim/Raft (g)
+                  <label htmlFor="cfg-brim-grams" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Nhựa đế bám/bè đỡ (g)
                   </label>
                   <input
                     id="cfg-brim-grams"
@@ -2189,13 +2192,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('brimRaftGrams', e.target.value)}
                     aria-invalid={!!formulaIssues.brimRaftGrams}
                     aria-describedby={formulaIssues.brimRaftGrams ? 'cfg-brim-grams-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-brim-grams" message={formulaIssues.brimRaftGrams} />
                 </div>
                 <div>
-                  <label htmlFor="cfg-purge-grams" className="block text-xs text-fg-muted mb-1">
-                    Purge tháp xả / màu (g)
+                  <label htmlFor="cfg-purge-grams" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Xả nhựa tháp xả / màu (g)
                   </label>
                   <input
                     id="cfg-purge-grams"
@@ -2207,12 +2210,12 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('multiColorPurgeWasteGrams', e.target.value)}
                     aria-invalid={!!formulaIssues.multiColorPurgeWasteGrams}
                     aria-describedby={formulaIssues.multiColorPurgeWasteGrams ? 'cfg-purge-grams-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-purge-grams" message={formulaIssues.multiColorPurgeWasteGrams} />
                 </div>
                 <div>
-                  <label htmlFor="cfg-toolchange-mins" className="block text-xs text-fg-muted mb-1">
+                  <label htmlFor="cfg-toolchange-mins" className="mb-1.5 block text-sm font-medium text-fg-muted">
                     Đổi màu AMS (phút)
                   </label>
                   <input
@@ -2225,13 +2228,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('multiColorToolChangeMins', e.target.value)}
                     aria-invalid={!!formulaIssues.multiColorToolChangeMins}
                     aria-describedby={formulaIssues.multiColorToolChangeMins ? 'cfg-toolchange-mins-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-toolchange-mins" message={formulaIssues.multiColorToolChangeMins} />
                 </div>
                 <div>
-                  <label htmlFor="cfg-fast-estimator-overhead" className="block text-xs text-fg-muted mb-1">
-                    Overhead bộ tính nhanh (VNĐ)
+                  <label htmlFor="cfg-fast-estimator-overhead" className="mb-1.5 block text-sm font-medium text-fg-muted">
+                    Phụ phí vận hành bộ tính nhanh (VNĐ)
                   </label>
                   <input
                     id="cfg-fast-estimator-overhead"
@@ -2243,11 +2246,11 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => updateFormulaField('fastEstimatorBaseOverhead', e.target.value)}
                     aria-invalid={!!formulaIssues.fastEstimatorBaseOverhead}
                     aria-describedby={formulaIssues.fastEstimatorBaseOverhead ? 'cfg-fast-estimator-overhead-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-2.5 py-1 text-xs font-tech font-bold text-fg"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="cfg-fast-estimator-overhead" message={formulaIssues.fastEstimatorBaseOverhead} />
                   <p className="text-xs text-fg-muted mt-0.5">
-                    Chỉ dùng cho bộ ước lượng nhanh ở trang chủ (HomeView); engine tính giá KHÔNG đọc ô này.
+                    Chỉ dùng cho bộ ước lượng nhanh ở trang chủ; bộ tính giá KHÔNG đọc ô này.
                   </p>
                 </div>
               </div>
@@ -2255,13 +2258,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button
+            <Button
               type="submit"
-              className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-primary-fg font-bold text-xs uppercase tracking-wider rounded-sm transition-colors shadow-e1 flex items-center gap-2 cursor-pointer"
+              variant="primary"
+              leadingIcon={<Icon name="check_circle" size={18} />}
             >
-              <Icon name="check_circle" size={18} />
               Lưu Toàn Bộ Cấu Hình Công Thức
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -2269,54 +2272,52 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
       {/* SUB-TAB 2: MATERIALS CATALOG CRUD */}
       {subTab === 'materials' && (
         <div role="tabpanel" id="pricing-panel-materials" aria-labelledby="pricing-tab-materials" className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-4 sm:p-5 rounded-lg">
+          <div className="flex flex-col justify-between gap-4 rounded-lg border border-line-subtle bg-surface p-6 sm:flex-row sm:items-center">
             <div>
-              <h3 className="font-bold text-sm text-fg">Danh Sách Nhựa & Vật Liệu Đang Quản Lý ({materials.length})</h3>
-              <p className="text-xs text-fg-muted">Quản lý giá nhập cuộn, đơn giá tính theo gram, thông số nhiệt độ đùn và tồn kho</p>
+              <h3 className="text-base font-semibold tracking-tight text-fg">Danh Sách Nhựa & Vật Liệu Đang Quản Lý ({materials.length})</h3>
+              <p className="text-sm text-fg-muted">Quản lý giá nhập cuộn, đơn giá tính theo gram, thông số nhiệt độ đùn và tồn kho</p>
             </div>
-            <button
+            <Button
+              variant="primary"
+              leadingIcon={<Icon name="add" size={16} />}
               onClick={() => setIsNewMaterialOpen(true)}
-              className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-sm flex items-center gap-1.5 cursor-pointer transition-colors shadow-e1"
             >
-              <Icon name="add" size={16} />
               Thêm Vật Liệu Mới
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {materials.map((mat) => (
-              <div key={mat.id} className="bg-surface rounded-lg p-5 space-y-4 hover:shadow-e2 transition-shadow relative">
-                <div className="flex items-start justify-between gap-2 border-b border-line/60 pb-3">
+              <div key={mat.id} className="relative space-y-4 rounded-lg border border-line-subtle bg-surface p-5 transition-all duration-300 hover:border-line hover:shadow-e1">
+                <div className="flex items-start justify-between gap-2 border-b border-line-subtle pb-3">
                   <div>
-                    <span className="text-xs font-tech uppercase text-fg-muted font-bold block">{mat.brand || 'Filament'}</span>
-                    <h4 className="font-bold text-sm text-fg">{mat.name}</h4>
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">{mat.brand || 'Filament'}</span>
+                    <h4 className="text-base font-semibold tracking-tight text-fg">{mat.name}</h4>
                   </div>
-                  <span className={`px-2 py-0.5 text-xs font-tech font-bold uppercase rounded-sm ${
-                    mat.inStock ? 'bg-positive-tint text-positive' : 'bg-danger-tint text-danger'
-                  }`}>
+                  <Badge variant={mat.inStock ? 'success' : 'danger'} dot>
                     {mat.inStock
                       ? isConfiguredNumber(mat.stockRollsCount)
                         ? `Còn hàng (${mat.stockRollsCount} cuộn)`
                         : 'Còn hàng (chưa kiểm kê số cuộn)'
                       : 'Tạm hết'}
-                  </span>
+                  </Badge>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="bg-surface-muted p-2.5 rounded-sm border border-line/40">
-                    <span className="text-xs text-fg-muted block uppercase">Giá Nhập / Kg</span>
-                    <span className="font-bold text-sm text-fg font-tech">
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="rounded-md border border-line-subtle bg-surface-muted p-2.5">
+                    <span className="block text-xs uppercase text-fg-muted">Giá Nhập / Kg</span>
+                    <span className="font-mono text-sm font-bold tabular-nums text-fg">
                       {isConfiguredNumber(mat.costPerKg)
-                        ? `${formatNumber(mat.costPerKg)} đ`
+                        ? `${formatNumber(mat.costPerKg)} ₫`
                         : isConfiguredNumber(mat.pricePerGram)
-                          ? `${formatNumber(mat.pricePerGram * 1000)} đ (quy đổi từ đơn giá/g)`
+                          ? `${formatNumber(mat.pricePerGram * 1000)} ₫ (quy đổi từ đơn giá/g)`
                           : '—'}
                     </span>
                   </div>
-                  <div className="bg-primary/10 p-2.5 rounded-sm border border-primary/20">
-                    <span className="text-xs text-primary block uppercase font-bold">Giá Tính Khách / g</span>
-                    <span className="font-bold text-sm text-primary font-tech">
-                      {isConfiguredNumber(mat.pricePerGram) ? `${formatNumber(mat.pricePerGram)} đ/g` : '—'}
+                  <div className="rounded-md border border-line-subtle bg-primary-tint p-2.5">
+                    <span className="block text-xs font-semibold uppercase text-primary">Giá Tính Khách / g</span>
+                    <span className="font-mono text-sm font-bold tabular-nums text-primary">
+                      {isConfiguredNumber(mat.pricePerGram) ? `${formatNumber(mat.pricePerGram)} ₫/g` : '—'}
                     </span>
                   </div>
                 </div>
@@ -2324,11 +2325,11 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 <div className="space-y-1 text-xs text-fg-muted">
                   <div className="flex justify-between">
                     <span>Khối lượng riêng (Density):</span>
-                    <strong className="text-fg font-tech">{mat.density} g/cm³</strong>
+                    <strong className="text-fg font-mono tabular-nums">{mat.density} g/cm³</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Nhiệt độ đùn:</span>
-                    <strong className="text-fg font-tech">
+                    <strong className="text-fg font-mono tabular-nums">
                       {isConfiguredNumber(mat.extruderTempMin) && isConfiguredNumber(mat.extruderTempMax)
                         ? `${mat.extruderTempMin}°C - ${mat.extruderTempMax}°C`
                         : '—'}
@@ -2336,7 +2337,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span>Nhiệt độ bàn in:</span>
-                    <strong className="text-fg font-tech">{isConfiguredNumber(mat.bedTemp) ? `${mat.bedTemp}°C` : '—'}</strong>
+                    <strong className="text-fg font-mono tabular-nums">{isConfiguredNumber(mat.bedTemp) ? `${mat.bedTemp}°C` : '—'}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Chịu nhiệt / Độ bền:</span>
@@ -2345,30 +2346,33 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 </div>
 
                 {mat.colors && mat.colors.length > 0 && (
-                  <div className="flex items-center gap-1.5 pt-2 border-t border-line/40">
+                  <div className="flex items-center gap-1.5 pt-2 border-t border-line-subtle">
                     <span className="text-xs text-fg-muted">Màu có sẵn:</span>
                     <div className="flex items-center gap-1">
                       {mat.colors.map((c, i) => (
-                        <span key={i} className="w-3.5 h-3.5 rounded-full border border-line shadow-e1" style={{ backgroundColor: c }} />
+                        <span key={i} className="h-3.5 w-3.5 rounded-full border border-line" style={{ backgroundColor: c }} />
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-line/40">
-                  <button
+                <div className="flex justify-end gap-2 border-t border-line-subtle pt-3">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    leadingIcon={<Icon name="edit" size={16} />}
                     onClick={() => setEditingMaterial({ ...mat })}
-                    className="px-3 py-1.5 bg-surface-muted hover:bg-line-subtle border border-line text-fg text-xs font-bold rounded-sm flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    <Icon name="edit" size={16} />
                     Sửa
-                  </button>
-                  <button aria-label="Xoá"
+                  </Button>
+                  <Button
+                    iconOnly
+                    size="sm"
+                    variant="danger-ghost"
+                    aria-label="Xoá"
                     onClick={() => handleDeleteMaterial(mat.id, mat.name)}
-                    className="px-2.5 py-1.5 text-danger hover:bg-danger-tint rounded-sm text-xs transition-colors cursor-pointer"
-                  >
-                    <Icon name="delete" size={16} />
-                  </button>
+                    leadingIcon={<Icon name="delete" size={16} />}
+                  />
                 </div>
               </div>
             ))}
@@ -2379,55 +2383,54 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
       {/* SUB-TAB 3: PRINTER FLEET CRUD */}
       {subTab === 'printers' && (
         <div role="tabpanel" id="pricing-panel-printers" aria-labelledby="pricing-tab-printers" className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-4 sm:p-5 rounded-lg">
+          <div className="flex flex-col justify-between gap-4 rounded-lg border border-line-subtle bg-surface p-6 sm:flex-row sm:items-center">
             <div>
-              <h3 className="font-bold text-sm text-fg">Danh Sách Đội Máy In Công Nghiệp ({printers.length})</h3>
-              <p className="text-xs text-fg-muted">Khổ bàn in, công suất điện kW, khấu hao máy theo giờ và chi phí linh kiện thay thế</p>
+              <h3 className="text-base font-semibold tracking-tight text-fg">Danh Sách Đội Máy In Công Nghiệp ({printers.length})</h3>
+              <p className="text-sm text-fg-muted">Khổ bàn in, công suất điện kW, khấu hao máy theo giờ và chi phí linh kiện thay thế</p>
             </div>
-            <button
+            <Button
+              variant="primary"
+              leadingIcon={<Icon name="add" size={16} />}
               onClick={() => setIsNewPrinterOpen(true)}
-              className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-sm flex items-center gap-1.5 cursor-pointer transition-colors shadow-e1"
             >
-              <Icon name="add" size={16} />
               Thêm Máy In Mới
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {printers.map((prn) => (
-              <div key={prn.id} className="bg-surface rounded-lg p-5 space-y-4 hover:shadow-e2 transition-shadow">
-                <div className="flex items-start justify-between gap-2 border-b border-line/60 pb-3">
+              <div key={prn.id} className="space-y-4 rounded-lg border border-line-subtle bg-surface p-5 transition-all duration-300 hover:border-line hover:shadow-e1">
+                <div className="flex items-start justify-between gap-2 border-b border-line-subtle pb-3">
                   <div>
-                    <span className="text-xs font-tech uppercase text-fg-muted font-bold block">{(prn.brand || '—')} // {(prn.technology || '—')}</span>
-                    <h4 className="font-bold text-sm text-fg">{prn.name}</h4>
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">{(prn.brand || '—')} // {(prn.technology || '—')}</span>
+                    <h4 className="text-base font-semibold tracking-tight text-fg">{prn.name}</h4>
                   </div>
-                  <span className={`px-2 py-0.5 text-xs font-tech font-bold uppercase rounded-sm ${
-                    prn.status === 'Printing' ? 'bg-warning-tint text-warning animate-pulse motion-reduce:animate-none' :
-                    prn.status === 'Idle' ? 'bg-positive-tint text-positive' :
-                    'bg-line-subtle text-fg-muted'
-                  }`}>
+                  <Badge
+                    variant={prn.status === 'Printing' ? 'warning' : prn.status === 'Idle' ? 'success' : 'neutral'}
+                    dot
+                  >
                     {prn.status === 'Printing' ? 'Đang In' : prn.status === 'Idle' ? 'Sẵn Sàng' : 'Bảo Trì'}
-                  </span>
+                  </Badge>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="bg-surface-muted p-2.5 rounded-sm border border-line/40">
-                    <span className="text-xs text-fg-muted block uppercase">Khổ Bàn In (X×Y×Z)</span>
-                    <span className="font-bold text-sm text-fg font-tech">
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="rounded-md border border-line-subtle bg-surface-muted p-2.5">
+                    <span className="block text-xs uppercase text-fg-muted">Khổ Bàn In (X×Y×Z)</span>
+                    <span className="font-mono text-sm font-bold tabular-nums text-fg">
                       {isConfiguredNumber(prn.bedDimensions?.x) && isConfiguredNumber(prn.bedDimensions?.y) && isConfiguredNumber(prn.bedDimensions?.z)
                         ? `${prn.bedDimensions.x}×${prn.bedDimensions.y}×${prn.bedDimensions.z}`
                         : '—'}
                     </span>
-                    <span className="text-xs text-fg-muted font-tech block">mm</span>
+                    <span className="block font-mono text-xs tabular-nums text-fg-muted">mm</span>
                   </div>
-                  <div className="bg-surface-muted p-2.5 rounded-sm border border-line/40">
-                    <span className="text-xs text-fg-muted block uppercase">Công Suất Điện</span>
-                    <span className="font-bold text-sm text-fg font-tech">
+                  <div className="rounded-md border border-line-subtle bg-surface-muted p-2.5">
+                    <span className="block text-xs uppercase text-fg-muted">Công Suất Điện</span>
+                    <span className="font-mono text-sm font-bold tabular-nums text-fg">
                       {isConfiguredNumber(prn.powerKW) ? `${prn.powerKW} kW` : '—'}
                     </span>
-                    <span className="text-xs text-warning font-tech block">
+                    <span className="block font-mono text-xs tabular-nums text-warning">
                       {isConfiguredNumber(prn.powerKW) && isConfiguredNumber(formulaForm.electricityRatePerKWh)
-                        ? `~${formatNumber(Math.round(prn.powerKW * formulaForm.electricityRatePerKWh))} đ/h`
+                        ? `~${formatNumber(Math.round(prn.powerKW * formulaForm.electricityRatePerKWh))} ₫/h`
                         : '—'}
                     </span>
                   </div>
@@ -2436,27 +2439,27 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 <div className="space-y-1.5 text-xs text-fg-muted">
                   <div className="flex justify-between">
                     <span>Giá trị đầu tư:</span>
-                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.acquisitionCost) ? `${formatNumber(prn.acquisitionCost)} đ` : '—'}</strong>
+                    <strong className="text-fg font-mono tabular-nums">{isConfiguredNumber(prn.acquisitionCost) ? `${formatNumber(prn.acquisitionCost)} ₫` : '—'}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Tuổi thọ khấu hao:</span>
-                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.expectedLifetimeHours) ? `${formatNumber(prn.expectedLifetimeHours)} giờ` : '—'}</strong>
+                    <strong className="text-fg font-mono tabular-nums">{isConfiguredNumber(prn.expectedLifetimeHours) ? `${formatNumber(prn.expectedLifetimeHours)} giờ` : '—'}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Hao mòn linh kiện / giờ:</span>
-                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.consumablesHourlyRate) ? `${formatNumber(prn.consumablesHourlyRate)} đ/h` : '—'}</strong>
+                    <strong className="text-fg font-mono tabular-nums">{isConfiguredNumber(prn.consumablesHourlyRate) ? `${formatNumber(prn.consumablesHourlyRate)} ₫/h` : '—'}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Tốc độ in tối đa:</span>
-                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.maxPrintSpeedMmS) ? `${prn.maxPrintSpeedMmS} mm/s` : '—'}</strong>
+                    <strong className="text-fg font-mono tabular-nums">{isConfiguredNumber(prn.maxPrintSpeedMmS) ? `${prn.maxPrintSpeedMmS} mm/s` : '—'}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Năng suất in:</span>
-                    <strong className="text-fg font-tech">{isConfiguredNumber(prn.throughputGramsPerHour) ? `${prn.throughputGramsPerHour} g/giờ` : '—'}</strong>
+                    <strong className="text-fg font-mono tabular-nums">{isConfiguredNumber(prn.throughputGramsPerHour) ? `${prn.throughputGramsPerHour} g/giờ` : '—'}</strong>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 pt-2 border-t border-line/40 text-xs">
+                <div className="flex items-center gap-3 border-t border-line-subtle pt-3 text-xs">
                   <span className={`inline-flex items-center gap-1 ${prn.hasEnclosure ? 'text-positive' : 'text-fg-subtle'}`}>
                     <Icon name={prn.hasEnclosure ? 'check_box' : 'check_box_outline_blank'} size={16} />
                     Buồng Kín
@@ -2467,20 +2470,23 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   </span>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-line/40">
-                  <button
+                <div className="flex justify-end gap-2 border-t border-line-subtle pt-3">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    leadingIcon={<Icon name="edit" size={16} />}
                     onClick={() => setEditingPrinter({ ...prn })}
-                    className="px-3 py-1.5 bg-surface-muted hover:bg-line-subtle border border-line text-fg text-xs font-bold rounded-sm flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    <Icon name="edit" size={16} />
                     Sửa
-                  </button>
-                  <button aria-label="Xoá"
+                  </Button>
+                  <Button
+                    iconOnly
+                    size="sm"
+                    variant="danger-ghost"
+                    aria-label="Xoá"
                     onClick={() => handleDeletePrinter(prn.id, prn.name)}
-                    className="px-2.5 py-1.5 text-danger hover:bg-danger-tint rounded-sm text-xs transition-colors cursor-pointer"
-                  >
-                    <Icon name="delete" size={16} />
-                  </button>
+                    leadingIcon={<Icon name="delete" size={16} />}
+                  />
                 </div>
               </div>
             ))}
@@ -2533,15 +2539,15 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           size="lg"
           title={<span className="flex items-center gap-2"><Icon name="layers" size={22} className="text-primary" />{editingMaterial ? `Chỉnh Sửa Vật Liệu: ${editingMaterial.name}` : 'Thêm Vật Liệu In 3D Mới'}</span>}
         >
-            <form onSubmit={editingMaterial ? handleSaveEditMaterial : handleSaveNewMaterial} className="space-y-3 text-xs">
+            <form onSubmit={editingMaterial ? handleSaveEditMaterial : handleSaveNewMaterial} className="space-y-4 text-sm">
               {Object.keys(materialIssues).length > 0 && (
-                <p role="alert" className="p-2 rounded-sm bg-danger-tint border border-danger/30 text-danger font-semibold">
+                <p role="alert" className="rounded-md border border-danger/20 bg-danger-tint p-3 text-sm font-semibold text-danger">
                   KHÔNG lưu: còn {Object.keys(materialIssues).length} ô chưa cấu hình hoặc không hợp lệ. Hệ thống không tự điền giá trị đoán.
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label htmlFor="mat-name" className="block font-semibold mb-1 text-fg">Tên Vật Liệu *</label>
+                  <label htmlFor="mat-name" className="mb-1.5 block text-sm font-medium text-fg">Tên Vật Liệu *</label>
                   <input
                     id="mat-name"
                     type="text"
@@ -2551,24 +2557,24 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setMaterialField('name', e.target.value)}
                     aria-invalid={!!materialIssues.name}
                     aria-describedby={materialIssues.name ? 'mat-name-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="mat-name" message={materialIssues.name} />
                 </div>
 
                 <div>
-                  <label htmlFor="mat-brand" className="block font-semibold mb-1 text-fg">Thương Hiệu</label>
+                  <label htmlFor="mat-brand" className="mb-1.5 block text-sm font-medium text-fg">Thương Hiệu</label>
                   <input
                     id="mat-brand"
                     type="text"
                     value={editingMaterial ? (editingMaterial.brand ?? '') : (materialForm.brand ?? '')}
                     onChange={(e) => setMaterialField('brand', e.target.value)}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="mat-density" className="block font-semibold mb-1 text-fg">Khối Lượng Riêng (g/cm³)</label>
+                  <label htmlFor="mat-density" className="mb-1.5 block text-sm font-medium text-fg">Khối Lượng Riêng (g/cm³)</label>
                   <input
                     id="mat-density"
                     type="number"
@@ -2579,13 +2585,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setMaterialField('density', numberOrUndefined(e.target.value))}
                     aria-invalid={!!materialIssues.density}
                     aria-describedby={materialIssues.density ? 'mat-density-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="mat-density" message={materialIssues.density} />
                 </div>
 
                 <div>
-                  <label htmlFor="mat-cost" className="block font-semibold mb-1 text-fg">Giá Nhập 1 Cuộn / Kg (VNĐ)</label>
+                  <label htmlFor="mat-cost" className="mb-1.5 block text-sm font-medium text-fg">Giá Nhập 1 Cuộn / Kg (VNĐ)</label>
                   <input
                     id="mat-cost"
                     type="number"
@@ -2596,7 +2602,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setMaterialField('costPerKg', numberOrUndefined(e.target.value))}
                     aria-invalid={!!materialIssues.costPerKg}
                     aria-describedby={materialIssues.costPerKg ? 'mat-cost-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="mat-cost" message={materialIssues.costPerKg} />
                 </div>
@@ -2613,37 +2619,37 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setMaterialField('pricePerGram', numberOrUndefined(e.target.value))}
                     aria-invalid={!!materialIssues.pricePerGram}
                     aria-describedby={materialIssues.pricePerGram ? 'mat-price-error' : undefined}
-                    className="w-full bg-primary/10 border border-primary/30 rounded-sm px-3 py-2 text-xs font-tech font-bold text-primary"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-primary placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="mat-price" message={materialIssues.pricePerGram} />
                 </div>
 
                 <div>
-                  <label htmlFor="mat-temp-min" className="block font-semibold mb-1 text-fg">Nhiệt Độ Đầu Đùn Min/Max (°C)</label>
+                  <label htmlFor="mat-temp-min" className="mb-1.5 block text-sm font-medium text-fg">Nhiệt Độ Đầu Đùn Nhỏ Nhất / Lớn Nhất (°C)</label>
                   <div className="flex items-center gap-1">
                     <input
                       id="mat-temp-min"
                       type="number"
                       min="0"
-                      placeholder="Min"
+                      placeholder="Nhỏ nhất"
                       value={editingMaterial ? (editingMaterial.extruderTempMin ?? '') : (materialForm.extruderTempMin ?? '')}
                       onChange={(e) => setMaterialField('extruderTempMin', numberOrUndefined(e.target.value))}
                       aria-invalid={!!materialIssues.extruderTempMin}
                       aria-describedby={materialIssues.extruderTempMin ? 'mat-temp-min-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-2 py-1.5 text-xs font-tech"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <span>-</span>
-                    <label htmlFor="mat-temp-max" className="sr-only">Nhiệt độ đầu đùn Max (°C)</label>
+                    <label htmlFor="mat-temp-max" className="sr-only">Nhiệt độ đầu đùn tối đa (°C)</label>
                     <input
                       id="mat-temp-max"
                       type="number"
                       min="0"
-                      placeholder="Max"
+                      placeholder="Lớn nhất"
                       value={editingMaterial ? (editingMaterial.extruderTempMax ?? '') : (materialForm.extruderTempMax ?? '')}
                       onChange={(e) => setMaterialField('extruderTempMax', numberOrUndefined(e.target.value))}
                       aria-invalid={!!materialIssues.extruderTempMax}
                       aria-describedby={materialIssues.extruderTempMax ? 'mat-temp-max-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-2 py-1.5 text-xs font-tech"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
                   <FieldError id="mat-temp-min" message={materialIssues.extruderTempMin} />
@@ -2651,7 +2657,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 </div>
 
                 <div>
-                  <label htmlFor="mat-bed-temp" className="block font-semibold mb-1 text-fg">Nhiệt Độ Bàn In (°C)</label>
+                  <label htmlFor="mat-bed-temp" className="mb-1.5 block text-sm font-medium text-fg">Nhiệt Độ Bàn In (°C)</label>
                   <input
                     id="mat-bed-temp"
                     type="number"
@@ -2661,13 +2667,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setMaterialField('bedTemp', numberOrUndefined(e.target.value))}
                     aria-invalid={!!materialIssues.bedTemp}
                     aria-describedby={materialIssues.bedTemp ? 'mat-bed-temp-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="mat-bed-temp" message={materialIssues.bedTemp} />
                 </div>
 
                 <div>
-                  <label htmlFor="mat-stock" className="block font-semibold mb-1 text-fg">Tồn Kho (Cuộn)</label>
+                  <label htmlFor="mat-stock" className="mb-1.5 block text-sm font-medium text-fg">Tồn Kho (Cuộn)</label>
                   <input
                     id="mat-stock"
                     type="number"
@@ -2677,13 +2683,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setMaterialField('stockRollsCount', numberOrUndefined(e.target.value))}
                     aria-invalid={!!materialIssues.stockRollsCount}
                     aria-describedby={materialIssues.stockRollsCount ? 'mat-stock-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="mat-stock" message={materialIssues.stockRollsCount} />
                 </div>
 
                 <div>
-                  <label htmlFor="mat-multiplier" className="block font-semibold mb-1 text-fg">Hệ số suy đơn giá nhựa (đ/g từ giá vốn)</label>
+                  <label htmlFor="mat-multiplier" className="mb-1.5 block text-sm font-medium text-fg">Hệ số suy đơn giá nhựa (₫/g từ giá vốn)</label>
                   <input
                     id="mat-multiplier"
                     type="number"
@@ -2694,14 +2700,14 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setMaterialField('unitPriceMultiplier', numberOrUndefined(e.target.value))}
                     aria-invalid={!!materialIssues.unitPriceMultiplier}
                     aria-describedby={materialIssues.unitPriceMultiplier ? 'mat-multiplier-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="mat-multiplier" message={materialIssues.unitPriceMultiplier} />
-                  <p className="text-xs text-fg-muted mt-1">Chỉ dùng để SUY đơn giá nhựa (đ/g) từ giá vốn: giá vốn/kg ÷ 1000 × hệ số. KHÔNG phải hệ số nhân giá bán — để trống ô đơn giá/g thì engine mới dùng hệ số này.</p>
+                  <p className="mt-1.5 text-xs text-fg-muted">Chỉ dùng để SUY đơn giá nhựa (₫/g) từ giá vốn: giá vốn/kg ÷ 1000 × hệ số. KHÔNG phải hệ số nhân giá bán — để trống ô đơn giá/g thì bộ tính giá mới dùng hệ số này.</p>
                 </div>
 
                 <div>
-                  <label htmlFor="mat-spool-weight" className="block font-semibold mb-1 text-fg">Khối Lượng Cuộn (g)</label>
+                  <label htmlFor="mat-spool-weight" className="mb-1.5 block text-sm font-medium text-fg">Khối Lượng Cuộn (g)</label>
                   <input
                     id="mat-spool-weight"
                     type="number"
@@ -2712,7 +2718,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setMaterialField('spoolWeightGrams', numberOrUndefined(e.target.value))}
                     aria-invalid={!!materialIssues.spoolWeightGrams}
                     aria-describedby={materialIssues.spoolWeightGrams ? 'mat-spool-weight-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="mat-spool-weight" message={materialIssues.spoolWeightGrams} />
                 </div>
@@ -2721,7 +2727,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                   <p className="text-xs font-bold text-warning mb-1" data-testid="can-anh-quyet-dinh">
                     cần anh quyết định — Inkiri gộp chung một hệ số "vật liệu khó", không tách theo từng vật liệu
                   </p>
-                  <label htmlFor="mat-failure-extra" className="block font-semibold mb-1 text-fg">Phụ Phí Dự Phòng In Hỏng Riêng (%)</label>
+                  <label htmlFor="mat-failure-extra" className="mb-1.5 block text-sm font-medium text-fg">Phụ Phí Dự Phòng In Hỏng Riêng (%)</label>
                   <input
                     id="mat-failure-extra"
                     type="number"
@@ -2733,12 +2739,12 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setMaterialField('failureExtraPercent', e.target.value === '' ? null : numberOrUndefined(e.target.value))}
                     aria-invalid={!!materialIssues.failureExtraPercent}
                     aria-describedby={materialIssues.failureExtraPercent ? 'mat-failure-extra-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="mat-failure-extra" message={materialIssues.failureExtraPercent} />
-                  <p className="text-xs text-fg-muted mt-1">
+                  <p className="mt-1.5 text-xs text-fg-muted">
                     Cộng thêm vào dự phòng in hỏng CHỈ cho vật liệu này (thay luật cũ dò chuỗi trong
-                    <span className="font-tech"> id</span>). Để trống = không cộng thêm (không mượn số mẫu).
+                    <span className="font-mono tabular-nums"> id</span>). Để trống = không cộng thêm (không mượn số mẫu).
                   </p>
                 </div>
 
@@ -2748,26 +2754,23 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     id="matStockCheck"
                     checked={editingMaterial ? editingMaterial.inStock === true : materialForm.inStock === true}
                     onChange={(e) => setMaterialField('inStock', e.target.checked)}
-                    className="w-4 h-4 rounded-sm text-primary"
+                    className="size-4 rounded-sm border-line-control text-primary focus-visible:ring-2 focus-visible:ring-ring"
                   />
                   <label htmlFor="matStockCheck" className="font-semibold text-fg">Đang Có Sẵn Hàng</label>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-line">
-                <button
+              <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => { setIsNewMaterialOpen(false); setEditingMaterial(null); setMaterialIssues({}); }}
-                  className="px-4 py-2 border border-line rounded-sm text-fg hover:bg-surface-muted cursor-pointer"
                 >
                   Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-primary text-primary-fg font-bold rounded-sm hover:bg-primary-hover cursor-pointer"
-                >
+                </Button>
+                <Button type="submit" variant="primary">
                   Lưu Vật Liệu
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>
@@ -2781,15 +2784,15 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
           size="lg"
           title={<span className="flex items-center gap-2"><Icon name="precision_manufacturing" size={22} className="text-primary" />{editingPrinter ? `Chỉnh Sửa Máy In: ${editingPrinter.name}` : 'Thêm Máy In Mới Vào Đội Máy'}</span>}
         >
-            <form onSubmit={editingPrinter ? handleSaveEditPrinter : handleSaveNewPrinter} className="space-y-3 text-xs">
+            <form onSubmit={editingPrinter ? handleSaveEditPrinter : handleSaveNewPrinter} className="space-y-4 text-sm">
               {Object.keys(printerIssues).length > 0 && (
-                <p role="alert" className="p-2 rounded-sm bg-danger-tint border border-danger/30 text-danger font-semibold">
+                <p role="alert" className="rounded-md border border-danger/20 bg-danger-tint p-3 text-sm font-semibold text-danger">
                   KHÔNG lưu: còn {Object.keys(printerIssues).length} ô chưa cấu hình hoặc không hợp lệ. Hệ thống không tự điền thông số máy đoán.
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label htmlFor="prn-name" className="block font-semibold mb-1 text-fg">Tên Máy In *</label>
+                  <label htmlFor="prn-name" className="mb-1.5 block text-sm font-medium text-fg">Tên Máy In *</label>
                   <input
                     id="prn-name"
                     type="text"
@@ -2799,31 +2802,31 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterField('name', e.target.value)}
                     aria-invalid={!!printerIssues.name}
                     aria-describedby={printerIssues.name ? 'prn-name-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="prn-name" message={printerIssues.name} />
                 </div>
 
                 <div>
-                  <label htmlFor="prn-brand" className="block font-semibold mb-1 text-fg">Hãng Sản Xuất</label>
+                  <label htmlFor="prn-brand" className="mb-1.5 block text-sm font-medium text-fg">Hãng Sản Xuất</label>
                   <input
                     id="prn-brand"
                     type="text"
                     value={editingPrinter ? (editingPrinter.brand ?? '') : (printerForm.brand ?? '')}
                     onChange={(e) => setPrinterField('brand', e.target.value)}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="prn-technology" className="block font-semibold mb-1 text-fg">Công Nghệ In</label>
+                  <label htmlFor="prn-technology" className="mb-1.5 block text-sm font-medium text-fg">Công Nghệ In</label>
                   <select
                     id="prn-technology"
                     value={editingPrinter ? (editingPrinter.technology ?? '') : (printerForm.technology ?? '')}
                     onChange={(e) => setPrinterField('technology', e.target.value === '' ? undefined : (e.target.value as any))}
                     aria-invalid={!!printerIssues.technology}
                     aria-describedby={printerIssues.technology ? 'prn-technology-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="">— Chọn công nghệ in —</option>
                     <option value="FDM">FDM / FFF (Đùn nhựa)</option>
@@ -2834,7 +2837,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 </div>
 
                 <div className="col-span-2">
-                  <label htmlFor="prn-bed-x" className="block font-semibold mb-1 text-fg">Khổ Bàn In X × Y × Z (mm)</label>
+                  <label htmlFor="prn-bed-x" className="mb-1.5 block text-sm font-medium text-fg">Khổ Bàn In X × Y × Z (mm)</label>
                   <div className="grid grid-cols-3 gap-2">
                     <input
                       id="prn-bed-x"
@@ -2845,7 +2848,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       onChange={(e) => setPrinterBedDimension('x', e.target.value)}
                       aria-invalid={!!printerIssues['bedDimensions.x']}
                       aria-describedby={printerIssues['bedDimensions.x'] ? 'prn-bed-x-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <label htmlFor="prn-bed-y" className="sr-only">Khổ bàn in Y (mm)</label>
                     <input
@@ -2857,7 +2860,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       onChange={(e) => setPrinterBedDimension('y', e.target.value)}
                       aria-invalid={!!printerIssues['bedDimensions.y']}
                       aria-describedby={printerIssues['bedDimensions.y'] ? 'prn-bed-y-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <label htmlFor="prn-bed-z" className="sr-only">Khổ bàn in Z (mm)</label>
                     <input
@@ -2869,7 +2872,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       onChange={(e) => setPrinterBedDimension('z', e.target.value)}
                       aria-invalid={!!printerIssues['bedDimensions.z']}
                       aria-describedby={printerIssues['bedDimensions.z'] ? 'prn-bed-z-error' : undefined}
-                      className="w-full bg-surface-muted rounded-sm px-2.5 py-1.5 text-xs font-tech"
+                      className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
                   <FieldError id="prn-bed-x" message={printerIssues['bedDimensions.x']} />
@@ -2878,7 +2881,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                 </div>
 
                 <div>
-                  <label htmlFor="prn-nozzle" className="block font-semibold mb-1 text-fg">Đường Kính Đầu Phun (mm)</label>
+                  <label htmlFor="prn-nozzle" className="mb-1.5 block text-sm font-medium text-fg">Đường Kính Đầu Phun (mm)</label>
                   <input
                     id="prn-nozzle"
                     type="number"
@@ -2889,13 +2892,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterField('nozzleDiameter', numberOrUndefined(e.target.value))}
                     aria-invalid={!!printerIssues.nozzleDiameter}
                     aria-describedby={printerIssues.nozzleDiameter ? 'prn-nozzle-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="prn-nozzle" message={printerIssues.nozzleDiameter} />
                 </div>
 
                 <div>
-                  <label htmlFor="prn-power" className="block font-semibold mb-1 text-fg">Công Suất Điện (kW)</label>
+                  <label htmlFor="prn-power" className="mb-1.5 block text-sm font-medium text-fg">Công Suất Điện (kW)</label>
                   <input
                     id="prn-power"
                     type="number"
@@ -2906,13 +2909,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterField('powerKW', numberOrUndefined(e.target.value))}
                     aria-invalid={!!printerIssues.powerKW}
                     aria-describedby={printerIssues.powerKW ? 'prn-power-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="prn-power" message={printerIssues.powerKW} />
                 </div>
 
                 <div>
-                  <label htmlFor="prn-acquisition" className="block font-semibold mb-1 text-fg">Giá Trị Đầu Tư Máy (VNĐ)</label>
+                  <label htmlFor="prn-acquisition" className="mb-1.5 block text-sm font-medium text-fg">Giá Trị Đầu Tư Máy (VNĐ)</label>
                   <input
                     id="prn-acquisition"
                     type="number"
@@ -2923,13 +2926,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterField('acquisitionCost', numberOrUndefined(e.target.value))}
                     aria-invalid={!!printerIssues.acquisitionCost}
                     aria-describedby={printerIssues.acquisitionCost ? 'prn-acquisition-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="prn-acquisition" message={printerIssues.acquisitionCost} />
                 </div>
 
                 <div>
-                  <label htmlFor="prn-lifetime" className="block font-semibold mb-1 text-fg">Tuổi Thọ Khấu Hao (Giờ)</label>
+                  <label htmlFor="prn-lifetime" className="mb-1.5 block text-sm font-medium text-fg">Tuổi Thọ Khấu Hao (Giờ)</label>
                   <input
                     id="prn-lifetime"
                     type="number"
@@ -2940,13 +2943,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterField('expectedLifetimeHours', numberOrUndefined(e.target.value))}
                     aria-invalid={!!printerIssues.expectedLifetimeHours}
                     aria-describedby={printerIssues.expectedLifetimeHours ? 'prn-lifetime-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="prn-lifetime" message={printerIssues.expectedLifetimeHours} />
                 </div>
 
                 <div>
-                  <label htmlFor="prn-consumables" className="block font-semibold mb-1 text-fg">Hao Mòn Vật Tư / Giờ (VNĐ)</label>
+                  <label htmlFor="prn-consumables" className="mb-1.5 block text-sm font-medium text-fg">Hao Mòn Vật Tư / Giờ (VNĐ)</label>
                   <input
                     id="prn-consumables"
                     type="number"
@@ -2957,13 +2960,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterField('consumablesHourlyRate', numberOrUndefined(e.target.value))}
                     aria-invalid={!!printerIssues.consumablesHourlyRate}
                     aria-describedby={printerIssues.consumablesHourlyRate ? 'prn-consumables-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech font-bold"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="prn-consumables" message={printerIssues.consumablesHourlyRate} />
                 </div>
 
                 <div>
-                  <label htmlFor="prn-hourly-rate" className="block font-semibold mb-1 text-fg">Đơn Giá Giờ Máy (VNĐ/giờ)</label>
+                  <label htmlFor="prn-hourly-rate" className="mb-1.5 block text-sm font-medium text-fg">Đơn Giá Giờ Máy (VNĐ/giờ)</label>
                   <input
                     id="prn-hourly-rate"
                     type="number"
@@ -2974,13 +2977,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterField('hourlyRate', numberOrUndefined(e.target.value))}
                     aria-invalid={!!printerIssues.hourlyRate}
                     aria-describedby={printerIssues.hourlyRate ? 'prn-hourly-rate-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="prn-hourly-rate" message={printerIssues.hourlyRate} />
                 </div>
 
                 <div>
-                  <label htmlFor="prn-max-speed" className="block font-semibold mb-1 text-fg">Tốc Độ In Tối Đa (mm/s)</label>
+                  <label htmlFor="prn-max-speed" className="mb-1.5 block text-sm font-medium text-fg">Tốc Độ In Tối Đa (mm/s)</label>
                   <input
                     id="prn-max-speed"
                     type="number"
@@ -2990,13 +2993,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterField('maxPrintSpeedMmS', numberOrUndefined(e.target.value))}
                     aria-invalid={!!printerIssues.maxPrintSpeedMmS}
                     aria-describedby={printerIssues.maxPrintSpeedMmS ? 'prn-max-speed-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="prn-max-speed" message={printerIssues.maxPrintSpeedMmS} />
                 </div>
 
                 <div>
-                  <label htmlFor="prn-heated-bed" className="block font-semibold mb-1 text-fg">Nhiệt Độ Bàn Tối Đa (°C)</label>
+                  <label htmlFor="prn-heated-bed" className="mb-1.5 block text-sm font-medium text-fg">Nhiệt Độ Bàn Tối Đa (°C)</label>
                   <input
                     id="prn-heated-bed"
                     type="number"
@@ -3006,13 +3009,13 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterField('heatedBedMaxTemp', numberOrUndefined(e.target.value))}
                     aria-invalid={!!printerIssues.heatedBedMaxTemp}
                     aria-describedby={printerIssues.heatedBedMaxTemp ? 'prn-heated-bed-error' : undefined}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <FieldError id="prn-heated-bed" message={printerIssues.heatedBedMaxTemp} />
                 </div>
 
                 <div className="col-span-2">
-                  <label htmlFor="prn-throughput" className="block font-semibold mb-1 text-fg">Năng Suất In (g/giờ)</label>
+                  <label htmlFor="prn-throughput" className="mb-1.5 block text-sm font-medium text-fg">Năng Suất In (g/giờ)</label>
                   <input
                     id="prn-throughput"
                     type="number"
@@ -3023,7 +3026,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                     onChange={(e) => setPrinterThroughput(e.target.value)}
                     aria-invalid={!!printerIssues.throughputGramsPerHour}
                     aria-describedby={printerIssues.throughputGramsPerHour ? 'prn-throughput-error prn-throughput-help' : 'prn-throughput-help'}
-                    className="w-full bg-surface-muted rounded-sm px-3 py-2 text-xs font-tech"
+                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <p id="prn-throughput-help" className="text-xs text-fg-muted mt-1">
                     Ví dụ: 100 g trong 3 giờ ⇒ 33,3 g/giờ. Để trống nếu chưa khai — hệ thống ước tính theo thể tích và ghi rõ nguồn, không tự điền số.
@@ -3038,7 +3041,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       type="checkbox"
                       checked={editingPrinter ? editingPrinter.hasEnclosure === true : printerForm.hasEnclosure === true}
                       onChange={(e) => setPrinterField('hasEnclosure', e.target.checked)}
-                      className="w-4 h-4 rounded-sm text-primary"
+                      className="size-4 rounded-sm border-line-control text-primary focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     <span className="font-semibold text-fg">Có Buồng Kín Giữ Nhiệt</span>
                   </label>
@@ -3049,27 +3052,24 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
                       type="checkbox"
                       checked={editingPrinter ? editingPrinter.hasAMS === true : printerForm.hasAMS === true}
                       onChange={(e) => setPrinterField('hasAMS', e.target.checked)}
-                      className="w-4 h-4 rounded-sm text-primary"
+                      className="size-4 rounded-sm border-line-control text-primary focus-visible:ring-2 focus-visible:ring-ring"
                     />
                     <span className="font-semibold text-fg">Có Bộ Đổi Màu Tự Động AMS</span>
                   </label>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-line">
-                <button
+              <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => { setIsNewPrinterOpen(false); setEditingPrinter(null); setPrinterIssues({}); }}
-                  className="px-4 py-2 border border-line rounded-sm text-fg hover:bg-surface-muted cursor-pointer"
                 >
                   Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-primary text-primary-fg font-bold rounded-sm hover:bg-primary-hover cursor-pointer"
-                >
+                </Button>
+                <Button type="submit" variant="primary">
                   Lưu Máy In
-                </button>
+                </Button>
               </div>
             </form>
         </Modal>

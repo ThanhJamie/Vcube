@@ -126,7 +126,7 @@ export interface ParseFailure {
 
 /** MP-07: `null`/`NaN` ⇒ "Chưa đo"; trước đây dòng này in một giá trị mặc định như thể đã đo. */
 function formatOverhangLabel(pct: number | null | undefined): string {
-  return typeof pct === 'number' && Number.isFinite(pct) ? `${pct.toFixed(1)}% cần Support` : 'Chưa đo';
+  return typeof pct === 'number' && Number.isFinite(pct) ? `${pct.toFixed(1)}% cần vật liệu đỡ` : 'Chưa đo';
 }
 
 /** MP-07: chỉ nhận số đo THẬT từ bộ đọc lưới; mọi trường hợp khác ⇒ `null`. */
@@ -222,7 +222,7 @@ const ParseFailurePanel: React.FC<{
 }> = ({ failure, manualReviewNoteShown, onRetry, onPickAnother, onRequestManualReview }) => (
   <div
     role="alert"
-    className="bg-warning-tint border border-warning/40 rounded-lg p-4 sm:p-5 space-y-3 font-sans"
+    className="bg-warning-tint border border-warning/20 rounded-lg p-4 sm:p-5 space-y-3 font-sans"
   >
     <div className="flex items-start gap-2.5">
       <Icon name="warning" size={18} className="text-warning shrink-0 mt-0.5" />
@@ -243,19 +243,20 @@ const ParseFailurePanel: React.FC<{
       <button
         type="button"
         onClick={onRetry}
-        className="px-3.5 py-2 bg-surface hover:bg-primary-tint border border-line-control text-fg text-xs font-bold uppercase tracking-wider rounded-md transition-colors flex items-center gap-1.5 cursor-pointer"
+        className="px-4 h-10 max-md:min-h-11 bg-surface hover:bg-surface-muted border border-line-control text-fg text-sm font-semibold rounded-md transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         <Icon name="restart_alt" size={18} />
         Thử lại
       </button>
 
-      <label className="px-3.5 py-2 bg-surface hover:bg-primary-tint border border-line-control text-fg text-xs font-bold uppercase tracking-wider rounded-md transition-colors flex items-center gap-1.5 cursor-pointer">
+      <label className="px-4 h-10 bg-surface hover:bg-surface-muted border border-line-control text-fg text-sm font-semibold rounded-md transition-colors flex items-center gap-1.5 cursor-pointer">
         <Icon name="upload_file" size={18} />
         <span>Chọn tệp khác</span>
         <input
           type="file"
           accept=".stl,.3mf,.step,.obj,.iges"
           className="hidden"
+          aria-label="Chọn tệp CAD khác"
           onChange={(e) => {
             const next = e.target.files && e.target.files[0];
             e.target.value = '';
@@ -267,7 +268,7 @@ const ParseFailurePanel: React.FC<{
       <button
         type="button"
         onClick={onRequestManualReview}
-        className="px-4 py-2 bg-surface hover:bg-surface-muted text-fg border border-line-control text-xs font-bold uppercase tracking-wider rounded-full transition-colors flex items-center gap-1.5 cursor-pointer shadow-e1"
+        className="px-4 h-10 max-md:min-h-11 bg-surface hover:bg-surface-muted text-fg border border-line-control text-sm font-semibold rounded-md transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         <Icon name="send" size={18} />
         Gửi yêu cầu thẩm định thủ công
@@ -275,7 +276,7 @@ const ParseFailurePanel: React.FC<{
     </div>
 
     {manualReviewNoteShown && (
-      <p className="text-xs text-fg-muted border-t border-warning/30 pt-3">
+      <p className="text-xs text-fg-muted border-t border-warning/20 pt-3">
         Hệ thống chưa có kênh gửi hồ sơ tự động tới xưởng, nên KHÔNG có yêu cầu nào được gửi đi và
         cũng không có thông báo "đã gửi". Vui lòng dùng khung chat hỗ trợ ở góc màn hình, đính kèm{' '}
         <strong>{failure.fileName}</strong> để chuyển cho xưởng thẩm định.
@@ -482,7 +483,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         // khong duoc map nen khong bao gio toi duoc UI.
         boundaryEdges: parsed.boundaryEdges,
         minWallThickness: parsed.minWallThickness,
-        recommendedTech: is3mf ? 'FDM Multi-Material (Bambu AMS) / Dual Extruder' : 'FDM Engineering',
+        recommendedTech: is3mf ? 'FDM đa vật liệu (Bambu AMS) / hai đầu đùn' : 'FDM kỹ thuật',
         requiresSupport: false,
         printability: {
           printabilityScore,
@@ -501,7 +502,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         },
         // Q2 (MP-16): bỏ nhãn tuyên bố "đã quét mesh" — chỉ nhánh STL chạy `analyzeMeshDefects`;
         // nhánh 3MF/OBJ chỉ đọc hình học nên không được nói là đã quét kiểm định.
-        tag: is3mf ? '3MF Chuẩn // Multi-Material' : `${format} // Lưới đọc từ tệp của bạn`,
+        tag: is3mf ? '3MF chuẩn // Đa vật liệu' : `${format} // Lưới đọc từ tệp của bạn`,
         status: 'Ready',
         modelType: 'custom',
         customGeometry: parsed.geometry || null,
@@ -548,7 +549,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
       // STL không lưu đơn vị đo trong header ⇒ hỏi khách xác nhận mm/inch trước khi báo giá.
       if (format === 'STL') setIsStlUnitModalOpen(true);
 
-      onShowToast(`Đã nạp file 3D & Khởi tạo VCUBE Mesh Engine: ${file.name} (${formatNumber(parsed.triangleCount)} tam giác)`);
+      onShowToast(`Đã nạp tệp 3D & khởi tạo lưới VCUBE: ${file.name} (${formatNumber(parsed.triangleCount)} tam giác)`);
     } catch (err) {
       // Q2 (MP-01): KHÔNG dựng "mô hình phôi an toàn" và KHÔNG bịa số đo cho tệp của khách.
       console.error('Không phân tích được tệp 3D (không tạo dữ liệu thay thế):', err);
@@ -556,7 +557,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
       const reason = err instanceof Error && err.message
         ? err.message
-        : 'Bộ đọc lưới Mesh không nhận diện được cấu trúc tệp.';
+        : 'Bộ đọc lưới không nhận diện được cấu trúc tệp.';
 
       // Không thêm tệp vào `files`, không đổi `selectedFile`, không kích thước / thể tích / tam giác
       // / hash / điểm khả năng in — chỉ ghi nhận sự thật để hiển thị panel lỗi.
@@ -611,12 +612,12 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="pb-6 border-b border-line">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary font-bold">
-                Automated Slicer & Geometry QA // VCUBE Mesh Engine v2.6
+              <span className="font-mono text-xs uppercase tracking-wider text-fg-muted font-semibold">
+                KIỂM TRA HÌNH HỌC & CẮT LỚP TỰ ĐỘNG // BỘ MÁY LƯỚI 3D VCUBE v2.6
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-fg tracking-tight">
-              Xưởng Phân Tích & Báo Giá 3D Tức Thì
+            <h1 className="text-2xl font-bold tracking-tight text-fg">
+              Xưởng phân tích & báo giá 3D tức thì
             </h1>
           </div>
 
@@ -630,17 +631,18 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 handleActualFileUpload(e.dataTransfer.files[0]);
               }
             }}
-            className={`rounded-lg border-2 border-dashed bg-surface shadow-e1 transition-all ${
-              dragOver ? 'border-primary bg-primary-tint/30' : 'border-line'
+            className={`rounded-lg border-2 border-dashed bg-surface p-8 text-center transition-colors ${
+              dragOver ? 'border-line-control bg-surface-muted' : 'border-line hover:border-line-control hover:bg-surface-muted'
             }`}
           >
             {isAnalyzing ? (
               <div className="py-10 space-y-3 font-mono text-center">
                 <div className="w-10 h-10 border-2 border-primary border-t-transparent animate-spin motion-reduce:animate-none mx-auto rounded-full" />
                 <p className="text-xs uppercase tracking-widest text-primary font-bold">
-                  Đang giải mã Mesh 3D, bóc tách cấu trúc tam giác và tính toán thể tích...
+                  Đang giải mã lưới 3D, bóc tách cấu trúc tam giác và tính toán thể tích...
                 </p>
-                <span className="text-xs text-fg-subtle">WebGL Three.js geometry pipeline in progress</span>
+                <span className="text-xs text-fg-subtle">Đang đọc cấu trúc lưới bằng WebGL (Three.js)</span>
+                <div className="mx-auto h-2 w-48 rounded-md bg-surface-muted animate-pulse motion-reduce:animate-none" aria-hidden="true" />
               </div>
             ) : (
               <EmptyState
@@ -673,6 +675,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                       type="file"
                       accept=".stl,.3mf,.step,.obj,.iges"
                       className="hidden"
+                      aria-label="Chọn tệp CAD để báo giá"
                       onChange={(e) => {
                         const picked = e.target.files && e.target.files[0];
                         // Reset value để chọn LẠI cùng một tệp vẫn kích hoạt onChange.
@@ -698,7 +701,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
           )}
 
           {(!currentPrinter || !currentMaterial) && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning-tint p-3.5 text-xs text-warning font-sans">
+            <div className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning-tint p-3.5 text-xs text-warning font-sans">
               <Icon name="warning" size={16} className="text-warning shrink-0" />
               <p>
                 {!currentPrinter ? 'Chưa có máy in nào trong hệ thống. ' : ''}
@@ -779,7 +782,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
       ...prev,
       parts: prev.parts.map(p => p.id === partId ? { ...p, extruderIndex: extruderIdx } : p)
     }));
-    onShowToast(`Đã gán Đầu đùn Tool T${extruderIdx} cho chi tiết.`);
+    onShowToast(`Đã gán đầu đùn T${extruderIdx} cho chi tiết.`);
   };
 
   const handleChangePartMaterial = (partId: string, materialId: string) => {
@@ -805,7 +808,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
       ...prev,
       parts: prev.parts.map(p => p.id === partId ? { ...p, plateIndex } : p)
     }));
-    onShowToast(`Đã chuyển chi tiết sang Bàn ${plateIndex}.`);
+    onShowToast(`Đã chuyển chi tiết sang bàn ${plateIndex}.`);
   };
 
   // D9 (Đợt 10): tính năng tách-khối nhiều shell đã bị BỎ HẲN (nút + prop + hai hàm bịa trong bộ đọc).
@@ -932,15 +935,15 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 pb-6 border-b border-line">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-xs sm:text-xs uppercase tracking-[0.2em] text-primary font-bold">
-                Automated Slicer & Geometry QA // VCUBE Mesh Engine v2.6
+              <span className="font-mono text-xs uppercase tracking-wider text-fg-muted font-semibold">
+                KIỂM TRA HÌNH HỌC & CẮT LỚP TỰ ĐỘNG // BỘ MÁY LƯỚI 3D VCUBE v2.6
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-fg tracking-tight">
-              Xưởng Phân Tích & Báo Giá 3D Tức Thì
+            <h1 className="text-2xl font-bold tracking-tight text-fg">
+              Xưởng phân tích & báo giá 3D tức thì
             </h1>
             <p className="text-xs sm:text-sm text-fg-muted mt-1">
-              Bộ công cụ CAD tương tác: Xoay/Zoom/Pan, cắt lớp Layer Slicer, báo cáo kiểm tra lưới, thước đo Caliper & báo giá tự động.
+              Bộ công cụ CAD tương tác: xoay/thu phóng/dịch chuyển, cắt lớp, báo cáo kiểm tra lưới, thước cặp & báo giá tự động.
             </p>
           </div>
 
@@ -951,18 +954,18 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               onClick={() => setIs3mfVsStlModalOpen(true)}
               leadingIcon={<Icon name="compare_arrows" size={18} />}
             >
-              So Sánh STL vs 3MF
+              So sánh STL và 3MF
             </Button>
           </div>
         </div>
 
         {/* Out of Bounds Warning Banner */}
         {isOutOfBounds && currentPrinter && (
-          <div className="bg-danger-tint border-2 border-danger/50 p-4 sm:p-5 rounded-lg text-danger flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-e1 animate-pulse motion-reduce:animate-none font-mono">
+          <div className="bg-danger-tint border border-danger/20 p-4 sm:p-5 rounded-lg text-danger flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono">
             <div className="flex items-center gap-3">
               <Icon name="warning" size={28} className="text-danger shrink-0" />
               <div>
-                <strong className="block text-sm font-bold">Cảnh Báo: Kích Thước Mô Hình Vượt Khổ Máy In!</strong>
+                <strong className="block text-sm font-bold">Cảnh báo: kích thước mô hình vượt khổ máy in!</strong>
                 <p className="text-xs text-danger mt-0.5">
                   Mô hình ({transformedDimensions.x.toFixed(1)} × {transformedDimensions.y.toFixed(1)} × {transformedDimensions.z.toFixed(1)} mm) vượt quá kích thước bàn in của máy{' '}
                   <strong>{currentPrinter.name}</strong> ({bedText(currentPrinter)}).
@@ -977,7 +980,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 size="sm"
                 onClick={() => setSelectedPrinterId(biggerPrinter.id)}
               >
-                Đổi Sang {biggerPrinter.name} ({bedText(biggerPrinter)})
+                Đổi sang {biggerPrinter.name} ({bedText(biggerPrinter)})
               </Button>
             )}
           </div>
@@ -994,27 +997,28 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               handleActualFileUpload(e.dataTransfer.files[0]);
             }
           }}
-          className={`border-2 border-dashed transition-all bg-surface rounded-lg shadow-e1 ${
-            uploadExpanded ? 'p-6 sm:p-8 text-center' : 'p-3 sm:p-3.5'
-          } ${dragOver ? 'border-primary bg-primary-tint/30' : 'border-line hover:border-primary'}`}
+          className={`border-2 border-dashed transition-colors bg-surface rounded-lg ${
+            uploadExpanded ? 'p-8 text-center' : 'p-3 sm:p-3.5'
+          } ${dragOver ? 'border-line-control bg-surface-muted' : 'border-line hover:border-line-control hover:bg-surface-muted'}`}
         >
           {isAnalyzing ? (
             <div className="py-6 space-y-3 font-mono">
               <div className="w-10 h-10 border-2 border-primary border-t-transparent animate-spin motion-reduce:animate-none mx-auto rounded-full"></div>
               <p className="text-xs uppercase tracking-widest text-primary font-bold">
-                Đang giải mã Mesh 3D, bóc tách cấu trúc tam giác và tính toán thể tích...
+                Đang giải mã lưới 3D, bóc tách cấu trúc tam giác và tính toán thể tích...
               </p>
-              <span className="text-xs text-fg-subtle">WebGL Three.js geometry pipeline in progress</span>
+              <span className="text-xs text-fg-subtle">Đang đọc cấu trúc lưới bằng WebGL (Three.js)</span>
+              <div className="mx-auto h-2 w-48 rounded-md bg-surface-muted animate-pulse motion-reduce:animate-none" aria-hidden="true" />
             </div>
           ) : uploadExpanded ? (
             <div className="max-w-xl mx-auto space-y-3.5">
-              <div className="w-12 h-12 bg-canvas border border-line text-primary flex items-center justify-center mx-auto rounded-md shadow-e1">
+              <div className="w-12 h-12 bg-surface-muted border border-line text-fg-muted flex items-center justify-center mx-auto rounded-md">
                 <Icon name="cloud_upload" size={28} />
               </div>
               
               <div className="space-y-1">
                 <h3 className="font-bold text-base sm:text-lg text-fg">
-                  Kéo & thả tập tin CAD 3D vào khung phân tích
+                  Kéo & thả tệp CAD 3D vào khung phân tích
                 </h3>
                 <p className="text-xs text-fg-subtle">
                   Hệ thống đọc cấu trúc lưới tam giác của chính tệp bạn tải lên để đo kích thước, thể tích và tính toán báo giá.
@@ -1048,13 +1052,14 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   leadingIcon={<Icon name="cloud_upload" size={16} />}
                   onClick={() => workspaceFileRef.current?.click()}
                 >
-                  Chọn File Từ Máy Tính
+                  Chọn tệp từ máy tính
                 </Button>
                 <input
                   ref={workspaceFileRef}
                   type="file"
                   accept=".stl,.3mf,.step,.obj,.iges"
                   className="hidden"
+                  aria-label="Chọn tệp CAD khác để báo giá"
                   onChange={(e) => {
                     const picked = e.target.files && e.target.files[0];
                     // Reset value để chọn LẠI cùng một tệp vẫn kích hoạt onChange.
@@ -1104,20 +1109,20 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
         {/* Quick Sample File Switcher Bar.
             A11: `SAMPLE_ANALYSIS_FILES` (fixture mẫu) đã bị rỗng hoá ⇒ ẩn HẲN thanh này,
-            không để lại một nhãn "Mẫu Thử Benchmark:" trống không có mẫu nào. */}
+            không để lại một nhãn "Mẫu thử chuẩn đối chiếu:" trống không có mẫu nào. */}
         {SAMPLE_ANALYSIS_FILES.length > 0 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 font-mono">
           <span className="text-xs font-bold uppercase text-fg-subtle shrink-0">
-            Mẫu Thử Benchmark:
+            Mẫu thử chuẩn đối chiếu:
           </span>
           {SAMPLE_ANALYSIS_FILES.map((sample) => (
             <button
               key={sample.id}
               type="button"
               onClick={() => handleSelectSample(sample)}
-              className={`px-3 py-1.5 text-xs rounded-md border transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 max-md:min-h-11 text-xs rounded-md border transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 selectedFile.id === sample.id
-                  ? 'bg-primary text-primary-fg border-primary shadow-e1'
+                  ? 'bg-primary text-primary-fg border-primary'
                   : 'bg-surface hover:bg-surface-muted border-line text-fg'
               }`}
             >
@@ -1130,7 +1135,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
         {/* A11: thiếu máy in / vật liệu ⇒ nói rõ vì sao bảng báo giá không tính được. */}
         {(!currentPrinter || !currentMaterial) && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning-tint p-3.5 text-xs text-warning font-sans">
+          <div className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning-tint p-3.5 text-xs text-warning font-sans">
             <Icon name="warning" size={16} className="text-warning shrink-0" />
             <p>
               {!currentPrinter ? 'Chưa có máy in nào trong hệ thống. ' : ''}
@@ -1141,34 +1146,54 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
           </div>
         )}
 
-        {/* Main 2-Column Responsive Workspace */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
-          
-          {/* Left Column: 3D Viewport + Slicing Parameters + Mesh Validation Report */}
-          <div className="lg:col-span-7 space-y-6">
+        {/* Main Workspace — object tree (left) · 3D viewport (center) · quote (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+          {/* Left Rail: Object Tree — always visible next to the viewport on desktop */}
+          <aside className="order-3 min-w-0 lg:col-span-12 xl:order-1 xl:col-span-3">
+            <ObjectTreePanel
+              parts={selectedFile.parts}
+              format={selectedFile.format}
+              slicerPreset={selectedFile.slicerPreset}
+              selectedPartId={selectedPartId}
+              onSelectPart={(pId) => setSelectedPartId(pId)}
+              onToggleVisibility={handleTogglePartVisibility}
+              onChangeColor={handleChangePartColor}
+              onChangeExtruder={handleChangePartExtruder}
+              onChangeMaterial={handleChangePartMaterial}
+              materials={materials}
+              plates={selectedFile.plates || selectedFile.slicerPreset?.plates || []}
+              activePlateIndex={activePlateIndex}
+              onSelectPlate={handleSelectPlate}
+              onChangePartPlate={handleChangePartPlate}
+            />
+          </aside>
+
+          {/* Center Column: 3D Viewport + Slicing Parameters + Mesh Validation Report */}
+          <div className="order-1 min-w-0 space-y-6 lg:col-span-8 xl:order-2 xl:col-span-6">
             
             {/* Viewport Card */}
-            <div className="bg-surface p-4 sm:p-5 rounded-lg shadow-e1 space-y-3 font-sans">
+            <div className="rounded-lg border border-line bg-surface p-4 sm:p-5 space-y-3 font-sans">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-line text-xs">
                 <div className="flex items-center gap-2 truncate">
                   <span className="font-bold text-fg truncate max-w-[180px] sm:max-w-xs">
                     {selectedFile.fileName}
                   </span>
                   <span className={`px-2 py-0.5 text-xs uppercase tracking-wider font-mono font-bold rounded-md ${
-                    selectedFile.format === '3MF' ? 'bg-primary text-primary-fg' : 'bg-line-subtle text-fg'
+                    selectedFile.format === '3MF' ? 'bg-primary text-primary-fg' : 'bg-surface-muted text-fg-muted border border-line'
                   }`}>
-                    {selectedFile.format} Standard
+                    {selectedFile.format}
                   </span>
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-primary-tint text-primary text-xs font-mono font-bold border border-primary/20 shadow-e0">
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary-tint text-fg-muted text-xs font-mono font-semibold border border-line">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse motion-reduce:animate-none" />
-                    <span>VCUBE MESH ENGINE v2.6</span>
+                    <span>BỘ MÁY LƯỚI 3D VCUBE v2.6</span>
                   </span>
                 </div>
 
                 <div className="flex items-center gap-3 font-mono text-fg-subtle text-xs">
                   <span>{selectedFile.fileSize}</span>
                   <span>•</span>
-                  <span>{formatNumber(selectedFile.triangleCount)} Triangles</span>
+                  <span>{formatNumber(selectedFile.triangleCount)} tam giác</span>
                 </div>
               </div>
 
@@ -1208,22 +1233,22 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               </CanvasErrorBoundary>
 
               {/* Quick Dimension Bar under Viewport */}
-              <div className="grid grid-cols-3 gap-2 text-center text-xs bg-canvas p-2.5 rounded-lg border border-line font-mono">
-                <div>
-                  <span className="text-xs text-fg-subtle uppercase block font-semibold">Kích thước X/Y/Z</span>
-                  <span className="font-bold text-fg">
+              <div className="grid grid-cols-1 min-[380px]:grid-cols-3 gap-2 text-center text-xs bg-surface-muted p-2.5 rounded-lg border border-line font-mono">
+                <div className="min-w-0">
+                  <span className="text-xs text-fg-muted uppercase block font-semibold">Kích thước X/Y/Z</span>
+                  <span className="font-bold text-fg break-words">
                     {transformedDimensions.x.toFixed(1)} × {transformedDimensions.y.toFixed(1)} × {transformedDimensions.z.toFixed(1)} {transform.unit}
                   </span>
                 </div>
-                <div>
-                  <span className="text-xs text-fg-subtle uppercase block font-semibold">Thể tích Net</span>
-                  <span className="font-bold text-fg">
+                <div className="min-w-0">
+                  <span className="text-xs text-fg-muted uppercase block font-semibold">Thể tích tịnh</span>
+                  <span className="font-bold text-fg break-words">
                     {transformedVolume.toFixed(1)} cm³
                   </span>
                 </div>
-                <div>
-                  <span className="text-xs text-fg-subtle uppercase block font-semibold">Số Chi Tiết</span>
-                  <span className="font-bold text-primary">
+                <div className="min-w-0">
+                  <span className="text-xs text-fg-muted uppercase block font-semibold">Số chi tiết</span>
+                  <span className="font-bold text-fg break-words">
                     {selectedFile.parts.length} chi tiết
                   </span>
                 </div>
@@ -1231,54 +1256,55 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
             </div>
 
             {/* Left workspace tabs — Cấu hình in · Phân tích/QA · Màu sắc */}
-            <div className="flex items-center gap-1 bg-surface border border-line-subtle rounded-lg p-1 font-mono">
+            <div className="flex w-full items-center gap-1 rounded-md border border-line bg-surface-muted p-1 font-mono">
               {([
-                { id: 'basic', label: '1. Cấu hình in', icon: 'tune' },
-                { id: 'analysis', label: '2. Phân tích & QA', icon: 'fact_check' },
-                { id: 'color', label: '3. Màu sắc 3MF', icon: 'palette' },
+                { id: 'basic', label: '1. Cấu hình', icon: 'tune' },
+                { id: 'analysis', label: '2. Phân tích', icon: 'fact_check' },
+                { id: 'color', label: '3. Màu sắc', icon: 'palette' },
               ] as const).map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setLeftTab(tab.id)}
                   aria-pressed={leftTab === tab.id}
-                  className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    leftTab === tab.id ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:bg-canvas hover:text-fg'
+                  className={`min-w-0 flex-1 inline-flex items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 max-md:min-h-11 text-sm font-medium rounded-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                    leftTab === tab.id ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:bg-surface hover:text-fg'
                   }`}
                 >
-                  <Icon name={tab.icon} size={16} />
+                  <Icon name={tab.icon} size={16} className="hidden sm:block" />
                   <span className="truncate">{tab.label}</span>
                 </button>
               ))}
             </div>
 
             {leftTab === 'basic' && (
-            <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1 space-y-4 font-sans">
+            <div className="rounded-lg border border-line bg-surface p-5 sm:p-6 space-y-4 font-sans">
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <div className="flex items-center gap-2">
                   <Icon name="tune" size={20} className="text-primary" />
                   <h3 className="font-bold text-sm sm:text-base text-fg uppercase tracking-wider font-mono">
-                    Thông Số Cắt Lớp // Slicing Parameters
+                    Thông số cắt lớp
                   </h3>
                 </div>
                 <span className="text-xs font-mono text-primary bg-primary-tint px-2.5 py-0.5 rounded-md border border-primary/20 font-bold">
-                  Bambu Lab / Kobra Engine
+                  Bambu Lab / Kobra
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Printer Selector */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold flex items-center justify-between">
+                  <label htmlFor="tool3d-printer-select" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold flex items-center justify-between">
                     <span>Máy In Gia Công</span>
-                    <span className="text-primary">
+                    <span className="text-fg">
                       {currentPrinter ? bedText(currentPrinter) : 'Chưa có máy in'}
                     </span>
                   </label>
                   <select
+                    id="tool3d-printer-select"
                     value={selectedPrinterId}
                     onChange={(e) => setSelectedPrinterId(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {printers.length === 0 && (
                       <option value="">— Chưa có máy in trong hệ thống —</option>
@@ -1293,16 +1319,17 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
                 {/* Material Selector */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold flex items-center justify-between">
+                  <label htmlFor="tool3d-material-select" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold flex items-center justify-between">
                     <span>Vật Liệu Kỹ Thuật</span>
-                    <span className="text-primary">
+                    <span className="text-fg">
                       {currentMaterial ? measuredText(currentMaterial.pricePerGram, ' đ/g') : 'Chưa có vật liệu'}
                     </span>
                   </label>
                   <select
+                    id="tool3d-material-select"
                     value={selectedMaterialId}
                     onChange={(e) => setSelectedMaterialId(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {materials.length === 0 && (
                       <option value="">— Chưa có vật liệu trong hệ thống —</option>
@@ -1319,8 +1346,8 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               {/* Infill Density & Pattern */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between text-xs">
-                  <label className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold">
-                    Độ Đặc Ruột (Infill Density): <span className="font-mono text-primary font-bold">{infillDensity}% {infillPattern}</span>
+                  <label htmlFor="tool3d-infill-range" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold">
+                    Độ đặc ruột: <span className="font-mono text-fg font-bold">{infillDensity}% {infillPattern}</span>
                   </label>
                   <div className="flex items-center gap-1 font-mono text-xs">
                     {['Gyroid', 'Grid', 'Honeycomb'].map((pat) => (
@@ -1328,10 +1355,11 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                         key={pat}
                         type="button"
                         onClick={() => setInfillPattern(pat)}
-                        className={`px-2.5 py-1 rounded-md border transition-all cursor-pointer font-bold ${
+                        aria-pressed={infillPattern === pat}
+                        className={`h-8 max-md:min-h-11 px-3 rounded-sm border text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                           infillPattern === pat
-                            ? 'bg-primary text-primary-fg border-primary shadow-e1'
-                            : 'bg-canvas text-fg-muted border-line hover:bg-surface-muted'
+                            ? 'bg-primary text-primary-fg border-primary'
+                            : 'bg-surface text-fg-muted border-line hover:bg-surface-muted hover:text-fg'
                         }`}
                       >
                         {pat}
@@ -1340,51 +1368,55 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   </div>
                 </div>
                 <input
+                  id="tool3d-infill-range"
                   type="range"
                   min="10"
                   max="100"
                   step="5"
+                  aria-label="Độ đặc ruột"
                   value={infillDensity}
                   onChange={(e) => setInfillDensity(Number(e.target.value))}
-                  className="w-full accent-primary cursor-pointer h-2 bg-line-subtle rounded-full"
+                  className="w-full accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
 
               {/* Layer Height & Supports Mode */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold block">
-                    Độ Dày Lớp In (Layer Height)
+                  <label htmlFor="tool3d-layer-height" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold block">
+                    Độ dày lớp in
                   </label>
                   <select
+                    id="tool3d-layer-height"
                     value={layerHeight}
                     onChange={(e) => setLayerHeight(e.target.value)}
-                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {/* F2 (P9): nếu tệp khai layer height ngoài 4 mức sẵn có, hiện đúng giá trị đó
                         thay vì để select trống/kẹt ở lựa chọn không khớp. */}
                     {layerHeight && !['0.08', '0.12', '0.16', '0.20'].includes(layerHeight) && (
                       <option value={layerHeight}>{layerHeight} mm (theo tệp)</option>
                     )}
-                    <option value="0.08">0.08 mm (Ultra Fine - Chi tiết sắc nét)</option>
-                    <option value="0.12">0.12 mm (Fine Detail - Chuẩn chất lượng)</option>
-                    <option value="0.16">0.16 mm (Standard Pro - Cân bằng tốc độ/đẹp)</option>
-                    <option value="0.20">0.20 mm (Draft Fast - In nhanh mẫu thử)</option>
+                    <option value="0.08">0,08 mm (siêu mịn — chi tiết sắc nét)</option>
+                    <option value="0.12">0,12 mm (chi tiết mịn — chuẩn chất lượng)</option>
+                    <option value="0.16">0,16 mm (tiêu chuẩn — cân bằng tốc độ/độ đẹp)</option>
+                    <option value="0.20">0,20 mm (lớp nhanh — in nhanh mẫu thử)</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold block">
-                    Cấu Hình Chân Đỡ (Supports Mode)
+                  <label htmlFor="tool3d-supports-mode" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold block">
+                    Cấu hình vật liệu đỡ
                   </label>
                   <select
+                    id="tool3d-supports-mode"
                     value={supportsMode}
                     onChange={(e) => setSupportsMode(e.target.value as any)}
-                    className="w-full bg-canvas border border-line-control p-2.5 text-xs text-fg rounded-lg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <option value="tree">Tree Support (Dễ bóc - Ít vết sẹo bề mặt)</option>
-                    <option value="auto">Auto Grid Standard (Chắc chắn cho hình học lớn)</option>
-                    <option value="none">Không dùng Support (Chỉ in cầu dầm ngang)</option>
+                    <option value="tree">Đỡ dạng cây (dễ bóc — ít vết sẹo bề mặt)</option>
+                    <option value="auto">Đỡ dạng lưới tự động (chắc chắn cho hình học lớn)</option>
+                    <option value="none">Không dùng vật liệu đỡ (chỉ in cầu dầm ngang)</option>
                   </select>
                 </div>
               </div>
@@ -1392,7 +1424,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
               {/* Batch Quantity Selector */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line">
                 <div className="text-xs font-mono">
-                  <span className="font-bold text-fg block">Số lượng sản xuất (Batch):</span>
+                  <span className="font-bold text-fg block">Số lượng sản xuất (lô):</span>
                   <span className="text-xs text-fg-subtle">Giảm giá lũy tiến tự động theo số lượng</span>
                 </div>
                 <div className="flex items-center gap-1.5 font-mono">
@@ -1401,10 +1433,11 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                       key={qty}
                       type="button"
                       onClick={() => setQuantity(qty)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-md border transition-all cursor-pointer ${
+                      aria-pressed={quantity === qty}
+                      className={`h-8 max-md:min-h-11 px-3 text-sm font-medium rounded-sm border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                         quantity === qty
-                          ? 'bg-primary text-primary-fg border-primary shadow-e1'
-                          : 'bg-canvas text-fg-muted border-line hover:bg-surface-muted'
+                          ? 'bg-primary text-primary-fg border-primary'
+                          : 'bg-surface text-fg-muted border-line hover:bg-surface-muted hover:text-fg'
                       }`}
                     >
                       x{qty}
@@ -1417,17 +1450,17 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
             {/* Mesh Validation Report Panel / Workspace */}
             {leftTab === 'analysis' && (
-            <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1 space-y-5 font-sans">
+            <div className="rounded-lg border border-line bg-surface p-5 sm:p-6 space-y-5 font-sans">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <Icon name="fact_check" size={20} className="text-primary" />
                     <h3 className="font-bold text-sm sm:text-base text-fg uppercase tracking-wider font-mono">
-                      Báo Cáo Kiểm Định Lưới Mesh & Khả Năng In
+                      Báo cáo kiểm định lưới & khả năng in
                     </h3>
                   </div>
                   <span className="text-xs font-mono text-fg-subtle block mt-0.5">
-                    Kiểm tra hình học FDM // Tự động phát hiện lỗi khép kín
+                    Kiểm tra hình học FDM — tự động phát hiện lỗi khép kín
                   </span>
                 </div>
 
@@ -1444,20 +1477,20 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                       }
                       className={`px-3 py-1.5 rounded-lg border text-center ${
                         selectedFile.printability.printabilityScore >= 90
-                          ? 'bg-positive-tint border-positive/30 text-positive'
+                          ? 'bg-positive-tint border-positive/20 text-positive'
                           : selectedFile.printability.printabilityScore >= 70
-                          ? 'bg-warning-tint border-warning/30 text-warning'
-                          : 'bg-danger-tint border-danger/30 text-danger'
+                          ? 'bg-warning-tint border-warning/20 text-warning'
+                          : 'bg-danger-tint border-danger/20 text-danger'
                       }`}
                     >
-                      <span className="text-xs font-bold block">{selectedFile.printability.printabilityScore}/100 Score</span>
+                      <span className="text-xs font-bold block">{selectedFile.printability.printabilityScore}/100 điểm</span>
                       <span className="text-xs uppercase tracking-wider block font-semibold">
                         {countMeasuredScoreInputs(selectedFile) < 4
                           ? `Chấm từ ${countMeasuredScoreInputs(selectedFile)}/4 số đo`
                           // R4: `level` cung co the `null` ⇒ KHONG duoc roi vao nhan "Rui Ro" (ket luan khong co so do).
                           : selectedFile.printability.level === null
                           ? '—'
-                          : selectedFile.printability.level === 'good' ? 'Rất Khả Thi' : selectedFile.printability.level === 'warning' ? 'Cần Chú Ý' : 'Rủi Ro'}
+                          : selectedFile.printability.level === 'good' ? 'Rất khả thi' : selectedFile.printability.level === 'warning' ? 'Cần chú ý' : 'Rủi ro'}
                       </span>
                     </div>
                   ) : (
@@ -1465,7 +1498,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                       title={`Thiếu số đo: ${describeUnmeasuredScoreInputs(selectedFile).join(', ')}`}
                       className="px-3 py-1.5 rounded-lg border text-center bg-surface-muted border-line text-fg-muted"
                     >
-                      <span className="text-xs font-bold block">—/100 Score</span>
+                      <span className="text-xs font-bold block">—/100 điểm</span>
                       <span className="text-xs uppercase tracking-wider block font-semibold">Chưa chấm điểm</span>
                     </div>
                   )}
@@ -1480,9 +1513,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                     `null` KHONG duoc hien "Khong kin": do la ket luan tu du lieu khong ton tai. */}
                 <div className={`p-3.5 rounded-lg border ${
                   selectedFile.isWatertight === true
-                    ? 'bg-positive-tint/70 border-positive/30 text-positive'
+                    ? 'bg-positive-tint border-positive/20 text-positive'
                     : selectedFile.isWatertight === false
-                    ? 'bg-warning-tint/70 border-warning/30 text-warning'
+                    ? 'bg-warning-tint border-warning/20 text-warning'
                     : 'bg-surface-muted border-line text-fg-muted'
                 }`}>
                   <div className="flex items-center gap-1.5 font-bold mb-1">
@@ -1498,19 +1531,19 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                       className={
                         selectedFile.isWatertight === true ? 'text-positive'
                           : selectedFile.isWatertight === false ? 'text-warning'
-                          : 'text-fg-subtle'
+                          : 'text-fg-muted'
                       }
                     />
-                    <span className="text-xs uppercase">Watertight Check</span>
+                    <span className="text-xs uppercase">Độ kín nước</span>
                   </div>
                   <div className="text-xs font-bold">
                     {selectedFile.isWatertight === true
-                      ? 'Kín (watertight)'
+                      ? 'Kín nước'
                       : selectedFile.isWatertight === false
-                      ? 'Không kín (non-manifold mesh)'
+                      ? 'Không kín (lưới non-manifold)'
                       : 'Chưa phân tích'}
                   </div>
-                  <span className="text-xs text-fg-subtle block mt-0.5">
+                  <span className="text-xs text-fg-muted block mt-0.5">
                     {/* Q2 (MP-10) + R4: `nonManifoldEdges` / `boundaryEdges` la hai SO DO RIENG.
                         `null` = chua do duoc ⇒ chi noi "chua do", khong suy ra "kin"/"ho". */}
                     {selectedFile.nonManifoldEdges === null
@@ -1534,27 +1567,27 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   typeof selectedFile.minWallThickness !== 'number'
                     ? 'bg-surface-muted border-line text-fg-muted'
                     : selectedFile.minWallThickness >= 0.8
-                    ? 'bg-positive-tint/70 border-positive/30 text-positive'
-                    : 'bg-danger-tint/70 border-danger/30 text-danger'
+                    ? 'bg-positive-tint border-positive/20 text-positive'
+                    : 'bg-danger-tint border-danger/20 text-danger'
                 }`}>
                   <div className="flex items-center gap-1.5 font-bold mb-1">
                     <Icon
                       name="straighten"
                       size={16}
-                      className={typeof selectedFile.minWallThickness === 'number' ? 'text-primary' : 'text-fg-subtle'}
+                      className={typeof selectedFile.minWallThickness === 'number' ? 'text-primary' : 'text-fg-muted'}
                     />
-                    <span className="text-xs uppercase">Wall Thickness</span>
+                    <span className="text-xs uppercase">Độ dày thành</span>
                   </div>
                   <div className="text-xs font-bold">
                     {typeof selectedFile.minWallThickness === 'number'
-                      ? `Min: ${selectedFile.minWallThickness.toFixed(2)} mm`
-                      : 'Min: —'}
+                      ? `Nhỏ nhất: ${selectedFile.minWallThickness.toFixed(2)} mm`
+                      : 'Nhỏ nhất: —'}
                   </div>
-                  <span className="text-xs text-fg-subtle block mt-0.5">
+                  <span className="text-xs text-fg-muted block mt-0.5">
                     {typeof selectedFile.minWallThickness !== 'number'
                       ? 'Chưa đo được'
                       : selectedFile.minWallThickness >= 0.8
-                      ? 'Đạt ngưỡng tối thiểu (≥ 0.8mm)'
+                      ? 'Đạt ngưỡng tối thiểu (≥ 0,8 mm)'
                       : 'Cảnh báo quá mỏng'}
                   </span>
                 </div>
@@ -1563,56 +1596,58 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 {/* Q2 (MP-07): chưa đo được ⇒ tile trung tính + "Chưa đo", không có số mặc định. */}
                 <div className={`p-3.5 rounded-lg border ${
                   typeof selectedFile.printability.overhangPercentage === 'number'
-                    ? 'bg-primary-tint/70 border-primary/30 text-primary'
+                    ? 'bg-primary-tint border-primary/20 text-primary'
                     : 'bg-surface-muted border-line text-fg-muted'
                 }`}>
                   <div className="flex items-center gap-1.5 font-bold mb-1">
                     <Icon name="explore" size={16} />
-                    <span className="text-xs uppercase">Overhang Angle</span>
+                    <span className="text-xs uppercase">Góc nhô</span>
                   </div>
                   <div className="text-xs font-bold">
                     {formatOverhangLabel(selectedFile.printability.overhangPercentage)}
                   </div>
-                  <span className="text-xs text-fg-subtle block mt-0.5">
+                  <span className="text-xs text-fg-muted block mt-0.5">
                     Góc nghiêng an toàn ≤ 45°
                   </span>
                 </div>
               </div>
 
               {/* Auto-Repair & Comparison Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-canvas border border-line rounded-lg text-xs font-mono">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-surface-muted border border-line rounded-lg text-xs font-mono">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleAutoFixMesh}
-                    className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg rounded-md font-bold uppercase text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-e1"
+                    className="h-10 max-md:min-h-11 px-4 bg-primary hover:bg-primary-hover text-primary-fg rounded-md font-semibold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-e1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     <Icon name="auto_fix_high" size={18} />
-                    Tự Động Sửa Lưới Mesh
+                    Tự động sửa lưới
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setShowDefects(!showDefects)}
-                    className={`px-3 py-1.5 rounded-md border font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer ${
+                    aria-pressed={showDefects}
+                    className={`h-10 max-md:min-h-11 px-3 rounded-md border font-medium text-sm transition-colors flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       showDefects
-                        ? 'bg-warning text-primary-fg border-warning'
-                        : 'bg-surface text-fg-muted border-line hover:bg-surface-muted'
+                        ? 'bg-surface text-fg border-line shadow-e1 font-semibold'
+                        : 'bg-surface text-fg-muted border-line-control hover:bg-surface-muted hover:text-fg'
                     }`}
                   >
                     <Icon name="wb_incandescent" size={18} />
-                    {showDefects ? 'Tắt Vùng Lỗi' : 'Hiện Vùng Lỗi'}
+                    {showDefects ? 'Tắt vùng lỗi' : 'Hiện vùng lỗi'}
                   </button>
                 </div>
 
                 {/* Compare Mode */}
-                <div className="flex items-center gap-1 bg-surface p-1 rounded-lg text-xs">
-                  <span className="text-fg-subtle px-1 text-xs">So Sánh:</span>
+                <div className="flex items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-xs">
+                  <span className="text-fg-muted px-1 text-xs">So Sánh:</span>
                   <button
                     type="button"
                     onClick={() => setCompareMode('normal')}
-                    className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
-                      compareMode === 'normal' ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:text-fg'
+                    aria-pressed={compareMode === 'normal'}
+                    className={`px-3 py-1.5 max-md:min-h-11 rounded-sm font-medium text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                      compareMode === 'normal' ? 'bg-surface text-fg shadow-e1 font-semibold' : 'text-fg-muted hover:text-fg'
                     }`}
                   >
                     Chuẩn
@@ -1620,8 +1655,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setCompareMode('before')}
-                    className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
-                      compareMode === 'before' ? 'bg-danger text-primary-fg' : 'text-fg-muted hover:text-fg'
+                    aria-pressed={compareMode === 'before'}
+                    className={`px-3 py-1.5 max-md:min-h-11 rounded-sm font-medium text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                      compareMode === 'before' ? 'bg-surface text-fg shadow-e1 font-semibold' : 'text-fg-muted hover:text-fg'
                     }`}
                   >
                     Trước Sửa
@@ -1629,8 +1665,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setCompareMode('after')}
-                    className={`px-2 py-0.5 rounded-md font-bold transition-colors cursor-pointer ${
-                      compareMode === 'after' ? 'bg-positive text-primary-fg' : 'text-fg-muted hover:text-fg'
+                    aria-pressed={compareMode === 'after'}
+                    className={`px-3 py-1.5 max-md:min-h-11 rounded-sm font-medium text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                      compareMode === 'after' ? 'bg-surface text-fg shadow-e1 font-semibold' : 'text-fg-muted hover:text-fg'
                     }`}
                   >
                     Sau Sửa
@@ -1643,22 +1680,12 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 <div className="flex flex-wrap items-center gap-2 border-b border-line pb-1 text-xs">
                   <button
                     type="button"
-                    onClick={() => setActiveWorkspaceTab('objects')}
-                    className={`pb-2 px-3 uppercase tracking-wider font-bold transition-all border-b-2 cursor-pointer ${
-                      activeWorkspaceTab === 'objects'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-fg-subtle hover:text-fg'
-                    }`}
-                  >
-                    1. Cấu Trúc Part ({selectedFile.parts.length})
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setActiveWorkspaceTab('preset')}
-                    className={`pb-2 px-3 uppercase tracking-wider font-bold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
+                    aria-pressed={activeWorkspaceTab === 'preset'}
+                    className={`pb-2 px-3 max-md:min-h-11 uppercase tracking-wider font-bold transition-colors border-b-2 flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       activeWorkspaceTab === 'preset'
                         ? 'border-primary text-primary'
-                        : 'border-transparent text-fg-subtle hover:text-fg'
+                        : 'border-transparent text-fg-muted hover:text-fg'
                     }`}
                   >
                     2. Bảng Màu 3MF
@@ -1669,10 +1696,11 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveWorkspaceTab('transforms')}
-                    className={`pb-2 px-3 uppercase tracking-wider font-bold transition-all border-b-2 cursor-pointer ${
+                    aria-pressed={activeWorkspaceTab === 'transforms'}
+                    className={`pb-2 px-3 max-md:min-h-11 uppercase tracking-wider font-bold transition-colors border-b-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       activeWorkspaceTab === 'transforms'
                         ? 'border-primary text-primary'
-                        : 'border-transparent text-fg-subtle hover:text-fg'
+                        : 'border-transparent text-fg-muted hover:text-fg'
                     }`}
                   >
                     3. Tỷ Lệ & Tọa Độ
@@ -1680,10 +1708,11 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveWorkspaceTab('validation')}
-                    className={`pb-2 px-3 uppercase tracking-wider font-bold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
+                    aria-pressed={activeWorkspaceTab === 'validation'}
+                    className={`pb-2 px-3 max-md:min-h-11 uppercase tracking-wider font-bold transition-colors border-b-2 flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       activeWorkspaceTab === 'validation'
                         ? 'border-primary text-primary'
-                        : 'border-transparent text-fg-subtle hover:text-fg'
+                        : 'border-transparent text-fg-muted hover:text-fg'
                     }`}
                   >
                     4. Chi Tiết QA
@@ -1692,22 +1721,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
                 {/* Sub-panel Content */}
                 {activeWorkspaceTab === 'objects' && (
-                  <ObjectTreePanel
-                    parts={selectedFile.parts}
-                    format={selectedFile.format}
-                    slicerPreset={selectedFile.slicerPreset}
-                    selectedPartId={selectedPartId}
-                    onSelectPart={(pId) => setSelectedPartId(pId)}
-                    onToggleVisibility={handleTogglePartVisibility}
-                    onChangeColor={handleChangePartColor}
-                    onChangeExtruder={handleChangePartExtruder}
-                    onChangeMaterial={handleChangePartMaterial}
-                    materials={materials}
-                    plates={selectedFile.plates || selectedFile.slicerPreset?.plates || []}
-                    activePlateIndex={activePlateIndex}
-                    onSelectPlate={handleSelectPlate}
-                    onChangePartPlate={handleChangePartPlate}
-                  />
+                  <div className="rounded-md border border-line-subtle bg-surface-muted p-4 text-sm text-fg-muted">
+                    Cây đối tượng hiển thị ở cột trái, cạnh mô hình 3D. Chọn một chi tiết để gán vật liệu, đầu đùn và bàn in.
+                  </div>
                 )}
 
                 {activeWorkspaceTab === 'preset' && (
@@ -1767,7 +1783,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
             )}
 
             {leftTab === 'color' && (
-              <div className="bg-surface p-5 sm:p-6 rounded-lg shadow-e1 font-sans">
+              <div className="rounded-lg border border-line bg-surface p-5 sm:p-6 font-sans">
                 <PresetPalettePanel
                   slicerPreset={selectedFile.slicerPreset}
                   parts={selectedFile.parts}
@@ -1780,7 +1796,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
           </div>
 
           {/* Right Column: Slicer Parameters & Instant Quoting Panel */}
-          <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-20 lg:self-start">
+          <div className="order-2 min-w-0 space-y-6 lg:col-span-4 xl:order-3 xl:col-span-3">
             {/* Lưới an toàn cấp panel: một throw khi tính/format giá KHÔNG được thay cả trang
                 (sẽ làm mất luôn nút chọn tệp). `resetKey` = tệp đang chọn ⇒ nạp tệp khác tự reset. */}
             <PanelErrorBoundary label="Bảng báo giá" resetKey={selectedFile.id}>
@@ -1816,7 +1832,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         </div>
 
         {/* Uploaded History Files — accordion */}
-        <div className="bg-surface p-5 sm:p-7 rounded-lg shadow-e1 font-sans">
+        <div className="rounded-lg border border-line bg-surface p-5 sm:p-7 font-sans">
           <button
             type="button"
             onClick={() => setHistoryOpen((o) => !o)}
@@ -1825,7 +1841,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
           >
             <h3 className="font-bold text-base text-fg flex items-center gap-2 font-mono">
               <Icon name="folder_open" size={18} className="text-primary" />
-              Lịch Sử Bản Vẽ Đã Tải Lên ({files.length})
+              Lịch sử bản vẽ đã tải lên ({files.length})
             </h3>
             <span className="flex items-center gap-2 shrink-0">
               <span className="hidden sm:inline text-xs text-fg-subtle font-mono truncate max-w-[220px]">
@@ -1836,66 +1852,68 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
           </button>
 
           {historyOpen && (
-          <div className="responsive-table-wrapper mt-4">
-            <table className="text-left text-xs font-sans w-full">
-              <thead className="border-b border-line text-fg-subtle text-xs uppercase font-mono tracking-widest bg-canvas">
+          <div className="responsive-table-wrapper mt-4 overflow-x-auto rounded-lg border border-line">
+            <table className="w-full text-left text-sm font-sans">
+              <thead className="bg-surface-muted text-fg-subtle text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="p-3">Tên Tập Tin</th>
-                  <th className="p-3">Định Dạng</th>
-                  <th className="p-3">Kích Thước</th>
-                  <th className="p-3">Tam Giác / Parts</th>
-                  <th className="p-3">Risk Score</th>
-                  <th className="p-3 text-right">Thao Tác</th>
+                  <th className="h-10 px-4 text-left font-semibold">Tên tệp</th>
+                  <th className="h-10 px-4 text-left font-semibold">Định Dạng</th>
+                  <th className="h-10 px-4 text-left font-semibold">Kích Thước</th>
+                  <th className="h-10 px-4 text-left font-semibold">Tam giác / Chi tiết</th>
+                  <th className="h-10 px-4 text-left font-semibold">Điểm rủi ro</th>
+                  <th className="h-10 px-4 text-right font-semibold">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line/60">
+              <tbody className="divide-y divide-line-subtle">
                 {files.map((file) => (
                   <tr
                     key={file.id}
-                    className={`hover:bg-canvas transition-colors ${
-                      selectedFile.id === file.id ? 'bg-primary-tint/40 font-semibold' : ''
+                    className={`h-11 border-t border-line-subtle hover:bg-surface-muted/60 transition-colors ${
+                      selectedFile.id === file.id ? 'bg-primary-tint font-semibold' : ''
                     }`}
                   >
-                    <td className="p-3 text-fg flex items-center gap-2">
-                      <Icon name={file.format === '3MF' ? 'layers' : 'description'} size={16} className="text-primary" />
+                    <td className="px-4 py-2 text-fg flex items-center gap-2">
+                      <Icon name={file.format === '3MF' ? 'layers' : 'description'} size={16} className="text-fg-subtle" />
                       <span className="truncate max-w-[200px]">{file.fileName}</span>
                     </td>
-                    <td className="p-3 font-mono">
-                      <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded-md ${
-                        file.format === '3MF' ? 'bg-primary text-primary-fg' : 'bg-line-subtle text-fg'
+                    <td className="px-4 py-2 font-mono">
+                      <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded-sm ${
+                        file.format === '3MF' ? 'bg-primary text-primary-fg' : 'bg-surface-muted text-fg-muted border border-line'
                       }`}>
                         {file.format}
                       </span>
                     </td>
-                    <td className="p-3 font-mono text-fg-muted">
+                    <td className="px-4 py-2 font-mono tabular-nums text-fg-muted">
                       {file.dimensions.x} × {file.dimensions.y} × {file.dimensions.z} mm
                     </td>
-                    <td className="p-3 font-mono text-fg-muted">
-                      {formatNumber(file.triangleCount)} ▲ ({file.partsCount} part{file.partsCount > 1 ? 's' : ''})
+                    <td className="px-4 py-2 font-mono tabular-nums text-fg-muted">
+                      {formatNumber(file.triangleCount)} ▲ ({file.partsCount} chi tiết)
                     </td>
-                    <td className="p-3 font-mono">
-                      <span className={`px-2.5 py-0.5 text-xs font-bold rounded-lg border ${
+                    <td className="px-4 py-2 font-mono">
+                      <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border ${
                         typeof file.printability.printabilityScore !== 'number'
                           ? 'bg-surface-muted border-line text-fg-muted'
                           : file.printability.printabilityScore >= 90
-                          ? 'bg-positive-tint border-positive/30 text-positive'
-                          : 'bg-warning-tint border-warning/30 text-warning'
+                          ? 'bg-positive-tint border-positive/20 text-positive'
+                          : 'bg-warning-tint border-warning/20 text-warning'
                       }`}>
                         {typeof file.printability.printabilityScore === 'number'
-                          ? `${file.printability.printabilityScore}/100 Score`
+                          ? `${file.printability.printabilityScore}/100 điểm`
                           : '—/100'}
                       </span>
                     </td>
-                    <td className="p-3 text-right font-mono">
+                    <td className="px-4 py-2 text-right font-mono">
                       <button
+                        type="button"
                         onClick={() => handleSelectSample(file)}
-                        className={`px-3 py-1 text-xs uppercase tracking-wider rounded-md border transition-all cursor-pointer font-bold ${
+                        aria-pressed={selectedFile.id === file.id}
+                        className={`px-3 h-8 max-md:min-h-11 text-xs font-semibold rounded-md border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                           selectedFile.id === file.id
-                            ? 'bg-primary text-primary-fg border-primary shadow-e1'
-                            : 'bg-surface hover:bg-surface-muted hover:text-primary border-line text-fg'
+                            ? 'bg-primary text-primary-fg border-primary'
+                            : 'bg-surface hover:bg-surface-muted hover:text-fg border-line text-fg'
                         }`}
                       >
-                        {selectedFile.id === file.id ? 'Đang Xem' : 'Phân Tích'}
+                        {selectedFile.id === file.id ? 'Đang xem' : 'Phân tích'}
                       </button>
                     </td>
                   </tr>
@@ -1922,12 +1940,12 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         onConfirmMm={() => {
           setIsStlUnitModalOpen(false);
           setTransform(prev => ({ ...prev, unit: 'mm' }));
-          onShowToast('Đã xác nhận đơn vị đo Millimet (mm).');
+          onShowToast('Đã xác nhận đơn vị đo mi-li-mét (mm).');
         }}
         onConvertToInch={() => {
           setIsStlUnitModalOpen(false);
           setTransform(prev => ({ ...prev, unit: 'inch', scaleUniform: 100 }));
-          onShowToast('Đã chuyển đổi hệ số kích thước sang Inch (x25.4).');
+          onShowToast('Đã chuyển đổi hệ số kích thước sang inch (×25,4).');
         }}
         onCancel={() => setIsStlUnitModalOpen(false)}
       />

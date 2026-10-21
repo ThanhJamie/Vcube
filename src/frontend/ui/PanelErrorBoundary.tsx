@@ -67,7 +67,7 @@ export class PanelErrorBoundary extends Component<PanelErrorBoundaryProps, Panel
     return (
       <div
         role="alert"
-        className="flex flex-col gap-3 rounded-lg border border-danger/40 bg-danger-tint p-4"
+        className="flex flex-col gap-3 rounded-lg border border-danger/20 bg-danger-tint p-4"
       >
         <div className="flex items-center gap-2 text-danger">
           <Icon name="error" size={18} />
@@ -76,7 +76,7 @@ export class PanelErrorBoundary extends Component<PanelErrorBoundaryProps, Panel
         <p className="text-xs text-fg-muted">
           Một lỗi xảy ra khi render khu vực này. Phần còn lại của trang vẫn dùng bình thường.
         </p>
-        <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-danger/30 bg-surface p-2 font-mono text-xs text-danger">
+        <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-danger/20 bg-surface p-2 font-mono text-xs text-danger">
           {this.state.errorMessage}
         </pre>
         <div>

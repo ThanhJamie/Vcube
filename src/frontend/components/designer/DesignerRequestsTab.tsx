@@ -1,9 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CustomDesignRequest, CustomDesignMessage } from '../../../types';
 import { customDesignService } from '../../../backend/services/customDesignService';
-import { Icon } from '@frontend/ui';
+import { Badge, Button, EmptyState, Icon, Input, Skeleton } from '@frontend/ui';
+import type { BadgeVariant } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';
 import { reportError } from '@frontend/lib/reportError';
+
+/** Trạng thái yêu cầu → biến thể badge §3.4 (enum chỉ sống trong code/DB). */
+const REQUEST_STATUS_VARIANT: Record<CustomDesignRequest['status'], BadgeVariant> = {
+  Pending: 'warning',
+  'In Progress': 'info',
+  Quoted: 'technical',
+  Completed: 'success',
+};
+
+/** Nhãn VI — không render thô `Pending`/`In Progress`/`Quoted`/`Completed`. */
+const REQUEST_STATUS_LABELS: Record<CustomDesignRequest['status'], string> = {
+  Pending: 'Chờ duyệt',
+  'In Progress': 'Đang thực hiện',
+  Quoted: 'Đã báo giá',
+  Completed: 'Hoàn thành',
+};
 
 export interface DesignerRequestsTabProps {
   currentDesignerName: string;
@@ -199,59 +216,75 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
 
   if (isLoading) {
     return (
-      <div className="bg-surface border border-line rounded-sm p-12 text-center shadow-e1">
-        <Icon name="hourglass_empty" size={36} className="mx-auto text-primary animate-spin motion-reduce:animate-none mb-3" />
-        <p className="text-xs text-fg-muted font-tech">Đang kết nối cơ sở dữ liệu yêu cầu CAD...</p>
+      <div className="rounded-lg border border-line bg-surface p-6" role="status" aria-label="Đang kết nối cơ sở dữ liệu yêu cầu CAD">
+        <div className="mb-4 flex items-center gap-3">
+          <Skeleton variant="circle" />
+          <div className="flex-1 space-y-2">
+            <Skeleton variant="text" width="40%" />
+            <Skeleton variant="text" width="25%" />
+          </div>
+        </div>
+        <div className="space-y-3">
+          {[0, 1, 2, 3].map((row) => (
+            <div key={row} className="flex items-center gap-3 rounded-md border border-line-subtle p-3">
+              <Skeleton variant="circle" />
+              <div className="flex-1 space-y-2">
+                <Skeleton variant="text" width="35%" />
+                <Skeleton variant="text" width="60%" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-sm text-fg-muted">Đang kết nối cơ sở dữ liệu yêu cầu CAD...</p>
       </div>
     );
   }
 
   if (requests.length === 0) {
     return (
-      <div className="bg-surface border border-line rounded-sm p-12 text-center shadow-e1">
-        <Icon name="chat" size={48} className="mx-auto text-fg-muted mb-3 opacity-40" />
-        <h3 className="font-bold text-sm text-fg">Chưa có yêu cầu CAD nào</h3>
-        <p className="text-xs text-fg-muted mt-1 max-w-md mx-auto">
-          Khi khách hàng gửi yêu cầu thiết kế tùy chỉnh hoặc đặt hàng gia công CAD riêng, thông tin
-          sẽ xuất hiện tại đây theo thời gian thực.
-        </p>
-      </div>
+      <EmptyState
+        bordered
+        live
+        icon={<Icon name="chat" size={20} />}
+        title="Chưa có yêu cầu CAD nào"
+        description="Khi khách hàng gửi yêu cầu thiết kế tùy chỉnh hoặc đặt hàng gia công CAD riêng, thông tin sẽ xuất hiện tại đây theo thời gian thực."
+      />
     );
   }
 
   return (
-    <div className="bg-surface border border-line rounded-sm overflow-hidden flex flex-col md:flex-row h-[700px] shadow-e1">
+    <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-surface md:h-[700px] md:flex-row">
       {/* Left Conversations List */}
-      <div className="w-full md:w-80 border-r border-line flex flex-col h-full bg-surface-muted shrink-0">
-        <div className="p-3.5 border-b border-line flex items-center justify-between bg-surface">
-          <h3 className="font-bold text-xs uppercase tracking-wider text-fg">
+      <div className="flex w-full shrink-0 flex-col border-b border-line bg-surface-muted max-md:h-72 md:h-full md:w-80 md:border-b-0 md:border-r">
+        <div className="flex items-center justify-between border-b border-line-subtle bg-surface p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
             Yêu Cầu CAD ({requests.length})
           </h3>
 
         </div>
-        <div className="flex-1 overflow-y-auto divide-y divide-line-subtle">
+        <div className="flex-1 divide-y divide-line-subtle overflow-y-auto">
           {requests.map((req) => (
             <button
               key={req.id}
               onClick={() => setSelectedReqId(req.id)}
-              className={`w-full text-left p-3.5 transition-colors flex items-start gap-3 ${
+              className={`flex w-full items-start gap-3 p-4 text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 selectedReqId === req.id
-                  ? 'bg-primary/10 border-l-4 border-l-primary'
-                  : 'hover:bg-surface-muted'
+                  ? 'border-l-2 border-l-primary bg-primary-tint'
+                  : 'border-l-2 border-l-transparent hover:bg-surface-muted'
               }`}
             >
-              <div className="w-9 h-9 rounded-full bg-primary/10 text-fg flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+              <div className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-primary-tint text-xs font-semibold text-fg">
                 {req.clientInitials}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-baseline mb-0.5">
-                  <span className="font-bold text-xs text-fg truncate">{displayClientName(req)}</span>
-                  <span className="text-xs font-tech text-fg-muted">{req.time}</span>
+              <div className="min-w-0 flex-1">
+                <div className="mb-0.5 flex items-baseline justify-between gap-2">
+                  <span className="truncate text-sm font-semibold text-fg">{displayClientName(req)}</span>
+                  <span className="shrink-0 font-mono text-xs text-fg-subtle">{req.time}</span>
                 </div>
-                <p className="text-xs font-semibold text-primary truncate">{req.title}</p>
-                <p className="text-xs text-fg-muted truncate">
+                <p className="truncate text-sm font-medium text-fg">{req.title}</p>
+                <p className="truncate text-xs text-fg-muted">
                   {openIds.has(req.id) ? (
-                    <span className="text-primary font-bold">Yêu cầu mở · Nhận việc</span>
+                    <span className="font-semibold text-warning">Yêu cầu mở · Nhận việc</span>
                   ) : (
                     req.previewMessage
                   )}
@@ -264,67 +297,78 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
 
       {/* Center: Live Chat Thread */}
       {currentRequest ? (
-        <div className="flex-1 flex flex-col h-full bg-surface relative">
+        <div className="relative flex flex-1 flex-col bg-surface max-md:h-[560px] md:h-full">
           {/* Chat Header */}
-          <div className="h-14 border-b border-line px-4 flex items-center justify-between bg-canvas">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-fg flex items-center justify-center font-bold text-xs">
+          <div className="flex items-center justify-between gap-2 border-b border-line-subtle bg-surface px-4 max-md:h-auto max-md:flex-wrap max-md:py-2 md:h-14">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-tint text-xs font-semibold text-fg">
                 {currentRequest.clientInitials}
               </div>
-              <div>
-                <h4 className="font-bold text-xs text-fg">{displayClientName(currentRequest)}</h4>
-                <p className="text-xs text-primary font-tech">
-                  Dự án: {currentRequest.title}
+              <div className="min-w-0">
+                <h4 className="truncate text-sm font-semibold text-fg">{displayClientName(currentRequest)}</h4>
+                <p className="flex items-center gap-2 text-xs text-fg-muted">
+                  <span className="truncate">Dự án: {currentRequest.title}</span>
+                  <Badge variant={REQUEST_STATUS_VARIANT[currentRequest.status] ?? 'neutral'} dot>
+                    {REQUEST_STATUS_LABELS[currentRequest.status] ?? currentRequest.status}
+                  </Badge>
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               {isCurrentOpen ? (
-                <button
+                <Button
+                  size="sm"
+                  variant="primary"
                   onClick={handleClaimRequest}
                   disabled={isSending}
-                  className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full flex items-center gap-1 touch-target-btn disabled:opacity-50"
+                  leadingIcon={<Icon name="handshake" size={16} />}
                 >
-                  <Icon name="handshake" size={18} />
                   Nhận Việc
-                </button>
+                </Button>
               ) : (
                 <>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={quoteAmountInput}
-                    onChange={(e) => setQuoteAmountInput(e.target.value)}
-                    placeholder="Số tiền (VND)"
-                    aria-label="Số tiền báo giá (VND)"
-                    className="hidden sm:block w-32 bg-surface border border-line-control px-2.5 py-1.5 text-xs font-tech rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring text-fg"
-                  />
-                  <button
+                  <div className="hidden w-32 sm:block">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      value={quoteAmountInput}
+                      onChange={(e) => setQuoteAmountInput(e.target.value)}
+                      placeholder="Số tiền (VND)"
+                      aria-label="Số tiền báo giá (VND)"
+                      numeric
+                      size="sm"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="primary"
                     onClick={handleSendQuoteInChat}
                     disabled={isSending}
-                    className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full flex items-center gap-1 touch-target-btn disabled:opacity-50"
+                    leadingIcon={<Icon name="request_quote" size={16} />}
                   >
-                    <Icon name="request_quote" size={18} />
                     Gửi Báo Giá CAD
-                  </button>
+                  </Button>
                 </>
               )}
-              <button
+              <Button
+                iconOnly
+                size="sm"
+                variant="secondary"
                 aria-label="Thông tin dự án"
+                title="Thông tin dự án"
                 onClick={() => setShowProjectBriefMobile(!showProjectBriefMobile)}
-                className="lg:hidden p-1.5 border border-line-control rounded-full text-fg"
-              >
-                <Icon name="info" size={18} />
-              </button>
+                className="lg:hidden"
+                leadingIcon={<Icon name="info" size={16} />}
+              />
             </div>
           </div>
 
           {/* Chat Messages Body */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface-muted">
+          <div className="flex-1 space-y-3 overflow-y-auto bg-surface-muted p-4">
             {isCurrentOpen ? (
-              <div className="h-full flex flex-col items-center justify-center text-center text-fg-muted text-xs gap-2">
-                <Icon name="lock" size={32} className="opacity-40" />
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-fg-muted">
+                <Icon name="lock" size={32} className="text-fg-subtle" />
                 <p className="max-w-xs">
                   Hội thoại và thông tin khách hàng chỉ hiển thị sau khi bạn nhận việc.
                 </p>
@@ -336,38 +380,38 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
                 className={`flex flex-col ${msg.sender === 'designer' ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`max-w-[85%] p-3 text-xs rounded-sm shadow-e1 leading-relaxed ${
+                  className={`max-w-[85%] rounded-lg p-3 text-sm leading-relaxed ${
                     msg.sender === 'designer'
-                      ? 'bg-surface-inverse text-on-inverse'
-                      : 'bg-surface border border-line text-fg'
+                      ? 'border border-primary/20 bg-primary-tint text-fg'
+                      : 'border border-line bg-surface text-fg'
                   }`}
                 >
                   <p>{msg.text}</p>
                   {msg.attachment && (
-                    <div className="mt-2 p-2 bg-on-inverse/10 border border-line rounded-sm flex items-center gap-2">
-                      <Icon name="view_in_ar" size={18} className="text-primary" />
+                    <div className="mt-2 flex items-center gap-2 rounded-md border border-line bg-surface p-2">
+                      <Icon name="view_in_ar" size={18} className="text-fg-muted" />
                       <div>
-                        <p className="font-tech font-bold text-xs">{msg.attachment.name}</p>
+                        <p className="font-mono text-xs font-semibold text-fg">{msg.attachment.name}</p>
                         <p className="text-xs text-fg-muted">{msg.attachment.size}</p>
                       </div>
                     </div>
                   )}
                   {msg.quote && (
-                    <div className="mt-2.5 p-3 bg-primary/10 border border-primary rounded-sm text-fg">
-                      <div className="flex items-center justify-between font-bold text-xs text-primary mb-1">
+                    <div className="mt-2.5 rounded-md border border-line bg-surface p-3 text-fg">
+                      <div className="mb-1 flex items-center justify-between gap-2 text-xs font-semibold text-fg">
                         <span>BÁO GIÁ KỸ THUẬT CAD</span>
-                        <span className="font-tech text-sm">
+                        <span className="font-mono text-sm tabular-nums">
                           {formatCurrency(msg.quote.amount)}
                         </span>
                       </div>
-                      <p className="text-xs text-fg-muted">{msg.quote.description}</p>
-                      <span className="inline-block mt-2 px-2 py-0.5 bg-primary text-primary-fg text-xs font-tech uppercase rounded-sm">
+                      <p className="text-sm text-fg-muted">{msg.quote.description}</p>
+                      <span className="mt-2 inline-flex items-center rounded-full border border-positive/20 bg-positive-tint px-2.5 py-1 text-xs font-medium text-positive">
                         ĐÃ GỬI ĐẾN KHÁCH HÀNG
                       </span>
                     </div>
                   )}
                 </div>
-                <span className="text-xs font-tech text-fg-subtle mt-1 px-1">{msg.time}</span>
+                <span className="mt-1 px-1 font-mono text-xs text-fg-subtle">{msg.time}</span>
               </div>
             )))}
           </div>
@@ -376,27 +420,24 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
           {!isCurrentOpen && (
             <form
               onSubmit={handleSendChatMessage}
-              className="p-3 border-t border-line bg-surface flex items-center gap-2"
+              className="flex items-center gap-2 border-t border-line-subtle bg-surface p-3"
             >
-              <input
+              <Input
                 type="text"
                 placeholder="Trao đổi kỹ thuật, dung sai, vật liệu..."
+                aria-label="Nội dung tin nhắn"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                className="flex-1 bg-canvas border border-line-control px-3 py-2 text-xs rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex-1"
               />
-              <button
-                type="submit"
-                disabled={isSending}
-                className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold uppercase rounded-full transition-colors touch-target-btn disabled:opacity-50"
-              >
+              <Button type="submit" variant="primary" disabled={isSending}>
                 Gửi
-              </button>
+              </Button>
             </form>
           )}
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center p-8 text-center text-fg-muted text-xs">
+        <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-fg-muted">
           Chưa có yêu cầu CAD nào được chọn
         </div>
       )}
@@ -404,39 +445,39 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
       {/* Right Project Brief */}
       {currentRequest && (
         <div
-          className={`w-72 border-l border-line bg-canvas p-4 space-y-4 shrink-0 ${
+          className={`w-72 shrink-0 space-y-4 border-line bg-surface-muted p-4 md:border-l ${
             showProjectBriefMobile ? 'block' : 'hidden lg:block'
           }`}
         >
-          <h4 className="font-bold text-xs uppercase tracking-wider text-fg border-b border-line pb-2">
-            Project Brief
+          <h4 className="border-b border-line-subtle pb-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+            Tóm tắt dự án
           </h4>
-          <div className="space-y-2 text-xs">
+          <div className="space-y-2 text-sm">
             <div>
-              <span className="text-xs font-tech text-fg-muted uppercase block">
+              <span className="block text-xs font-medium uppercase tracking-wider text-fg-subtle">
                 Ngân Sách Dự Kiến:
               </span>
-              <span className="font-tech font-bold text-primary">{currentRequest.budget}</span>
+              <span className="font-mono font-semibold tabular-nums text-fg">{currentRequest.budget}</span>
             </div>
             <div>
-              <span className="text-xs font-tech text-fg-muted uppercase block">
+              <span className="block text-xs font-medium uppercase tracking-wider text-fg-subtle">
                 Thời Hạn Bàn Giao:
               </span>
-              <span className="font-tech font-bold text-fg">{currentRequest.deadline}</span>
+              <span className="font-mono font-semibold text-fg">{currentRequest.deadline}</span>
             </div>
             <div>
-              <span className="text-xs font-tech text-fg-muted uppercase block">
+              <span className="block text-xs font-medium uppercase tracking-wider text-fg-subtle">
                 Yêu Cầu Vật Liệu:
               </span>
-              <span className="font-bold text-fg">{currentRequest.targetSpecs?.material || '—'}</span>
+              <span className="font-medium text-fg">{currentRequest.targetSpecs?.material || '—'}</span>
             </div>
             <div>
-              <span className="text-xs font-tech text-fg-muted uppercase block">Mật Độ Infill:</span>
+              <span className="block text-xs font-medium uppercase tracking-wider text-fg-subtle">Độ đặc:</span>
               <span className="text-fg">{currentRequest.targetSpecs?.infill || '—'}</span>
             </div>
             <div>
-              <span className="text-xs font-tech text-fg-muted uppercase block">
-                Kích Thước Đầu Phun (Nozzle):
+              <span className="block text-xs font-medium uppercase tracking-wider text-fg-subtle">
+                Đường kính đầu phun:
               </span>
               <span className="text-fg">{currentRequest.targetSpecs?.nozzle || '—'}</span>
             </div>

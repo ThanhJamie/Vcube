@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Order } from '../types';
 import { OrderProgress } from '../components/OrderProgress';
-import { Icon, Button, Badge, Modal } from '@frontend/ui';
+import { Icon, Button, Badge, Card, Modal, Field, Input, Select, EmptyState, type BadgeVariant } from '@frontend/ui';
 import { formatCurrency, formatDateTime } from '../lib/format';
 import { isFabricatedImage } from '../lib/productImage';
 
@@ -106,24 +106,24 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
     }, 4000);
   };
 
-  const getStatusBadge = (status: Order['status']) => {
+  const getStatusBadge = (status: Order['status']): { label: string; variant: BadgeVariant } => {
     switch (status) {
       case 'printing':
       case 'processing':
-        return { label: 'Đang Gia Công In 3D', bg: 'bg-info-tint border-info/30 text-info', dot: 'bg-info' };
+        return { label: 'Đang Gia Công In 3D', variant: 'info' };
       case 'post_processing':
       case 'packaging':
-        return { label: 'Xử Lý Bề Mặt / QC', bg: 'bg-warning-tint border-warning/30 text-warning', dot: 'bg-warning' };
+        return { label: 'Xử Lý Bề Mặt / QC', variant: 'warning' };
       case 'shipping':
-        return { label: 'Đang Giao Hàng', bg: 'bg-info-tint border-info/30 text-info', dot: 'bg-info' };
+        return { label: 'Đang Giao Hàng', variant: 'info' };
       case 'completed':
-        return { label: 'Đã Hoàn Thành', bg: 'bg-positive-tint border-positive/30 text-positive', dot: 'bg-positive' };
+        return { label: 'Đã Hoàn Thành', variant: 'success' };
       case 'pending_payment':
-        return { label: 'Chờ Thanh Toán', bg: 'bg-danger-tint border-danger/30 text-danger', dot: 'bg-danger' };
+        return { label: 'Chờ Thanh Toán', variant: 'danger' };
       case 'cancelled':
-        return { label: 'Đã Hủy Đơn', bg: 'bg-surface-muted border-line-subtle text-fg-muted', dot: 'bg-line-control' };
+        return { label: 'Đã Hủy Đơn', variant: 'neutral' };
       default:
-        return { label: 'Đang Tiếp Nhận', bg: 'bg-canvas border-line-subtle text-fg-muted', dot: 'bg-line-control' };
+        return { label: 'Đang Tiếp Nhận', variant: 'neutral' };
     }
   };
 
@@ -133,12 +133,12 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
         {/* Header Title & Search */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-6 border-b border-line">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold px-2 py-0.5 bg-primary-tint rounded-sm border border-primary/30">
-                VCUBE MES ARCHIVE // CLIENT FABRICATION RECORDS
-              </span>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="technical" size="sm" className="font-mono uppercase tracking-wider">
+                Hồ sơ gia công của khách hàng
+              </Badge>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-fg tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-fg">
               Lịch Sử Đơn Hàng & Gia Công Kỹ Thuật
             </h1>
             <p className="text-xs sm:text-sm text-fg-muted mt-1">
@@ -146,17 +146,20 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
             </p>
           </div>
 
-          <div className="relative w-full md:w-80">
-            <input
-              type="text"
-              placeholder="Tìm theo mã đơn, mã vận đơn, tên chi tiết..."
-              aria-label="Tìm đơn hàng theo mã đơn, mã vận đơn hoặc tên chi tiết"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg placeholder-fg-subtle focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary font-sans shadow-e0 transition-colors"
-            />
-            <Icon name="search" size={18} className="absolute left-2.5 top-2.5 text-fg-subtle" />
-          </div>
+          <Field
+            hideLabel
+            label="Tìm đơn hàng theo mã đơn, mã vận đơn hoặc tên chi tiết"
+            className="relative w-full md:w-80"
+          >
+            {(control) => (
+              <>
+                <Input {...control} type="text" className="pl-9"
+                  placeholder="Tìm theo mã đơn, mã vận đơn, tên chi tiết..."
+                  value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+              </>
+            )}
+          </Field>
         </div>
 
         {/* 7 Status Filter Tabs */}
@@ -167,16 +170,17 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveFilter(tab.id)}
-                className={`px-3 sm:px-3.5 py-1.5 text-xs font-mono font-bold rounded-md whitespace-nowrap transition-colors flex items-center gap-1.5 border cursor-pointer ${
+                aria-pressed={isActive}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors duration-200 flex items-center gap-1.5 border cursor-pointer max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   isActive
-                    ? 'bg-primary text-primary-fg border-primary shadow-e1'
-                    : 'bg-surface text-fg-muted hover:text-fg hover:bg-canvas border-line'
+                    ? 'bg-primary text-primary-fg border-primary'
+                    : 'bg-surface text-fg-muted border-line hover:text-fg hover:bg-surface-muted'
                 }`}
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`text-xs font-mono px-1.5 py-0.2 rounded-sm tabular-nums ${
-                    isActive ? 'bg-primary-fg/20 text-primary-fg' : 'bg-surface-muted text-fg-subtle'
+                  className={`text-xs font-mono px-1.5 py-0.5 rounded-full tabular-nums ${
+                    isActive ? 'bg-primary-fg/20 text-primary-fg' : 'bg-surface-muted text-fg-muted'
                   }`}
                 >
                   {tab.count}
@@ -187,28 +191,41 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
         </div>
 
         {/* Orders Listing */}
-        {filteredOrders.length === 0 ? (
-          <div className="bg-surface rounded-lg p-10 sm:p-16 text-center space-y-4 shadow-e1">
-            <div className="w-14 h-14 bg-surface-muted rounded-lg flex items-center justify-center mx-auto text-fg-subtle">
-              <Icon name="receipt_long" size={30} />
-            </div>
-            <div>
-              <h3 className="font-bold text-base text-fg">Không tìm thấy đơn hàng nào phù hợp</h3>
-              <p className="text-xs text-fg-subtle mt-1">
-                Thử thay đổi bộ lọc trạng thái hoặc từ khóa tìm kiếm mã đơn / tên chi tiết.
-              </p>
-            </div>
-            <div className="pt-2">
+        {orders.length === 0 ? (
+          <EmptyState
+            live
+            icon={<Icon name="receipt_long" size={20} />}
+            title="Bạn chưa có đơn hàng nào"
+            description="Đơn đặt in 3D hoặc bản quyền tệp CAD sẽ xuất hiện tại đây ngay sau khi bạn hoàn tất thanh toán."
+            action={(
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => onNavigate('explore')}
+                leadingIcon={<Icon name="explore" size={18} />}
+              >
+                Khám phá kho bản vẽ
+              </Button>
+            )}
+          />
+        ) : filteredOrders.length === 0 ? (
+          <EmptyState
+            bordered
+            live
+            icon={<Icon name="receipt_long" size={20} />}
+            title="Không tìm thấy đơn hàng nào phù hợp"
+            description="Thử thay đổi bộ lọc trạng thái hoặc từ khoá tìm kiếm mã đơn / tên chi tiết."
+            action={(
               <Button
                 variant="primary"
                 size="md"
                 onClick={() => onNavigate('quote')}
                 leadingIcon={<Icon name="add" size={18} />}
               >
-                Tạo Báo Giá In 3D Mới
+                Tạo báo giá in 3D mới
               </Button>
-            </div>
-          </div>
+            )}
+          />
         ) : (
           <div className="space-y-5 sm:space-y-6">
             {filteredOrders.map((ord) => {
@@ -219,8 +236,8 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
               const isPendingPayment = ord.status === 'pending_payment';
               const isShipping = ord.status === 'shipping';
               const isCompleted = ord.status === 'completed';
-              const primary: { label: string; icon: string; variant: 'accent' | 'primary'; onClick: () => void } = isPendingPayment
-                ? { label: 'Thanh toán ngay', icon: 'payments', variant: 'accent', onClick: () => onOpenInvoice(ord) }
+              const primary: { label: string; icon: string; variant: 'primary' | 'secondary'; onClick: () => void } = isPendingPayment
+                ? { label: 'Xem hướng dẫn thanh toán', icon: 'payments', variant: 'primary', onClick: () => onNavigate('order_tracking', { order: ord }) }
                 : isShipping
                 ? { label: 'Theo dõi hành trình', icon: 'local_shipping', variant: 'primary', onClick: () => onNavigate('order_tracking', { order: ord }) }
                 : isCompleted
@@ -228,20 +245,19 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                 : { label: 'Xem tiến độ', icon: 'sensors', variant: 'primary', onClick: () => onNavigate('order_tracking', { order: ord }) };
 
               return (
-                <div key={ord.id} className="bg-surface rounded-lg p-5 sm:p-7 hover:border-primary/50 transition-colors space-y-5 shadow-e1" >
+                <Card key={ord.id} variant="soft" padding="md" className="sm:p-6 space-y-5">
                   {/* Card Header Row */}
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between pb-4 border-b border-line gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between pb-4 border-b border-line-subtle gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                        <h2 className="font-mono font-extrabold text-lg sm:text-xl text-fg tracking-tight">
+                        <h2 className="font-mono font-semibold text-sm text-fg tracking-tight tabular-nums">
                           {ord.orderNumber}
                         </h2>
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-mono font-bold border ${statusBadge.bg}`}>
-                          <span className={`w-2 h-2 rounded-full ${statusBadge.dot}`}></span>
+                        <Badge variant={statusBadge.variant} dot>
                           {statusBadge.label}
-                        </span>
+                        </Badge>
                       </div>
-                      <p className="text-xs text-fg-muted font-mono mt-1 truncate">
+                      <p className="text-xs text-fg-muted font-mono mt-1 truncate tabular-nums">
                         Đặt ngày {formatDateTime(ord.date)}
                         {ord.carrier?.trackingCode
                           ? ` • ${ord.carrier.name || 'Vận chuyển'}: ${ord.carrier.trackingCode}`
@@ -251,23 +267,23 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
 
                     <div className="text-left sm:text-right shrink-0">
                       <span className="text-xs text-fg-subtle uppercase tracking-wider block">
-                        {ord.payment.isPaid ? 'Đã thanh toán' : ord.payment.status === 'cod' ? 'Thanh toán COD' : 'Chờ thanh toán'}
+                        {ord.payment.isPaid ? 'Đã thanh toán' : ord.payment.status === 'cod' ? 'Thanh toán khi nhận hàng' : 'Chờ thanh toán'}
                       </span>
-                      <span className="font-mono font-extrabold text-lg text-fg tabular-nums">
+                      <span className="font-mono font-semibold text-base text-fg tabular-nums text-right">
                         {formatCurrency(ord.payment.total)}
                       </span>
                     </div>
                   </div>
 
                   {/* 8-Stage Pipeline Progress Strip (Compact) */}
-                  <div className="bg-canvas border border-line-subtle rounded-lg p-3.5">
-                    <div className="flex items-center justify-between text-xs font-mono mb-2">
-                      <span className="text-fg-subtle font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <Icon name="precision_manufacturing" size={16} className="text-primary" />
+                  <div className="rounded-lg border border-line-subtle bg-surface-muted p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono mb-3">
+                      <span className="text-fg-muted font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                        <Icon name="precision_manufacturing" size={16} className="text-fg-muted" />
                         Tiến độ dây chuyền chế tác MES
                       </span>
                       {ord.status === 'printing' && (
-                        <span className="text-primary font-bold">
+                        <span className="text-info font-bold tabular-nums">
                           Đang đùn lớp:{' '}
                           {typeof ord.layerProgress === 'number' ? `${ord.layerProgress}%` : '—'}
                           {' • Dự kiến: '}
@@ -276,7 +292,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                       )}
                       {/* OT-07: chỉ công bố QC khi có biên bản đo kiểm được ghi. */}
                       {ord.status === 'completed' && (
-                        <span className="text-fg-subtle font-bold">Chưa có biên bản đo kiểm</span>
+                        <span className="text-fg-muted font-bold">Chưa có biên bản đo kiểm</span>
                       )}
                     </div>
                     <OrderProgress
@@ -292,9 +308,9 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                     {ord.items.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center gap-3 bg-canvas p-3 rounded-lg border border-line-subtle"
+                        className="flex items-center gap-3 bg-surface p-3 rounded-lg border border-line-subtle"
                       >
-                        <div className="relative w-13 h-13 rounded-lg border border-line shrink-0 overflow-hidden bg-surface-muted flex items-center justify-center text-fg-subtle">
+                        <div className="relative w-13 h-13 rounded-md border border-line shrink-0 overflow-hidden bg-surface-muted flex items-center justify-center text-fg-muted">
                           <Icon name="view_in_ar" size={20} />
                           {item.image && !isFabricatedImage(item.image) ? (
                             <img
@@ -313,7 +329,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                             SL: {item.quantity}x • {item.material || '—'} • {item.color || '—'}
                           </p>
                           {item.customText && (
-                            <span className="text-xs text-primary font-mono font-medium block truncate">
+                            <span className="text-xs text-fg font-mono font-medium block truncate">
                               Khắc: "{item.customText}"
                             </span>
                           )}
@@ -323,7 +339,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                   </div>
 
                   {/* Card Footer — địa chỉ + CTA chính & menu thao tác phụ */}
-                  <div className="pt-4 border-t border-line flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="pt-4 border-t border-line-subtle flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="text-xs text-fg-muted min-w-0">
                       <span className="inline-flex items-center gap-1.5">
                         <Icon name="local_shipping" size={16} className="text-fg-subtle shrink-0" />
@@ -347,32 +363,32 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                       <details className="relative">
                         <summary
                           aria-label="Thao tác khác"
-                          className="list-none [&::-webkit-details-marker]:hidden inline-flex items-center justify-center h-9 min-h-9 min-w-9 px-2 rounded-md border border-line-control bg-surface text-fg hover:bg-surface-muted cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="list-none [&::-webkit-details-marker]:hidden inline-flex items-center justify-center h-9 w-9 max-md:h-11 max-md:w-11 px-2 rounded-md border border-line-control bg-surface text-fg hover:bg-surface-muted cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <Icon name="more_horiz" size={18} />
                         </summary>
                         <div className="absolute right-0 z-panel mt-1 w-56 rounded-md border border-line-subtle bg-surface shadow-e2 p-1 space-y-0.5">
                           {(isPendingPayment || isCompleted) && (
-                            <button type="button" onClick={() => onNavigate('order_tracking', { order: ord })} className="w-full text-left px-3 py-2 rounded-md text-xs font-bold text-fg hover:bg-surface-muted flex items-center gap-2 cursor-pointer">
-                              <Icon name="sensors" size={16} className="text-primary" /> Xem tiến độ
+                            <button type="button" onClick={() => onNavigate('order_tracking', { order: ord })} className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-fg hover:bg-surface-muted flex items-center gap-2 cursor-pointer max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                              <Icon name="sensors" size={16} className="text-fg-muted" /> Xem tiến độ
                             </button>
                           )}
-                          <button type="button" onClick={() => onOpenInvoice(ord)} className="w-full text-left px-3 py-2 rounded-md text-xs font-bold text-fg hover:bg-surface-muted flex items-center gap-2 cursor-pointer">
-                            <Icon name="receipt_long" size={16} className="text-primary" /> Hóa đơn VAT
+                          <button type="button" onClick={() => onOpenInvoice(ord)} className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-fg hover:bg-surface-muted flex items-center gap-2 cursor-pointer max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <Icon name="receipt_long" size={16} className="text-fg-muted" /> Hoá đơn
                           </button>
                           {!isCompleted && (
-                            <button type="button" onClick={() => handleReorder(ord)} className="w-full text-left px-3 py-2 rounded-md text-xs font-bold text-fg hover:bg-surface-muted flex items-center gap-2 cursor-pointer">
-                              <Icon name="replay" size={16} className="text-primary" /> In lại đơn
+                            <button type="button" onClick={() => handleReorder(ord)} className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-fg hover:bg-surface-muted flex items-center gap-2 cursor-pointer max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                              <Icon name="replay" size={16} className="text-fg-muted" /> In lại đơn
                             </button>
                           )}
-                          <button type="button" onClick={() => handleOpenWarranty(ord)} className="w-full text-left px-3 py-2 rounded-md text-xs font-bold text-fg hover:bg-surface-muted flex items-center gap-2 cursor-pointer">
-                            <Icon name="verified_user" size={16} className="text-primary" /> Kiểm tra / Bảo hành
+                          <button type="button" onClick={() => handleOpenWarranty(ord)} className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-fg hover:bg-surface-muted flex items-center gap-2 cursor-pointer max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <Icon name="verified_user" size={16} className="text-fg-muted" /> Kiểm tra / Bảo hành
                           </button>
                         </div>
                       </details>
                     </div>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
@@ -390,8 +406,8 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
         >
             {warrantyModal.submitted ? (
               <div role="alert" className="p-4 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-warning-tint text-warning flex items-center justify-center mx-auto">
-                  <Icon name="error" size={28} />
+                <div className="mx-auto grid size-12 place-items-center rounded-full bg-warning-tint text-warning">
+                  <Icon name="error" size={24} />
                 </div>
                 <h4 className="font-bold text-base text-fg">Chưa gửi được yêu cầu</h4>
                 <p className="text-xs text-fg-muted">
@@ -403,60 +419,58 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmitWarranty} className="p-6 space-y-4 text-xs">
-                <div>
-                  <label className="block font-bold text-fg mb-1">
+              <form onSubmit={handleSubmitWarranty} className="space-y-4 text-xs">
+                <div className="space-y-1">
+                  <span className="block text-sm font-medium text-fg">
                     Đơn hàng áp dụng:
-                  </label>
-                  <p className="font-mono text-primary bg-canvas p-2 rounded-lg border border-line-subtle">
+                  </span>
+                  <p className="font-mono text-fg bg-surface-muted p-3 rounded-md border border-line-subtle tabular-nums">
                     {warrantyModal.order?.orderNumber} • Đặt ngày: {warrantyModal.order ? formatDateTime(warrantyModal.order.date) : '—'}
                   </p>
                 </div>
 
-                <div>
-                  <label className="block font-bold text-fg mb-1">
-                    Phân loại sự cố kỹ thuật:
-                  </label>
-                  <select
-                    value={warrantyModal.issueType}
-                    onChange={(e) => setWarrantyModal(prev => ({ ...prev, issueType: e.target.value as any }))}
-                    className="w-full p-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="tolerance">Sai lệch kích thước so với bản vẽ (Tolerance Deviation)</option>
-                    <option value="surface">Lỗi bề mặt, tách lớp (Delamination / Layer Separation)</option>
-                    <option value="material">Sai chủng loại vật liệu hoặc màu sắc yêu cầu</option>
-                    <option value="strength">Độ cứng cơ tính không đạt thông số Datasheet</option>
-                  </select>
-                </div>
+                <Field id="warranty-issue-type" label="Phân loại sự cố kỹ thuật:">
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={warrantyModal.issueType}
+                      onChange={(e) => setWarrantyModal(prev => ({ ...prev, issueType: e.target.value as any }))}
+                    >
+                      <option value="tolerance">Sai lệch kích thước so với bản vẽ</option>
+                      <option value="surface">Lỗi bề mặt, tách lớp in</option>
+                      <option value="material">Sai chủng loại vật liệu hoặc màu sắc yêu cầu</option>
+                      <option value="strength">Độ cứng cơ tính không đạt thông số nhà sản xuất</option>
+                    </Select>
+                  )}
+                </Field>
 
-                <div>
-                  <label className="block font-bold text-fg mb-1">
-                    Độ lệch đo được bằng thước cặp (Caliper measurement):
-                  </label>
-                  <input
-                    type="text"
-                    value={warrantyModal.measuredDeviation}
-                    onChange={(e) => setWarrantyModal(prev => ({ ...prev, measuredDeviation: e.target.value }))}
-                    placeholder="Ví dụ: Lỗ ren thiết kế Ø10.0mm nhưng in ra Ø9.75mm (-0.25mm)"
-                    className="w-full p-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                    required
-                  />
-                </div>
+                <Field id="warranty-deviation" label="Độ lệch đo được bằng thước cặp:">
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      value={warrantyModal.measuredDeviation}
+                      onChange={(e) => setWarrantyModal(prev => ({ ...prev, measuredDeviation: e.target.value }))}
+                      placeholder="Ví dụ: Lỗ ren thiết kế Ø10.0mm nhưng in ra Ø9.75mm (-0.25mm)"
+                      required
+                    />
+                  )}
+                </Field>
 
-                <div>
-                  <label className="block font-bold text-fg mb-1">
-                    Mô tả thêm & yêu cầu xử lý:
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={warrantyModal.notes}
-                    onChange={(e) => setWarrantyModal(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Mô tả cụ thể vị trí sai lệch và đề xuất (In lại ngay / Hoàn tín dụng vào ví VCUBE)..."
-                    className="w-full p-2.5 bg-surface border border-line-control rounded-lg text-xs text-fg focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
+                <Field id="warranty-notes" label="Mô tả thêm & yêu cầu xử lý:">
+                  {(control) => (
+                    <textarea
+                      {...control}
+                      rows={3}
+                      value={warrantyModal.notes}
+                      onChange={(e) => setWarrantyModal(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Mô tả cụ thể vị trí sai lệch và đề xuất (In lại ngay / Hoàn tín dụng vào ví VCUBE)..."
+                      className="w-full p-3 bg-surface border border-line-control rounded-md text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-primary focus:ring-2 focus:ring-ring"
+                    />
+                  )}
+                </Field>
 
-                <div className="bg-warning-tint p-3 rounded-lg border border-warning/30 text-warning text-xs flex items-start gap-2">
+                <div className="bg-warning-tint p-3 rounded-lg border border-warning/20 text-warning text-xs flex items-start gap-2">
                   <Icon name="info" size={18} className="shrink-0 mt-0.5" />
                   <span>
                     Chính sách VCUBE: khi chi tiết không khớp lắp ghép, kỹ sư sẽ kiểm tra nguyên nhân, hiệu chuẩn lại máy in và in lại.

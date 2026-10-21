@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Order } from '../types';
 import { OrderProgress } from '../components/OrderProgress';
 import { dbService } from '../../backend/supabase/database';
-import { Icon, Button } from '@frontend/ui';
+import { Icon, Button, Badge, Card, Field, Input, Skeleton } from '@frontend/ui';
 import { formatCurrency } from '../lib/format';
 
 interface OrderTrackingViewProps {
@@ -20,7 +20,7 @@ interface OrderTrackingViewProps {
  * Không bao giờ render một con số mặc định trông như số đo thật.
  */
 const Unknown: React.FC<{ title?: string }> = ({ title = 'Chưa có dữ liệu' }) => (
-  <span className="text-fg-subtle font-mono" title={title} aria-label={title}>
+  <span className="text-fg-muted font-mono" title={title} aria-label={title}>
     —
   </span>
 );
@@ -134,29 +134,29 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               aria-label="Quay lại danh sách đơn hàng"
               leadingIcon={<Icon name="arrow_back" size={20} />}
             />
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-fg tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-fg">
               Tra Cứu Đơn Hàng
             </h1>
           </div>
 
           {lookupState === 'not_found' && (
-            <div className="bg-surface rounded-lg p-6 sm:p-8 space-y-2 shadow-e1" role="status">
+            <Card variant="soft" padding="lg" className="space-y-2" role="status">
               <div className="flex items-center gap-2 text-fg">
-                <Icon name="search_off" size={24} className="text-fg-subtle" />
-                <h2 className="font-bold text-base">Không tìm thấy đơn hàng</h2>
+                <Icon name="search_off" size={20} className="text-fg-subtle" />
+                <h2 className="text-base font-semibold tracking-tight text-fg">Không tìm thấy đơn hàng</h2>
               </div>
               <p className="text-xs text-fg-muted leading-relaxed">
                 Chúng tôi không có đơn hàng nào khớp với thông tin bạn nhập. Vui lòng kiểm tra lại mã đơn,
-                hoặc dùng đúng mã token / số điện thoại đã dùng khi đặt hàng.
+                hoặc dùng đúng mã truy cập / số điện thoại đã dùng khi đặt hàng.
               </p>
-            </div>
+            </Card>
           )}
 
-          <div className="bg-surface border-2 border-primary/30 rounded-lg p-6 shadow-e2 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-line">
-              <div className="flex items-center gap-2 text-primary">
-                <Icon name="travel_explore" size={24} />
-                <h3 className="font-bold text-sm text-fg uppercase font-mono tracking-wider">
+          <Card variant="soft" padding="lg" className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-line-subtle">
+              <div className="flex items-center gap-2 text-fg">
+                <Icon name="travel_explore" size={20} className="text-fg-muted" />
+                <h3 className="text-sm font-semibold uppercase font-mono tracking-wider text-fg">
                   Cổng Tra Cứu Đơn Hàng Khách Vãng Lai
                 </h3>
               </div>
@@ -164,44 +164,26 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
             </div>
 
             <p className="text-xs text-fg-muted leading-relaxed">
-              Để bảo vệ thông tin đơn hàng, tra cứu yêu cầu <strong>cả mã đơn và mã token</strong> (hoặc số
-              điện thoại nhận hàng) đã dùng khi đặt hàng. Mã token được cấp ở màn hình xác nhận đơn.
+              Để bảo vệ thông tin đơn hàng, tra cứu yêu cầu <strong>cả mã đơn và mã truy cập</strong> (hoặc số
+              điện thoại nhận hàng) đã dùng khi đặt hàng. Mã truy cập được cấp ở màn hình xác nhận đơn.
             </p>
 
-            <form onSubmit={handleGuestLookup} className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
-              <div className="sm:col-span-5">
-                <label htmlFor="lookup-code" className="block text-xs font-bold text-fg mb-1">
-                  Mã Đơn Hàng:
-                </label>
-                <input
-                  id="lookup-code"
-                  type="text"
-                  value={lookupCode}
-                  onChange={(e) => setLookupCode(e.target.value)}
-                  placeholder="Ví dụ: #VCUBE-8924"
-                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  required
-                />
-              </div>
+            <form id="guest-lookup-form" onSubmit={handleGuestLookup} className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+              <Field id="lookup-code" label="Mã Đơn Hàng:" className="sm:col-span-5">
+                {(control) => (
+                  <Input {...control} type="text" value={lookupCode} className="font-mono" required
+                    onChange={(e) => setLookupCode(e.target.value)} placeholder="Ví dụ: #VCUBE-8924" />
+                )}
+              </Field>
 
-              <div className="sm:col-span-5">
-                <label htmlFor="lookup-token" className="block text-xs font-bold text-fg mb-1">
-                  Mã Token Hoặc Số Điện Thoại Nhận Hàng (bắt buộc):
-                </label>
-                <input
-                  id="lookup-token"
-                  type="text"
-                  value={lookupAuth}
-                  onChange={(e) => setLookupAuth(e.target.value)}
-                  placeholder="Token trong màn hình xác nhận đơn"
-                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  required
-                  aria-describedby="lookup-token-hint"
-                />
-                <p id="lookup-token-hint" className="text-xs text-fg-subtle mt-1">
-                  Chúng tôi không hiển thị đơn hàng nếu chỉ có mã đơn.
-                </p>
-              </div>
+              <Field id="lookup-token" className="sm:col-span-5"
+                label="Mã truy cập hoặc số điện thoại nhận hàng (bắt buộc):"
+                hint="Chúng tôi không hiển thị đơn hàng nếu chỉ có mã đơn.">
+                {(control) => (
+                  <Input {...control} type="text" value={lookupAuth} className="font-mono" required
+                    onChange={(e) => setLookupAuth(e.target.value)} placeholder="Mã truy cập trong màn hình xác nhận đơn" />
+                )}
+              </Field>
 
               <div className="sm:col-span-2 flex items-end">
                 <Button
@@ -209,6 +191,8 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   variant="primary"
                   size="md"
                   fullWidth
+                  loading={lookupState === 'searching'}
+                  loadingLabel="Đang tra..."
                   disabled={lookupState === 'searching'}
                   className="font-mono font-bold text-xs uppercase"
                 >
@@ -218,18 +202,37 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
             </form>
 
             {lookupError && (
-              <p className="text-xs text-danger bg-danger-tint p-2.5 rounded-lg border border-danger/30" role="alert">
-                {lookupError}
-              </p>
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-danger/20 bg-danger-tint p-3" role="alert">
+                <p className="text-xs text-danger flex-1 min-w-[12rem]">{lookupError}</p>
+                <Button type="submit" form="guest-lookup-form" variant="secondary" size="sm"
+                  loading={lookupState === 'searching'} loadingLabel="Đang tra...">Thử lại</Button>
+              </div>
             )}
 
             {notFound && !lookupError && lookupState === 'idle' && (
               <p className="text-xs text-fg-muted">
                 Liên kết bạn mở không ứng với đơn hàng nào trong phiên làm việc này. Hãy tra cứu bằng mã đơn
-                và token, hoặc đăng nhập để xem đơn của chính bạn.
+                và mã truy cập, hoặc đăng nhập để xem đơn của chính bạn.
               </p>
             )}
-          </div>
+
+            {/* Trạng thái đang tra cứu: skeleton đúng layout thẻ đơn (pipeline + 2 cột chi tiết). */}
+            {lookupState === 'searching' && (
+              <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6" role="status" aria-label="Đang tra cứu đơn hàng">
+                <Skeleton variant="text" width="12rem" />
+                <div className="flex items-center gap-1">
+                  <Skeleton variant="rect" height="0.5rem" rounded="full" className="flex-1" />
+                  <Skeleton variant="rect" height="0.5rem" rounded="full" className="flex-1" />
+                  <Skeleton variant="rect" height="0.5rem" rounded="full" className="flex-1" />
+                  <Skeleton variant="rect" height="0.5rem" rounded="full" className="flex-1" />
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Skeleton variant="rect" height="7rem" rounded="lg" className="w-full" />
+                  <Skeleton variant="rect" height="7rem" rounded="lg" className="w-full" />
+                </div>
+              </div>
+            )}
+          </Card>
         </div>
       </div>
     );
@@ -258,20 +261,20 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
             <div>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
                 {/* OT-04: bỏ badge "Live Telemetry" khi không có nhịp tim từ MES. */}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-muted border border-line-subtle text-fg-subtle text-xs sm:text-xs uppercase tracking-widest font-mono font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-line-control"></span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg-muted">
+                  <span className="w-1.5 h-1.5 rounded-full bg-fg-subtle"></span>
                   Không có tín hiệu MES
                 </span>
-                <span className="px-2.5 py-0.5 bg-primary-tint text-primary border border-primary/20 text-xs font-mono font-bold rounded-md shrink-0">
+                <Badge variant="technical" size="sm" className="font-mono tabular-nums">
                   {currentOrder.orderNumber}
-                </span>
+                </Badge>
                 {currentOrder.customerType === 'guest' && (
-                  <span className="px-2 py-0.5 bg-warning-tint text-warning text-xs font-mono font-bold rounded-md">
-                    GUEST ORDER
-                  </span>
+                  <Badge variant="warning" size="sm">
+                    Đơn khách vãng lai
+                  </Badge>
                 )}
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-fg tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-fg">
                 Tiến Độ Gia Công Đơn Hàng
               </h1>
               <p className="text-xs text-fg-muted mt-0.5">
@@ -315,52 +318,38 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
 
         {/* Guest lookup card (mở khi người dùng muốn tra mã khác) */}
         {isGuestSearchMode && (
-          <div className="bg-surface border-2 border-primary/30 rounded-lg p-6 shadow-e2 space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-line">
-              <div className="flex items-center gap-2 text-primary">
-                <Icon name="travel_explore" size={24} />
-                <h3 className="font-bold text-sm text-fg uppercase font-mono tracking-wider">
+          <Card variant="soft" padding="lg" className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-line-subtle">
+              <div className="flex items-center gap-2 text-fg">
+                <Icon name="travel_explore" size={20} className="text-fg-muted" />
+                <h3 className="text-sm font-semibold uppercase font-mono tracking-wider text-fg">
                   Tra Cứu Đơn Khác
                 </h3>
               </div>
-              <span className="text-xs font-mono text-fg-subtle">Bắt buộc mã token hoặc SĐT</span>
+              <span className="text-xs font-mono text-fg-subtle">Bắt buộc mã truy cập hoặc SĐT</span>
             </div>
 
-            <form onSubmit={handleGuestLookup} className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
-              <div className="sm:col-span-5">
-                <label htmlFor="lookup-code-2" className="block text-xs font-bold text-fg mb-1">
-                  Mã Đơn Hàng:
-                </label>
-                <input
-                  id="lookup-code-2"
-                  type="text"
-                  value={lookupCode}
-                  onChange={(e) => setLookupCode(e.target.value)}
-                  placeholder="Ví dụ: #VCUBE-8924"
-                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  required
-                />
-              </div>
-              <div className="sm:col-span-5">
-                <label htmlFor="lookup-token-2" className="block text-xs font-bold text-fg mb-1">
-                  Mã Token Hoặc Số Điện Thoại (bắt buộc):
-                </label>
-                <input
-                  id="lookup-token-2"
-                  type="text"
-                  value={lookupAuth}
-                  onChange={(e) => setLookupAuth(e.target.value)}
-                  placeholder="Token trong màn hình xác nhận đơn"
-                  className="w-full p-2.5 bg-canvas border border-line-control rounded-lg font-mono text-xs focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  required
-                />
-              </div>
+            <form id="guest-lookup-form-2" onSubmit={handleGuestLookup} className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+              <Field id="lookup-code-2" label="Mã Đơn Hàng:" className="sm:col-span-5">
+                {(control) => (
+                  <Input {...control} type="text" value={lookupCode} className="font-mono" required
+                    onChange={(e) => setLookupCode(e.target.value)} placeholder="Ví dụ: #VCUBE-8924" />
+                )}
+              </Field>
+              <Field id="lookup-token-2" label="Mã truy cập hoặc số điện thoại (bắt buộc):" className="sm:col-span-5">
+                {(control) => (
+                  <Input {...control} type="text" value={lookupAuth} className="font-mono" required
+                    onChange={(e) => setLookupAuth(e.target.value)} placeholder="Mã truy cập trong màn hình xác nhận đơn" />
+                )}
+              </Field>
               <div className="sm:col-span-2 flex items-end">
                 <Button
                   type="submit"
                   variant="primary"
                   size="md"
                   fullWidth
+                  loading={lookupState === 'searching'}
+                  loadingLabel="Đang tra..."
                   disabled={lookupState === 'searching'}
                   className="font-mono font-bold text-xs uppercase"
                 >
@@ -370,27 +359,39 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
             </form>
 
             {lookupError && (
-              <p className="text-xs text-danger bg-danger-tint p-2.5 rounded-lg border border-danger/30" role="alert">
-                {lookupError}
-              </p>
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-danger/20 bg-danger-tint p-3" role="alert">
+                <p className="text-xs text-danger flex-1 min-w-[12rem]">{lookupError}</p>
+                <Button type="submit" form="guest-lookup-form-2" variant="secondary" size="sm"
+                  loading={lookupState === 'searching'} loadingLabel="Đang tra...">Thử lại</Button>
+              </div>
             )}
             {lookupState === 'not_found' && (
-              <p className="text-xs text-fg-muted bg-canvas p-2.5 rounded-lg border border-line" role="status">
+              <p className="text-xs text-fg-muted rounded-lg border border-line bg-surface-muted p-3" role="status">
                 Không tìm thấy đơn hàng khớp với thông tin đã nhập.
               </p>
             )}
-          </div>
+            {/* Trạng thái đang tra cứu: skeleton đúng layout thẻ đơn. */}
+            {lookupState === 'searching' && (
+              <div className="space-y-4 rounded-lg border border-line-subtle bg-surface p-6" role="status" aria-label="Đang tra cứu đơn hàng">
+                <Skeleton variant="text" width="12rem" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Skeleton variant="rect" height="7rem" rounded="lg" className="w-full" />
+                  <Skeleton variant="rect" height="7rem" rounded="lg" className="w-full" />
+                </div>
+              </div>
+            )}
+          </Card>
         )}
 
         {/* Pipeline Card */}
-        <div className="bg-surface rounded-lg p-5 sm:p-7 space-y-6 shadow-e1">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-line gap-2">
-            <h2 className="font-bold text-base text-fg flex items-center gap-2">
-              <Icon name="linear_scale" size={20} className="text-primary" />
+        <Card variant="soft" padding="lg" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-line-subtle">
+            <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-fg">
+              <Icon name="linear_scale" size={20} className="text-fg-muted" />
               Quy Trình Gia Công 8 Bước
             </h2>
             {/* OT-06: bỏ badge "Xưởng Vận Hành ISO 9001" — không có chứng nhận nào được lưu. */}
-            <span className="text-xs font-mono text-fg-subtle flex items-center gap-1.5 px-3 py-1 bg-surface-muted rounded-full border border-line-subtle self-start sm:self-auto">
+            <span className="flex items-center gap-1.5 self-start rounded-full border border-line bg-surface-muted px-3 py-1 text-xs font-mono text-fg-muted sm:self-auto">
               Trạng thái cập nhật từ xưởng
             </span>
           </div>
@@ -403,108 +404,123 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
           />
 
           {/* OT-04/OT-05: bỏ dải telemetry bịa và mô phỏng "digital twin". */}
-          <div className="bg-canvas border border-line rounded-lg p-5 text-xs font-mono space-y-2">
-            <p className="font-bold text-fg">Chưa có dữ liệu từ máy in</p>
-            <p className="text-fg-subtle">
+          <div className="rounded-lg border border-line-subtle bg-surface-muted p-4 text-xs font-mono space-y-2">
+            <p className="font-bold text-fg-muted">Chưa có dữ liệu từ máy in</p>
+            <p className="text-fg-muted">
               Đầu đùn: <Unknown /> • Bàn nhiệt: <Unknown /> • Tốc độ: <Unknown /> • Lớp: <Unknown />
             </p>
-            <p className="text-fg-subtle">
+            <p className="text-fg-muted">
               Trạng thái này chỉ hiển thị số liệu khi xưởng kết nối hệ thống MES.
             </p>
-            <p className="text-fg-subtle pt-1">
+            <p className="text-fg-muted pt-1 tabular-nums">
               Tiến độ lớp: {layerProgress === null ? <Unknown title="Chưa có dữ liệu từ máy in" /> : `${layerProgress}%`}
               {' • '}Thời gian còn lại:{' '}
               {currentOrder.timeRemaining || <Unknown title="Chưa có dữ liệu từ máy in" />}
             </p>
           </div>
-        </div>
+        </Card>
 
         {/* Order details + delivery */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
           <div className="lg:col-span-6 space-y-5">
             {/* OT-06: thay bảng "chứng nhận dung sai" bằng trạng thái đo kiểm thật. */}
-            <div className="bg-surface rounded-lg p-5 space-y-3 text-xs shadow-e1">
-              <h3 className="font-bold text-sm text-fg flex items-center gap-2">
-                <Icon name="straighten" size={18} className="text-primary" />
+            <Card variant="soft" padding="md" className="space-y-3 text-xs sm:p-5">
+              <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-fg">
+                <Icon name="straighten" size={18} className="text-fg-muted" />
                 Kết Quả Đo Kiểm
               </h3>
               <p className="text-fg-muted leading-relaxed">
                 Chưa có biên bản đo kiểm nào được ghi cho đơn này. VCUBE chỉ công bố kết quả dung sai khi
                 xưởng đã thực hiện đo và lưu kết quả vào hồ sơ đơn hàng.
               </p>
-              <p className="text-xs text-fg-subtle">
+              <p className="text-xs text-fg-muted">
                 Cần đo kiểm theo yêu cầu? Hãy mở trao đổi với xưởng để thoả thuận phương pháp đo và tiêu chí nghiệm thu.
               </p>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                className="max-md:min-h-11"
                 onClick={onOpenChat}
-                className="text-primary font-bold underline font-mono text-xs cursor-pointer"
+                trailingIcon={<span aria-hidden="true">→</span>}
               >
-                Liên hệ xưởng về đo kiểm →
-              </button>
-            </div>
+                Liên hệ xưởng về đo kiểm
+              </Button>
+            </Card>
           </div>
 
           <div className="lg:col-span-6 space-y-5">
-            {/* Ordered Items */}
-            <div className="bg-surface rounded-lg p-5 space-y-4 shadow-e1">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <h3 className="font-bold text-sm text-fg">
+            {/* Ordered Items — bảng chi tiết theo DESIGN-LANGUAGE §3.5 */}
+            <Card variant="soft" padding="none" className="overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-subtle px-4 py-3">
+                <h3 className="text-sm font-semibold tracking-tight text-fg">
                   Linh Kiện Trong Đơn Hàng ({currentOrder.items.length})
                 </h3>
-                <span className="text-xs font-mono text-fg-subtle">
+                <span className="text-xs font-mono text-fg-subtle tabular-nums">
                   Tổng: {formatCurrency(currentOrder.payment.total)}
                 </span>
               </div>
 
-              <div className="divide-y divide-line">
-                {currentOrder.items.map((item) => (
-                  <div key={item.id} className="py-3.5 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-3 truncate">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-13 h-13 object-cover border border-line rounded-lg bg-surface-muted shrink-0"
-                      />
-                      <div className="truncate">
-                        <h4 className="font-bold text-sm text-fg truncate">{item.name}</h4>
-                        <p className="text-xs text-fg-subtle font-mono mt-0.5">
-                          {item.quantity}x
-                          {item.material ? ` • ${item.material}` : ''}
-                          {item.color ? ` • ${item.color}` : ''}
-                        </p>
-                        {item.resolution && (
-                          <span className="text-xs text-primary font-mono block">
-                            Độ phân giải: {item.resolution}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <span className="font-mono font-bold text-sm text-primary shrink-0 ml-3">
-                      {formatCurrency(item.price * item.quantity)}
-                    </span>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-muted text-xs uppercase tracking-wider text-fg-muted">
+                    <tr>
+                      <th scope="col" className="h-10 px-4 text-left font-semibold">Linh kiện</th>
+                      <th scope="col" className="h-10 px-4 text-right font-semibold">SL</th>
+                      <th scope="col" className="h-10 px-4 text-right font-semibold">Thành tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentOrder.items.map((item) => (
+                      <tr key={item.id} className="border-t border-line-subtle hover:bg-surface-muted/60">
+                        <td className="px-4 py-2 text-sm text-fg">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-8 h-8 object-cover border border-line rounded-sm bg-surface-muted shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm text-fg truncate">{item.name}</p>
+                              <p className="text-xs text-fg-subtle font-mono mt-0.5 truncate">
+                                {item.quantity}x
+                                {item.material ? ` • ${item.material}` : ''}
+                                {item.color ? ` • ${item.color}` : ''}
+                                {item.resolution ? ` • Độ phân giải: ${item.resolution}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 text-right font-mono tabular-nums text-fg-muted whitespace-nowrap">
+                          {item.quantity}
+                        </td>
+                        <td className="px-4 text-right font-mono tabular-nums font-semibold text-fg whitespace-nowrap">
+                          {formatCurrency(item.price * item.quantity)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            </Card>
 
             {/* Payment + Delivery — chỉ hiện dữ liệu thật */}
-            <div className="bg-surface rounded-lg p-5 space-y-4 text-xs shadow-e1">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <h3 className="font-bold text-sm text-fg flex items-center gap-2">
-                  <Icon name="local_shipping" size={18} className="text-primary" />
+            <Card variant="soft" padding="md" className="space-y-4 text-xs sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-subtle pb-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-fg">
+                  <Icon name="local_shipping" size={18} className="text-fg-muted" />
                   Thanh Toán & Vận Chuyển
                 </h3>
-                <span className={`font-mono font-bold text-xs px-2.5 py-0.5 rounded-sm border ${
-                  currentOrder.payment.isPaid
-                    ? 'text-positive bg-positive-tint border-positive/30'
-                    : 'text-warning bg-warning-tint border-warning/30'
-                }`}>
+                <Badge
+                  variant={currentOrder.payment.isPaid ? 'success' : 'warning'}
+                  dot
+                  className="font-mono"
+                >
                   {currentOrder.payment.isPaid
                     ? 'ĐÃ THANH TOÁN'
                     : currentOrder.payment.status === 'cod'
                     ? 'THU KHI GIAO (COD)'
                     : 'CHỜ THANH TOÁN'}
-                </span>
+                </Badge>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -563,13 +579,16 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                 </div>
               </div>
 
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                className="max-md:min-h-11"
                 onClick={() => onNavigate('my_orders')}
-                className="text-primary font-bold underline font-mono text-xs cursor-pointer"
+                leadingIcon={<span aria-hidden="true">←</span>}
               >
-                ← Về danh sách đơn hàng
-              </button>
-            </div>
+                Về danh sách đơn hàng
+              </Button>
+            </Card>
           </div>
         </div>
       </div>

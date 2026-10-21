@@ -12,6 +12,15 @@ import { DesignerRequestsTab } from '../components/designer/DesignerRequestsTab'
 type DesignerTabId = 'overview' | 'models' | 'wizard' | 'payouts' | 'requests';
 const DESIGNER_TAB_IDS: DesignerTabId[] = ['overview', 'models', 'wizard', 'payouts', 'requests'];
 
+/** Nhãn segmented control §3.6 — chỉ là trình bày, `setActiveTab` vẫn điều hướng `/designer/<id>`. */
+const DESIGNER_TAB_LABELS: Record<DesignerTabId, string> = {
+  overview: 'Tổng quan',
+  models: 'Ấn phẩm',
+  wizard: 'Đăng tải',
+  payouts: 'Quyết toán',
+  requests: 'Yêu cầu CAD',
+};
+
 interface DesignerDashboardViewProps {
   products: Product[];
   onAddNewProduct: (product: Product) => void;
@@ -66,7 +75,7 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
               leadingIcon={<Icon name="storefront" size={16} />}
               onClick={() => onNavigate('explore')}
             >
-              Xem Catalog VCUBE
+              Xem danh mục VCUBE
             </Button>
             <Button
               variant="primary"
@@ -81,6 +90,26 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
       />
 
       <div className="flex w-full flex-col gap-block">
+        <nav aria-label="Mục trong bảng điều khiển nhà thiết kế" className="w-full overflow-x-auto">
+          <div className="inline-flex min-w-full items-center gap-1 rounded-full border border-line bg-surface-muted p-1 sm:min-w-0">
+            {DESIGNER_TAB_IDS.map((tabId) => (
+              <button
+                key={tabId}
+                type="button"
+                aria-current={activeTab === tabId ? 'page' : undefined}
+                onClick={() => setActiveTab(tabId)}
+                className={`inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 motion-reduce:transition-none ${
+                  activeTab === tabId
+                    ? 'bg-surface font-semibold text-fg shadow-soft'
+                    : 'font-medium text-fg-muted hover:text-fg'
+                }`}
+              >
+                {DESIGNER_TAB_LABELS[tabId]}
+              </button>
+            ))}
+          </div>
+        </nav>
+
         {activeTab === 'overview' && (
           <PanelErrorBoundary label="Tổng quan nhà thiết kế" resetKey={activeTab}>
             <DesignerOverviewTab

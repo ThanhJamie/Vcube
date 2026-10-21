@@ -10,15 +10,19 @@
 @source not "../docs";
 
 /* ---------------------------------------------------------------------------
-   Design tokens — nguồn sự thật: docs/design/tokens.md
-   Tên theo VAI TRÒ (primary, fg, line…), không theo màu: token là hằng số,
-   app light-only nên không có khối dark ghi đè.
-   --text-* (thang chữ) ĐÃ khai báo ở Đợt 11A theo docs/plans/21-saas-spec.md §2.2 —
-   ghi đè mặc định Tailwind v4 (text-sm 14px -> 13px, text-base 16px -> 14px,
-   text-lg 18px -> 16px, text-4xl 36px -> 38px) nên ĐỔI PIXEL TOÀN APP, có chủ đích.
-   --duration-* / --ease-* (motion) VẪN chưa khai báo: đụng vào là đổi mọi transition.
-   `static`: Tailwind v4 chỉ phát biến theme khi có utility dùng tới; token nền tảng
-   (radius-full, shadow e0..e3, z-*) chưa có consumer nên PHẢI ép phát đủ.
+   Design tokens — nguồn sự thật: docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE.md
+   (v3 "Soft Studio", 2026-10-20. Bản v2 "Warm Studio" đã bị thay thế.)
+
+   Quyết định đã duyệt (PLAN v3 §1):
+     D0  UI tiếng Việt duy nhất — không có nhánh EN hiển thị.
+     D1  Soft Studio adaptation (không clone Prestiva).
+     D2  Hybrid shell: storefront top nav, console sidebar.
+     D3  CTA đen giữ nguyên; coral #E8624A CHỈ cho brand mark (logo/mark/badge).
+     D6  Không đổi route/slug/nav label. D7 giữ 3D viewport nền tối.
+   App light-only vĩnh viễn. Tier chrome tối đã xoá; dark theme xoá hẳn.
+   Thang chữ giữ nguyên có chủ đích — "mềm" đến từ canvas cream, radius và shadow.
+   `static`: Tailwind v4 chỉ phát biến theme khi có utility dùng tới; token chưa có
+   consumer (radius-full, shadow, z-*, tile-*) nên PHẢI ép phát đủ.
    LƯU Ý: không được viết chuỗi "* /" liền nhau trong comment của file này —
    Tailwind/CSS sẽ kết thúc comment sớm và nuốt luôn khối @theme bên dưới.
    --------------------------------------------------------------------------- */
@@ -27,76 +31,90 @@
   --font-sans: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* --- Tier-3 · chrome (console tối, cố định — không phụ thuộc theme) --- */
-  --color-chrome:            #0F172A;
-  --color-chrome-raised:     #1E293B;
-  --color-chrome-fg:         #E2E8F0;
-  --color-chrome-fg-muted:   #94A3B8;
-  --color-chrome-border:     #1E293B;
-  --color-chrome-active:     #FF9736;
-  --color-chrome-active-fg:  #0F172A;
-  --color-chrome-ring:       #FF9736;
-
-  /* --- Màu: nền & bề mặt --- */
-  --color-canvas: #F8FAFC;
-  --color-surface: #FFFFFF;
-  /* Light: "raised" bằng surface (phân cấp bề mặt chỉ cần ở dark). */
-  --color-surface-raised: #FFFFFF;
-  --color-surface-muted: #F8F9FF;
-  --color-surface-inverse: #091426;
-  --color-surface-inverse-raised: #1E293B;
-  --color-on-inverse: #FFFFFF;
+  /* --- Màu: nền & bề mặt (v3 Soft Studio — DESIGN-LANGUAGE-v3 §1) ---
+     canvas #F6F7EF = sage/cream rất nhạt (ấm, không xám lạnh).
+     surface #FFFDF9 = trắng ngà; surface-muted #F5F4EC = dải xen kẽ/input nền.
+     Đo: fg 16.21 trên canvas · 17.21 trên surface; fg-muted 7.07/7.51;
+     fg-subtle 4.67/4.95/4.56 (canvas/surface/surface-muted) — đều >= 4.5. */
+  --color-canvas: #F6F7EF;
+  --color-surface: #FFFDF9;
+  --color-surface-raised: #FFFDF9;
+  --color-surface-muted: #F5F4EC;
+  --color-surface-inverse: #1C1917;
+  --color-surface-inverse-raised: #292524;
+  --color-on-inverse: #FAFAF9;
 
   /* --- Màu: đường & viền --- */
-  --color-line: #CBD5E1;
-  --color-line-subtle: #E2E8F0;
-  /* Viền control (input/select/checkbox) — cần >= 3:1. KHÔNG dùng cho chữ (3.21:1). */
-  --color-line-control: #8590A6;
+  --color-line: #E7E3D6;
+  --color-line-subtle: #F0EDE3;
+  /* Viền control (input/select/checkbox) — cần >= 3:1. Đo 3.80 trên surface,
+     3.58 trên canvas, 3.50 trên surface-muted (đều đạt WCAG 1.4.11).
+     Không đổi giá trị so với v2: đây là màu ấm gần nhất đạt ngưỡng. */
+  --color-line-control: #8A8078;
 
   /* --- Màu: chữ --- */
-  --color-fg: #091426;
-  --color-fg-muted: #545F73;
-  /* #94A3B8 (2.56:1) đã bị loại khỏi vai trò chữ; chữ mờ dùng #64748B (4.76:1). */
-  --color-fg-subtle: #64748B;
+  --color-fg: #1C1917;
+  --color-fg-muted: #57534E;
+  /* #746E68 (ấm) — 4.67:1 trên canvas, 4.95:1 trên surface, 4.56:1 trên surface-muted.
+     KHÔNG dùng fg-subtle trên line-subtle (4.30), primary-tint (4.37), info-tint (4.34)
+     hay trên 4 màu tile pastel (4.29–4.44). */
+  --color-fg-subtle: #746E68;
 
-  /* --- Màu: thương hiệu & trạng thái --- */
-  --color-primary: #00687A;
-  --color-primary-hover: #005260;
+  /* --- Màu: thương hiệu & trạng thái ---
+     D3: CTA/link/focus dùng đen đá #1C1917; teal #00687A chỉ còn ở vai trò `info`.
+     `--color-brand` (coral #E8624A) CHỈ dùng cho brand mark: ô logo chữ V, mark
+     nhỏ, badge thương hiệu. TUYỆT ĐỐI không làm nền CTA, không làm chữ trên nền sáng.
+     Đo: chữ `fg` trên `brand` = 5.23 (đạt); coral trên surface = 3.29 (chỉ đồ hoạ,
+     không dùng làm text); trắng trên coral = 3.35 (không dùng). */
+  --color-primary: #1C1917;
+  --color-primary-hover: #292524;
   --color-primary-fg: #FFFFFF;
+  --color-brand: #E8624A;
   --color-accent: #57DFFE;
-  --color-positive: #15803D;
+  --color-positive: #047857;
   --color-warning: #B45309;
-  /* Sao đánh giá — chỉ đồ hoạ/lớn (3.19:1), không dùng cho chữ nhỏ. */
+  /* Sao đánh giá — chỉ đồ hoạ/lớn (3.14:1), không dùng cho chữ nhỏ. */
   --color-warning-strong: #D97706;
-  --color-danger: #B91C1C;
-  --color-info: #1D4ED8;
-  --color-ring: #00687A;
+  --color-danger: #BE123C;
+  --color-info: #00687A;
+  --color-ring: #1C1917;
 
-  /* TINT cho the trang thai / callout — thay cho `bg-<mau>-50/100` tho.
-     Luat: nen tint + chu <mau> dac (xem docs/plans/12-ui-refactor-spec.md §1.3).
-     Hai tint duoi day phai NHAT hon phan con lai vi mau dac cua chung (#15803D, #B45309)
-     la mau toi nhat trong nhom trang thai:
-       positive-tint #E7F3EC -> #F0F9F3 : #15803D dat 4.40 -> 4.67 (D-1b)
-       warning-tint  #FBF0E4 -> #FEF6EC : #B45309 dat 4.47 -> 4.69 (D-1)
-     CANH BAO: `text-fg-subtle` #64748B KHONG dat tren cac nen tint nay (positive-tint
-     light 4.43 / dark 4.46, warning-tint light 4.44 / dark 4.33) -> tren nen tint dung
-     `text-fg-muted`; xem scripts/check-contrast-combos.mjs. */
-  --color-primary-tint: #E6F0F2;
-  --color-positive-tint: #F0F9F3;
-  --color-warning-tint: #FEF6EC;
-  --color-danger-tint: #FBE9E9;
-  --color-info-tint: #E8EDFB;
+  /* TINT cho thẻ trạng thái / callout — luật: nền tint + chữ <màu> đặc.
+     Mọi cặp dưới đây đã đo >= 4.5:1 (xem DESIGN-LANGUAGE §1.4):
+       primary-tint #F0EFEB / #1C1917 = 15.3
+       positive-tint #ECFDF5 / #047857 = 5.27
+       warning-tint  #FFFBEB / #B45309 = 4.87
+       danger-tint   #FFF1F2 / #BE123C = 5.82
+       info-tint     #E6F0F2 / #00687A = 5.55
+     CANH BAO: KHÔNG dùng `text-fg-subtle` trên nền tint (4.4x) — dùng `text-fg-muted`.
+     Nguồn kiểm: scripts/check-contrast-combos.mjs. */
+  --color-primary-tint: #F0EFEB;
+  --color-positive-tint: #ECFDF5;
+  --color-warning-tint: #FFFBEB;
+  --color-danger-tint: #FFF1F2;
+  --color-info-tint: #E6F0F2;
 
-  /* --- Bo góc: thang SaaS (docs/plans/21-saas-spec.md §1.1) ---
-     sm 6 (badge/chip) · md 8 (nút, input, select) · lg 12 (card, panel)
-     xl 16 (band toàn chiều rộng) · modal 14 (modal/sheet) · full (avatar, chấm, pill đếm)
-     Thang cũ 8/12/20/28 -> 6/8/12/16: NHỎ hơn nên giảm rủi ro "ô vuông thành tròn"
-     (bài học A19), nhưng vẫn phải rà `borderRadius/(cạnh/2) < 1` khi áp từng trang. */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-modal: 14px;
+  /* TILE PASTEL — nền trang trí cho category tile / hero card (v3, KHÔNG phải tint
+     trạng thái): `--color-tile-*` dùng được với `text-fg` hoặc `text-fg-muted`.
+     TUYỆT ĐỐI không đặt `text-fg-subtle` lên các nền này (4.29–4.44:1 — fail).
+     Đo (fg / fg-muted): mint 15.07 / 6.58 · lilac 14.91 / 6.51
+                          rose 15.12 / 6.60 · amber 15.44 / 6.74. */
+  --color-tile-mint: #E7F1E4;
+  --color-tile-lilac: #EFEBF8;
+  --color-tile-rose: #FCEBE5;
+  --color-tile-amber: #FAF0DA;
+
+  /* --- Bo góc: thang v3 Soft Studio (DESIGN-LANGUAGE-v3 §2.1) ---
+     sm 8 (chip/tag/vuông <=24) · md 12 (nút, input, select, toolbar — KHÔNG pill)
+     lg 20 (card, bảng, viewport 3D) · xl 28 (panel/band lớn) · modal 24 · full.
+     Pill CHỈ dùng cho nav/search/chip (Card/SideNav/Button có variant opt-in).
+     Bẫy A19: ô vuông 20–60px dùng rounded-lg (20) sẽ gần tròn -> dùng rounded-md/sm.
+     Ô icon empty-state size-12 đã chuyển sang rounded-md vì radius-lg tăng lên 20. */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-modal: 24px;
   --radius-full: 9999px;
 
   /* --- Motion: thời lượng & easing (additive) ---
@@ -112,13 +130,15 @@
   --ease-exit: cubic-bezier(0.3, 0, 1, 1);
 
   /* --- Elevation theo vai trò (e0 phẳng + viền) ---
-     Chính sách Modern SaaS (21-saas-spec.md §2.4): e0 card trong luồng (KHÔNG bóng) ·
-     e1 card nổi · e2 popover/dropdown · e3 modal. Giữ 4 bậc, giá trị RÀ NHẸ hơn bản cũ
-     (SaaS tối giản: bóng chỉ gợi độ nổi, viền mới là tín hiệu phân tách). */
+     v3: bóng đổi hệ ấm (nâu ấm 92 74 51 thay cho stone 28 25 23) và thêm bậc
+     `--shadow-soft` cho storefront (card soft/nav pill/FAB): rất nhẹ, tán rộng,
+     KHÔNG dùng thay viền ở console. e0 card trong luồng · e1 card nổi ·
+     e2 popover/toast · e3 modal/sheet. */
   --shadow-e0: none;
-  --shadow-e1: 0 1px 2px rgb(9 20 38 / 0.05), 0 1px 1px rgb(9 20 38 / 0.04);
-  --shadow-e2: 0 2px 8px rgb(9 20 38 / 0.08), 0 1px 2px rgb(9 20 38 / 0.04);
-  --shadow-e3: 0 12px 32px rgb(9 20 38 / 0.16), 0 2px 8px rgb(9 20 38 / 0.08);
+  --shadow-soft: 0 1px 2px rgb(92 74 51 / 0.05), 0 10px 24px -14px rgb(92 74 51 / 0.18);
+  --shadow-e1: 0 1px 2px rgb(28 25 23 / 0.05), 0 1px 1px rgb(28 25 23 / 0.04);
+  --shadow-e2: 0 2px 8px rgb(28 25 23 / 0.08), 0 1px 2px rgb(28 25 23 / 0.04);
+  --shadow-e3: 0 12px 32px rgb(28 25 23 / 0.16), 0 2px 8px rgb(28 25 23 / 0.08);
 
   /* --- Thang chữ có thật (21-saas-spec.md §2.2) ---
      xs 12 · sm 13 · base 14 · lg 16 · xl 20 · 2xl 24 · 3xl 30 · 4xl 38.
@@ -140,10 +160,10 @@
   --text-4xl: 38px;
   --text-4xl--line-height: 1.15;
 
-  /* --- Nhịp dọc (21-saas-spec.md §2.3) ---
-     giữa section 24 (`space-y-section`) · trong section 16 (`gap-block`) ·
+  /* --- Nhịp dọc (Warm Studio §2.3) ---
+     giữa section 32 (`space-y-section`) · trong section 16 (`gap-block`) ·
      nhãn <-> giá trị 4 (`gap-label`). Cấm giá trị lẻ tuỳ hứng. */
-  --spacing-section: 24px;
+  --spacing-section: 32px;
   --spacing-block: 16px;
   --spacing-label: 4px;
 
@@ -165,6 +185,14 @@
 @utility z-drawer { z-index: var(--z-drawer); }
 @utility z-modal { z-index: var(--z-modal); }
 @utility z-toast { z-index: var(--z-toast); }
+
+/* UI-018: nav storefront cuộn ngang (overflow-x-auto) nhưng thanh cuộn bị ẩn; fade mép
+   phải báo "còn mục nữa" khi các mục không vừa (lg–xl với tài khoản admin/lab).
+   Khi nav vừa đủ chỗ, phần fade rơi vào khoảng trống nên không đổi hình. */
+.nav-fade-right {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+}
 
 /* Số liệu (bảng, KPI, tiền, tiến độ) — 21-saas-spec.md §2.2.
    Tailwind v4 ĐÃ có utility lõi `tabular-nums` (kiểm chứng trong CSS build:
@@ -397,19 +425,27 @@
 @media (max-width: 767px) {
   .touch-target-btn {
     min-height: var(--touch-target-min);
-    display: inline-flex;
+    /* A11Y-02: trước đây chỉ có `min-height` ⇒ hamburger 40×44 (thiếu bề rộng).
+       Cả hai chiều phải đạt 44px theo qa-checklist U6 / WCAG 2.5.8. */
+    min-width: var(--touch-target-min);
+    /* QA-02/QA-06: KHÔNG đặt `display` ở đây. Rule này nằm ngoài layer nên
+       `display:inline-flex` sẽ thắng utility `hidden` của Tailwind (nút search
+       vẫn hiện dưới 768px ⇒ 2 trigger mở cùng drawer). Chỉ giữ kích thước tối thiểu;
+       display do utility/component quyết định. */
     align-items: center;
     justify-content: center;
   }
 }
 
-/* Mobile Slide-Over Drawer Animation */
+/* Mobile Slide-Over Drawer — token hoá (Warm Studio §3.7).
+   Trước đây dùng rgba slate + z-index 998/999 (ngoài thang --z-*), khiến drawer
+   đè cả toast/modal. Nay: backdrop dưới panel một bậc trong cùng thang --z-drawer. */
 .mobile-nav-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.65);
+  background-color: rgb(28 25 23 / 0.4);
   backdrop-filter: blur(4px);
-  z-index: 998;
+  z-index: calc(var(--z-drawer) - 1);
   transition: opacity 0.25s ease-out;
 }
 
@@ -420,14 +456,29 @@
   bottom: 0;
   width: 85%;
   max-width: 320px;
-  background-color: var(--color-canvas);
+  /* UI-002 (P1): trước đây panel KHÔNG cuộn được nên với tài khoản admin/lab
+     (6 mục nav + thẻ user + 2 nút) nút "Đăng xuất" bị cắt ngoài viewport 390×667.
+     `overflow-y:auto` + `overscroll-behavior:contain` để cuộn trong panel, không
+     "lây" scroll sang trang nền; `100dvh` để không bị thanh địa chỉ mobile cắt. */
+  max-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background-color: var(--color-surface);
   border-left: 1px solid var(--color-line);
-  box-shadow: -4px 0 24px rgba(9, 20, 38, 0.2);
-  z-index: 999;
+  box-shadow: var(--shadow-e3);
+  z-index: var(--z-drawer);
   display: flex;
   flex-direction: column;
   transform: translateX(0);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav-backdrop,
+  .mobile-nav-panel {
+    transition: none;
+  }
 }
 
 /* Editorial subtle paper grid and textured backgrounds */
@@ -459,24 +510,85 @@
   background-size: 16px 16px;
 }
 
-/* Custom crisp editorial scrollbars (theo token, đổi được theo theme) */
+/* Scrollbar mảnh 6px — Warm Studio (DESIGN-LANGUAGE §2). Track trong suốt để
+   không tạo dải xám trên nền canvas ấm. */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-canvas);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-line);
+  border-radius: var(--radius-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  /* Thumb hover là thành phần UI -> dùng line-control (#8590A6, 3.21:1),
-     thay cho #94A3B8 (2.45:1) đã bị loại. */
+  /* Thumb hover là thành phần UI -> dùng line-control (3.70:1 trên canvas). */
   background: var(--color-line-control);
+}
+
+/* Chọn văn bản: tint ấm, chữ đen đá (không dùng teal — D-2). */
+::selection {
+  background-color: var(--color-primary-tint);
+  color: var(--color-fg);
+}
+
+/* Range slider tối giản (lấy từ AURA 3D): track 4px, thumb 16px đen đá.
+   Dùng token nên đổi theo palette; áp cho mọi input[type=range] trong app. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--color-line);
+  height: 4px;
+  border-radius: var(--radius-full);
+  outline: none;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  border: 2px solid var(--color-surface);
+  box-shadow: var(--shadow-e1);
+  cursor: pointer;
+  transition: transform var(--transition-duration-fast) ease,
+    background var(--transition-duration-fast) ease;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: var(--color-primary-hover);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  border: 2px solid var(--color-surface);
+  box-shadow: var(--shadow-e1);
+  cursor: pointer;
+}
+
+input[type='range']:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input[type='range']::-webkit-slider-thumb {
+    transition: none;
+  }
+  input[type='range']::-webkit-slider-thumb:hover {
+    transform: none;
+  }
 }
 
 @keyframes pulse-subtle {

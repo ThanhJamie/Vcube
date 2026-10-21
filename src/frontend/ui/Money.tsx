@@ -37,9 +37,9 @@ export interface MoneyProps {
 }
 
 const SIZE: Record<MoneySize, string> = {
-  sm: 'text-xs',
-  base: 'text-sm',
-  heading: 'text-lg font-semibold',
+  sm: 'font-mono text-xs',
+  base: 'font-mono text-sm',
+  heading: 'font-mono text-lg font-semibold',
 };
 
 const TONE: Record<MoneyTone, string> = {

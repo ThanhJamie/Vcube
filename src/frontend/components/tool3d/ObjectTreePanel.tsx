@@ -85,13 +85,13 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
   ];
 
   return (
-    <div className="bg-surface rounded-lg p-5 sm:p-6 space-y-4">
+    <div className="rounded-lg border border-line bg-surface p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-line-subtle pb-3">
         <div>
-          <h3 className="font-bold text-sm sm:text-base text-fg flex items-center gap-2 mt-0.5">
+          <h3 className="font-semibold text-base tracking-tight text-fg flex items-center gap-2 mt-0.5">
             <Icon name="account_tree" size={18} className="text-primary" />
-            Cây Đối Tượng ({parts.length} Part{parts.length > 1 ? 's' : ''})
+            Cây đối tượng ({parts.length} chi tiết)
           </h3>
         </div>
 
@@ -99,41 +99,41 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
           <span className={`px-2 py-0.5 text-xs font-tech uppercase tracking-wider font-bold rounded-sm ${
             format === '3MF' ? 'bg-primary text-primary-fg' : 'bg-line-subtle text-fg-muted'
           }`}>
-            {format === '3MF' ? '3MF Multi-Body Standard' : `${format} Body`}
+            {format === '3MF' ? '3MF · đa thân' : `${format} · đơn thân`}
           </span>
         </div>
       </div>
 
       {/* Detected Materials / Color Palette Bar */}
-      <div className="bg-surface-muted p-3 rounded-sm flex flex-wrap items-center justify-between gap-2 text-xs">
+      <div className="bg-surface-muted border border-line-subtle p-3 rounded-md flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-fg-muted flex items-center gap-1">
             <Icon name="palette" size={18} className="text-primary" />
-            Màu & Vật Liệu Trong File:
+            Màu & vật liệu trong tệp:
           </span>
           <div className="flex items-center gap-1.5">
             {uniqueColors.map((hex) => (
               <span
                 key={hex}
                 style={{ backgroundColor: hex }}
-                className="w-4 h-4 rounded-full border border-line-control inline-block shadow-e1"
+                className="w-4 h-4 rounded-full border border-line inline-block"
                 title={`Màu HEX: ${hex}`}
               />
             ))}
           </div>
         </div>
         <span className="font-tech text-xs text-fg-muted">
-          {activeExtruders} Đầu Đùn / Kênh AMS Hoạt Động
+          {activeExtruders} đầu đùn / kênh AMS hoạt động
         </span>
       </div>
 
       {/* F7 — Gram / thời gian in theo từng bàn, CHỈ khi tệp thật sự kèm dữ liệu slicer.
           Tệp không có bàn in thì nói thẳng, không dựng số theo bàn. */}
-      <div className="bg-surface-muted p-3 rounded-sm space-y-2">
+      <div className="bg-surface-muted border border-line-subtle p-3 rounded-md space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-bold text-fg-muted flex items-center gap-1">
             <Icon name="layers" size={18} className="text-primary" />
-            Dữ liệu bàn in (Slicer):
+            Dữ liệu bàn in:
           </span>
           {plates.length > 0 && (
             <span className="font-tech text-xs text-fg-muted">{plates.length} bàn</span>
@@ -143,7 +143,7 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
         {plates.length === 0 ? (
           <p className="text-xs text-fg-muted flex items-start gap-1.5 leading-relaxed">
             <Icon name="info" size={16} className="text-fg-muted shrink-0 mt-0.5" />
-            Tệp không kèm dữ liệu bàn in (slicer). Hệ thống không hiển thị gram/giờ theo bàn vì tệp không có số đo nào.
+            Tệp không kèm dữ liệu bàn in. Hệ thống không hiển thị gram/giờ theo bàn vì tệp không có số đo nào.
           </p>
         ) : (
           <div className="space-y-1.5">
@@ -152,7 +152,7 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
               return (
                 <div
                   key={plate.index}
-                  className="flex flex-wrap items-center justify-between gap-2 bg-surface border border-line-subtle rounded-sm px-2.5 py-1.5"
+                  className="flex flex-wrap items-center justify-between gap-2 bg-surface border border-line-subtle rounded-md px-2.5 py-1.5"
                 >
                   <button
                     type="button"
@@ -199,12 +199,12 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
             <div
               key={part.id}
               onClick={() => onSelectPart && onSelectPart(isSelected ? null : part.id)}
-              className={`p-3.5 rounded-lg transition-colors cursor-pointer ${
+              className={`rounded-md border px-2.5 py-2 transition-colors cursor-pointer ${
                 isSelected
-                  ? 'bg-primary-tint ring-1 ring-primary/40 shadow-e1'
+                  ? 'bg-primary-tint border-line text-fg ring-1 ring-primary/30'
                   : part.visible
-                  ? 'bg-surface-muted hover:bg-line-subtle'
-                  : 'bg-canvas opacity-60'
+                  ? 'bg-surface border-line-subtle hover:bg-surface-muted'
+                  : 'bg-surface-muted border-line-subtle opacity-60'
               }`}
             >
               {/* Row 1: Visibility, Name & Extruder */}
@@ -216,14 +216,14 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
                       e.stopPropagation();
                       onToggleVisibility(part.id);
                     }}
-                    title={part.visible ? 'Ẩn chi tiết này trên 3D Viewport' : 'Hiện chi tiết này'}
+                    title={part.visible ? 'Ẩn chi tiết này trên khung 3D' : 'Hiện chi tiết này'}
                     aria-label={part.visible ? 'Ẩn chi tiết này' : 'Hiện chi tiết này'}
-                    className="p-1 hover:bg-surface-muted text-fg-muted hover:text-fg rounded-full transition-colors"
+                    className="inline-flex h-8 w-8 max-md:size-11 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <Icon name={part.visible ? 'visibility' : 'visibility_off'} size={18} />
                   </button>
 
-                  <span className={`font-bold text-xs truncate ${isSelected ? 'text-primary' : 'text-fg'}`}>
+                  <span className="font-semibold text-sm truncate text-fg">
                     {index + 1}. {part.name}
                   </span>
                 </div>
@@ -237,7 +237,7 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
                         value={part.plateIndex ?? ''}
                         onChange={(e) => onChangePartPlate && onChangePartPlate(part.id, Number(e.target.value))}
                         aria-label={`Chọn bàn in cho ${part.name}`}
-                        className="bg-surface border border-line-control text-xs font-tech font-bold text-primary px-1.5 py-0.5 rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+                        className="h-8 max-md:min-h-11 bg-surface border border-line-control text-xs font-mono font-semibold text-fg px-2 rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                         title="Chuyển chi tiết này sang Bàn in khác"
                       >
                         {/* F2 (P2): tệp không khai chi tiết thuộc bàn nào ⇒ "Chưa khai", không ngầm gán Bàn 1. */}
@@ -259,16 +259,16 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
                       value={part.extruderIndex ?? ''}
                       onChange={(e) => onChangeExtruder(part.id, Number(e.target.value))}
                       aria-label={`Chọn đầu đùn cho ${part.name}`}
-                      className="bg-surface border border-line-control text-xs font-tech font-bold px-1.5 py-0.5 rounded-sm focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+                      className="h-8 max-md:min-h-11 bg-surface border border-line-control text-xs font-mono px-2 rounded-md focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {/* F2 (P3): tệp không khai đầu đùn ⇒ hiện "Chưa khai", KHÔNG ngầm chọn T1. */}
                       {part.extruderIndex == null && (
                         <option value="" disabled>Chưa khai</option>
                       )}
-                      <option value={1}>Tool T1</option>
-                      <option value={2}>Tool T2</option>
-                      <option value={3}>Tool T3</option>
-                      <option value={4}>Tool T4</option>
+                      <option value={1}>Đầu đùn T1</option>
+                      <option value={2}>Đầu đùn T2</option>
+                      <option value={3}>Đầu đùn T3</option>
+                      <option value={4}>Đầu đùn T4</option>
                     </select>
                   </div>
                 </div>
@@ -282,7 +282,7 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
                   disabled={materials.length === 0}
                   onChange={(e) => onChangeMaterial && onChangeMaterial(part.id, e.target.value)}
                   aria-label={`Chọn vật liệu cho ${part.name}`}
-                  className="bg-surface-muted border border-line-control text-xs font-sans text-fg py-1 px-2 rounded-sm w-full max-w-[240px] focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                  className="bg-surface border border-line-control text-xs font-sans text-fg h-8 max-md:min-h-11 py-1 px-2 rounded-md w-full max-w-[240px] focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                 >
                   {materials.length === 0 ? (
                     <option value="">Chưa có vật liệu trong DB</option>
@@ -309,7 +309,7 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
 
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-fg-muted font-sans">Màu:</span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     {displayPaletteList.slice(0, 8).map((pal) => (
                       <button
                         key={pal.hex}
@@ -318,15 +318,15 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
                         title={pal.name}
                         aria-label={`Đặt màu ${pal.name}`}
                         style={{ backgroundColor: pal.hex }}
-                        className={`w-4 h-4 rounded-full border transition-transform ${
+                        className={`w-5 h-5 max-md:size-11 rounded-full border transition-all ${
                           part.colorHex.toLowerCase() === pal.hex.toLowerCase()
-                            ? 'border-primary scale-125 ring-2 ring-primary/30'
-                            : 'border-line-control hover:scale-110'
+                            ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-surface'
+                            : 'border-line hover:ring-2 hover:ring-primary/40'
                         }`}
                       />
                     ))}
                     {/* Custom Hex Color Picker Input */}
-                    <label className="relative cursor-pointer w-4 h-4 rounded-full border border-line-control overflow-hidden inline-block" title="Chọn màu tùy chỉnh">
+                    <label className="relative cursor-pointer w-5 h-5 max-md:size-11 rounded-full border border-line overflow-hidden inline-block" title="Chọn màu tùy chỉnh">
                       <input
                         type="color"
                         value={part.colorHex}
@@ -347,10 +347,10 @@ export const ObjectTreePanel: React.FC<ObjectTreePanelProps> = ({
 
       {/* Multi-material Purge & Tool Swap Estimation Notice */}
       {isMultiColor && (
-        <div className="bg-warning/10 border border-warning/40 p-3.5 rounded-sm text-xs space-y-1.5 text-warning">
+        <div className="bg-warning-tint border border-warning/20 p-3.5 rounded-md text-xs space-y-1.5 text-warning">
           <div className="font-bold flex items-center gap-1 text-warning">
             <Icon name="palette" size={18} />
-            Phát Hiện In Đa Màu (Multi-Material AMS / MMU)
+            Phát hiện in đa màu (AMS / MMU)
           </div>
           <p className="text-xs leading-relaxed text-warning">
             Mô hình đang sử dụng <strong>{activeExtruders} màu/đầu đùn</strong> độc lập. Hệ thống sẽ tự động tính toán tháp súc nhựa (Purge Tower) và thời gian tráo sợi nhựa vào bảng dự toán chi phí.

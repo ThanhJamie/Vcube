@@ -36,7 +36,7 @@ export interface ToolbarProps {
 
 const VARIANT: Record<ToolbarVariant, string> = {
   plain: '',
-  panel: 'rounded-md border border-line-subtle bg-surface px-2',
+  panel: 'rounded-md border border-line bg-surface px-2',
 };
 
 export function Toolbar({

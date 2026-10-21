@@ -3,6 +3,11 @@ import { useAppSettings, useSiteContent } from '../hooks/useSettings';
 import type { AppSettings } from '@backend/supabase/mappers';
 import type { SiteContentConfig } from '../../types';
 
+/**
+ * D0 (v3): UI **tiếng Việt duy nhất**. Kiểu `Language` vẫn giữ `'en'` để không phá API
+ * công khai (`setLanguage`/`toggleLanguage`/`t`) của 1.195 call-site `isVi ?`; nhưng
+ * KHÔNG tồn tại đường nào đưa `language` về `'en'` và `t()` không bao giờ trả chuỗi EN.
+ */
 export type Language = 'vi' | 'en';
 
 /**
@@ -58,7 +63,7 @@ export const DICTIONARY = {
     en: 'Orders',
   },
   navAdmin: {
-    vi: 'Quản Trị Admin',
+    vi: 'Quản trị hệ thống',
     en: 'Admin Console',
   },
   searchPlaceholder: {
@@ -158,7 +163,7 @@ export const DICTIONARY = {
     en: 'Material:',
   },
   calcInfill: {
-    vi: 'Độ đặc Infill:',
+    vi: 'Độ đặc:',
     en: 'Infill Density:',
   },
   calcEstWeight: {
@@ -310,15 +315,15 @@ export const DICTIONARY = {
     en: 'Customer',
   },
   roleDesigner: {
-    vi: 'Tác Giả 3D (Designer)',
+    vi: 'Tác giả thiết kế 3D',
     en: '3D Designer / Creator',
   },
   roleAdmin: {
-    vi: 'Quản Trị Admin',
+    vi: 'Quản trị hệ thống',
     en: 'Admin',
   },
   navDesignerStudio: {
-    vi: 'Studio Thiết Kế',
+    vi: 'Xưởng thiết kế',
     en: 'Designer Studio',
   },
   myOrdersTracking: {
@@ -376,11 +381,11 @@ export const DICTIONARY = {
     en: 'Services & Store',
   },
   footerInstantQuote: {
-    vi: 'Báo giá file 3D trực tuyến',
+    vi: 'Báo giá tệp 3D trực tuyến',
     en: 'Instant 3D File Quoting',
   },
   footerMarketplace: {
-    vi: 'Marketplace bản vẽ kỹ thuật',
+    vi: 'Sàn bản vẽ kỹ thuật',
     en: 'Engineering CAD Marketplace',
   },
   footerCreators: {
@@ -392,7 +397,7 @@ export const DICTIONARY = {
     en: 'Headquarters & Facilities',
   },
   footerRights: {
-    vi: '© 2026 VCUBE Vietnam Industrial Fabrication. Bảo lưu mọi quyền.',
+    vi: '© 2026 VCUBE Việt Nam. Bảo lưu mọi quyền.',
     en: '© 2026 VCUBE Vietnam Industrial Fabrication. All rights reserved.',
   },
   footerCadSecurity: {
@@ -419,7 +424,8 @@ export const DICTIONARY = {
  * LUẬT: chưa cấu hình ⇒ `''`. Component PHẢI ẨN — không rơi về số/kênh đoán và không in `—`.
  */
 export function configuredClaims(
-  language: Language,
+  /** Giữ tham số để không phá call-site cũ; D0 không còn dùng để chọn ngôn ngữ. */
+  _language: Language,
   site: SiteContentConfig | null,
   app: AppSettings | null,
 ): Record<string, string> {
@@ -430,11 +436,8 @@ export function configuredClaims(
     statToleranceVal: text(site?.heroMetric1Value),
     statLeadTimeVal: text(site?.heroMetric2Value),
     statStandardVal: text(site?.heroMetric3Value),
-    liveSupportEngineer: hotline
-      ? language === 'vi'
-        ? `Hỗ trợ kỹ thuật: ${hotline}`
-        : `Technical support: ${hotline}`
-      : '',
+    // D0: chỉ có một ngôn ngữ hiển thị — không còn nhánh EN (kể cả khi tham số đổi).
+    liveSupportEngineer: hotline ? `Hỗ trợ kỹ thuật: ${hotline}` : '',
     // Không có nguồn cấu hình chứng nhận ⇒ luôn ẩn (không bịa chứng nhận).
     footerIsoCert: '',
   };
@@ -452,6 +455,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // A7 — Vietnamese-only: UI không còn control đổi ngôn ngữ; trạng thái cũ trong
   // `localStorage` (kể cả `'en'`) không được phép kéo giao diện sang tiếng Anh.
+  // D0: `language` luôn là 'vi'. Không đọc `localStorage`/URL/query để đổi ngôn ngữ.
   const [language, setLanguageState] = useState<Language>('vi');
 
   // NHÓM A: cấu hình admin (cache + realtime của `settingsService`, xem `useSettings`).
@@ -476,7 +480,14 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const toggleLanguage = () => setLanguage('vi');
 
-  const t = (key: string, fallbackVi?: string, fallbackEn?: string): string => {
+  /**
+   * `t()` — D0: LUÔN trả tiếng Việt.
+   *
+   * `fallbackEn` được giữ trong chữ ký để không phá ~1.195 call-site, nhưng bị **bỏ qua
+   * hoàn toàn**: không có nhánh nào trả chuỗi tiếng Anh ra giao diện. Thứ tự ưu tiên:
+   * claim admin (Nhóm A, kể cả `''`) → từ điển VI → `fallbackVi` → tên khoá.
+   */
+  const t = (key: string, fallbackVi?: string, _fallbackEn?: string): string => {
     // NHÓM A thắng từ điển: giá trị đọc từ cấu hình admin — kể cả khi RỖNG
     // (`''` = chưa cấu hình ⇒ component phải ẩn, không rơi về chuỗi bịa).
     const claim = claims[key];
@@ -489,9 +500,8 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
       // Trước đây `'' || key` làm rò rỉ tên khoá ("campaign29Desc") ra giao diện.
       if (typeof value === 'string') return value;
     }
-    if (language === 'en' && fallbackEn) return fallbackEn;
-    if (language === 'vi' && fallbackVi) return fallbackVi;
-    return fallbackVi || fallbackEn || key;
+    // Không rơi về tiếng Anh: chỉ VI fallback rồi tới tên khoá (để lộ lỗi thiếu key rõ ràng).
+    return fallbackVi ?? key;
   };
 
   return (

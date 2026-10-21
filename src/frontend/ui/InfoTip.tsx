@@ -122,8 +122,8 @@ export function InfoTip({
         onClick={() => (open ? hide() : show())}
         onFocus={show}
         className={cn(
-          'inline-flex size-6 shrink-0 items-center justify-center rounded-full max-md:size-8',
-          'text-fg-subtle transition-colors duration-150 ease-out motion-reduce:transition-none',
+          'inline-flex size-6 shrink-0 items-center justify-center rounded-sm max-md:size-8',
+          'text-fg-subtle transition-colors duration-200 ease-out motion-reduce:transition-none',
           'hover:bg-surface-muted hover:text-fg',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           open && 'bg-surface-muted text-fg',
@@ -140,7 +140,7 @@ export function InfoTip({
           style={{ transform: `translateX(calc(-50% + ${shiftX}px))` }}
           className={cn(
             'absolute left-1/2 z-panel w-max max-w-[min(20rem,calc(100vw-2rem))]',
-            'rounded-md border border-line-subtle bg-surface-raised p-3 text-left',
+            'rounded-md border border-line bg-surface shadow-e2 p-3 text-left',
             'text-xs leading-relaxed font-normal text-fg-muted shadow-e2',
             'transition-opacity duration-150 ease-out motion-reduce:transition-none',
             resolved === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2',

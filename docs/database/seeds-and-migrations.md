@@ -2,7 +2,7 @@
 # VCUBE Database Seeds, Migrations & Bootstrap Guide
 
 > **Target Platform**: Supabase PostgreSQL 15+  
-> **Active Migration Chain**: 3 Sequenced Files (`supabase/migrations/`)  
+> **Active Migration Chain**: 3 core files + W2 forward migrations (`20261011*` / `20261012*` / `20261013*`) in `supabase/migrations/`  
 > **Consolidated Executable**: `supabase/scripts/apply_all_manual.sql`  
 > **Admin Provisioning**: `supabase/scripts/bootstrap_admin.sql`  
 > **Catalog Testing**: `scripts/test-catalog-sync.ts` (offline mock)  
@@ -12,7 +12,7 @@
 
 ## 1. Ordered Migration Sequence
 
-To ensure transactional atomicity and prevent circular dependency locks between schema tables and security policies, migrations must run in the exact sequential order defined below. The baseline and hardening files are each wrapped in `BEGIN; ... COMMIT;`; `20260900_rls_helpers.sql` is a plain function-definition script and `bootstrap_admin.sql` is a `DO` block (neither opens an explicit transaction).
+To ensure transactional atomicity and prevent circular dependency locks between schema tables and security policies, migrations must run in the exact sequential order defined below. The baseline and hardening files are each wrapped in `BEGIN; ... COMMIT;`; `20260900_rls_helpers.sql` is a plain function-definition script and `bootstrap_admin.sql` is a `DO` block (neither opens an explicit transaction). Steps 1–3 are the **core chain**; step 4 covers the **W2 forward migrations** and step 5 is the admin bootstrap.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -44,11 +44,39 @@ To ensure transactional atomicity and prevent circular dependency locks between 
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 4. supabase/scripts/bootstrap_admin.sql                     │
+│ 4. supabase/migrations/20261011* + 20261012* + 20261013*    │
+│    W2 forward migrations (apply in filename order):         │
+│    SEC-01 payout hotfix, designer self-signup + column      │
+│    guard, SEC-02 open-requests view/RPC, CHECK constraints, │
+│    orders realtime broadcast, designer_payout_info table,   │
+│    cad-files storage scheme.                                │
+│    ⚠ 20261013100000 (drop bank columns) is H-GATED: apply   │
+│    only after phase 1 + client deploy + verification.       │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 5. supabase/scripts/bootstrap_admin.sql                     │
 │    Promotes authenticated user to role='admin' in           │
 │    public.user_profiles.role                                │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### W2 Forward Migrations (apply after the core chain)
+
+| Order | File (`supabase/migrations/`) | Role | Rollback (`supabase/rollback/`) |
+|---|---|---|---|
+| 4 | `20261011090000_sec01_designer_payout_hotfix.sql` | SEC-01 / T0A-3: revoke table `SELECT` on `designer_profiles`, grant safe columns + 2 payout RPCs | `20261011090000_down.sql` |
+| 5 | `20261011100000_signup_role_designer.sql` | T58: designer self-signup through a closed guard (never grants `admin`) | `20261011100000_down.sql` |
+| 6 | `20261011110000_designer_profile_column_guard.sql` | SEC-02: trigger blocking designers from editing privileged columns | `20261011110000_down.sql` |
+| 7 | `20261012090000_sec02_open_requests.sql` | SEC-02 / T21: `open_design_requests` view + atomic `claim_design_request` RPC | `20261012090000_down.sql` |
+| 8 | `20261012100000_check_constraints.sql` | T22b: enum-like `CHECK`s (`NOT VALID` → audit → `VALIDATE`) | `20261012100000_down.sql` |
+| 9 | `20261012130000_orders_broadcast.sql` | T35-mig: private `orders:admin` realtime broadcast (`realtime.send`, payload `{id,status}`) | `20261012130000_down.sql` |
+| 10 | `20261013090000_sec01_payout_table.sql` | SEC-01 / T20 phase 1: `designer_payout_info` table + `upsert_my_payout_info` RPC | `20261013090000_down.sql` |
+| 11 | `20261013110000_storage_scheme.sql` | T25 / D3: owner-scoped `cad/<uid>/<uuid>/<file>` policy for the `cad-files` bucket | `20261013110000_down.sql` |
+| — | `20261013100000_drop_designer_bank_columns.sql` | SEC-01 / T20 phase 2 — **H-GATED, not in the bundle**: apply only after phase 1 + client deploy + verification | `20261013100000_down.sql` |
+
+The consolidated `supabase/scripts/apply_all_manual.sql` is regenerated with `node scripts/gen-apply-all.mjs`; it currently bundles the 3 core files + all eight W2/W2b forward migrations (`20261011*`–`20261013*`) + `bootstrap_admin.sql`. The only migration **not** bundled is the H-gated `20261013100000_drop_designer_bank_columns.sql` — apply it separately under the §1.4 protocol of `docs/tasks/DRIFT-TASKS.md`, and log each apply in `docs/security/rls-runbook.md` §11. Ready-to-paste bundles live in `docs/runbooks/hotfix-2026-09-24.sql` and `docs/runbooks/w2b-2026-09-24.sql`.
 
 ---
 
@@ -118,12 +146,12 @@ The 6 SQL files archived under `supabase/legacy/` represent the original develop
 
 | # | Fatal Defect | Evidence & Error Code | Architectural Consequence |
 |---|---|---|---|
-| **1** | Missing Foreign Key Column in `orders` | `20260904_complete_...sql:55-72` vs `20260904_secure_rls_and_pricing.sql:36` (PostgreSQL Error `42703`: `column "user_id" does not exist`) | `orders` was initially defined without `user_id`, causing subsequent index and policy statements to crash immediately. |
-| **2** | Unfulfillable NOT NULL Constraints | `20260904_secure_rls_and_pricing.sql:14,15,17,19,29` | Scripts required non-existent columns to be `NOT NULL` before backfill operations occurred. |
-| **3** | Primary Key Data Type Mismatch | `20260904_complete_...sql:86` (`id TEXT`) vs `20260905_master_...sql:394` (`id UUID`) (PostgreSQL Error `42883`) | `user_profiles.id` conflicted with `auth.users(id)` foreign keys due to incompatible casting. |
-| **4** | Entity Relkind Collision | `20260904_complete_...sql:157` (`CREATE TABLE pricing_config`) vs `20260905_master_...sql:473` (`CREATE VIEW pricing_config`) (PostgreSQL Error `42809`) | `pricing_config` was defined both as a table and as a view, crashing the schema cache. |
+| **1** | Missing Foreign Key Column in `orders` | `orders` declaration in `20260904_complete_vcube_schema_and_seeds.sql` vs the `CREATE INDEX … ON public.orders(user_id)` statement in `20260904_secure_rls_and_pricing.sql` (PostgreSQL Error `42703`: `column "user_id" does not exist`) | `orders` was initially defined without `user_id`, causing subsequent index and policy statements to crash immediately. |
+| **2** | Unfulfillable NOT NULL Constraints | `ALTER COLUMN … SET NOT NULL` statements for `user_id`, `customer_email`, `customer_name`, `total_amount`, `secure_access_token` in `20260904_secure_rls_and_pricing.sql` | Scripts required non-existent columns to be `NOT NULL` before backfill operations occurred. |
+| **3** | Primary Key Data Type Mismatch | `id TEXT PRIMARY KEY` in `20260904_complete_vcube_schema_and_seeds.sql` vs `id UUID …` in `20260905_master_production_schema.sql` (PostgreSQL Error `42883`) | `user_profiles.id` conflicted with `auth.users(id)` foreign keys due to incompatible casting. |
+| **4** | Entity Relkind Collision | `CREATE TABLE pricing_config` in `20260904_complete_vcube_schema_and_seeds.sql` vs `CREATE OR REPLACE VIEW public.pricing_config` in `20260905_master_production_schema.sql` (PostgreSQL Error `42809`) | `pricing_config` was defined both as a table and as a view, crashing the schema cache. |
 
-In addition to structural crashes, the legacy files contained severe security anti-patterns: `FOR ALL USING (true)`, `auth.jwt() -> 'user_metadata'`, and 43 instances of hardcoded admin email addresses. All of these have been resolved in the current 3-file migration sequence.
+In addition to structural crashes, the legacy files contained severe security anti-patterns: `FOR ALL USING (true)`, `auth.jwt() -> 'user_metadata'`, and 43 instances of hardcoded admin email addresses. All of these have been resolved in the current core migration sequence plus the W2 forward migrations (§1).
 
 ---
 
@@ -170,7 +198,7 @@ This file is automatically compiled by running:
 ```bash
 node scripts/gen-apply-all.mjs
 ```
-It bundles `20260900_rls_helpers.sql`, `20260901_baseline_schema.sql`, `20261010_harden_rls.sql`, and `bootstrap_admin.sql` into a single, idempotent file with safety checks for schema cache reloading.
+It bundles the 3 core files (`20260900_rls_helpers.sql`, `20260901_baseline_schema.sql`, `20261010_harden_rls.sql`), all eight W2/W2b forward migrations (`20261011*`–`20261013*`), and `bootstrap_admin.sql` into a single, idempotent file with safety checks for schema cache reloading. The H-gated `20261013100000_drop_designer_bank_columns.sql` is deliberately **not** bundled — apply it separately (see §1).
 
 ---
 

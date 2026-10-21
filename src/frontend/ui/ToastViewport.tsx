@@ -89,10 +89,10 @@ const SEVERITY_ICON = {
 } as const;
 
 const SEVERITY_BORDER: Record<ToastSeverity, string> = {
-  success: 'border-positive/40',
-  error: 'border-danger/60',
-  warning: 'border-warning/40',
-  info: 'border-info/40',
+  success: 'border-positive/20',
+  error: 'border-danger/20',
+  warning: 'border-warning/20',
+  info: 'border-info/20',
 };
 
 const SEVERITY_ICON_TONE: Record<ToastSeverity, string> = {

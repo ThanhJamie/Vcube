@@ -5,6 +5,18 @@ import { Icon } from '@frontend/ui';
 import { useInViewport } from '../hooks/useInViewport';
 import { disposeHierarchy } from '../three/dispose';
 
+/**
+ * Nhãn VI cho loại geometry proxy — tránh render mã EN thô (`gear`/`box`/…) ở chip
+ * `showTitleBadge` (COPY-GLOSSARY D0). Không ảnh hưởng scene/geometry.
+ */
+const MODEL_TYPE_LABEL: Record<string, string> = {
+  gear: 'Bánh răng',
+  box: 'Vỏ hộp',
+  drone: 'Drone',
+  vase: 'Bình',
+  arch: 'Vòm',
+};
+
 interface ThreeModelViewerProps {
   modelType?: 'gear' | 'box' | 'drone' | 'arch' | 'vase' | string;
   color?: string;
@@ -394,30 +406,38 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
   return (
     <div
       ref={wrapperRef}
-      className={`relative bg-surface-inverse select-none rounded-lg overflow-hidden border border-surface-inverse-raised flex flex-col font-sans ${className}`}
+      className={`relative bg-surface-inverse select-none rounded-lg overflow-hidden border border-line flex flex-col font-sans ${className}`}
     >
       {/* Standby placeholder when scrolled out of viewport */}
       {!isInViewport && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-inverse text-on-inverse/60 font-mono text-xs z-10 select-none">
-          <Icon name="view_in_ar" size={28} className="mb-2 text-accent/60 animate-pulse motion-reduce:animate-none" />
-          <span className="font-bold tracking-wider uppercase text-on-inverse/80">
-            WebGL Standby (±100px)
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-inverse text-on-inverse font-mono text-xs z-10 select-none">
+          <Icon name="view_in_ar" size={28} className="mb-2 text-accent animate-pulse motion-reduce:animate-none" />
+          <span className="font-bold tracking-wider uppercase text-on-inverse">
+            Chế độ chờ WebGL
           </span>
-          <span className="text-xs text-on-inverse/50 mt-1">
+          <span className="text-xs text-on-inverse/75 mt-1">
             Cuộn vào khung nhìn để hiển thị mô hình 3D
           </span>
         </div>
       )}
 
-      {/* 3D Canvas container */}
-      <div ref={canvasContainerRef} className="w-full flex-1 cursor-grab active:cursor-grabbing" />
+      {/* 3D Canvas container.
+          A11Y-04: canvas WebGL không có nội dung DOM nên AT không đọc được gì. `role="img"` +
+          aria-label VI đặt trên CHÍNH container canvas (không đặt lên wrapper — wrapper còn
+          toolbar/slider, `role="img"` ở đó sẽ ẩn toàn bộ control khỏi accessibility tree). */}
+      <div
+        ref={canvasContainerRef}
+        role="img"
+        aria-label={`Mô hình 3D minh họa ${MODEL_TYPE_LABEL[modelType] ?? 'sản phẩm'} — mô hình theo danh mục, không phải tệp CAD gốc của sản phẩm.`}
+        className="w-full flex-1 cursor-grab active:cursor-grabbing"
+      />
 
       {/* Optional Minimal Model Badge */}
       {showTitleBadge && (
-        <div className="absolute top-3 left-3 flex items-center gap-2 bg-surface-inverse/85 px-3 py-1.5 rounded-lg border border-surface-inverse-raised/60 text-xs text-on-inverse shadow-e2 z-10">
-          <span className="w-2 h-2 rounded-full bg-accent animate-pulse motion-reduce:animate-none"></span>
-          <span className="font-mono text-xs font-bold text-on-inverse/90 uppercase tracking-wider">
-            {modelType}
+        <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full border border-line bg-surface/90 px-3 py-1 text-xs text-fg-muted backdrop-blur-sm shadow-soft z-10">
+          <span className="size-1.5 rounded-full bg-info"></span>
+          <span className="font-mono text-xs font-semibold text-fg-muted uppercase tracking-wider">
+            {MODEL_TYPE_LABEL[modelType] ?? 'Mô hình 3D'}
           </span>
         </div>
       )}
@@ -440,20 +460,21 @@ export const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({
 
       {/* Layer Slicer Slider Bar (Only when explicitly enabled) */}
       {isInViewport && showLayerSlicer && (
-        <div className="absolute bottom-3 left-3 right-3 bg-surface-inverse/90 px-3.5 py-2 rounded-lg border border-surface-inverse-raised/60 flex items-center justify-between gap-4 text-on-inverse shadow-e3 z-10">
+        <div className="absolute bottom-3 left-3 right-3 rounded-lg border border-line bg-surface/95 px-3.5 py-2 flex items-center justify-between gap-4 text-fg shadow-e2 backdrop-blur-md z-10">
           <div className="flex items-center gap-2 shrink-0">
-            <Icon name="layers" size={18} className="text-accent" />
-            <span className="font-mono text-xs font-bold text-on-inverse/90">LỚP IN: {currentSlice}%</span>
+            <Icon name="layers" size={16} className="text-fg-subtle" />
+            <span className="font-mono text-xs font-semibold text-fg tabular-nums">LỚP IN: {currentSlice}%</span>
           </div>
           <input
             type="range"
             min="1"
             max="100"
             value={currentSlice}
+            aria-label="Lớp cắt (%)"
             onChange={(e) => handleSliceChange(Number(e.target.value))}
-            className="w-full h-1.5 bg-surface-inverse-raised rounded-full appearance-none cursor-pointer accent-accent"
+            className="w-full h-1.5 bg-surface-muted rounded-full appearance-none cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
-          <span className="font-mono text-xs text-on-inverse/70 shrink-0">0.16mm Layer</span>
+          <span className="font-mono text-xs text-fg-muted shrink-0 tabular-nums">Lớp in 0,16 mm</span>
         </div>
       )}
     </div>

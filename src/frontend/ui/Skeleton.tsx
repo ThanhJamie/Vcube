@@ -3,8 +3,7 @@
  * phải spinner toàn trang").
  *
  * - 3 biến thể: `text` (1 hoặc nhiều dòng), `rect` (khối), `circle` (avatar/icon).
- * - Màu `bg-line-subtle` — nhìn thấy được ở cả light (xám sáng) và dark (navy mờ), khác
- *   với `bg-surface-muted` gần như vô hình trên nền `bg-surface`.
+ * - Màu `bg-surface-muted` + `rounded-md` — DESIGN-LANGUAGE §3.9.
  * - Tôn trọng `prefers-reduced-motion`: `motion-reduce:animate-none` + `index.css` đã có
  *   media query hạ `animation-duration` toàn cục.
  * - Mặc định `aria-hidden` (trang trí). Truyền `label` khi cần công bố cho screen reader
@@ -30,7 +29,7 @@ export interface SkeletonProps {
   style?: CSSProperties;
 }
 
-const BAR = 'animate-pulse bg-line-subtle motion-reduce:animate-none';
+const BAR = 'animate-pulse bg-surface-muted motion-reduce:animate-none';
 
 const ROUNDED: Record<SkeletonRounded, string> = {
   sm: 'rounded-sm',
