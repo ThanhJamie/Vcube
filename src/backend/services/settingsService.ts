@@ -1015,11 +1015,6 @@ export async function saveSettingsPatch(
   }
 }
 
-/** Thời điểm nạp gần nhất của một kho (`undefined` = chưa nạp). */
-export function lastLoadedAt(store: SettingsStore): number | undefined {
-  return loadedAt[store];
-}
-
 /* `UPDATED_AT_COLUMN` và `SITE_CONTENT_COLUMNS` được giữ lại làm tài liệu schema:
  * chúng ghi rõ cột nào của baseline ứng với kho nào, để lần sau thêm trường không
  * phải dò lại migration. */

@@ -72,12 +72,6 @@ function createProfileFromSupabaseUser(sbUser: SupabaseUser, defaultRole?: UserR
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
 /**
- * Bộ đổi GÓC NHÌN vai trò có khả dụng không (chỉ ở môi trường phát triển).
- * UI dùng cờ này để không mời gọi một chức năng sẽ không chạy ở bản phát hành.
- */
-export const DEMO_ROLE_SWITCHER_ENABLED = IS_DEV;
-
-/**
  * Đọc vai trò thật của người dùng từ public.user_profiles.
  * Bảng này có RLS: người dùng chỉ đọc được dòng của chính mình, admin đọc được tất cả.
  * Trả null nếu không đọc được (chưa có dòng profile / lỗi mạng) — khi đó giữ nguyên

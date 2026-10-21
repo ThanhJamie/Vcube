@@ -14,7 +14,7 @@
  *   phải `<button>`/`<a>`, Card tự thêm `role="button"` + `tabIndex=0` + xử lý
  *   `Enter`/`Space` — sửa đúng lỗi U4 của QA checklist (overlay chỉ hover được, không
  *   tới được bằng bàn phím).
- * - Kèm sẵn `CardHeader/CardTitle/CardDescription/CardContent/CardFooter` để các view
+ * - Kèm sẵn `CardHeader/CardTitle/CardDescription/CardContent` để các view
  *   không phải tự dựng lại padding.
  */
 
@@ -150,14 +150,6 @@ export function CardDescription({ className, children, ...rest }: CardSectionPro
 export function CardContent({ className, children, ...rest }: CardSectionProps) {
   return (
     <div {...rest} className={cn('text-sm text-fg', className)}>
-      {children}
-    </div>
-  );
-}
-
-export function CardFooter({ className, children, ...rest }: CardSectionProps) {
-  return (
-    <div {...rest} className={cn('flex flex-wrap items-center gap-2', className)}>
       {children}
     </div>
   );

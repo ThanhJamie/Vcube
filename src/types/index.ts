@@ -652,54 +652,6 @@ export interface PayoutTransaction {
   status: 'COMPLETED' | 'PENDING' | 'FAILED';
 }
 
-export interface ModerationProductItem {
-  id: string;
-  title: string;
-  format: string;
-  designer: string;
-  isVerifiedDesigner: boolean;
-  license: string;
-  scale: string;
-  material: string;
-  price: number;
-  image: string;
-  status: 'PENDING' | 'APPROVED' | 'FLAGGED' | 'REVISED';
-  flagReason?: string;
-  autoCheckFailed?: boolean;
-}
-
-export interface DesignerApplication {
-  id: string;
-  name: string;
-  avatar?: string;
-  role: string;
-  status: 'Pending' | 'Verified' | 'Flagged' | 'Rejected';
-  portfolioUrl: string;
-  software: string[];
-  bio: string;
-  warningNote?: string;
-  submissionDate: string;
-}
-
-export interface DisputeRecord {
-  id: string;
-  customer: string;
-  designer: string;
-  amount: number;
-  status: 'UNDER REVIEW' | 'ESCALATED' | 'AWAITING INFO' | 'RESOLVED';
-  isTopSeller?: boolean;
-  isVerified?: boolean;
-}
-
-export interface DMCAReport {
-  id: string;
-  modelName: string;
-  image: string;
-  reporter: string;
-  dateFiled: string;
-  status: 'Pending Review' | 'Investigating' | 'Takedown Issued' | 'Dismissed';
-}
-
 export interface SiteContentConfig {
   // Top Announcement / Campaign
   announcementText: string;

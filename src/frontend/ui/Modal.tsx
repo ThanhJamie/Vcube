@@ -61,11 +61,6 @@ export function releaseBodyScrollLock(): void {
   body.style.paddingRight = savedBodyPaddingRight;
 }
 
-/** Số lượt khoá đang hoạt động — hữu ích cho test/kiểm chứng thủ công. */
-export function getBodyScrollLockCount(): number {
-  return bodyLockCount;
-}
-
 /** Hook tiện dụng cho overlay không dùng `<dialog>` (ví dụ drawer cũ). */
 export function useBodyScrollLock(active: boolean): void {
   useEffect(() => {

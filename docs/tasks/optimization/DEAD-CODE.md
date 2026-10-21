@@ -5,6 +5,8 @@
 > Không xoá DB/schema trong đợt này. Mọi mục `SAFE` phải xoá theo cụm + chạy `lint/build/check`.
 > **Tổng ước tính:** ~1.500 LOC code + 357 LOC test chết + 112 KB lockfile + 3.9 MB artifact local.
 >
+> **Re-audit tại HEAD `9c5d99c`:** xem [`02-dead-code.md`](./02-dead-code.md) — mọi mục D01–D16/D19–D28 trong file này đã xử lý hoặc chuyển quyết định; tại HEAD chỉ còn R05/R06/R08/R09 (giữ có chủ ý).
+>
 > **TRẠNG THÁI (Phase 1, 2026-10-21) — ĐÃ THI CÔNG phần lớn:**
 > **−552 LOC** backend (D01–D04, D12, D13, D14) · **−~700 LOC** UI (D08–D10, D15, D16, D11a–D11f) ·
 > **−357 LOC** test chết (D19) · **−132 KB** lock/artifact (D21–D24, D26) · **−2 dependency** (D27–D28).

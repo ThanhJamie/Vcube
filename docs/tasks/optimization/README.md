@@ -8,6 +8,7 @@
 |---|---|
 | [`AUDIT.md`](./AUDIT.md) | Snapshot, kiến trúc, 23 page, feature matrix, nợ clean-code, docs drift |
 | [`01-pages-features.md`](./01-pages-features.md) | Audit 30 route/23 màn: feature matrix, gap P0/P1 (orders, digital fulfilment…) |
+| [`02-dead-code.md`](./02-dead-code.md) | Re-audit dead code tại HEAD `9c5d99c`: 12 export chết + 1 dir rỗng (~110 LOC); 5 false positive đã loại; nhóm safe đã xoá (−59 LOC) |
 | [`03-resources.md`](./03-resources.md) | Audit resource sâu: bundle theo module/source-map, asset, runtime, backlog giảm tải |
 | [`04-refactor.md`](./04-refactor.md) | Audit cấu trúc: 8 god-file, i18n dead branch, data/state, work breakdown refactor |
 | [`DEAD-CODE.md`](./DEAD-CODE.md) | Danh sách file/function/constant/type/dependency có thể xoá (kèm LOC, bằng chứng, độ an toàn) |
@@ -38,7 +39,7 @@
   `src/frontend/stores`), **0 cache DB-backed trong localStorage**, 7 god-file đã tách (App **343** dòng,
   `workshopService` **façade 128** dòng trên 14 module `workshop/*`).
 - Sau Phase 5: `three-vendor` rời initial; 9 route lazy; initial JS+CSS **~464 → ~278KB gzip (−40%)**.
-- **Follow-up còn lại:** `supabase-vendor` eager ~57,8KB gzip,
+- **Follow-up còn lại:** `clearSettingsCache`/`getSettingAudit`/`SETTINGS_SCHEMA_NOTES`/`rowToOrderForSync` (audit `02-dead-code.md` R05/R06/R08/R09 — giữ có chủ ý, ưu tiên wire hoặc chuyển ghi chú schema trước khi xoá); `supabase-vendor` eager ~57,8KB gzip,
   Home tải `three` sau first paint (poster B1), 4 modal luôn-mount ~40KB raw, `manualChunks` react-dom/client,
   jszip/3MF lazy (`03-resources.md` backlog); live RLS/data verify sau khi Supabase Resume.
 - **Unit test:** Phase 6b đã thêm `npm run test:unit` (71 test: format/mappers/pricingEngine/settingsValidators/vat).
