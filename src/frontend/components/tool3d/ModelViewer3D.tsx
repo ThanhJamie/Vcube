@@ -1,19 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { disposeHierarchy } from '../../three/dispose';
 import { ModelPart, TransformState, MeasurementResult, PlateInfo } from '../../types';
-import { Icon } from '@frontend/ui';
-import { EMPTY_VALUE, formatWeight } from '../../lib/format';
 
-export type WebGLRecoveryState = 'ACTIVE' | 'CONTEXT_LOST' | 'RECOVERING';
+import { useModelViewerScene } from './useModelViewerScene';
+import { useModelViewerMesh } from './useModelViewerMesh';
+import { useModelViewerFullscreen } from './useModelViewerFullscreen';
+import { ModelViewerChrome } from './ModelViewerChrome';
+import { MIN_VIEW_FRAME } from './modelViewerHelpers';
+import type { WebGLRecoveryState } from './modelViewerHelpers';
 
-/** Nhãn VI cho 4 góc nhìn chuẩn CAD (ISO/TOP/FRONT/SIDE là tên kỹ thuật, hiển thị VI theo D0). */
-const VIEW_ANGLE_LABEL: Record<'iso' | 'top' | 'front' | 'side', string> = {
-  iso: 'CHUẨN',
-  top: 'TRÊN',
-  front: 'TRƯỚC',
-  side: 'CẠNH'
-};
+/** Public type giữ nguyên đường dẫn import cũ (`ModelViewer3D` re-export như trước). */
+export type { WebGLRecoveryState } from './modelViewerHelpers';
 
 export interface ModelViewer3DProps {
   fileName?: string;
@@ -44,43 +41,6 @@ export interface ModelViewer3DProps {
   activePlateIndex?: number;
   onSelectPlate?: (plateIndex: number) => void;
 }
-
-/**
- * Sàn khung dựng cảnh (đơn vị cảnh) khi CHƯA có bàn in và CHƯA đo được mô hình.
- * Đây là hằng số DỰNG CẢNH — KHÔNG phải thông số bàn in của máy nào và KHÔNG bao giờ được
- * hiển thị như một số đo (Đợt S #3: trước đây component tự mặc định một khối bàn in 256 mm).
- */
-const MIN_VIEW_FRAME = 260;
-
-/** F7 — đổi số giây slicer thành nhãn giờ/phút; thiếu/0/âm/NaN ⇒ `—`. */
-const formatSeconds = (seconds: number | null | undefined): string => {
-  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) return EMPTY_VALUE;
-  const totalMinutes = Math.round(seconds / 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours > 0) return minutes > 0 ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
-  return `${minutes} phút`;
-};
-
-/**
- * F7 — nhãn gram/giờ của MỘT bàn, chỉ dựng từ số đo tệp khai. Không có số nào ⇒ `null`
- * để UI không bày dòng rỗng hay số đoán.
- */
-const plateMetaText = (plate: PlateInfo): string | null => {
-  const grams =
-    typeof plate.filamentGrams === 'number' && Number.isFinite(plate.filamentGrams)
-      ? formatWeight(plate.filamentGrams)
-      : null;
-  const time =
-    plate.predictionFormatted ||
-    (typeof plate.predictionSeconds === 'number' &&
-    Number.isFinite(plate.predictionSeconds) &&
-    plate.predictionSeconds > 0
-      ? formatSeconds(plate.predictionSeconds)
-      : null);
-  const parts = [grams, time].filter((v): v is string => Boolean(v));
-  return parts.length > 0 ? parts.join(' · ') : null;
-};
 
 export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   fileName,
@@ -282,71 +242,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   const handleMeasureClickRef = useRef(handleMeasureClick);
   handleMeasureClickRef.current = handleMeasureClick;
 
-  // Fullscreen Management with HTML5 Fullscreen API + Fallback + Body Lock
-  const handleToggleFullscreen = useCallback(async () => {
-    try {
-      const isCurrentlyFs = !!document.fullscreenElement || isFullscreen;
-      if (!isCurrentlyFs) {
-        if (rootWrapperRef.current?.requestFullscreen) {
-          await rootWrapperRef.current.requestFullscreen();
-        } else if ((rootWrapperRef.current as any)?.webkitRequestFullscreen) {
-          await (rootWrapperRef.current as any).webkitRequestFullscreen();
-        } else {
-          setIsFullscreen(true);
-        }
-      } else {
-        if (document.fullscreenElement) {
-          if (document.exitFullscreen) {
-            await document.exitFullscreen();
-          } else if ((document as any).webkitExitFullscreen) {
-            await (document as any).webkitExitFullscreen();
-          }
-        }
-        setIsFullscreen(false);
-      }
-    } catch (err) {
-      console.warn('Native requestFullscreen failed or blocked, falling back to CSS fullscreen:', err);
-      setIsFullscreen(prev => !prev);
-    }
-  }, [isFullscreen]);
-
-  // Synchronize fullscreen state with browser events and keyboard shortcuts (ESC)
-  useEffect(() => {
-    const handleFsChange = () => {
-      const isFs = !!document.fullscreenElement;
-      setIsFullscreen(isFs);
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && (isFullscreen || !!document.fullscreenElement)) {
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => {});
-        }
-        setIsFullscreen(false);
-      }
-    };
-
-    document.addEventListener('fullscreenchange', handleFsChange);
-    document.addEventListener('webkitfullscreenchange', handleFsChange);
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFsChange);
-      document.removeEventListener('webkitfullscreenchange', handleFsChange);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isFullscreen]);
-
-  // Lock body scroll when in fullscreen to prevent unwanted page scrolling behind CAD
-  useEffect(() => {
-    if (isFullscreen) {
-      const prevOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = prevOverflow;
-      };
-    }
-  }, [isFullscreen]);
+  const handleToggleFullscreen = useModelViewerFullscreen({
+    isFullscreen,
+    setIsFullscreen,
+    rootWrapperRef
+  });
 
   // Force resize on fullscreen transition start and end
   /**
@@ -398,507 +298,37 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   // ---------------------------------------------------------------------------------
   // 1. SCENE GRAPH INITIALIZATION (Runs ONCE on mount; NOT destroyed on state change)
   // ---------------------------------------------------------------------------------
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const container = containerRef.current;
-    const width = container.clientWidth || 640;
-    const height = container.clientHeight || 440;
-
-    // 1. Scene
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a1120);
-    sceneRef.current = scene;
-
-    // 2. Cameras
-    const aspect = width / height;
-    const persCamera = new THREE.PerspectiveCamera(45, aspect, 0.5, 50000);
-    const initialBedMax = Math.max(viewFrame.x, viewFrame.y, viewFrame.z, MIN_VIEW_FRAME);
-    const initCamDist = initialBedMax * 2.2;
-    persCamera.position.set(initCamDist * 0.75, initCamDist * 0.7, initCamDist * 0.85);
-    persCamera.lookAt(0, viewFrame.z * 0.2, 0);
-    perspectiveCameraRef.current = persCamera;
-
-    const frustumSize = Math.max(viewFrame.x, viewFrame.y, MIN_VIEW_FRAME) * 1.8;
-    const orthoCamera = new THREE.OrthographicCamera(
-      (frustumSize * aspect) / -2,
-      (frustumSize * aspect) / 2,
-      frustumSize / 2,
-      frustumSize / -2,
-      0.5,
-      50000
-    );
-    orthoCamera.position.set(initCamDist * 0.75, initCamDist * 0.7, initCamDist * 0.85);
-    orthoCamera.lookAt(0, viewFrame.z * 0.2, 0);
-    orthoCameraRef.current = orthoCamera;
-    activeCameraRef.current = cameraMode === 'orthographic' ? orthoCamera : persCamera;
-
-    // 3. WebGL Renderer with Stencil & Local Clipping Enabled
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: 'high-performance',
-      preserveDrawingBuffer: true,
-      stencil: true
-    });
-    renderer.setSize(width, height, true);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.localClippingEnabled = true;
-    rendererRef.current = renderer;
-
-    const domEl = renderer.domElement;
-    domEl.style.display = 'block';
-    domEl.style.width = '100%';
-    domEl.style.height = '100%';
-
-    container.innerHTML = '';
-    container.appendChild(domEl);
-
-    // 4. Lighting Setup
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
-    scene.add(ambientLight);
-
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x1e293b, 0.65);
-    scene.add(hemiLight);
-
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight1.position.set(70, 100, 70);
-    dirLight1.castShadow = true;
-    scene.add(dirLight1);
-
-    const dirLight2 = new THREE.DirectionalLight(0x00d2ff, 0.75);
-    dirLight2.position.set(-70, 60, -70);
-    scene.add(dirLight2);
-
-    const dirLight3 = new THREE.DirectionalLight(0xffeedd, 0.45);
-    dirLight3.position.set(0, -30, 60);
-    scene.add(dirLight3);
-
-    // 5. Lưới bàn in CAD (mm) — CHỈ vẽ khi có SỐ ĐO bàn in THẬT (Đợt S #3).
-    //    Chưa khai khổ bàn ⇒ không vẽ lưới/buồng khổ và KHÔNG gắn một con số bàn in bịa nào.
-    if (bed) {
-      const bedWidth = bed.x;
-      const bedDepth = bed.y;
-      const bedHeight = bed.z;
-
-      const gridHelper = new THREE.GridHelper(
-        Math.max(bedWidth, bedDepth),
-        Math.round(Math.max(bedWidth, bedDepth) / 10),
-        0x008ba3,
-        0x1e293b
-      );
-      gridHelper.position.y = 0;
-      scene.add(gridHelper);
-
-      const axesHelper = new THREE.AxesHelper(Math.max(30, bedWidth * 0.15));
-      axesHelper.position.set(-bedWidth / 2, 0.2, bedDepth / 2);
-      scene.add(axesHelper);
-
-      // Build Volume Cage
-      const buildBoxGeo = new THREE.BoxGeometry(bedWidth, bedHeight, bedDepth);
-      const edges = new THREE.EdgesGeometry(buildBoxGeo);
-      const lineMat = new THREE.LineBasicMaterial({
-        color: 0x334155,
-        transparent: true,
-        opacity: 0.35
-      });
-      const wireframeBox = new THREE.LineSegments(edges, lineMat);
-      wireframeBox.position.set(0, bedHeight / 2, 0);
-      scene.add(wireframeBox);
-    }
-
-    // 6. Model Mesh Group & Stencil Holder Group
-    const modelGroup = new THREE.Group();
-    modelGroup.name = 'ModelGroup';
-    scene.add(modelGroup);
-    meshGroupRef.current = modelGroup;
-
-    const stencilGroup = new THREE.Group();
-    stencilGroup.name = 'StencilGroup';
-    stencilGroup.visible = false;
-    scene.add(stencilGroup);
-    stencilGroupRef.current = stencilGroup;
-
-    // 7. Stencil Cross-Section Capping Plane Mesh
-    const capPlaneGeo = new THREE.PlaneGeometry(2000, 2000);
-    const capMesh = new THREE.Mesh(capPlaneGeo, capMaterialRef.current);
-    capMesh.name = 'CrossSectionCapMesh';
-    capMesh.rotation.x = -Math.PI / 2; // Flat horizontal plane with normal (0, 1, 0)
-    capMesh.renderOrder = 3;
-    capMesh.visible = false;
-    scene.add(capMesh);
-    capMeshRef.current = capMesh;
-
-    // 8. Interaction Handlers (Mouse, Wheel, Touch)
-    let isDragging = false;
-    let previousMousePosition = { x: 0, y: 0 };
-    let dragDistance = 0;
-    let lastRaycastTime = 0;
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-
-    const getPointerPos = (e: MouseEvent | Touch) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      return {
-        x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
-        y: -((e.clientY - rect.top) / rect.height) * 2 + 1
-      };
-    };
-
-    const onMouseDown = (e: MouseEvent) => {
-      isDragging = true;
-      dragDistance = 0;
-      previousMousePosition = { x: e.clientX, y: e.clientY };
-      // GIMBAL LOCK PREVENTION: Restore standard camera Up vector (0, 1, 0) if previously viewing [TOP]
-      if (activeCameraRef.current && activeCameraRef.current.up.y !== 1) {
-        activeCameraRef.current.up.set(0, 1, 0);
-      }
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - previousMousePosition.x;
-      const deltaY = e.clientY - previousMousePosition.y;
-
-      if (isDragging) {
-        dragDistance += Math.abs(deltaX) + Math.abs(deltaY);
-        const currentCamera = activeCameraRef.current;
-        const lookTarget = orbitTargetRef.current;
-
-        if (interactionMode === 'orbit' && (e.buttons === 1 && !e.shiftKey)) {
-          if (currentCamera) {
-            const offset = currentCamera.position.clone().sub(lookTarget);
-            const spherical = new THREE.Spherical().setFromVector3(offset);
-            spherical.theta -= deltaX * 0.007;
-            spherical.phi -= deltaY * 0.007;
-            spherical.phi = Math.max(0.04, Math.min(Math.PI * 0.48, spherical.phi));
-            currentCamera.position.copy(lookTarget.clone().add(new THREE.Vector3().setFromSpherical(spherical)));
-            currentCamera.lookAt(lookTarget);
-          }
-        } else if (interactionMode === 'pan' || e.buttons === 2 || (e.buttons === 1 && e.shiftKey)) {
-          if (currentCamera) {
-            const panFactor = Math.max(0.08, currentCamera.position.length() * 0.001);
-            currentCamera.position.x -= deltaX * panFactor;
-            currentCamera.position.y += deltaY * panFactor;
-            orbitTargetRef.current.x -= deltaX * panFactor;
-            orbitTargetRef.current.y += deltaY * panFactor;
-          }
-        }
-      } else {
-        // Hover Raycast for Part Tooltip with 30ms throttle to prevent main thread choke
-        const now = performance.now();
-        if (now - lastRaycastTime > 30) {
-          lastRaycastTime = now;
-          const pos = getPointerPos(e);
-          mouse.x = pos.x;
-          mouse.y = pos.y;
-          const currentCamera = activeCameraRef.current;
-          if (currentCamera && meshGroupRef.current) {
-            raycaster.setFromCamera(mouse, currentCamera);
-            const intersects = raycaster.intersectObjects(meshGroupRef.current.children, true);
-            if (intersects.length > 0) {
-              const first = intersects[0].object;
-              if (first.userData?.partName) {
-                setHoveredPartName(first.userData.partName);
-              }
-            } else {
-              setHoveredPartName(null);
-            }
-          }
-        }
-      }
-      previousMousePosition = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseUp = (e: MouseEvent) => {
-      isDragging = false;
-      if (dragDistance < 5) {
-        const pos = getPointerPos(e);
-        mouse.x = pos.x;
-        mouse.y = pos.y;
-        const currentCamera = activeCameraRef.current;
-
-        if (currentCamera && meshGroupRef.current) {
-          raycaster.setFromCamera(mouse, currentCamera);
-          const intersects = raycaster.intersectObjects(meshGroupRef.current.children, true);
-
-          if (intersects.length > 0) {
-            const hit = intersects[0];
-            if (localMeasurementActiveRef.current && handleMeasureClickRef.current) {
-              handleMeasureClickRef.current(hit.point);
-              return;
-            }
-            const partId = hit.object.userData?.partId;
-            if (partId && onSelectPartRef.current) {
-              onSelectPartRef.current(partId);
-            }
-          } else if (!localMeasurementActiveRef.current && onSelectPartRef.current) {
-            onSelectPartRef.current(null);
-          }
-        }
-      }
-    };
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const currentCamera = activeCameraRef.current;
-      if (!currentCamera) return;
-
-      if (cameraModeRef.current === 'orthographic') {
-        const oCam = orthoCameraRef.current;
-        if (oCam) {
-          oCam.zoom += e.deltaY * -0.0015;
-          oCam.zoom = Math.max(0.02, Math.min(30, oCam.zoom));
-          oCam.updateProjectionMatrix();
-        }
-      } else {
-        const pCam = perspectiveCameraRef.current;
-        if (pCam) {
-          const lookTarget = orbitTargetRef.current;
-          const offset = pCam.position.clone().sub(lookTarget);
-          const currentDist = offset.length();
-          const zoomRate = Math.max(0.2, currentDist * 0.0018);
-          const zoomDelta = e.deltaY * zoomRate;
-          const newDist = Math.max(5, Math.min(45000, currentDist + zoomDelta));
-          offset.normalize().multiplyScalar(newDist);
-          pCam.position.copy(lookTarget.clone().add(offset));
-        }
-      }
-    };
-
-    let initialPinchDistance = 0;
-
-    const onTouchStart = (e: TouchEvent) => {
-      // GIMBAL LOCK PREVENTION: Restore standard camera Up vector (0, 1, 0) if previously viewing [TOP]
-      if (activeCameraRef.current && activeCameraRef.current.up.y !== 1) {
-        activeCameraRef.current.up.set(0, 1, 0);
-      }
-      if (e.touches.length === 1) {
-        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        isDragging = true;
-      } else if (e.touches.length === 2) {
-        isDragging = false;
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        initialPinchDistance = Math.hypot(dx, dy);
-      }
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1 && isDragging) {
-        const deltaX = e.touches[0].clientX - previousMousePosition.x;
-        const deltaY = e.touches[0].clientY - previousMousePosition.y;
-
-        const currentCamera = activeCameraRef.current;
-        const lookTarget = orbitTargetRef.current;
-
-        if (currentCamera) {
-          const offset = currentCamera.position.clone().sub(lookTarget);
-          const spherical = new THREE.Spherical().setFromVector3(offset);
-          spherical.theta -= deltaX * 0.008;
-          spherical.phi -= deltaY * 0.008;
-          spherical.phi = Math.max(0.04, Math.min(Math.PI * 0.48, spherical.phi));
-          currentCamera.position.copy(lookTarget.clone().add(new THREE.Vector3().setFromSpherical(spherical)));
-          currentCamera.lookAt(lookTarget);
-        }
-        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      } else if (e.touches.length === 2 && initialPinchDistance > 0) {
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const currentPinchDistance = Math.hypot(dx, dy);
-        const pinchDelta = initialPinchDistance - currentPinchDistance;
-
-        const pCam = perspectiveCameraRef.current;
-        if (pCam) {
-          const lookTarget = orbitTargetRef.current;
-          const offset = pCam.position.clone().sub(lookTarget);
-          const currentDist = offset.length();
-          const zoomDelta = pinchDelta * Math.max(0.5, currentDist * 0.004);
-          const newDist = Math.max(10, Math.min(45000, currentDist + zoomDelta));
-          offset.normalize().multiplyScalar(newDist);
-          pCam.position.copy(lookTarget.clone().add(offset));
-        }
-        initialPinchDistance = currentPinchDistance;
-      }
-    };
-
-    const onTouchEnd = () => {
-      isDragging = false;
-      initialPinchDistance = 0;
-    };
-
-    domEl.style.touchAction = 'none';
-    domEl.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    domEl.addEventListener('wheel', onWheel, { passive: false });
-    domEl.addEventListener('touchstart', onTouchStart, { passive: false });
-    domEl.addEventListener('touchmove', onTouchMove, { passive: false });
-    domEl.addEventListener('touchend', onTouchEnd);
-    domEl.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    // WebGL Context Loss & Restoration Listeners (R5)
-    const handleContextLost = (event: Event) => {
-      event.preventDefault();
-      console.warn('WebGL context lost detected in ModelViewer3D. Preventing engine crash...');
-      isLoopRunning = false;
-      if (animationFrameIdRef.current !== null) {
-        cancelAnimationFrame(animationFrameIdRef.current);
-        animationFrameIdRef.current = null;
-      }
-      setWebglState('CONTEXT_LOST');
-    };
-
-    const handleContextRestored = () => {
-      console.info('WebGL context restored in ModelViewer3D. Rebuilding render queue and scene graph...');
-      setWebglState('RECOVERING');
-      setContextEpoch((prev) => prev + 1);
-    };
-
-    domEl.addEventListener('webglcontextlost', handleContextLost, false);
-    domEl.addEventListener('webglcontextrestored', handleContextRestored, false);
-
-    // 9. Resize Observer (Debounced with RAF)
-    let resizeRafId: number | null = null;
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
-      resizeRafId = requestAnimationFrame(() => {
-        for (const entry of entries) {
-          const w = Math.floor(entry.contentRect.width);
-          const h = Math.floor(entry.contentRect.height);
-          if (w > 0 && h > 0) {
-            const asp = w / h;
-            if (perspectiveCameraRef.current) {
-              perspectiveCameraRef.current.aspect = asp;
-              perspectiveCameraRef.current.updateProjectionMatrix();
-            }
-            if (orthoCameraRef.current) {
-              const fSize = Math.max(viewFrame.x, viewFrame.y, MIN_VIEW_FRAME);
-              orthoCameraRef.current.left = (-fSize * asp) / 2;
-              orthoCameraRef.current.right = (fSize * asp) / 2;
-              orthoCameraRef.current.top = fSize / 2;
-              orthoCameraRef.current.bottom = -fSize / 2;
-              orthoCameraRef.current.updateProjectionMatrix();
-            }
-            if (rendererRef.current) {
-              rendererRef.current.setSize(w, h, true);
-              rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            }
-          }
-        }
-      });
-    });
-    resizeObserver.observe(container);
-
-    // 10. On-demand render loop — dừng HẲN khi khung 3D ra khỏi viewport hoặc tab bị ẩn.
-    //     Trước đây vòng rAF chạy 60fps vô điều kiện + `setFps` mỗi 500ms ⇒ component gần
-    //     2000 dòng re-render 2 lần/giây kể cả khi người dùng đã cuộn xuống bảng báo giá.
-    let isLoopRunning = false;
-    let frameCount = 0;
-    let lastFpsTime = performance.now();
-    let isElementVisible = true;
-
-    const prefersReducedMotion =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    const updateFpsDisplay = (value: number) => {
-      const el = fpsDisplayRef.current;
-      if (el) el.textContent = `${value} FPS`;
-    };
-
-    const renderLoop = (now: number) => {
-      if (!isLoopRunning) return;
-      animationFrameIdRef.current = requestAnimationFrame(renderLoop);
-
-      // Skip render calculations when tab is backgrounded to save GPU & battery
-      if (document.hidden) return;
-
-      // Realtime measured FPS calculation every 1000ms (ghi thẳng vào DOM, không setState).
-      frameCount++;
-      if (now - lastFpsTime >= 1000) {
-        const measuredFps = Math.round((frameCount * 1000) / (now - lastFpsTime));
-        updateFpsDisplay(Math.max(1, Math.min(120, measuredFps)));
-        frameCount = 0;
-        lastFpsTime = now;
-      }
-
-      // Smooth 360 Auto-Rotation (không chạy khi người dùng bật giảm chuyển động)
-      if (isRotatingRef.current && meshGroupRef.current && !prefersReducedMotion) {
-        meshGroupRef.current.rotation.y += 0.008;
-        if (stencilGroupRef.current) {
-          stencilGroupRef.current.rotation.y = meshGroupRef.current.rotation.y;
-        }
-      }
-
-      const activeCam = cameraModeRef.current === 'orthographic' ? orthoCameraRef.current : perspectiveCameraRef.current;
-      if (activeCam && rendererRef.current && sceneRef.current) {
-        rendererRef.current.render(sceneRef.current, activeCam);
-      }
-    };
-
-    const startLoop = () => {
-      if (isLoopRunning) return;
-      isLoopRunning = true;
-      frameCount = 0;
-      lastFpsTime = performance.now();
-      animationFrameIdRef.current = requestAnimationFrame(renderLoop);
-    };
-
-    const stopLoop = () => {
-      isLoopRunning = false;
-      if (animationFrameIdRef.current !== null) {
-        cancelAnimationFrame(animationFrameIdRef.current);
-        animationFrameIdRef.current = null;
-      }
-    };
-
-    // Chỉ chạy khi khung 3D thực sự trong viewport (rootMargin 200px để khởi động sớm).
-    const visibilityObserver = new IntersectionObserver(
-      (entries) => {
-        isElementVisible = entries.some((entry) => entry.isIntersecting);
-        if (isElementVisible && !document.hidden) startLoop();
-        else stopLoop();
-      },
-      { rootMargin: '200px' },
-    );
-    visibilityObserver.observe(container);
-
-    const handleVisibilityChange = () => {
-      if (document.hidden || !isElementVisible) stopLoop();
-      else startLoop();
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    startLoop();
-    setWebglState('ACTIVE');
-
-    return () => {
-      isLoopRunning = false;
-      visibilityObserver.disconnect();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (animationFrameIdRef.current !== null) {
-        cancelAnimationFrame(animationFrameIdRef.current);
-      }
-      if (resizeRafId !== null) {
-        cancelAnimationFrame(resizeRafId);
-      }
-      resizeObserver.disconnect();
-      domEl.removeEventListener('webglcontextlost', handleContextLost);
-      domEl.removeEventListener('webglcontextrestored', handleContextRestored);
-      domEl.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      domEl.removeEventListener('wheel', onWheel);
-      domEl.removeEventListener('touchstart', onTouchStart);
-      domEl.removeEventListener('touchmove', onTouchMove);
-      domEl.removeEventListener('touchend', onTouchEnd);
-      if (container.contains(domEl)) {
-        container.removeChild(domEl);
-      }
-      disposeHierarchy(scene);
-      renderer.dispose();
-    };
-  }, [bed?.x, bed?.y, bed?.z, contextEpoch]);
+  useModelViewerScene({
+    containerRef,
+    bed,
+    viewFrame,
+    contextEpoch,
+    interactionMode,
+    cameraMode,
+    sceneRef,
+    rendererRef,
+    meshGroupRef,
+    stencilGroupRef,
+    capMeshRef,
+    perspectiveCameraRef,
+    orthoCameraRef,
+    activeCameraRef,
+    orbitTargetRef,
+    clipPlaneRef,
+    stencilMatBackRef,
+    stencilMatFrontRef,
+    capMaterialRef,
+    animationFrameIdRef,
+    isRotatingRef,
+    cameraModeRef,
+    fpsDisplayRef,
+    localMeasurementActiveRef,
+    handleMeasureClickRef,
+    onSelectPartRef,
+    setWebglState,
+    setContextEpoch,
+    setHoveredPartName
+  });
 
   // Separate Camera Mode Switcher (changes active camera without destroying WebGL context)
   useEffect(() => {
@@ -909,360 +339,30 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
   // ---------------------------------------------------------------------------------
   // 2. MODEL GEOMETRY BUILDING (Runs ONLY when customGeometry / customObjectGroup / modelType changes)
   // ---------------------------------------------------------------------------------
-  useEffect(() => {
-    const group = meshGroupRef.current;
-    const stencilGroup = stencilGroupRef.current;
-    if (!group || !stencilGroup) return;
-
-    // Cleanly dispose existing meshes in hierarchy before rebuilding (preserve shared stencil materials)
-    disposeHierarchy(group);
-    disposeHierarchy(stencilGroup, true);
-    partMeshMapRef.current.clear();
-
-    const createPartMaterial = (partId: string, colorHex: string, isSelected: boolean) => {
-      let finalColor = new THREE.Color(colorHex);
-      let emissive = new THREE.Color(0x000000);
-      let roughness = 0.35;
-      let metalness = 0.15;
-
-      if (showDefects) {
-        finalColor = new THREE.Color(0xf59e0b);
-        emissive = new THREE.Color(0x331a00);
-      }
-      if (isSelected) {
-        emissive = new THREE.Color(0x008ba3);
-        roughness = 0.2;
-      }
-      if (compareMode === 'before') {
-        finalColor = new THREE.Color(0x991b1b);
-      }
-
-      return new THREE.MeshStandardMaterial({
-        color: finalColor,
-        emissive: emissive,
-        roughness: roughness,
-        metalness: metalness,
-        wireframe: wireframe,
-        clippingPlanes: [clipPlaneRef.current],
-        clipShadows: true,
-        side: THREE.DoubleSide
-      });
-    };
-
-    const registerMeshWithStencil = (mesh: THREE.Mesh) => {
-      mesh.renderOrder = 2;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-
-      // Create matching stencil meshes for Stencil Cross-Section Capping (share geometry with tag)
-      const backMesh = new THREE.Mesh(mesh.geometry, stencilMatBackRef.current);
-      backMesh.position.copy(mesh.position);
-      backMesh.rotation.copy(mesh.rotation);
-      backMesh.scale.copy(mesh.scale);
-      backMesh.renderOrder = 1;
-      backMesh.userData = { isSharedGeometry: true };
-      stencilGroup.add(backMesh);
-
-      const frontMesh = new THREE.Mesh(mesh.geometry, stencilMatFrontRef.current);
-      frontMesh.position.copy(mesh.position);
-      frontMesh.rotation.copy(mesh.rotation);
-      frontMesh.scale.copy(mesh.scale);
-      frontMesh.renderOrder = 1;
-      frontMesh.userData = { isSharedGeometry: true };
-      stencilGroup.add(frontMesh);
-    };
-
-    let calculatedHeight = 40;
-    let computedDimensions = { x: 92, y: 92, z: 38 };
-
-    // --- CASE 1: REAL CUSTOM BUFFER GEOMETRY (STL) ---
-    if (customGeometry && customGeometry.attributes.position && customGeometry.attributes.position.count >= 3) {
-      // Use customGeometry directly WITHOUT duplicate memory allocation
-      const geom = customGeometry;
-      if (!geom.boundingBox) geom.computeBoundingBox();
-
-      const box = geom.boundingBox || new THREE.Box3();
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-
-      const safeX = Number.isFinite(size.x) && size.x > 0.01 ? Number(size.x.toFixed(1)) : 85.0;
-      const safeY = Number.isFinite(size.y) && size.y > 0.01 ? Number(size.y.toFixed(1)) : 35.0;
-      const safeZ = Number.isFinite(size.z) && size.z > 0.01 ? Number(size.z.toFixed(1)) : 60.0;
-
-      calculatedHeight = safeY;
-      computedDimensions = { x: safeX, y: safeZ, z: safeY };
-      setModelDims(computedDimensions);
-      setModelHeight(calculatedHeight);
-
-      const part0 = parts[0];
-      const isPartSelected = part0?.id === selectedPartId;
-      const primaryColor = part0?.colorHex || '#00687a';
-
-      const mesh = new THREE.Mesh(geom, createPartMaterial(part0?.id || 'custom-part', primaryColor, isPartSelected));
-      // Fast zero-allocation GPU matrix centering instead of slow CPU vertex array translation
-      if (Number.isFinite(center.x) && Number.isFinite(box.min.y) && Number.isFinite(center.z)) {
-        mesh.position.set(-center.x, -box.min.y, -center.z);
-      }
-      mesh.userData = { partId: part0?.id || 'custom-part', partName: part0?.name || 'Lưới STL tuỳ chỉnh', isSharedGeometry: true };
-      registerMeshWithStencil(mesh);
-      if (part0?.id) partMeshMapRef.current.set(part0.id, mesh);
-
-    }
-    // --- CASE 2: REAL OBJECT GROUP (3MF Multi-Part / OBJ) ---
-    else if (customObjectGroup) {
-      const objClone = customObjectGroup.clone(true);
-
-      // Collect meshes first to avoid mutating children during traverse
-      const meshList: THREE.Mesh[] = [];
-      objClone.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          meshList.push(child as THREE.Mesh);
-        }
-      });
-
-      meshList.forEach((m, partIndex) => {
-        if (m.geometry) {
-          m.geometry = m.geometry.clone();
-          m.geometry.computeVertexNormals();
-        }
-
-        const currentPart = parts[partIndex] || parts[0];
-        const partId = currentPart?.id || `part-${partIndex}`;
-        const isSelected = partId === selectedPartId;
-        const partColor = currentPart?.colorHex || (partIndex === 0 ? '#00687a' : '#ea580c');
-        // F2 (P2): tệp KHÔNG khai bàn cho chi tiết ⇒ giữ `null`, KHÔNG ngầm gán Bàn 1.
-        // Chi tiết chưa khai bàn luôn hiển thị (không thể ẩn nó vào một bàn không xác định).
-        const partPlateIndex = currentPart?.plateIndex ?? null;
-
-        const isPlateVisible =
-          activePlateIndex === 0 || partPlateIndex === null || partPlateIndex === activePlateIndex;
-        const isPartVisible = (currentPart ? currentPart.visible !== false : true) && isPlateVisible;
-
-        m.material = createPartMaterial(partId, partColor, isSelected);
-        m.visible = isPartVisible;
-        m.userData = { partId, partName: currentPart?.name || `Component ${partIndex + 1}`, plateIndex: partPlateIndex };
-        m.castShadow = true;
-        m.receiveShadow = true;
-        m.renderOrder = 2;
-
-        // Create matching stencil meshes using internal geometry of m (with isSharedGeometry: true protection)
-        const backMesh = new THREE.Mesh(m.geometry, stencilMatBackRef.current);
-        backMesh.position.copy(m.position);
-        backMesh.rotation.copy(m.rotation);
-        backMesh.scale.copy(m.scale);
-        backMesh.renderOrder = 1;
-        backMesh.userData = { isSharedGeometry: true };
-        stencilGroup.add(backMesh);
-
-        const frontMesh = new THREE.Mesh(m.geometry, stencilMatFrontRef.current);
-        frontMesh.position.copy(m.position);
-        frontMesh.rotation.copy(m.rotation);
-        frontMesh.scale.copy(m.scale);
-        frontMesh.renderOrder = 1;
-        frontMesh.userData = { isSharedGeometry: true };
-        stencilGroup.add(frontMesh);
-
-        partMeshMapRef.current.set(partId, m);
-      });
-
-      // Keep objClone hierarchy intact and add directly to group
-      group.add(objClone);
-
-      objClone.updateMatrixWorld(true);
-      const box = new THREE.Box3().setFromObject(objClone);
-      
-      if (!box.isEmpty()) {
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-
-        const safeX = Number.isFinite(size.x) && size.x > 0 ? Number(size.x.toFixed(1)) : 80;
-        const safeY = Number.isFinite(size.y) && size.y > 0 ? Number(size.y.toFixed(1)) : 35;
-        const safeZ = Number.isFinite(size.z) && size.z > 0 ? Number(size.z.toFixed(1)) : 80;
-
-        calculatedHeight = safeY;
-        computedDimensions = { x: safeX, y: safeZ, z: safeY };
-
-        if (Number.isFinite(center.x) && Number.isFinite(box.min.y) && Number.isFinite(center.z)) {
-          objClone.position.set(-center.x, -box.min.y, -center.z);
-          stencilGroup.position.copy(objClone.position);
-        }
-      }
-
-      if (currentPlate && currentPlate.dimensions && activePlateIndex > 0) {
-        computedDimensions = currentPlate.dimensions;
-        calculatedHeight = currentPlate.dimensions.z;
-      }
-
-      setModelDims(computedDimensions);
-      setModelHeight(calculatedHeight);
-    }
-    // --- CASE 3: BENCHMARK PROCEDURAL MODELS ---
-    else if (modelType === 'gear' || modelType.includes('planetary')) {
-      calculatedHeight = 38;
-      computedDimensions = { x: 92.5, y: 92.5, z: 38.0 };
-      setModelDims(computedDimensions);
-      setModelHeight(calculatedHeight);
-
-      const sunPart = parts[0];
-      const planetPart = parts[1];
-      const ringPart = parts[2];
-      const carrierPart = parts[3];
-
-      const sunGeo = new THREE.CylinderGeometry(16, 16, 28, 24);
-      const sunMesh = new THREE.Mesh(
-        sunGeo,
-        createPartMaterial(sunPart?.id || 'sun', sunPart?.colorHex || '#00687a', sunPart?.id === selectedPartId)
-      );
-      sunMesh.position.y = 14;
-      sunMesh.userData = { partId: sunPart?.id || 'sun', partName: sunPart?.name || 'Sun Gear Central', plateIndex: 1 };
-      registerMeshWithStencil(sunMesh);
-      if (sunPart?.id) partMeshMapRef.current.set(sunPart.id, sunMesh);
-
-      for (let i = 0; i < 3; i++) {
-        const angle = (i * Math.PI * 2) / 3;
-        const pGeo = new THREE.CylinderGeometry(12, 12, 24, 20);
-        const pMesh = new THREE.Mesh(
-          pGeo,
-          createPartMaterial(planetPart?.id || 'planet', planetPart?.colorHex || '#ea580c', planetPart?.id === selectedPartId)
-        );
-        pMesh.position.x = Math.cos(angle) * 34;
-        pMesh.position.z = Math.sin(angle) * 34;
-        pMesh.position.y = 14;
-        pMesh.userData = { partId: planetPart?.id || 'planet', partName: planetPart?.name || 'Planet Gears Triad', plateIndex: 1 };
-        registerMeshWithStencil(pMesh);
-        if (planetPart?.id && i === 0) partMeshMapRef.current.set(planetPart.id, pMesh);
-      }
-
-      const ringTorus = new THREE.TorusGeometry(46, 7.6, 16, 36);
-      const ringMesh = new THREE.Mesh(
-        ringTorus,
-        createPartMaterial(ringPart?.id || 'ring', ringPart?.colorHex || '#1C1C1C', ringPart?.id === selectedPartId)
-      );
-      ringMesh.rotation.x = Math.PI / 2;
-      ringMesh.position.y = 14;
-      ringMesh.userData = { partId: ringPart?.id || 'ring', partName: ringPart?.name || 'Outer Ring Gear Body', plateIndex: 2 };
-      registerMeshWithStencil(ringMesh);
-      if (ringPart?.id) partMeshMapRef.current.set(ringPart.id, ringMesh);
-
-      const plateGeo = new THREE.CylinderGeometry(38, 38, 5.6, 30);
-      const plateMesh = new THREE.Mesh(
-        plateGeo,
-        createPartMaterial(carrierPart?.id || 'carrier', carrierPart?.colorHex || '#64748b', carrierPart?.id === selectedPartId)
-      );
-      plateMesh.position.y = 2.8;
-      plateMesh.userData = { partId: carrierPart?.id || 'carrier', partName: carrierPart?.name || 'Carrier Plate', plateIndex: 2 };
-      registerMeshWithStencil(plateMesh);
-      if (carrierPart?.id) partMeshMapRef.current.set(carrierPart.id, plateMesh);
-
-    } else if (modelType === 'box' || modelType.includes('arduino') || modelType.includes('enclosure')) {
-      calculatedHeight = 28.5;
-      computedDimensions = { x: 86.4, y: 64.0, z: 28.5 };
-      setModelDims(computedDimensions);
-      setModelHeight(28.5);
-
-      const mainPart = parts[0];
-      const baseGeo = new THREE.BoxGeometry(80, 24, 56);
-      const baseMesh = new THREE.Mesh(
-        baseGeo,
-        createPartMaterial(mainPart?.id || 'box-base', mainPart?.colorHex || '#00687a', mainPart?.id === selectedPartId)
-      );
-      baseMesh.position.y = 12;
-      baseMesh.userData = { partId: mainPart?.id || 'box-base', partName: 'Enclosure Base' };
-      registerMeshWithStencil(baseMesh);
-      if (mainPart?.id) partMeshMapRef.current.set(mainPart.id, baseMesh);
-
-      const lidGeo = new THREE.BoxGeometry(82, 7, 58);
-      const lidMesh = new THREE.Mesh(
-        lidGeo,
-        createPartMaterial('lid', '#1C1C1C', false)
-      );
-      lidMesh.position.y = 28;
-      lidMesh.userData = { partId: 'lid', partName: 'Enclosure Lid' };
-      registerMeshWithStencil(lidMesh);
-
-    } else {
-      calculatedHeight = 18;
-      computedDimensions = { x: 180.0, y: 180.0, z: 18.0 };
-      setModelDims(computedDimensions);
-      setModelHeight(18);
-
-      const dronePart = parts[0];
-      const bodyGeo = new THREE.BoxGeometry(40, 12, 40);
-      const bodyMesh = new THREE.Mesh(
-        bodyGeo,
-        createPartMaterial(dronePart?.id || 'drone-body', dronePart?.colorHex || '#1C1C1C', dronePart?.id === selectedPartId)
-      );
-      bodyMesh.position.y = 6;
-      bodyMesh.userData = { partId: dronePart?.id || 'drone-body', partName: 'Drone Core' };
-      registerMeshWithStencil(bodyMesh);
-      if (dronePart?.id) partMeshMapRef.current.set(dronePart.id, bodyMesh);
-
-      for (let i = 0; i < 4; i++) {
-        const angle = (i * Math.PI) / 2 + Math.PI / 4;
-        const armGeo = new THREE.BoxGeometry(65, 6, 12);
-        const arm = new THREE.Mesh(armGeo, createPartMaterial('arm', '#1C1C1C', false));
-        arm.position.x = Math.cos(angle) * 45;
-        arm.position.z = Math.sin(angle) * 45;
-        arm.position.y = 6;
-        arm.rotation.y = -angle;
-        arm.userData = { partId: `arm-${i}`, partName: `Motor Arm ${i + 1}` };
-        registerMeshWithStencil(arm);
-      }
-    }
-
-    // Auto-fit camera smoothly to new object bounds
-    group.updateMatrixWorld(true);
-    if (group.children.length > 0) {
-      try {
-        const box = new THREE.Box3().setFromObject(group);
-        if (!box.isEmpty()) {
-          const sphere = new THREE.Sphere();
-          box.getBoundingSphere(sphere);
-          const radius = Math.max(sphere.radius, 25);
-          const center = sphere.center;
-
-          orbitTargetRef.current.set(center.x, Math.max(center.y, calculatedHeight * 0.4), center.z);
-
-          const pCam = perspectiveCameraRef.current;
-          if (pCam && Number.isFinite(radius) && Number.isFinite(center.x)) {
-            const fovVertical = (pCam.fov * Math.PI) / 180;
-            const aspect = pCam.aspect || 1.0;
-            const fovHorizontal = 2 * Math.atan(Math.tan(fovVertical / 2) * aspect);
-            const effectiveFov = Math.min(fovVertical, fovHorizontal);
-            let camDist = Math.abs(radius / Math.sin(effectiveFov / 2)) * 1.35;
-            camDist = Math.max(45, Math.min(3000, camDist));
-            
-            pCam.up.set(0, 1, 0);
-            pCam.position.set(center.x + camDist * 0.75, center.y + camDist * 0.65, center.z + camDist * 0.85);
-            pCam.lookAt(orbitTargetRef.current);
-            pCam.updateProjectionMatrix();
-          }
-
-          const oCam = orthoCameraRef.current;
-          if (oCam && Number.isFinite(radius)) {
-            const camDist = radius * 2.2;
-            const frustum = radius * 2.6;
-            const aspect = pCam ? pCam.aspect : 1.0;
-            oCam.left = (-frustum * aspect) / 2;
-            oCam.right = (frustum * aspect) / 2;
-            oCam.top = frustum / 2;
-            oCam.bottom = -frustum / 2;
-            oCam.up.set(0, 1, 0);
-            oCam.position.set(center.x + camDist * 0.75, center.y + camDist * 0.65, center.z + camDist * 0.85);
-            oCam.lookAt(orbitTargetRef.current);
-            oCam.updateProjectionMatrix();
-          }
-        }
-      } catch (fitErr) {
-        console.warn('Camera auto-fit notice:', fitErr);
-      }
-    }
-  }, [customGeometry, customObjectGroup, modelType, parts.length, contextEpoch]);
+  useModelViewerMesh({
+    meshGroupRef,
+    stencilGroupRef,
+    partMeshMapRef,
+    clipPlaneRef,
+    stencilMatBackRef,
+    stencilMatFrontRef,
+    orbitTargetRef,
+    perspectiveCameraRef,
+    orthoCameraRef,
+    customGeometry,
+    customObjectGroup,
+    modelType,
+    parts,
+    selectedPartId,
+    showDefects,
+    compareMode,
+    activePlateIndex,
+    currentPlate,
+    wireframe,
+    setModelDims,
+    setModelHeight,
+    contextEpoch
+  });
 
   // ---------------------------------------------------------------------------------
   // 3. TRANSFORM & BOUNDING BOX UNIFORMS (Updates matrix without scene destruction)
@@ -1721,396 +821,49 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
           : `rounded-lg ${className}`
       }`}
     >
-      {/* Drag and Drop Over Canvas Overlay */}
-      {isDragOver && (
-        <div className="absolute inset-0 z-modal bg-primary/90 flex flex-col items-center justify-center text-primary-fg border-2 border-dashed border-accent">
-          <Icon name="upload_file" size={48} className="animate-bounce motion-reduce:animate-none text-accent" />
-          <p className="font-mono text-sm font-bold mt-2 uppercase tracking-wider">Thả tệp 3D (3MF / STL / OBJ / STEP) vào đây</p>
-          <span className="text-xs text-primary-fg font-mono">Hệ thống sẽ bóc tách cấu trúc 3D tự động</span>
-        </div>
-      )}
-
-      {/* WebGL Context Loss Recovery Overlay (R5) */}
-      {webglState !== 'ACTIVE' && (
-        <div className="absolute inset-0 z-modal bg-surface/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center select-none">
-          <div className="w-16 h-16 rounded-lg bg-surface-muted border border-line flex items-center justify-center mb-4">
-            <Icon name="sync" size={32} className="animate-spin motion-reduce:animate-none text-fg-muted" />
-          </div>
-          <h3 className="text-base font-bold text-fg tracking-wide mb-1.5 font-mono">
-            Đang khôi phục tài nguyên đồ họa 3D...
-          </h3>
-          <p className="text-xs text-fg-muted max-w-md mb-4 font-mono leading-relaxed">
-            Ngữ cảnh WebGL đang được thiết lập lại từ bộ nhớ đệm hình học. Quá trình này diễn ra tự động mà không làm mất trạng thái của mô hình.
-          </p>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-muted border border-line text-xs font-mono text-fg-muted mb-4">
-            <span className="w-2 h-2 rounded-full bg-warning animate-pulse motion-reduce:animate-none" />
-            <span>
-              {webglState === 'CONTEXT_LOST'
-                ? 'Trạng thái: Mất ngữ cảnh GPU (Đang chờ khôi phục)'
-                : 'Trạng thái: Đang tái cấu trúc Scene & Buffer'}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setWebglState('RECOVERING');
-              setContextEpoch((prev) => prev + 1);
-            }}
-            className="px-4 h-10 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-mono font-bold rounded-md transition-colors cursor-pointer inline-flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <Icon name="refresh" size={16} />
-            <span>Khôi phục thủ công ngay</span>
-          </button>
-        </div>
-      )}
-
-      {/* 3D WebGL Canvas. A11Y-04: canvas không có nội dung DOM ⇒ role="img" + nhãn VI trên
-          container canvas (wrapper còn toolbar/HUD nên không gắn role="img" ở wrapper). */}
-      <div
-        ref={containerRef}
-        role="img"
-        aria-label={`Mô hình 3D ${displayName} — dùng chuột để xoay, cuộn để thu phóng.`}
-        className="w-full flex-1 cursor-grab active:cursor-grabbing min-h-[340px]"
+      <ModelViewerChrome
+        containerRef={containerRef}
+        isDragOver={isDragOver}
+        webglState={webglState}
+        setWebglState={setWebglState}
+        setContextEpoch={setContextEpoch}
+        displayName={displayName}
+        fpsDisplayRef={fpsDisplayRef}
+        isFullscreen={isFullscreen}
+        handleToggleFullscreen={handleToggleFullscreen}
+        cameraMode={cameraMode}
+        handleToggleCameraMode={handleToggleCameraMode}
+        isRotating={isRotating}
+        setIsRotating={setIsRotating}
+        wireframe={wireframe}
+        setWireframe={setWireframe}
+        isBoundingBoxActive={isBoundingBoxActive}
+        handleToggleBoundingBox={handleToggleBoundingBox}
+        isMeasurementActive={isMeasurementActive}
+        handleToggleMeasurement={handleToggleMeasurement}
+        activeAngle={activeAngle}
+        setCameraAngle={setCameraAngle}
+        plates={plates}
+        activePlateIndex={activePlateIndex}
+        onSelectPlate={onSelectPlate}
+        handleAutoFit={handleAutoFit}
+        isBedOverflow={isBedOverflow}
+        bed={bed}
+        modelDims={modelDims}
+        scaleMultiplier={scaleMultiplier}
+        onUpdateTransform={onUpdateTransform}
+        handleScaleToFitBed={handleScaleToFitBed}
+        caliperPoints={caliperPoints}
+        caliperDistance={caliperDistance}
+        clearMeasurement={clearMeasurement}
+        hoveredPartName={hoveredPartName}
+        handleResetCamera={handleResetCamera}
+        handleCaptureThumbnail={handleCaptureThumbnail}
+        currentSlice={currentSlice}
+        handleSliceChange={handleSliceChange}
+        transform={transform}
+        modelHeight={modelHeight}
       />
-
-      {/* Top Header Bar: Status Badge + Live FPS on Left, Dimensions + Fullscreen on Right */}
-      <div className="absolute top-3 left-3 right-3 z-panel flex items-center justify-between gap-2 pointer-events-none">
-        {/* Top-Left: VCUBE ENGINE v2.6 // 60 FPS // Model Name */}
-        <div className="pointer-events-auto flex min-w-0 max-w-full items-center gap-2 rounded-full border border-line bg-surface/90 px-3 py-1 text-xs text-fg-muted font-mono backdrop-blur-sm">
-          <span className="w-2 h-2 rounded-full bg-primary animate-pulse motion-reduce:animate-none shrink-0"></span>
-          {/* 390: nhãn dài bị cắt trong khung hẹp — bản đầy đủ hiện từ sm, bản ngắn chỉ ở mobile. */}
-          <span className="hidden sm:inline font-bold text-fg tracking-wider shrink-0">BỘ MÁY LƯỚI 3D VCUBE v2.6</span>
-          <span className="sm:hidden font-bold text-fg tracking-wider shrink-0">VCUBE v2.6</span>
-          <span className="hidden sm:inline text-fg-muted">·</span>
-          <span ref={fpsDisplayRef} className="text-positive font-bold shrink-0">60 FPS</span>
-          {isFullscreen && (
-            <>
-              <span className="text-fg-muted">·</span>
-              <span className="font-bold uppercase text-xs bg-primary-tint px-1.5 py-0.5 rounded-sm border border-line tracking-wider">
-                TOÀN MÀN HÌNH
-              </span>
-            </>
-          )}
-          <span className="text-fg-muted hidden sm:inline">·</span>
-          <span className="text-fg-muted font-medium truncate max-w-[110px] sm:max-w-[200px] hidden sm:inline" title={displayName}>
-            {displayName}
-          </span>
-        </div>
-
-        {/* Top-Right: Dimension Chip + Fullscreen */}
-        <div className="pointer-events-auto flex items-center gap-1.5">
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full border border-line bg-surface/90 text-fg-muted font-mono text-xs backdrop-blur-sm">
-            <Icon name="straighten" size={16} className="text-fg-muted" />
-            <span className="font-bold tabular-nums">
-              {modelDims.x > 0 && modelDims.y > 0 && modelDims.z > 0
-                ? `${modelDims.x.toFixed(1)} × ${modelDims.y.toFixed(1)} × ${modelDims.z.toFixed(1)} mm`
-                : '— chưa đo'}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleToggleFullscreen}
-            title={isFullscreen ? 'Thoát toàn màn hình (phím ESC)' : 'Toàn màn hình xem CAD'}
-            aria-label={isFullscreen ? 'Thoát toàn màn hình xem CAD' : 'Mở toàn màn hình xem CAD'}
-            className={`inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-mono font-bold transition-colors cursor-pointer max-md:h-11 max-md:min-w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              isFullscreen
-                ? 'bg-primary text-primary-fg border-primary hover:bg-primary-hover'
-                : 'bg-surface/90 border-line text-fg-muted hover:text-fg hover:bg-surface-muted'
-            }`}
-          >
-            <Icon name={isFullscreen ? 'fullscreen_exit' : 'fullscreen'} size={18} />
-            {isFullscreen && (
-              <span className="text-xs text-primary-fg hidden sm:inline uppercase tracking-wider pr-1">
-                Thoát (ESC)
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Floating CAD Control Row: tools left, view presets right — exactly one row at top-14 */}
-      <div className="absolute top-14 left-3 right-3 z-panel pointer-events-auto flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-md border border-line bg-surface/95 p-1.5 text-fg shadow-e2 backdrop-blur-md">
-          {/* 360 Auto-Rotate */}
-          <button
-            type="button"
-            onClick={() => setIsRotating(!isRotating)}
-            title={isRotating ? 'Dừng xoay tự động 360°' : 'Bật xoay tự động 360°'}
-            aria-label={isRotating ? 'Dừng xoay tự động 360°' : 'Bật xoay tự động 360°'}
-            aria-pressed={isRotating}
-            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors cursor-pointer max-md:h-11 max-md:w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              isRotating ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg'
-            }`}
-          >
-            <Icon name="360" size={18} />
-          </button>
-
-          {/* Wireframe / Solid */}
-          <button
-            type="button"
-            onClick={() => setWireframe(!wireframe)}
-            title={wireframe ? 'Chuyển sang chế độ đặc' : 'Chuyển sang chế độ khung dây'}
-            aria-label={wireframe ? 'Chuyển sang chế độ đặc' : 'Chuyển sang chế độ khung dây'}
-            aria-pressed={wireframe}
-            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors cursor-pointer max-md:h-11 max-md:w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              wireframe ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg'
-            }`}
-          >
-            <Icon name="grid_4x4" size={18} />
-          </button>
-
-          {/* Camera Mode Toggle (Perspective / Ortho) */}
-          <button
-            type="button"
-            onClick={handleToggleCameraMode}
-            title={cameraMode === 'orthographic' ? 'Đang trực giao — bấm để chuyển phối cảnh' : 'Đang phối cảnh — bấm để chuyển trực giao'}
-            aria-label={cameraMode === 'orthographic' ? 'Chuyển sang phối cảnh' : 'Chuyển sang trực giao'}
-            aria-pressed={cameraMode === 'orthographic'}
-            className="inline-flex h-10 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-mono font-bold text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg cursor-pointer max-md:h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <Icon name="view_in_ar" size={18} />
-            <span>{cameraMode === 'orthographic' ? 'TRỰC GIAO' : 'PHỐI CẢNH'}</span>
-          </button>
-
-          <div className="w-px h-4 bg-line shrink-0" />
-
-          {/* Bounding Box Toggle */}
-          <button
-            type="button"
-            onClick={handleToggleBoundingBox}
-            title={isBoundingBoxActive ? 'Ẩn khung bao' : 'Hiện khung bao'}
-            aria-label={isBoundingBoxActive ? 'Ẩn khung bao' : 'Hiện khung bao'}
-            aria-pressed={isBoundingBoxActive}
-            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors cursor-pointer max-md:h-11 max-md:w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              isBoundingBoxActive ? 'bg-primary text-primary-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg'
-            }`}
-          >
-            <Icon name="square_foot" size={18} />
-          </button>
-
-          {/* Caliper 2-Point Measurement Toggle */}
-          <button
-            type="button"
-            onClick={handleToggleMeasurement}
-            title={isMeasurementActive ? 'Tắt thước cặp' : 'Bật thước cặp 2 điểm'}
-            aria-label={isMeasurementActive ? 'Tắt thước cặp' : 'Bật thước cặp 2 điểm'}
-            aria-pressed={isMeasurementActive}
-            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors cursor-pointer max-md:h-11 max-md:w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              isMeasurementActive ? 'bg-warning-tint text-warning border border-warning/40' : 'text-fg-muted hover:bg-surface-muted hover:text-fg'
-            }`}
-          >
-            <Icon name="straighten" size={18} />
-          </button>
-        </div>
-
-        {/* View presets (Iso / Top / Front / Side) — segmented, top-right */}
-        <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-line bg-surface/95 p-1 font-mono text-xs shadow-e2 backdrop-blur-md">
-          {(['iso', 'top', 'front', 'side'] as const).map((ang) => (
-            <button
-              key={ang}
-              type="button"
-              onClick={() => setCameraAngle(ang)}
-              title={`Góc nhìn ${VIEW_ANGLE_LABEL[ang]}`}
-              aria-label={`Góc nhìn ${VIEW_ANGLE_LABEL[ang]}`}
-              aria-pressed={activeAngle === ang}
-              className={`inline-flex h-8 min-w-8 items-center justify-center rounded-sm px-2 font-bold uppercase transition-colors cursor-pointer max-md:h-11 max-md:min-w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                activeAngle === ang
-                  ? 'bg-primary text-primary-fg'
-                  : 'text-fg-muted hover:bg-surface-muted hover:text-fg'
-              }`}
-            >
-              {VIEW_ANGLE_LABEL[ang]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Dedicated Multi-Plate Dock (Positioned at Bottom-Left above Slicer) */}
-      {plates && plates.length > 1 && (
-        <div className="absolute bottom-16 left-3 z-panel pointer-events-auto flex items-center gap-1.5 rounded-md border border-line bg-surface/95 p-1.5 font-mono text-xs shadow-e2 backdrop-blur-md max-w-[calc(100%-9rem)] overflow-x-auto">
-          <span className="px-2 py-1 text-xs text-fg-muted font-bold uppercase tracking-wider flex items-center gap-1 shrink-0">
-            <Icon name="layers" size={16} className="text-fg-muted" />
-            Bàn In:
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              if (onSelectPlate) onSelectPlate(0);
-              handleAutoFit();
-            }}
-            aria-pressed={activePlateIndex === 0}
-            className={`px-2.5 h-8 rounded-sm font-bold transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              activePlateIndex === 0
-                ? 'bg-primary text-primary-fg'
-                : 'text-fg-muted hover:text-fg hover:bg-surface-muted'
-            }`}
-            title="Hiển thị tất cả chi tiết đã lắp ráp"
-          >
-            Tất cả
-          </button>
-          {plates.map((plate) => {
-            const isActive = activePlateIndex === plate.index;
-            // F7: chỉ hiện gram/giờ khi CHÍNH tệp khai số cho bàn này.
-            const meta = plateMetaText(plate);
-            return (
-              <button
-                key={plate.index}
-                type="button"
-                onClick={() => {
-                  if (onSelectPlate) onSelectPlate(plate.index);
-                  handleAutoFit();
-                }}
-                aria-pressed={isActive}
-                className={`px-2.5 h-8 rounded-sm font-bold transition-colors cursor-pointer text-center shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                  isActive
-                    ? 'bg-primary text-primary-fg'
-                    : 'text-fg-muted hover:text-fg hover:bg-surface-muted'
-                }`}
-                title={`Chuyển sang Bàn ${plate.index}`}
-              >
-                <span className="block">Bàn {plate.index}</span>
-                {meta && (
-                  <span
-                    className={`block text-xs font-normal tabular-nums ${
-                      isActive ? 'text-primary-fg/80' : 'text-fg-subtle'
-                    }`}
-                  >
-                    {meta}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Bed overflow warning banner when dimensions exceed build plate */}
-      {isBedOverflow && (
-        <div className="absolute top-32 left-3 right-3 z-panel bg-danger-tint border border-danger/40 text-danger px-4 py-2.5 rounded-lg flex flex-wrap items-center justify-between gap-3 text-xs font-mono animate-pulse motion-reduce:animate-none">
-          <div className="flex items-center gap-2.5">
-            <Icon name="warning" size={24} className="text-danger shrink-0" />
-            <div>
-              <strong className="font-bold text-danger block sm:inline">
-                CẢNH BÁO: KÍCH THƯỚC VƯỢT KHỔ BÀN IN ({bed ? `${bed.x} × ${bed.y} × ${bed.z} mm` : 'chưa khai khổ bàn'})
-              </strong>
-              <span className="text-xs text-danger/80 block sm:inline sm:ml-2">
-                Mô hình ({(modelDims.x * scaleMultiplier).toFixed(1)} × {(modelDims.y * scaleMultiplier).toFixed(1)} × {(modelDims.z * scaleMultiplier).toFixed(1)} mm) vượt quá khổ máy.
-              </span>
-            </div>
-          </div>
-          {onUpdateTransform && (
-            <button
-              type="button"
-              onClick={handleScaleToFitBed}
-              className="px-3 h-10 bg-danger hover:brightness-95 text-white rounded-md font-bold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <Icon name="fit_screen" size={18} />
-              Co vừa bàn
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Metrology Overlay: Caliper 2-point measurement indicator */}
-      {isMeasurementActive && (
-        <div className="absolute bottom-32 left-3 bg-surface/95 p-3 rounded-lg border border-line text-xs text-fg-muted max-w-xs shadow-e2 backdrop-blur-md space-y-2 z-panel font-mono">
-          <div className="flex items-center justify-between gap-2 font-bold text-warning">
-            <span className="flex items-center gap-1.5">
-              <Icon name="straighten" size={16} />
-              THƯỚC CẶP 2 ĐIỂM
-            </span>
-            <button
-              type="button"
-              onClick={clearMeasurement}
-              className="text-xs text-fg-muted hover:text-fg uppercase underline cursor-pointer"
-            >
-              Xóa điểm
-            </button>
-          </div>
-          <div className="text-xs text-fg-muted leading-relaxed">
-            {caliperPoints.length === 0 && '1. Nhấp chuột chọn điểm thứ nhất trên phôi 3D...'}
-            {caliperPoints.length === 1 && '2. Nhấp chuột chọn điểm thứ hai để tính khoảng cách...'}
-            {caliperPoints.length === 2 && (
-              <div className="bg-warning-tint p-2 rounded-md border border-warning/40 mt-1">
-                <span className="text-warning text-xs block">KHOẢNG CÁCH THỰC TẾ:</span>
-                <span className="text-warning text-sm font-bold block tabular-nums">
-                  {caliperDistance} mm
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Hover Tooltip */}
-      {hoveredPartName && (
-        <div className="absolute bottom-32 right-3 bg-surface/95 px-3 py-1.5 rounded-md border border-line text-xs font-mono text-fg-muted pointer-events-none shadow-e2 backdrop-blur-md z-panel">
-          <span className="text-fg-muted">Chi tiết:</span> {hoveredPartName}
-        </div>
-      )}
-
-      {/* Bottom-Right: fit / reset / capture toolbar */}
-      <div className="absolute bottom-16 right-3 z-panel flex items-center gap-1 rounded-md border border-line bg-surface/95 p-1.5 shadow-e2 backdrop-blur-md">
-        <button
-          type="button"
-          onClick={handleAutoFit}
-          title="Căn mô hình vừa khung nhìn"
-          aria-label="Căn mô hình vừa khung nhìn"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg cursor-pointer max-md:h-11 max-md:w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Icon name="fit_screen" size={18} />
-        </button>
-        <button
-          type="button"
-          onClick={handleResetCamera}
-          title="Đặt lại góc nhìn chuẩn"
-          aria-label="Đặt lại góc nhìn chuẩn"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg cursor-pointer max-md:h-11 max-md:w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Icon name="center_focus_strong" size={18} />
-        </button>
-        <button
-          type="button"
-          onClick={handleCaptureThumbnail}
-          title="Chụp ảnh mô hình 3D (PNG)"
-          aria-label="Chụp ảnh mô hình 3D (PNG)"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg cursor-pointer max-md:h-11 max-md:w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Icon name="photo_camera" size={18} />
-        </button>
-      </div>
-
-      {/* Bottom: Unified Layer Slicer progress slider with percentage and clipping plane */}
-      <div className="absolute bottom-3 left-3 right-3 bg-surface/95 px-4 py-2.5 rounded-lg border border-line flex items-center justify-between gap-4 text-fg-muted font-mono z-panel shadow-e2 backdrop-blur-md">
-        <div className="flex items-center gap-2 shrink-0">
-          <Icon name="layers" size={18} className="text-fg-muted" />
-          <span className="text-xs text-fg-muted font-bold">LỚP IN: {currentSlice}%</span>
-          <span className="rounded-full border border-line bg-surface-muted px-2 py-0.5 text-xs font-mono text-fg-muted tabular-nums">
-            {transform.unit === 'inch' ? 'in' : 'mm'} · {transform.scaleUniform}%
-          </span>
-        </div>
-        <input
-          type="range"
-          min="1"
-          max="100"
-          value={currentSlice}
-          aria-label="Cắt lớp mô hình theo chiều cao"
-          onChange={(e) => handleSliceChange(Number(e.target.value))}
-          className="w-full min-w-0 flex-1 h-1.5 bg-line-subtle rounded-full appearance-none cursor-pointer accent-primary"
-          title={`Cắt lớp 3D: ${currentSlice}%`}
-        />
-        <div className="hidden sm:flex items-center gap-2 text-xs text-fg-muted shrink-0">
-          <span className="text-fg font-bold tabular-nums">
-            {((modelHeight * currentSlice) / 100).toFixed(1)} mm
-          </span>
-          <span className="text-fg-muted">/</span>
-          <span className="text-fg-muted tabular-nums">{modelHeight.toFixed(1)} mm</span>
-          <span className="hidden sm:inline px-1.5 py-0.5 bg-surface-muted border border-line rounded-sm text-xs text-fg-muted tabular-nums">
-            Lớp in 0,16 mm
-          </span>
-        </div>
-      </div>
     </div>
   );
 };

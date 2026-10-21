@@ -24,8 +24,8 @@
 | 5 | Bundle & dependency | **✅ DONE** — initial critical gzip **464.251 → 285.807 (−38,44%)**; three-vendor rời initial (async); 9 route lazy; `confetti` rời entry; lint/build/10 gate xanh; QA verdict **GO** (`handoff/phase5-bundle.md`) |
 | 2 | Một ngôn ngữ (i18n) | **✅ DONE** — xoá **1.428** nhánh `isVi` chết (34 file, −2.256 dòng), 85 `en:` dictionary, API còn `{ t }`; initial gzip **285.807 → 275.930 (−3,46%)**; 50 route-check 0 pageerror, VI-only; QA verdict **GO** (`handoff/phase2-verify.md`) |
 | 3 | Hợp nhất data/state | **✅ DONE** — 0 cache localStorage DB-backed (50 req local); 4 store gom về `src/frontend/stores`; App.tsx **2.153 → 1.100 dòng** (hooks/routes/shell tách 10 file, JSX byte-identical); lint/build/10 gate xanh; QA verdict **GO** (`handoff/phase3-verify.md`) |
-| 4 | Tách god-file | ⬅️ **KẾ TIẾP** |
-| 6 | Docs-as-code & test | ⏳ |
+| 4 | Tách god-file | **✅ DONE** — 7 god-file tách: App **1.100→343**, Tool3D 1.956→1.057, ModelViewer 2.116→869, PricingConfig 3.079→985, Group1 2.012→755, WorkshopSettings 2.574→865, workshopService 2.243→**128 façade**; 65 file mới/12.222 dòng; parity 98,76–100%; lint/build/10 gate xanh; QA verdict **GO-WITH-RISKS** (`handoff/phase4-verify.md`) |
+| 6 | Docs-as-code & test | ⬅️ **KẾ TIẾP** |
 | 7 | Feature/data wiring | ⏳ (plan riêng) |
 
 **Thứ tự thi công đã chốt:** Phase 0 → 1 → **5** → 2 → 3 → 4 → 6 (Phase 7 sau cùng).

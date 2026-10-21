@@ -87,7 +87,17 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
   0 white screen, 0 cache key; add-to-cart toast/store/cart OK; DB-down vẫn empty state; 10/10 offline gate PASS.
 - **Gate (đã đạt):** lint/build; browser 390/1440; không đổi data contract.
 
-### Phase 4 — Tách god-file (4–6 ngày) — ⬅️ KẾ TIẾP
+### Phase 4 — Tách god-file — ✅ DONE 2026-10-21 (QA verdict **GO-WITH-RISKS**)
+> **Kết quả:** 7 god-file đã tách thành **65 file mới / 12.222 dòng**, parity độc lập **98,76–100%**;
+> lint/build/10 gate PASS; bundle +0,406% (refactor-neutral); smoke 24 route-check 0 pageerror/0 overflow.
+> LOC: App **1.100→343**, Tool3DView 1.956→1.057, ModelViewer3D 2.116→869, PricingConfigPanel 3.079→985,
+> Group1 2.012→755, WorkshopSettingsView 2.574→865, workshopService 2.243→**128 façade** (14 module backend).
+> Giữ nguyên public API + hành vi: `<Routes>`/`handleNavigate` sha256 identical, 38/38 export + 52/52 static
+> method service identical, 0 importer phải sửa, 0 circular import (143f→208f), copy VI 1.320/1.321 dòng verbatim.
+> **Rủi ro còn lại:** `/admin` + `/lab/settings` runtime chưa mount được vì RoleGuard/no session (parity static);
+> +2 chỗ `payload?: any` trùng type (net `: any` +1) → dọn Phase 6; 13 file còn >800 dòng (meshParser 1.878,
+> OnboardingWizard 1.448, Explore 1.436, Home 1.433…) → follow-up ngoài scope 7 god-file ban đầu.
+> **Bằng chứng:** `handoff/phase4-{tool3d,admin,workshop,app,verify}.md`.
 | File | LOC | Cách tách |
 |---|---:|---|
 | `PricingConfigPanel.tsx` | 3.079 | 6 sub-panel + hook form/validation; giữ UI |

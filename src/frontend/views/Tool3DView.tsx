@@ -9,281 +9,34 @@ import { StlVs3mfComparisonModal } from '../components/tool3d/StlVs3mfComparison
 import { StlUnitConfirmModal } from '../components/tool3d/StlUnitConfirmModal';
 import { ObjectTreePanel } from '../components/tool3d/ObjectTreePanel';
 import { PresetPalettePanel } from '../components/tool3d/PresetPalettePanel';
-import { TransformControlsPanel } from '../components/tool3d/TransformControlsPanel';
-import { ValidationReportPanel } from '../components/tool3d/ValidationReportPanel';
 import { QuoteSummaryPanel } from '../components/tool3d/QuoteSummaryPanel';
 import { parse3DFile, autoRepairGeometry, analyzeMeshDefects } from '../../utils/meshParser';
-import { Button, EmptyState, Icon, InfoTip, PanelErrorBoundary } from '@frontend/ui';
-import { EMPTY_VALUE, formatNumber } from '../lib/format';
+import { Button, Icon, PanelErrorBoundary } from '@frontend/ui';
+import { formatNumber } from '../lib/format';
+import {
+  bedOf,
+  bedText,
+  bedVolume,
+  computeSha256,
+  countMeasuredScoreInputs,
+  derivePrintabilityLevel,
+  derivePrintabilityScore,
+  describeUnmeasuredScoreInputs,
+  findFileStructureProblem,
+  formatFileSize,
+  formatOverhangLabel,
+  measuredOverhang,
+  measuredText,
+  type ParseFailure
+} from '../components/tool3d/tool3dAnalysis';
+import { ParseFailurePanel } from '../components/tool3d/ParseFailurePanel';
+import { Tool3DEmptyState } from '../components/tool3d/Tool3DEmptyState';
+import { Tool3DUploadStrip } from '../components/tool3d/Tool3DUploadStrip';
+import { Tool3DSlicingConfigPanel } from '../components/tool3d/Tool3DSlicingConfigPanel';
+import { Tool3DAnalysisPanel } from '../components/tool3d/Tool3DAnalysisPanel';
 
-/* ── Q (#2): hậu quả của việc cột DB nay NULL thật (`mappers.ts` không còn điền số mặc định) ──
- * `materials.price_per_gram` / `printer_fleet.bed_dimensions` … có thể là `null` = CHƯA ĐO ĐƯỢC.
- * `.toLocaleString()` trên `null` làm TRẮNG MÀN HÌNH, nên mọi chỗ hiển thị/so sánh phải đi qua
- * hai hàm dưới đây. Thiếu số ⇒ `—`, KHÔNG bịa số và KHÔNG in chữ "null" ra UI. */
-const measuredText = (v: number | null | undefined, suffix = ''): string =>
-  typeof v === 'number' && Number.isFinite(v) ? `${formatNumber(v)}${suffix}` : EMPTY_VALUE;
-
-/** Khổ bàn in của máy — `null` = chưa đo được CẢ 3 cạnh ⇒ không so sánh, không hiển thị số. */
-const bedOf = (p: PrinterProfile | undefined): { x: number; y: number; z: number } | null =>
-  p && p.bedDimensions &&
-  typeof p.bedDimensions.x === 'number' && Number.isFinite(p.bedDimensions.x) &&
-  typeof p.bedDimensions.y === 'number' && Number.isFinite(p.bedDimensions.y) &&
-  typeof p.bedDimensions.z === 'number' && Number.isFinite(p.bedDimensions.z)
-    ? { x: p.bedDimensions.x, y: p.bedDimensions.y, z: p.bedDimensions.z }
-    : null;
-
-/** Khổ bàn in dạng chữ (mm); thiếu ⇒ `—`. */
-const bedText = (p: PrinterProfile | undefined): string => {
-  const bed = bedOf(p);
-  return bed ? `${bed.x}×${bed.y}×${bed.z} mm` : EMPTY_VALUE;
-};
-
-/**
- * Thể tích khổ bàn ĐO ĐƯỢC (mm³). `null` = máy chưa khai khổ bàn ⇒ KHÔNG so sánh được.
- * Dùng để chọn "máy khổ lớn hơn" theo SỐ ĐO, thay cho việc hardcode id máy của nền tảng khác.
- */
-const bedVolume = (p: PrinterProfile | undefined): number | null => {
-  const bed = bedOf(p);
-  return bed ? bed.x * bed.y * bed.z : null;
-};
-
-// P4 (data-honesty MP-04): diem "kha nang in" PHAI suy tu so do that cua tep, khong duoc la
-// hang so bia (truoc day: `isWatertight ? 94 : 76`). Ham duoi day chi doc cac phep do da chay:
-// do kin (isWatertight), so canh non-manifold, so phap tuyen nghich, do day thanh nho nhat.
-// Moi loi do duoc tru diem theo bang duoi; khong phat hien loi nao => 100.
-//
-// R4 (MP-04 — R1 bao): `null` = CHUA DO DUOC, khac han `0` = do duoc va bang 0. Trong JavaScript
-// `!null === true` va `null < 0.8 === true`, nen ban cu am tham bien "chua do" thanh "co loi" va
-// tra 60/100 cho mot tep KHONG co phep do nao. Nay:
-//   - `null` KHONG bi tru diem (bo qua, khong coi la loi);
-//   - CA BON phep do deu `null` ⇒ tra `null` = CHUA CHAM DIEM (giao dien khong hien con so nao).
-function derivePrintabilityScore(measured: {
-  isWatertight: boolean | null;
-  nonManifoldEdges: number | null;
-  invertedNormals: number | null;
-  minWallThickness: number | null;
-}): number | null {
-  const noMeasurement =
-    measured.isWatertight === null &&
-    measured.nonManifoldEdges === null &&
-    measured.invertedNormals === null &&
-    measured.minWallThickness === null;
-  if (noMeasurement) return null;
-
-  let score = 100;
-  if (measured.isWatertight === false) score -= 25;
-  if (measured.nonManifoldEdges !== null) {
-    score -= Math.min(30, Math.max(0, measured.nonManifoldEdges) * 5);
-  }
-  if (measured.invertedNormals !== null) {
-    score -= Math.min(20, Math.max(0, measured.invertedNormals) * 5);
-  }
-  if (measured.minWallThickness !== null && measured.minWallThickness < 0.8) score -= 15;
-  return Math.max(0, Math.min(100, Math.round(score)));
-}
-
-function derivePrintabilityLevel(score: number): 'good' | 'warning' | 'critical' {
-  if (score >= 80) return 'good';
-  if (score >= 60) return 'warning';
-  return 'critical';
-}
-
-/**
- * R4: cong thuc diem dung BON phep do. Ham dem xem bao nhieu phep trong so do CO so that
- * (`0` la so do that; `null` moi la chua do duoc).
- */
-function countMeasuredScoreInputs(file: AnalysisFile): number {
-  return [file.isWatertight, file.nonManifoldEdges, file.invertedNormals, file.minWallThickness]
-    .filter((v) => v !== null).length;
-}
-
-/** R4: nhan cac phep do CHUA co so — de noi ro diem duoc cham tu phan nao, bo qua muc nao. */
-function describeUnmeasuredScoreInputs(file: AnalysisFile): string[] {
-  const missing: string[] = [];
-  if (file.isWatertight === null) missing.push('độ kín');
-  if (file.nonManifoldEdges === null) missing.push('cạnh non-manifold');
-  if (file.invertedNormals === null) missing.push('pháp tuyến nghịch');
-  if (file.minWallThickness === null) missing.push('độ dày thành tối thiểu');
-  return missing;
-}
-
-// ── Q2 (data-honesty MP-01/07/08/11) ─────────────────────────────────────────────────────────────
-// Nguyên tắc: mọi con số hiển thị cho khách phải đến từ phép đo trên CHÍNH tệp khách tải lên, hoặc
-// không hiển thị gì. Bốn thứ dưới đây thay cho các hằng số bịa cũ: góc nhô mặc định, cờ "kín"
-// được gán sau khi sửa, hộp phôi dựng sẵn và hash mẫu.
-
-/** MP-01: trạng thái "không đọc được tệp". Không kèm bất kỳ số đo nào và KHÔNG có `AnalysisFile`. */
-export interface ParseFailure {
-  fileName: string;
-  fileSize: string;
-  reason: string;
-  file: File;
-}
-
-// MP-07 (R2/Q2) + R4: `PrintabilityAnalysis` nay da khai bao `number | null` cho CA BA truong
-// `printabilityScore`, `level` va `overhangPercentage` (`src/types/index.ts`) ⇒ khong con can type
-// tam hay ep kieu nao o tang view. `null` = CHUA DO / CHUA CHAM DIEM, khac han `0`.
-
-/** MP-07: `null`/`NaN` ⇒ "Chưa đo"; trước đây dòng này in một giá trị mặc định như thể đã đo. */
-function formatOverhangLabel(pct: number | null | undefined): string {
-  return typeof pct === 'number' && Number.isFinite(pct) ? `${pct.toFixed(1)}% cần vật liệu đỡ` : 'Chưa đo';
-}
-
-/** MP-07: chỉ nhận số đo THẬT từ bộ đọc lưới; mọi trường hợp khác ⇒ `null`. */
-function measuredOverhang(parsed: { overhangPercentage?: number }): number | null {
-  const pct = parsed.overhangPercentage;
-  return typeof pct === 'number' && Number.isFinite(pct) ? pct : null;
-}
-
-/**
- * MP-11: băm THẬT byte của tệp khách tải lên. `crypto.subtle` chỉ tồn tại trong secure context
- * (https / localhost); khi không có (ví dụ preview qua IP LAN) trả `undefined` để giao diện in "—",
- * KHÔNG rơi về một hash mẫu.
- */
-async function computeSha256(file: File): Promise<string | undefined> {
-  const subtle = typeof crypto !== 'undefined' ? crypto.subtle : undefined;
-  if (!subtle) return undefined;
-  try {
-    const digest = await subtle.digest('SHA-256', await file.arrayBuffer());
-    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
-  } catch {
-    return undefined;
-  }
-}
-
-/** Nhãn dung lượng dùng chung cho panel lỗi (không làm tròn thành "0.0 MB"). */
-function formatFileSize(bytes: number): string {
-  return bytes >= 1024 * 1024
-    ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
-
-/**
- * Q2 (MP-01 + MP-03): kiểm CẤU TRÚC tệp trước khi giao cho bộ đọc.
- *
- * Vì sao cần: `src/utils/meshParser.ts` (KHÔNG thuộc quyền sửa của Q2) bắt lỗi `STLLoader` rồi thay
- * bằng một hộp 85×32×60 dựng sẵn và trả về như một lưới hợp lệ — nên tệp rác vẫn hiện
- * "85.0 × 60.0 × 32.0 mm / 12 tam giác" trên /quote. Kiểm ở đây để tệp KHÔNG đọc được rơi vào panel
- * lỗi trung thực, không bao giờ thành một mô hình bịa.
- *
- * Chỉ từ chối khi tệp CHẮC CHẮN không thuộc định dạng đó. Tệp nhị phân hợp lệ luôn có
- * `(size - 84) % 50 === 0`, kể cả khi header ghi sai số tam giác — nên phép kiểm này không loại
- * nhầm tệp thật.
- */
-async function findFileStructureProblem(file: File, lowerName: string): Promise<string | null> {
-  if (lowerName.endsWith('.stl')) {
-    const headBytes = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
-    const headText = new TextDecoder().decode(headBytes);
-
-    if (/^\s*solid/i.test(headText) || /facet\s+normal/i.test(headText)) {
-      if (!/facet\s+normal/i.test(headText) || !/vertex\s/i.test(headText)) {
-        return 'Tệp .stl này không chứa cấu trúc tam giác (không có "facet normal" / "vertex").';
-      }
-      return null;
-    }
-
-    if (file.size < 84) {
-      return 'Tệp .stl nhỏ hơn 84 byte tối thiểu của STL nhị phân và cũng không có cấu trúc STL ASCII.';
-    }
-    const triangles = new DataView(headBytes.buffer, headBytes.byteOffset, 84).getUint32(80, true);
-    const fitsByLength = (file.size - 84) % 50 === 0;
-    if (triangles === 0) {
-      return 'Header STL nhị phân ghi 0 tam giác.';
-    }
-    if (!fitsByLength && file.size < 84 + triangles * 50) {
-      return 'Kích thước tệp không khớp số tam giác ghi trong header STL nhị phân.';
-    }
-    return null;
-  }
-
-  if (lowerName.endsWith('.3mf')) {
-    const sig = new Uint8Array(await file.slice(0, 2).arrayBuffer());
-    // 3MF là một gói ZIP ⇒ bắt đầu bằng "PK".
-    if (sig[0] !== 0x50 || sig[1] !== 0x4b) {
-      return 'Tệp .3mf không phải gói ZIP (3MF là gói ZIP chứa model XML).';
-    }
-    return null;
-  }
-
-  return null;
-}
-
-
-/**
- * Q2 (MP-01): panel lỗi đọc tệp — thay hẳn `recoveryFile` + hộp phôi dựng sẵn +
- * toast "đã khởi tạo mô hình CAD phôi an toàn". Không mô hình, không số đo, không nút báo giá.
- */
-const ParseFailurePanel: React.FC<{
-  failure: ParseFailure;
-  manualReviewNoteShown: boolean;
-  onRetry: () => void;
-  onPickAnother: (file: File) => void;
-  onRequestManualReview: () => void;
-}> = ({ failure, manualReviewNoteShown, onRetry, onPickAnother, onRequestManualReview }) => (
-  <div
-    role="alert"
-    className="bg-warning-tint border border-warning/20 rounded-lg p-4 sm:p-5 space-y-3 font-sans"
-  >
-    <div className="flex items-start gap-2.5">
-      <Icon name="warning" size={18} className="text-warning shrink-0 mt-0.5" />
-      <div className="space-y-1 min-w-0">
-        <h3 className="font-bold text-sm text-warning">Không phân tích được tệp</h3>
-        <p className="text-xs text-fg break-words">
-          Tệp: <strong>{failure.fileName}</strong> ({failure.fileSize})
-        </p>
-        <p className="text-xs text-fg-muted break-words">Lý do: {failure.reason}</p>
-        <p className="text-xs text-fg-muted">
-          Hệ thống KHÔNG tạo dữ liệu thay thế cho tệp này: không kích thước, không thể tích, không số
-          tam giác và không báo giá nào được sinh ra từ một tệp không đọc được.
-        </p>
-      </div>
-    </div>
-
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={onRetry}
-        className="px-4 h-10 max-md:min-h-11 bg-surface hover:bg-surface-muted border border-line-control text-fg text-sm font-semibold rounded-md transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
-        <Icon name="restart_alt" size={18} />
-        Thử lại
-      </button>
-
-      <label className="px-4 h-10 bg-surface hover:bg-surface-muted border border-line-control text-fg text-sm font-semibold rounded-md transition-colors flex items-center gap-1.5 cursor-pointer">
-        <Icon name="upload_file" size={18} />
-        <span>Chọn tệp khác</span>
-        <input
-          type="file"
-          accept=".stl,.3mf,.step,.obj,.iges"
-          className="hidden"
-          aria-label="Chọn tệp CAD khác"
-          onChange={(e) => {
-            const next = e.target.files && e.target.files[0];
-            e.target.value = '';
-            if (next) onPickAnother(next);
-          }}
-        />
-      </label>
-
-      <button
-        type="button"
-        onClick={onRequestManualReview}
-        className="px-4 h-10 max-md:min-h-11 bg-surface hover:bg-surface-muted text-fg border border-line-control text-sm font-semibold rounded-md transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
-        <Icon name="send" size={18} />
-        Gửi yêu cầu thẩm định thủ công
-      </button>
-    </div>
-
-    {manualReviewNoteShown && (
-      <p className="text-xs text-fg-muted border-t border-warning/20 pt-3">
-        Hệ thống chưa có kênh gửi hồ sơ tự động tới xưởng, nên KHÔNG có yêu cầu nào được gửi đi và
-        cũng không có thông báo "đã gửi". Vui lòng dùng khung chat hỗ trợ ở góc màn hình, đính kèm{' '}
-        <strong>{failure.fileName}</strong> để chuyển cho xưởng thẩm định.
-      </p>
-    )}
-  </div>
-);
+/** Public type giữ nguyên đường dẫn import cũ (`views/Tool3DView` re-export như trước). */
+export type { ParseFailure } from '../components/tool3d/tool3dAnalysis';
 
 interface Tool3DViewProps {
   materials?: MaterialProfile[];
@@ -608,111 +361,18 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   // nêu NGUYÊN NHÂN + 1 HÀNH ĐỘNG (tải tệp). Kéo–thả vẫn chạy vì khung dropzone bọc EmptyState.
   if (!selectedFile) {
     return (
-      <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="pb-6 border-b border-line">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-xs uppercase tracking-wider text-fg-muted font-semibold">
-                KIỂM TRA HÌNH HỌC & CẮT LỚP TỰ ĐỘNG // BỘ MÁY LƯỚI 3D VCUBE v2.6
-              </span>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-fg">
-              Xưởng phân tích & báo giá 3D tức thì
-            </h1>
-          </div>
-
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                handleActualFileUpload(e.dataTransfer.files[0]);
-              }
-            }}
-            className={`rounded-lg border-2 border-dashed bg-surface p-8 text-center transition-colors ${
-              dragOver ? 'border-line-control bg-surface-muted' : 'border-line hover:border-line-control hover:bg-surface-muted'
-            }`}
-          >
-            {isAnalyzing ? (
-              <div className="py-10 space-y-3 font-mono text-center">
-                <div className="w-10 h-10 border-2 border-primary border-t-transparent animate-spin motion-reduce:animate-none mx-auto rounded-full" />
-                <p className="text-xs uppercase tracking-widest text-primary font-bold">
-                  Đang giải mã lưới 3D, bóc tách cấu trúc tam giác và tính toán thể tích...
-                </p>
-                <span className="text-xs text-fg-subtle">Đang đọc cấu trúc lưới bằng WebGL (Three.js)</span>
-                <div className="mx-auto h-2 w-48 rounded-md bg-surface-muted animate-pulse motion-reduce:animate-none" aria-hidden="true" />
-              </div>
-            ) : (
-              <EmptyState
-                size="sm"
-                icon={<Icon name="cloud_upload" size={20} />}
-                title="Chưa có bản vẽ nào để phân tích"
-                description={
-                  /* Dọn trạng thái rỗng: MỘT dòng chính + InfoTip cho phần giải thích dài
-                     (yêu cầu chủ dự án: khung thấp hơn, không còn đoạn 3 dòng trên mặt tiền). */
-                  <span className="flex flex-wrap items-center justify-center gap-1.5">
-                    <span>Tải tệp CAD lên để đo kích thước, thể tích và báo giá.</span>
-                    <InfoTip label="Tệp nào được phân tích tự động?">
-                      Hệ thống không còn tệp mẫu sẵn và bạn chưa tải tệp CAD nào lên — tệp do bạn tải lên là nguồn
-                      dữ liệu duy nhất để đo kích thước, thể tích và báo giá. Chỉ .stl / .3mf / .obj được phân tích
-                      tự động; STEP/IGES cần bản tessellation hoặc báo giá thủ công.
-                    </InfoTip>
-                  </span>
-                }
-                action={
-                  <>
-                    <Button
-                      variant="primary"
-                      leadingIcon={<Icon name="cloud_upload" size={16} />}
-                      onClick={() => emptyStateFileRef.current?.click()}
-                    >
-                      Tải tệp lưới 3D (.stl / .3mf / .obj)
-                    </Button>
-                    <input
-                      ref={emptyStateFileRef}
-                      type="file"
-                      accept=".stl,.3mf,.step,.obj,.iges"
-                      className="hidden"
-                      aria-label="Chọn tệp CAD để báo giá"
-                      onChange={(e) => {
-                        const picked = e.target.files && e.target.files[0];
-                        // Reset value để chọn LẠI cùng một tệp vẫn kích hoạt onChange.
-                        e.target.value = '';
-                        if (picked) handleActualFileUpload(picked);
-                      }}
-                    />
-                  </>
-                }
-              />
-            )}
-          </div>
-
-          {/* Q2 (MP-01): tệp lỗi ⇒ nói thẳng; không mô hình thay thế, không số đo, không giá. */}
-          {parseFailure && (
-            <ParseFailurePanel
-              failure={parseFailure}
-              manualReviewNoteShown={manualReviewNoteShown}
-              onRetry={() => handleActualFileUpload(parseFailure.file)}
-              onPickAnother={(next) => handleActualFileUpload(next)}
-              onRequestManualReview={() => setManualReviewNoteShown(true)}
-            />
-          )}
-
-          {(!currentPrinter || !currentMaterial) && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning-tint p-3.5 text-xs text-warning font-sans">
-              <Icon name="warning" size={16} className="text-warning shrink-0" />
-              <p>
-                {!currentPrinter ? 'Chưa có máy in nào trong hệ thống. ' : ''}
-                {!currentMaterial ? 'Chưa có vật liệu nào trong hệ thống. ' : ''}
-                Báo giá tự động chỉ tính khi có dữ liệu thật — quản trị viên thêm ở{' '}
-                <strong>/admin → Cấu hình giá → Đội Máy In / Danh Mục Nhựa &amp; Resin</strong>.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+      <Tool3DEmptyState
+        isAnalyzing={isAnalyzing}
+        dragOver={dragOver}
+        setDragOver={setDragOver}
+        handleActualFileUpload={handleActualFileUpload}
+        emptyStateFileRef={emptyStateFileRef}
+        parseFailure={parseFailure}
+        manualReviewNoteShown={manualReviewNoteShown}
+        setManualReviewNoteShown={setManualReviewNoteShown}
+        currentPrinter={currentPrinter}
+        currentMaterial={currentMaterial}
+      />
     );
   }
 
@@ -987,114 +647,16 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         )}
 
         {/* Clean File Upload / Dropzone Header with Supported Formats Badges */}
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-              handleActualFileUpload(e.dataTransfer.files[0]);
-            }
-          }}
-          className={`border-2 border-dashed transition-colors bg-surface rounded-lg ${
-            uploadExpanded ? 'p-8 text-center' : 'p-3 sm:p-3.5'
-          } ${dragOver ? 'border-line-control bg-surface-muted' : 'border-line hover:border-line-control hover:bg-surface-muted'}`}
-        >
-          {isAnalyzing ? (
-            <div className="py-6 space-y-3 font-mono">
-              <div className="w-10 h-10 border-2 border-primary border-t-transparent animate-spin motion-reduce:animate-none mx-auto rounded-full"></div>
-              <p className="text-xs uppercase tracking-widest text-primary font-bold">
-                Đang giải mã lưới 3D, bóc tách cấu trúc tam giác và tính toán thể tích...
-              </p>
-              <span className="text-xs text-fg-subtle">Đang đọc cấu trúc lưới bằng WebGL (Three.js)</span>
-              <div className="mx-auto h-2 w-48 rounded-md bg-surface-muted animate-pulse motion-reduce:animate-none" aria-hidden="true" />
-            </div>
-          ) : uploadExpanded ? (
-            <div className="max-w-xl mx-auto space-y-3.5">
-              <div className="w-12 h-12 bg-surface-muted border border-line text-fg-muted flex items-center justify-center mx-auto rounded-md">
-                <Icon name="cloud_upload" size={28} />
-              </div>
-              
-              <div className="space-y-1">
-                <h3 className="font-bold text-base sm:text-lg text-fg">
-                  Kéo & thả tệp CAD 3D vào khung phân tích
-                </h3>
-                <p className="text-xs text-fg-subtle">
-                  Hệ thống đọc cấu trúc lưới tam giác của chính tệp bạn tải lên để đo kích thước, thể tích và tính toán báo giá.
-                </p>
-              </div>
-
-              {/* R4: STEP/STP/IGES được giải mã qua WebAssembly CAD Kernel (occt-import-js) trong
-                  Web Worker — `meshParser.parse3DFile` xử lý thật, miễn WASM tải được. */}
-              <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-xs pt-0.5">
-                <span className="text-xs text-fg-subtle uppercase font-semibold">Phân tích được:</span>
-                {['STL', '3MF', 'OBJ', 'STEP', 'IGES'].map(fmt => (
-                  <span
-                    key={fmt}
-                    className="px-2.5 py-1 rounded-md bg-primary-tint text-primary font-bold border border-primary/20 shadow-e0 text-xs"
-                  >
-                    {fmt}
-                  </span>
-                ))}
-                <span className="text-xs text-fg-subtle pl-1">(Tối đa 150MB)</span>
-              </div>
-
-              <p className="text-xs text-fg-subtle">
-                STEP / IGES được giải mã bằng nhân CAD WebAssembly (OpenCASCADE) ngay trên trình duyệt
-                — tệp lớn có thể mất vài giây. Nếu kernel không tải được, hệ thống báo lỗi thật thay vì
-                dựng số đo giả.
-              </p>
-
-              <div className="pt-1 font-mono">
-                <Button
-                  variant="primary"
-                  leadingIcon={<Icon name="cloud_upload" size={16} />}
-                  onClick={() => workspaceFileRef.current?.click()}
-                >
-                  Chọn tệp từ máy tính
-                </Button>
-                <input
-                  ref={workspaceFileRef}
-                  type="file"
-                  accept=".stl,.3mf,.step,.obj,.iges"
-                  className="hidden"
-                  aria-label="Chọn tệp CAD khác để báo giá"
-                  onChange={(e) => {
-                    const picked = e.target.files && e.target.files[0];
-                    // Reset value để chọn LẠI cùng một tệp vẫn kích hoạt onChange.
-                    e.target.value = '';
-                    if (picked) handleActualFileUpload(picked);
-                  }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 text-left">
-              <span className="w-9 h-9 rounded-md bg-primary-tint text-primary flex items-center justify-center shrink-0">
-                <Icon name="description" size={20} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-fg-subtle uppercase font-mono font-bold">
-                  Tệp đang xử lý
-                </p>
-                <p className="text-sm font-bold text-fg truncate">
-                  {selectedFile.fileName}
-                  <span className="text-fg-subtle font-mono font-normal"> ({selectedFile.fileSize})</span>
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="shrink-0"
-                leadingIcon={<Icon name="upload_file" size={16} />}
-                onClick={() => setUploadExpanded(true)}
-              >
-                Đổi tệp khác
-              </Button>
-            </div>
-          )}
-        </div>
+        <Tool3DUploadStrip
+          isAnalyzing={isAnalyzing}
+          uploadExpanded={uploadExpanded}
+          setUploadExpanded={setUploadExpanded}
+          dragOver={dragOver}
+          setDragOver={setDragOver}
+          handleActualFileUpload={handleActualFileUpload}
+          workspaceFileRef={workspaceFileRef}
+          selectedFile={selectedFile}
+        />
 
         {/* Q2 (MP-01): lỗi đọc tệp hiển thị ngay dưới khung tải lên; KHÔNG có tệp/mô hình thay thế. */}
         {parseFailure && (
@@ -1278,508 +840,47 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
             </div>
 
             {leftTab === 'basic' && (
-            <div className="rounded-lg border border-line bg-surface p-5 sm:p-6 space-y-4 font-sans">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <div className="flex items-center gap-2">
-                  <Icon name="tune" size={20} className="text-primary" />
-                  <h3 className="font-bold text-sm sm:text-base text-fg uppercase tracking-wider font-mono">
-                    Thông số cắt lớp
-                  </h3>
-                </div>
-                <span className="text-xs font-mono text-primary bg-primary-tint px-2.5 py-0.5 rounded-md border border-primary/20 font-bold">
-                  Bambu Lab / Kobra
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Printer Selector */}
-                <div className="space-y-1.5">
-                  <label htmlFor="tool3d-printer-select" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold flex items-center justify-between">
-                    <span>Máy In Gia Công</span>
-                    <span className="text-fg">
-                      {currentPrinter ? bedText(currentPrinter) : 'Chưa có máy in'}
-                    </span>
-                  </label>
-                  <select
-                    id="tool3d-printer-select"
-                    value={selectedPrinterId}
-                    onChange={(e) => setSelectedPrinterId(e.target.value)}
-                    className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {printers.length === 0 && (
-                      <option value="">— Chưa có máy in trong hệ thống —</option>
-                    )}
-                    {printers.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.technology})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Material Selector */}
-                <div className="space-y-1.5">
-                  <label htmlFor="tool3d-material-select" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold flex items-center justify-between">
-                    <span>Vật Liệu Kỹ Thuật</span>
-                    <span className="text-fg">
-                      {currentMaterial ? measuredText(currentMaterial.pricePerGram, ' đ/g') : 'Chưa có vật liệu'}
-                    </span>
-                  </label>
-                  <select
-                    id="tool3d-material-select"
-                    value={selectedMaterialId}
-                    onChange={(e) => setSelectedMaterialId(e.target.value)}
-                    className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {materials.length === 0 && (
-                      <option value="">— Chưa có vật liệu trong hệ thống —</option>
-                    )}
-                    {materials.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({measuredText(m.pricePerGram, ' đ/g')})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Infill Density & Pattern */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between text-xs">
-                  <label htmlFor="tool3d-infill-range" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold">
-                    Độ đặc ruột: <span className="font-mono text-fg font-bold">{infillDensity}% {infillPattern}</span>
-                  </label>
-                  <div className="flex items-center gap-1 font-mono text-xs">
-                    {['Gyroid', 'Grid', 'Honeycomb'].map((pat) => (
-                      <button
-                        key={pat}
-                        type="button"
-                        onClick={() => setInfillPattern(pat)}
-                        aria-pressed={infillPattern === pat}
-                        className={`h-8 max-md:min-h-11 px-3 rounded-sm border text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                          infillPattern === pat
-                            ? 'bg-primary text-primary-fg border-primary'
-                            : 'bg-surface text-fg-muted border-line hover:bg-surface-muted hover:text-fg'
-                        }`}
-                      >
-                        {pat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <input
-                  id="tool3d-infill-range"
-                  type="range"
-                  min="10"
-                  max="100"
-                  step="5"
-                  aria-label="Độ đặc ruột"
-                  value={infillDensity}
-                  onChange={(e) => setInfillDensity(Number(e.target.value))}
-                  className="w-full accent-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              </div>
-
-              {/* Layer Height & Supports Mode */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                <div className="space-y-1.5">
-                  <label htmlFor="tool3d-layer-height" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold block">
-                    Độ dày lớp in
-                  </label>
-                  <select
-                    id="tool3d-layer-height"
-                    value={layerHeight}
-                    onChange={(e) => setLayerHeight(e.target.value)}
-                    className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {/* F2 (P9): nếu tệp khai layer height ngoài 4 mức sẵn có, hiện đúng giá trị đó
-                        thay vì để select trống/kẹt ở lựa chọn không khớp. */}
-                    {layerHeight && !['0.08', '0.12', '0.16', '0.20'].includes(layerHeight) && (
-                      <option value={layerHeight}>{layerHeight} mm (theo tệp)</option>
-                    )}
-                    <option value="0.08">0,08 mm (siêu mịn — chi tiết sắc nét)</option>
-                    <option value="0.12">0,12 mm (chi tiết mịn — chuẩn chất lượng)</option>
-                    <option value="0.16">0,16 mm (tiêu chuẩn — cân bằng tốc độ/độ đẹp)</option>
-                    <option value="0.20">0,20 mm (lớp nhanh — in nhanh mẫu thử)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label htmlFor="tool3d-supports-mode" className="text-xs font-mono uppercase tracking-wider text-fg-subtle font-bold block">
-                    Cấu hình vật liệu đỡ
-                  </label>
-                  <select
-                    id="tool3d-supports-mode"
-                    value={supportsMode}
-                    onChange={(e) => setSupportsMode(e.target.value as any)}
-                    className="h-10 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg font-mono focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="tree">Đỡ dạng cây (dễ bóc — ít vết sẹo bề mặt)</option>
-                    <option value="auto">Đỡ dạng lưới tự động (chắc chắn cho hình học lớn)</option>
-                    <option value="none">Không dùng vật liệu đỡ (chỉ in cầu dầm ngang)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Batch Quantity Selector */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line">
-                <div className="text-xs font-mono">
-                  <span className="font-bold text-fg block">Số lượng sản xuất (lô):</span>
-                  <span className="text-xs text-fg-subtle">Giảm giá lũy tiến tự động theo số lượng</span>
-                </div>
-                <div className="flex items-center gap-1.5 font-mono">
-                  {[1, 2, 5, 10, 20].map((qty) => (
-                    <button
-                      key={qty}
-                      type="button"
-                      onClick={() => setQuantity(qty)}
-                      aria-pressed={quantity === qty}
-                      className={`h-8 max-md:min-h-11 px-3 text-sm font-medium rounded-sm border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                        quantity === qty
-                          ? 'bg-primary text-primary-fg border-primary'
-                          : 'bg-surface text-fg-muted border-line hover:bg-surface-muted hover:text-fg'
-                      }`}
-                    >
-                      x{qty}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <Tool3DSlicingConfigPanel
+              printers={printers}
+              materials={materials}
+              currentPrinter={currentPrinter}
+              currentMaterial={currentMaterial}
+              selectedPrinterId={selectedPrinterId}
+              setSelectedPrinterId={setSelectedPrinterId}
+              selectedMaterialId={selectedMaterialId}
+              setSelectedMaterialId={setSelectedMaterialId}
+              infillDensity={infillDensity}
+              setInfillDensity={setInfillDensity}
+              infillPattern={infillPattern}
+              setInfillPattern={setInfillPattern}
+              layerHeight={layerHeight}
+              setLayerHeight={setLayerHeight}
+              supportsMode={supportsMode}
+              setSupportsMode={setSupportsMode}
+              quantity={quantity}
+              setQuantity={setQuantity}
+            />
             )}
 
             {/* Mesh Validation Report Panel / Workspace */}
             {leftTab === 'analysis' && (
-            <div className="rounded-lg border border-line bg-surface p-5 sm:p-6 space-y-5 font-sans">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Icon name="fact_check" size={20} className="text-primary" />
-                    <h3 className="font-bold text-sm sm:text-base text-fg uppercase tracking-wider font-mono">
-                      Báo cáo kiểm định lưới & khả năng in
-                    </h3>
-                  </div>
-                  <span className="text-xs font-mono text-fg-subtle block mt-0.5">
-                    Kiểm tra hình học FDM — tự động phát hiện lỗi khép kín
-                  </span>
-                </div>
-
-                {/* Score Badge */}
-                {/* R4: `null` cho MOI phep do hinh hoc (luoi vuot tran phan tich) ⇒ khong co gi de
-                    cham diem. Cong bo "x/100 Score" khi do la ket luan bia ⇒ trang thai thu ba. */}
-                <div className="flex items-center gap-2 font-mono">
-                  {typeof selectedFile.printability.printabilityScore === 'number' ? (
-                    <div
-                      title={
-                        describeUnmeasuredScoreInputs(selectedFile).length > 0
-                          ? `Bỏ qua (chưa đo được): ${describeUnmeasuredScoreInputs(selectedFile).join(', ')}`
-                          : undefined
-                      }
-                      className={`px-3 py-1.5 rounded-lg border text-center ${
-                        selectedFile.printability.printabilityScore >= 90
-                          ? 'bg-positive-tint border-positive/20 text-positive'
-                          : selectedFile.printability.printabilityScore >= 70
-                          ? 'bg-warning-tint border-warning/20 text-warning'
-                          : 'bg-danger-tint border-danger/20 text-danger'
-                      }`}
-                    >
-                      <span className="text-xs font-bold block">{selectedFile.printability.printabilityScore}/100 điểm</span>
-                      <span className="text-xs uppercase tracking-wider block font-semibold">
-                        {countMeasuredScoreInputs(selectedFile) < 4
-                          ? `Chấm từ ${countMeasuredScoreInputs(selectedFile)}/4 số đo`
-                          // R4: `level` cung co the `null` ⇒ KHONG duoc roi vao nhan "Rui Ro" (ket luan khong co so do).
-                          : selectedFile.printability.level === null
-                          ? '—'
-                          : selectedFile.printability.level === 'good' ? 'Rất khả thi' : selectedFile.printability.level === 'warning' ? 'Cần chú ý' : 'Rủi ro'}
-                      </span>
-                    </div>
-                  ) : (
-                    <div
-                      title={`Thiếu số đo: ${describeUnmeasuredScoreInputs(selectedFile).join(', ')}`}
-                      className="px-3 py-1.5 rounded-lg border text-center bg-surface-muted border-line text-fg-muted"
-                    >
-                      <span className="text-xs font-bold block">—/100 điểm</span>
-                      <span className="text-xs uppercase tracking-wider block font-semibold">Chưa chấm điểm</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 3 Core Geometry Checks: Watertight, Wall Thickness, Overhang Angle */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
-                {/* 1. Watertight Check */}
-                {/* R4: `isWatertight` co BA trang thai — `true` (do duoc: kin), `false` (do duoc:
-                    khong kin), `null` (CHUA phan tich: luoi vuot tran, bo doc khong chay ban do canh).
-                    `null` KHONG duoc hien "Khong kin": do la ket luan tu du lieu khong ton tai. */}
-                <div className={`p-3.5 rounded-lg border ${
-                  selectedFile.isWatertight === true
-                    ? 'bg-positive-tint border-positive/20 text-positive'
-                    : selectedFile.isWatertight === false
-                    ? 'bg-warning-tint border-warning/20 text-warning'
-                    : 'bg-surface-muted border-line text-fg-muted'
-                }`}>
-                  <div className="flex items-center gap-1.5 font-bold mb-1">
-                    {/* Q2: icon/màu phải bám số đo — trước đây icon luôn mang `text-positive` kể cả khi
-                        lưới KHÔNG kín (cùng lỗi với ValidationReportPanel). */}
-                    <Icon
-                      name={
-                        selectedFile.isWatertight === true ? 'verified'
-                          : selectedFile.isWatertight === false ? 'warning'
-                          : 'help'
-                      }
-                      size={16}
-                      className={
-                        selectedFile.isWatertight === true ? 'text-positive'
-                          : selectedFile.isWatertight === false ? 'text-warning'
-                          : 'text-fg-muted'
-                      }
-                    />
-                    <span className="text-xs uppercase">Độ kín nước</span>
-                  </div>
-                  <div className="text-xs font-bold">
-                    {selectedFile.isWatertight === true
-                      ? 'Kín nước'
-                      : selectedFile.isWatertight === false
-                      ? 'Không kín (lưới non-manifold)'
-                      : 'Chưa phân tích'}
-                  </div>
-                  <span className="text-xs text-fg-muted block mt-0.5">
-                    {/* Q2 (MP-10) + R4: `nonManifoldEdges` / `boundaryEdges` la hai SO DO RIENG.
-                        `null` = chua do duoc ⇒ chi noi "chua do", khong suy ra "kin"/"ho". */}
-                    {selectedFile.nonManifoldEdges === null
-                      ? 'Chưa đo được số cạnh non-manifold'
-                      : selectedFile.nonManifoldEdges > 0
-                      ? `${selectedFile.nonManifoldEdges} cạnh non-manifold`
-                      : typeof selectedFile.boundaryEdges === 'number' && selectedFile.boundaryEdges > 0
-                      ? `${selectedFile.boundaryEdges} biên hở (cạnh chỉ có 1 mặt)`
-                      : selectedFile.isWatertight === true
-                      ? 'Không phát hiện biên hở'
-                      : selectedFile.isWatertight === false
-                      ? 'Còn biên hở — chưa đo được số biên hở'
-                      : 'Chưa đo được độ kín'}
-                  </span>
-                </div>
-
-                {/* 2. Wall Thickness Check */}
-                {/* R4: `minWallThickness` co BA trang thai. `null` (chua do duoc) truoc day in ra
-                    "Min: null mm" va gan nhan "Canh bao qua mong" — mot ket luan khong co so do. */}
-                <div className={`p-3.5 rounded-lg border ${
-                  typeof selectedFile.minWallThickness !== 'number'
-                    ? 'bg-surface-muted border-line text-fg-muted'
-                    : selectedFile.minWallThickness >= 0.8
-                    ? 'bg-positive-tint border-positive/20 text-positive'
-                    : 'bg-danger-tint border-danger/20 text-danger'
-                }`}>
-                  <div className="flex items-center gap-1.5 font-bold mb-1">
-                    <Icon
-                      name="straighten"
-                      size={16}
-                      className={typeof selectedFile.minWallThickness === 'number' ? 'text-primary' : 'text-fg-muted'}
-                    />
-                    <span className="text-xs uppercase">Độ dày thành</span>
-                  </div>
-                  <div className="text-xs font-bold">
-                    {typeof selectedFile.minWallThickness === 'number'
-                      ? `Nhỏ nhất: ${selectedFile.minWallThickness.toFixed(2)} mm`
-                      : 'Nhỏ nhất: —'}
-                  </div>
-                  <span className="text-xs text-fg-muted block mt-0.5">
-                    {typeof selectedFile.minWallThickness !== 'number'
-                      ? 'Chưa đo được'
-                      : selectedFile.minWallThickness >= 0.8
-                      ? 'Đạt ngưỡng tối thiểu (≥ 0,8 mm)'
-                      : 'Cảnh báo quá mỏng'}
-                  </span>
-                </div>
-
-                {/* 3. Overhang Angle Check */}
-                {/* Q2 (MP-07): chưa đo được ⇒ tile trung tính + "Chưa đo", không có số mặc định. */}
-                <div className={`p-3.5 rounded-lg border ${
-                  typeof selectedFile.printability.overhangPercentage === 'number'
-                    ? 'bg-primary-tint border-primary/20 text-primary'
-                    : 'bg-surface-muted border-line text-fg-muted'
-                }`}>
-                  <div className="flex items-center gap-1.5 font-bold mb-1">
-                    <Icon name="explore" size={16} />
-                    <span className="text-xs uppercase">Góc nhô</span>
-                  </div>
-                  <div className="text-xs font-bold">
-                    {formatOverhangLabel(selectedFile.printability.overhangPercentage)}
-                  </div>
-                  <span className="text-xs text-fg-muted block mt-0.5">
-                    Góc nghiêng an toàn ≤ 45°
-                  </span>
-                </div>
-              </div>
-
-              {/* Auto-Repair & Comparison Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-surface-muted border border-line rounded-lg text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAutoFixMesh}
-                    className="h-10 max-md:min-h-11 px-4 bg-primary hover:bg-primary-hover text-primary-fg rounded-md font-semibold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-e1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <Icon name="auto_fix_high" size={18} />
-                    Tự động sửa lưới
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowDefects(!showDefects)}
-                    aria-pressed={showDefects}
-                    className={`h-10 max-md:min-h-11 px-3 rounded-md border font-medium text-sm transition-colors flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      showDefects
-                        ? 'bg-surface text-fg border-line shadow-e1 font-semibold'
-                        : 'bg-surface text-fg-muted border-line-control hover:bg-surface-muted hover:text-fg'
-                    }`}
-                  >
-                    <Icon name="wb_incandescent" size={18} />
-                    {showDefects ? 'Tắt vùng lỗi' : 'Hiện vùng lỗi'}
-                  </button>
-                </div>
-
-                {/* Compare Mode */}
-                <div className="flex items-center gap-1 bg-surface-muted border border-line p-1 rounded-md text-xs">
-                  <span className="text-fg-muted px-1 text-xs">So Sánh:</span>
-                  <button
-                    type="button"
-                    onClick={() => setCompareMode('normal')}
-                    aria-pressed={compareMode === 'normal'}
-                    className={`px-3 py-1.5 max-md:min-h-11 rounded-sm font-medium text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      compareMode === 'normal' ? 'bg-surface text-fg shadow-e1 font-semibold' : 'text-fg-muted hover:text-fg'
-                    }`}
-                  >
-                    Chuẩn
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCompareMode('before')}
-                    aria-pressed={compareMode === 'before'}
-                    className={`px-3 py-1.5 max-md:min-h-11 rounded-sm font-medium text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      compareMode === 'before' ? 'bg-surface text-fg shadow-e1 font-semibold' : 'text-fg-muted hover:text-fg'
-                    }`}
-                  >
-                    Trước Sửa
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCompareMode('after')}
-                    aria-pressed={compareMode === 'after'}
-                    className={`px-3 py-1.5 max-md:min-h-11 rounded-sm font-medium text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      compareMode === 'after' ? 'bg-surface text-fg shadow-e1 font-semibold' : 'text-fg-muted hover:text-fg'
-                    }`}
-                  >
-                    Sau Sửa
-                  </button>
-                </div>
-              </div>
-
-              {/* Sub-panels Navigation Tabs */}
-              <div className="space-y-3 pt-2 font-mono">
-                <div className="flex flex-wrap items-center gap-2 border-b border-line pb-1 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setActiveWorkspaceTab('preset')}
-                    aria-pressed={activeWorkspaceTab === 'preset'}
-                    className={`pb-2 px-3 max-md:min-h-11 uppercase tracking-wider font-bold transition-colors border-b-2 flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      activeWorkspaceTab === 'preset'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-fg-muted hover:text-fg'
-                    }`}
-                  >
-                    2. Bảng Màu 3MF
-                    <span className="px-1.5 py-0.2 text-xs font-bold rounded-sm bg-primary/15 text-primary">
-                      {selectedFile.slicerPreset?.palettes?.length || selectedFile.parts.length} màu
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveWorkspaceTab('transforms')}
-                    aria-pressed={activeWorkspaceTab === 'transforms'}
-                    className={`pb-2 px-3 max-md:min-h-11 uppercase tracking-wider font-bold transition-colors border-b-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      activeWorkspaceTab === 'transforms'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-fg-muted hover:text-fg'
-                    }`}
-                  >
-                    3. Tỷ Lệ & Tọa Độ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveWorkspaceTab('validation')}
-                    aria-pressed={activeWorkspaceTab === 'validation'}
-                    className={`pb-2 px-3 max-md:min-h-11 uppercase tracking-wider font-bold transition-colors border-b-2 flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      activeWorkspaceTab === 'validation'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-fg-muted hover:text-fg'
-                    }`}
-                  >
-                    4. Chi Tiết QA
-                  </button>
-                </div>
-
-                {/* Sub-panel Content */}
-                {activeWorkspaceTab === 'objects' && (
-                  <div className="rounded-md border border-line-subtle bg-surface-muted p-4 text-sm text-fg-muted">
-                    Cây đối tượng hiển thị ở cột trái, cạnh mô hình 3D. Chọn một chi tiết để gán vật liệu, đầu đùn và bàn in.
-                  </div>
-                )}
-
-                {activeWorkspaceTab === 'preset' && (
-                  <PresetPalettePanel
-                    slicerPreset={selectedFile.slicerPreset}
-                    parts={selectedFile.parts}
-                    selectedPartId={selectedPartId}
-                    onChangeColor={handleChangePartColor}
-                    format={selectedFile.format}
-                  />
-                )}
-
-                {activeWorkspaceTab === 'transforms' && (
-                  <TransformControlsPanel
-                    transform={transform}
-                    onUpdateTransform={(up) => setTransform(prev => ({ ...prev, ...up }))}
-                    onResetTransform={() => setTransform({
-                      scaleUniform: 100,
-                      scaleX: 100,
-                      scaleY: 100,
-                      scaleZ: 100,
-                      rotationX: 0,
-                      rotationY: 0,
-                      rotationZ: 0,
-                      positionX: 0,
-                      positionY: 0,
-                      positionZ: 0,
-                      unit: 'mm',
-                      layFlat: true,
-                      centered: true
-                    })}
-                    onLayFlat={() => {
-                      setTransform(prev => ({ ...prev, rotationX: 0, rotationZ: 0 }));
-                      onShowToast('Đã đặt mặt đáy tiếp xúc phẳng sát bàn in (Z=0).');
-                    }}
-                    onCenterModel={() => {
-                      setTransform(prev => ({ ...prev, positionX: 0, positionZ: 0 }));
-                      onShowToast('Đã căn tâm hình học mô hình vào chính giữa bàn in.');
-                    }}
-                  />
-                )}
-
-                {activeWorkspaceTab === 'validation' && (
-                  <ValidationReportPanel
-                    file={selectedFile}
-                    transformedDimensions={transformedDimensions}
-                    transformedVolume={transformedVolume}
-                    showDefects={showDefects}
-                    onToggleDefects={() => setShowDefects(!showDefects)}
-                    compareMode={compareMode}
-                    onSetCompareMode={setCompareMode}
-                    onAutoFixMesh={handleAutoFixMesh}
-                  />
-                )}
-              </div>
-            </div>
+            <Tool3DAnalysisPanel
+              selectedFile={selectedFile}
+              handleAutoFixMesh={handleAutoFixMesh}
+              showDefects={showDefects}
+              setShowDefects={setShowDefects}
+              compareMode={compareMode}
+              setCompareMode={setCompareMode}
+              activeWorkspaceTab={activeWorkspaceTab}
+              setActiveWorkspaceTab={setActiveWorkspaceTab}
+              selectedPartId={selectedPartId}
+              handleChangePartColor={handleChangePartColor}
+              transformedDimensions={transformedDimensions}
+              transformedVolume={transformedVolume}
+              transform={transform}
+              setTransform={setTransform}
+              onShowToast={onShowToast}
+            />
             )}
 
             {leftTab === 'color' && (
