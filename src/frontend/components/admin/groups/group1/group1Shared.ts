@@ -1,4 +1,4 @@
-import type { PrinterProfile, WorkshopMachine } from '../../../../types';
+import type { PrinterProfile, WorkshopMachine } from '@/types';
 
 export const printerStatusToMachineStatus = (
   status: PrinterProfile['status']

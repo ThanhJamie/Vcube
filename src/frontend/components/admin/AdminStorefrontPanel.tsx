@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SiteContentConfig } from '../../types';
+import { SiteContentConfig } from '@/types';
 import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
 
 interface AdminStorefrontPanelProps {

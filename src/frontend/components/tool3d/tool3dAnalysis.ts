@@ -1,4 +1,4 @@
-import type { AnalysisFile, PrinterProfile } from '../../types';
+import type { AnalysisFile, PrinterProfile } from '@/types';
 import { EMPTY_VALUE, formatNumber } from '../../lib/format';
 
 /* ── Tách từ `views/Tool3DView.tsx` (Phase 4a, block-move) ────────────────────────────────────

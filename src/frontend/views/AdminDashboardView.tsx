@@ -8,7 +8,7 @@ import {
   PrinterProfile,
   InkiriCostFormulaConfig,
   AccessoryItem
-} from '../types';
+} from '@/types';
 import {
   AdminNavSection,
   buildAdminNavGroups,

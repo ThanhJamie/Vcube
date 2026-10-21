@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AnalysisFile } from '../../types';
+import { AnalysisFile } from '@/types';
 import { formatNumber } from '@frontend/lib/format';
 import { Icon } from '@frontend/ui';
 

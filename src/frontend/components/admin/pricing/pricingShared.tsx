@@ -1,5 +1,5 @@
 import React from 'react';
-import { InkiriCostFormulaConfig } from '../../../types';
+import { InkiriCostFormulaConfig } from '@/types';
 import { formatNumber } from '../../../lib/format';
 import { INKIRI_REFERENCE_VALUES } from '../../../../data/mockData';
 

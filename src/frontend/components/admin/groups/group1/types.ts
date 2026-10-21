@@ -1,5 +1,5 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import type { PrinterProfile, WorkshopMachine, WorkshopMaterial, WorkshopPartner, WorkshopProfile } from '../../../../types';
+import type { PrinterProfile, WorkshopMachine, WorkshopMaterial, WorkshopPartner, WorkshopProfile } from '@/types';
 import type { DataTableColumn } from '@frontend/ui';
 import type { WorkshopFilterState } from '@frontend/stores/useWorkshopAdminStore';
 

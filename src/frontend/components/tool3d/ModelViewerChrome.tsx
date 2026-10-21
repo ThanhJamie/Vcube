@@ -1,6 +1,6 @@
 import React from 'react';
 import * as THREE from 'three';
-import type { PlateInfo, TransformState } from '../../types';
+import type { PlateInfo, TransformState } from '@/types';
 import { Icon } from '@frontend/ui';
 import type { WebGLRecoveryState } from './modelViewerHelpers';
 import { VIEW_ANGLE_LABEL, plateMetaText } from './modelViewerHelpers';

@@ -3,6 +3,7 @@
   "note": "Danh sách gate tường minh cho `npm run check` (T05). Mỗi entry chạy tuần tự; run-checks.mjs so RC + số vi phạm với docs/tasks/baseline.json. `live:true` = cần mạng/env Supabase (baseline RC có thể khác 0). `advisory:true` = không tính vào RC. `optional:true` = bỏ qua im lặng nếu file script chưa tồn tại.",
   "gates": [
     { "id": "lint", "cmd": "npm run lint" },
+    { "id": "test-unit", "cmd": "npm run test:unit" },
     { "id": "build", "cmd": "npm run build" },
     { "id": "check-contrast-combos", "cmd": "node scripts/check-contrast-combos.mjs --json" },
     { "id": "check-contrast", "cmd": "node scripts/check-contrast.mjs --json" },

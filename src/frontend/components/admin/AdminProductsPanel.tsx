@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Product, ProductStatus } from '../../types';
-import { CATEGORIES } from '../../data/mockData';
+import { Product, ProductStatus } from '@/types';
+import { CATEGORIES } from '@/data/mockData';
 import { dbService } from '../../../backend/supabase/database';
 import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';

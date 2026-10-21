@@ -5,7 +5,7 @@ import {
   PrinterProfile,
   AccessoryItem,
   InkiriCostFormulaConfig
-} from '../../../types';
+} from '@/types';
 
 export interface Group4PricingEnginePanelProps {
   initialSubTab?: 'formula' | 'materials' | 'accessories' | 'estimator';

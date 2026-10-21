@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
+<!-- doc-meta: status=active; verified=2026-10-21; owner=thanh -->
 # VCUBE 3.0 Master Documentation Portal
 
 > **Nền Tảng Chế Tạo Số & Chợ Bản Vẽ CAD 3D Công Nghiệp**  
@@ -27,14 +27,15 @@ VCUBE is architected as a high-performance Single Page Application (Vite SPA) em
 |  React 19  *  TypeScript 5.8  *  Tailwind CSS 4  *  react-router-dom v7     |
 +-----------------------------------------------------------------------------+
 |         PRESENTATION LAYER         |            CORE ENGINES LAYER          |
-| - Modern SaaS Light Theme          | - Three.js 0.185 (WebGL 3D Viewer)     |
-| - Dark Opt-In (user override)      | - WebAssembly CAD Kernel (OpenCASCADE) |
-| - Accessible Design Tokens         | - Multi-Dimensional Pricing Engine     |
+| - Light-only UI (v3 "Soft Studio") | - Three.js 0.185 (WebGL 3D Viewer)     |
+| - VI-only copy, accessible tokens  | - WebAssembly CAD Kernel (OpenCASCADE) |
+| - 29 UI primitives (opt-in variants)| - Multi-Dimensional Pricing Engine     |
 | - Dual Persona Buying Box          | - Finite State Machine (GPU Loss FSM)  |
 +------------------------------------+----------------------------------------+
 |                               STATE LAYER                                   |
-| - Zustand 5 (Cart Store, UI Store, Workshop Store, Production Store)        |
-| - Context Providers (AuthContext, LanguageContext, ThemeProvider)           |
+| - Zustand 5 (src/frontend/stores: cart, UI, customer-admin, designer-admin,  |
+|   production, workshop-admin) — src/stores đã xoá (Phase 3)                  |
+| - Data hooks (useCatalogData/useSiteSettings/useOrdersData) + AuthContext    |
 +-----------------------------------------------------------------------------+
 |                          DATA & NETWORKING LAYER                            |
 | - Supabase JS Client (v2)          | - Supabase Realtime Channels           |
@@ -44,18 +45,19 @@ VCUBE is architected as a high-performance Single Page Application (Vite SPA) em
                                       v
 +-----------------------------------------------------------------------------+
 |                               BACKEND (SUPABASE)                            |
-|  PostgreSQL 15  *  31 Tables + 1 View  *  90 RLS + 6 Storage Policies       |
+|  PostgreSQL 15  *  32 Tables + 2 Views  *  92 RLS + 7 Storage Policies      |
 +-----------------------------------------------------------------------------+
 ```
 
 ### Core Technology Stack
 - **Framework & Build**: React 19, Vite 6, TypeScript 5.8.
 - **Styling & Tokens**: Tailwind CSS 4 with custom engineering design tokens (`docs/design/tokens.md`).
-- **State Management**: Zustand 5 (`useCartStore`, `useUIStore`, `useWorkshopAdminStore`, `useProductionStore`).
+- **State Management**: Zustand 5 — 6 store ở `src/frontend/stores` (`useCartStore`, `useUIStore`, `useCustomerAdminStore`, `useDesignerAdminStore`, `useProductionStore`, `useWorkshopAdminStore`); data/realtime tách sang `src/frontend/hooks/` (Phase 3).
 - **Routing**: `react-router-dom` v7 with lazy loading (`React.lazy`) and route-level error boundaries (`RouteErrorBoundary`).
 - **3D Graphics**: Three.js 0.185, WebGLRenderer, OrbitControls, BufferGeometry memory management.
 - **WebAssembly CAD Kernel**: `occt-import-js` (OpenCASCADE) running inside `src/workers/cadParser.worker.ts` for native STEP/IGES B-Rep parsing.
-- **Backend & Database**: Supabase PostgreSQL with 31 tables + 1 compatibility view (`pricing_config`), strict Row Level Security (RLS), and database-level role verification (`user_profiles.role`).
+- **Backend & Database**: Supabase PostgreSQL with **32 tables + 2 views** (`pricing_config` — compatibility view, `security_invoker=true`; `open_design_requests` — designer/admin market view, `security_invoker=false`), strict Row Level Security (RLS: **92 table policies + 7 storage policies**, +1 `realtime.messages`), and database-level role verification (`user_profiles.role`).
+- **Routing & code-splitting**: route table ở `src/frontend/routes/AppRoutes.tsx` (Phase 4d; `App.tsx` còn 343 dòng shell); 9 route không critical + 5 console route `React.lazy` trong **một** `React.Suspense`; `three-vendor` (531 kB) chỉ tải khi 3D viewer mount.
 
 ---
 
@@ -95,44 +97,51 @@ Comprehensive specifications covering component props, state machines, user flow
   * `WorkshopOnboardingWizard.tsx`: 4-step onboarding wizard for newly registered manufacturing partners.
 
 ### 3.2 System Architecture & Engineering Engines (`docs/architecture/`)
-- [**System Overview & Architecture** (`docs/architecture/system-overview.md`)](./architecture/system-overview.md): Runtime bootstrapping (`index.html` $\rightarrow$ `main.tsx` $\rightarrow$ `App.tsx`), routing topology, ThemeProvider, and Zustand store architecture.
+- [**System Overview & Architecture** (`docs/architecture/system-overview.md`)](./architecture/system-overview.md): Runtime bootstrapping (`index.html` $\rightarrow$ `main.tsx` $\rightarrow$ `App.tsx` shell 343 dòng $\rightarrow$ `src/frontend/routes/AppRoutes.tsx`), routing topology, data hooks, and Zustand store architecture.
 - [**3D CAD Processing Engine & WebGL Pipeline** (`docs/architecture/3d-cad-pipeline.md`)](./architecture/3d-cad-pipeline.md): Three.js 0.185, WebGL context lifecycle, Web Worker geometry parsing, OpenCASCADE WASM integration, and GPU memory disposal.
 - [**Multidimensional Pricing Engine** (`docs/architecture/pricing-engine.md`)](./architecture/pricing-engine.md): Complete mathematical formulation of material density, machine depreciation, operator time, failure risk margins, VAT, and dynamic shipping.
 
 ### 3.3 Database, Security & Operations
-- [**Database Schema Documentation** (`docs/database/schema.md`)](./database/schema.md): Complete documentation of the 31 Supabase tables + 1 compatibility view (`pricing_config`), foreign key constraints, indexes, and custom enums.
-- [**Seeds & Migrations Guide** (`docs/database/seeds-and-migrations.md`)](./database/seeds-and-migrations.md): Migration sequence (`20260900`, `20260901`, `20261010`), admin bootstrapping, and seed data execution.
-- [**Security & RLS Policies** (`docs/security/rls-policies.md`)](./security/rls-policies.md): Role-based access control, 90 hardened table policies (88 applied on a fresh baseline), 6 storage policies, and privilege escalation guards.
+- [**Database Schema Documentation** (`docs/database/schema.md`)](./database/schema.md): Complete documentation of the **32 Supabase tables + 2 views**, foreign key constraints, indexes, RLS helpers, and custom enums.
+- [**Seeds & Migrations Guide** (`docs/database/seeds-and-migrations.md`)](./database/seeds-and-migrations.md): Migration sequence (**12 files**: `20260900` … `20261013`), admin bootstrapping, and seed data execution.
+- [**Security & RLS Policies** (`docs/security/rls-policies.md`)](./security/rls-policies.md): Role-based access control, **92 effective table policies** (2 `pricing_config` view policies skipped by design), **7 storage policies** (+1 `realtime.messages`), and privilege escalation guards.
 - [**RLS Operations Runbook** (`docs/security/rls-runbook.md`)](./security/rls-runbook.md): Production verification steps, database testing with anon keys, and security troubleshooting.
 - [**Developer Setup & Deployment Runbook** (`docs/SETUP_RUNBOOK.md`)](./SETUP_RUNBOOK.md): Step-by-step developer onboarding, WSL2 configuration, automated quality gates, build commands, and production deployment instructions.
 
 ### 3.4 Design Specs & Historical Archive
 - [**Design Tokens** (`docs/design/tokens.md`)](./design/tokens.md), [**Icon Map**](./design/icon-map.md), [**QA Checklist**](./design/qa-checklist.md), [**Data Honesty Rules**](./design/data-honesty.md), [**Research Brief**](./design/research-brief.md), [**Taste Contract** (`docs/design/taste-contract.md`)](./design/taste-contract.md), [**UI Audit 2026-09** (`docs/design/ui-audit-2026-09.md`)](./design/ui-audit-2026-09.md): design-system and honest-data specifications referenced by the architecture and page docs.
-- [**Task Area** (`docs/tasks/README.md`)](./tasks/README.md): in-force construction plans. Start with [**Drift Remediation Plan** (`docs/tasks/DRIFT-REMEDIATION-PLAN.md`)](./tasks/DRIFT-REMEDIATION-PLAN.md) — it folds the 125 verified issues into 6 root causes and a 4-phase roadmap. Its executable form is [**Drift Task Board** (`docs/tasks/DRIFT-TASKS.md`)](./tasks/DRIFT-TASKS.md) (small, file-owned tasks for subagents). Detail: [**Docs Issues Register** (`docs/tasks/DOCS-ISSUES.md`)](./tasks/DOCS-ISSUES.md) (verified status) and [**Docs Review & Development Backlog** (`docs/tasks/DOCS-REVIEW-BACKLOG.md`)](./tasks/DOCS-REVIEW-BACKLOG.md) (full evidence + dev backlog).
+- [**Task Area** (`docs/tasks/README.md`)](./tasks/README.md): in-force construction plans.
+  - **Đợt tối ưu 2026-10 (canonical):** [**Optimization README** (`docs/tasks/optimization/README.md`)](./tasks/optimization/README.md) + [**PLAN** (`docs/tasks/optimization/PLAN.md`)](./tasks/optimization/PLAN.md) (phase/status/gate) · [**AUDIT** (`docs/tasks/optimization/AUDIT.md`)](./tasks/optimization/AUDIT.md) · [**04-refactor** (`docs/tasks/optimization/04-refactor.md`)](./tasks/optimization/04-refactor.md) · [**DEAD-CODE** (`docs/tasks/optimization/DEAD-CODE.md`)](./tasks/optimization/DEAD-CODE.md) · [**handoff/**](./tasks/optimization/handoff/) (bằng chứng từng phase).
+  - **UI v3 "Soft Studio":** [**PLAN** (`docs/tasks/ui-redesign-v3/PLAN.md`)](./tasks/ui-redesign-v3/PLAN.md), [**DESIGN-LANGUAGE** (`docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE.md`)](./tasks/ui-redesign-v3/DESIGN-LANGUAGE.md), [**QA-REPORT** (`docs/tasks/ui-redesign-v3/QA-REPORT.md`)](./tasks/ui-redesign-v3/QA-REPORT.md) + [**handoff/**](./tasks/ui-redesign-v3/handoff/).
+  - Drift cũ: [**Drift Remediation Plan** (`docs/tasks/DRIFT-REMEDIATION-PLAN.md`)](./tasks/DRIFT-REMEDIATION-PLAN.md) + [**Drift Task Board** (`docs/tasks/DRIFT-TASKS.md`)](./tasks/DRIFT-TASKS.md); [**Docs Issues Register** (`docs/tasks/DOCS-ISSUES.md`)](./tasks/DOCS-ISSUES.md) và [**Docs Review Backlog** (`docs/tasks/DOCS-REVIEW-BACKLOG.md`)](./tasks/DOCS-REVIEW-BACKLOG.md) (số liệu có thể cũ hơn bộ optimization).
 - [**Historical Archive** (`docs/archive/README.md`)](./archive/README.md): the superseded `docs/plans/**` refactor plan (39 files, SUPERSEDED banners). Historical reference only — its figures are stale.
 
 ---
 
 ## 4. Complete Application Route Map
 
+> Nguồn sự thật: `src/frontend/routes/AppRoutes.tsx` (Phase 4d). Bảng đầy đủ + hash sinh tự động:
+> [`docs/pages/_routes.generated.md`](./pages/_routes.generated.md) — **30 route**, chạy
+> `node scripts/gen-routes-doc.mjs` sau khi đổi route. Cột "Lazy" theo Phase 5a.
+
 | Path | Primary Component | Lazy Loaded | Role Guard | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `/` | `HomeView.tsx` | No | Public | High-conversion engineering showcase & CAD dropzone |
 | `/explore` | `ExploreRoute` → `ExploreView.tsx` | No | Public | Searchable CAD catalog with multi-dimensional filtering |
 | `/products/:productId` | `ProductDetailRoute` → `ProductDetailView.tsx` | No | Public | Technical PDP with Dual Persona buying box |
-| `/personalize`, `/personalize/:productId` | `PersonalizeRoute` → `PersonalizeView.tsx` | No | Public | Laser engraving & part personalization studio |
+| `/personalize`, `/personalize/:productId` | `PersonalizeRoute` → `PersonalizeView.tsx` | Yes | Public | Laser engraving & part personalization studio |
 | `/quote` (alias `/tool-3d`) | `Tool3DView.tsx` | Yes | Public | Instant 3D CAD analysis, repair, and quoting station |
-| `/cart` | `CartView.tsx` | No | Public | Shopping cart separating physical parts from digital licenses |
-| `/checkout` | `CheckoutView.tsx` | No | Public | Multi-step checkout with VietQR, VNPAY, COD, and VAT |
-| `/order-success`, `/order-success/:orderId` | `OrderSuccessRoute` → `OrderSuccessView.tsx` | No | Public | Post-purchase confirmation and guest access tokens |
-| `/tracking`, `/tracking/:orderId` | `OrderTrackingRoute` → `OrderTrackingView.tsx` | No | Public | RPC-secured real-time order and 8-stage MES tracking |
-| `/orders` (alias `/my-orders`) | `MyOrdersView.tsx` | No | Authenticated (any role) | Order history, CAD downloads, and tolerance warranty claims |
-| `/assets` (alias `/library`) | `AssetLibraryView.tsx` | No | Authenticated (any role) | Customer CAD vault with 60s signed download URLs |
+| `/cart` | `CartView.tsx` | Yes | Public | Shopping cart separating physical parts from digital licenses |
+| `/checkout` | `CheckoutView.tsx` | Yes | Public | Multi-step checkout with VietQR, VNPAY, COD, and VAT |
+| `/order-success`, `/order-success/:orderId` | `OrderSuccessRoute` → `OrderSuccessView.tsx` | Yes | Public | Post-purchase confirmation and guest access tokens |
+| `/tracking`, `/tracking/:orderId` | `OrderTrackingRoute` → `OrderTrackingView.tsx` | Yes | Public | RPC-secured real-time order and 8-stage MES tracking |
+| `/orders` (alias `/my-orders`) | `MyOrdersView.tsx` | Yes | Authenticated (any role) | Order history, CAD downloads, and tolerance warranty claims |
+| `/assets` (alias `/library`) | `AssetLibraryView.tsx` | Yes | Authenticated (any role) | Customer CAD vault with 60s signed download URLs |
 | `/designer`, `/designer/:tab` (aliases `/creator`, `/creator/*`) | `DesignerDashboardShell` → `DesignerDashboardView.tsx` | Yes | `designer`, `admin` | Modular creator studio (Overview, Models, Wizard, Requests, Payouts) |
 | `/lab`, `/lab/:tab` | `LabRoute` → `WorkshopOnboardingWizard.tsx` (pending) / `WorkshopSettingsView.tsx` (verified) | Yes | `lab`, `workshop`, `admin` | Workshop MES queue, machine fleet, and local rates |
 | `/admin`, `/admin/:section` | `AdminDashboardView.tsx` | Yes | `admin` | ForgeControl platform administration and governance |
-| `/auth/login` (alias `/login`) | `LoginView.tsx` | No | Public | User authentication and role-based redirect |
-| `/auth/register` (alias `/register`)| `RegisterView.tsx` | No | Public | Account registration with password strength meter |
+| `/auth/login` (alias `/login`) | `LoginView.tsx` | Yes | Public | User authentication and role-based redirect |
+| `/auth/register` (alias `/register`)| `RegisterView.tsx` | Yes | Public | Account registration with password strength meter |
 | `*` | `NotFoundView.tsx` | No | Public | Standard 404 handler with fallback navigation |
 
 ---

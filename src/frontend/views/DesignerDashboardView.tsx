@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Product, MaterialProfile, InkiriCostFormulaConfig } from '../types';
+import { Product, MaterialProfile, InkiriCostFormulaConfig } from '@/types';
 import { useAuth } from '../context/AuthContext';
 import { Button, Icon, PageHeader, PanelErrorBoundary } from '@frontend/ui';
 import { DesignerOverviewTab } from '../components/designer/DesignerOverviewTab';

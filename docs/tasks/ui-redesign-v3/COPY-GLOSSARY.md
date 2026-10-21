@@ -57,6 +57,7 @@
 | `CMS, SEO, SERP, Metadata, Landing Page, Hero, Headline, CTA, Badge` | admin CMS | **Việt hoá** ("cấu hình trang chủ", "tiêu đề", "nút", "huy hiệu"…) |
 | `NDA, RFQ, B2B/B2C, IoT, ESP32, NEMA` | admin/khách hàng, danh mục | **Giữ** (thuật ngữ nghiệp vụ/kỹ thuật phổ biến) |
 | `Email, File` | nhiều nơi | **Chốt (D-E):** "Email" **giữ** (loanword chuẩn, ghi allowlist); "File" → **"Tệp"** |
+| `IoT`, `Snap-Fit`, `Parametric` | taxonomy `src/data/mockData.ts`, `HomeView`, filter Explore, empty-state | **Giữ** (thuật ngữ kỹ thuật phổ biến, không dịch); phần còn lại của câu vẫn VI đầy đủ |
 
 > Quy tắc: nếu một thuật ngữ **không** có trong bảng này và **không** thuộc allowlist bắt buộc ⇒
 > mặc định **Việt hoá**. Không tự thêm ngoại lệ trong PR.

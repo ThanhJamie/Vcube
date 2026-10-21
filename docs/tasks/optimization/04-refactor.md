@@ -3,7 +3,7 @@
 
 > **Phạm vi:** audit **cấu trúc code** + cơ hội clean-code. **Không sửa `src/`, không commit, không chạy build.**
 > File duy nhất được ghi: `docs/tasks/optimization/04-refactor.md`.
-> Toàn bộ số đo lấy trên cây làm việc ngày **2026-10-21**. Cây đó sau khi đo đã được commit thành `4d4a5d1` + `aaff7c4` (HEAD hiện tại); **LOC và nội dung 8 god file không đổi sau commit** — số liệu vẫn đúng.
+> Toàn bộ số đo lấy trên cây làm việc ngày **2026-10-21**. Cây đó sau khi đo đã được commit thành `4d4a5d1` + `aaff7c4`; **Phase 4 (commit `8a3d4aa`) đã tách 7 god file** ⇒ số LOC trong thân file này là **ảnh chụp TRƯỚC tách**. Số LOC hiện tại: xem **§1.0.1**; nội dung audit (seam, rủi ro, Δ kỳ vọng) vẫn là bằng chứng thiết kế và vẫn đọc đúng.
 > Mọi lệnh tái lập nằm ở **§9 Phụ lục đo lường**.
 
 ## TL;DR (đọc 60 giây)
@@ -88,6 +88,23 @@ Tài liệu đó (2026-10-19) đã có §1 số đo nợ và §5 "khung refactor
 | **Tổng** | **18.079** | **27,5%** | | **~1.715** | **−1.720** |
 
 **Đọc bảng này đúng cách:** cột "Δ ròng" là chênh lệch *tổng LOC sau khi tách*. Nó âm chủ yếu nhờ **xoá trùng lặp trong file** (product handler, issue-map, tab-bar), không nhờ tách. Ba dòng `+30`, `0` cho thấy tách thuần tuý thường **tăng** 2–5% do import/boilerplate. Giá trị thật của việc tách là **file ≤ 800 dòng, hàm ≤ 80 dòng, 1 lý do để sửa** — không phải LOC.
+
+### 1.0.1 Trạng thái SAU Phase 4 — đã thi công (commit `8a3d4aa`, 2026-10-21)
+
+Phase 4 **DONE** (QA verdict **GO-WITH-RISKS**, `handoff/phase4-verify.md`): 7 god-file tách thành **65 module**; parity hành vi 98,76–100%; lint/build/10 gate xanh. Số LOC đo lại:
+
+| File (sau tách) | Trước (audit §1.0) | **Hiện tại** | Ghi chú |
+|---|---:|---:|---|
+| `src/App.tsx` | 2.152 | **343** | provider stack + shell chrome; route table → `src/frontend/routes/AppRoutes.tsx`; state → hooks |
+| `src/frontend/views/Tool3DView.tsx` | 1.956 | **1.057** | parser/pricing/viewer/quote hooks + panel tách `components/tool3d/*` |
+| `src/frontend/components/tool3d/ModelViewer3D.tsx` | 2.116 | **869** | engine hooks `useModelViewerMesh`/`useModelViewerFullscreen` + chrome |
+| `src/frontend/components/admin/PricingConfigPanel.tsx` | 3.079 | **985** | container + `admin/pricing/*` (10 module) |
+| `src/frontend/components/admin/groups/Group1WorkshopsPanel.tsx` | 2.081 | **755** | container + `groups/group1/*` (9 module) |
+| `src/frontend/views/WorkshopSettingsView.tsx` | 2.574 | **865** | container + `workshop/settings/*` (16 module) |
+| `src/backend/services/workshopService.ts` | 2.243 | **128** | **façade** trên 14 module `workshop/*` |
+| `src/utils/meshParser.ts` | 1.878 | *(chưa tách ở Phase 4 — xem §1.8)* | vẫn là nợ còn lại, không nằm trong 7 file cam kết |
+
+**Số module mới:** 65 file / ~12.222 dòng (handoff Phase 4). **Hệ quả cho docs:** mọi con số "god file" ở §1.2–§1.7 là **trước tách**, giữ để tra cứu seam/Δ; đừng dùng để báo cáo LOC hiện tại.
 
 ---
 
@@ -589,9 +606,9 @@ Phân bố nặng nhất: `Group1WorkshopsPanel` 162, `ExploreView` 113, `Group3
 | D02 | `src/backend/services/catalogService.ts` | 34 | chỉ được `backend/index.ts:7` export | 4 method, **tất cả `return []`** — "service" không có dữ liệu |
 | D03 | `src/backend/services/pricingService.ts` | 46 | chỉ `backend/index.ts:6` | `getMaterials`/`getPrinters` trả `[]`; `getFormulaConfig` trả hằng mẫu mà chính comment (`:16-19`) nói "KHÔNG được dùng làm fallback" |
 | D04 | `src/backend/supabase/seedService.ts` | 134 | chỉ `backend/index.ts:4`; `syncFromSupabase` 0 caller | `mappers.ts:377` còn comment tham chiếu |
-| D05 | `src/frontend/data/mockData.ts` | 1 | 0 importer | shim `export *` |
-| D06 | `src/frontend/types/index.ts` | 1 | 0 importer | shim `export *` |
-| D07 | `src/frontend/utils/pricingEngine.ts` | 1 | 0 importer | shim `export *` |
+| D05 | `src/frontend/data/mockData.ts` | 1 | ~~0 importer~~ → thực tế nhiều importer; **đã xoá Phase 6c** | shim `export *` |
+| D06 | `src/frontend/types/index.ts` | 1 | ~~0 importer~~ → thực tế 11+ importer; **đã xoá Phase 6c** | shim `export *` |
+| D07 | `src/frontend/utils/pricingEngine.ts` | 1 | ~~0 importer~~ → thực tế 2 importer; **đã xoá Phase 6c** | shim `export *` |
 | D08 | `src/frontend/ui/Section.tsx` | 117 | 0 import | |
 | D09 | `src/frontend/ui/Toolbar.tsx` | 87 | 0 import | |
 | D10 | `src/frontend/ui/ToastViewport.tsx` | 297 | 0 render; `useUIStore.toasts` chỉ phục vụ nó | xoá cùng `toasts` |

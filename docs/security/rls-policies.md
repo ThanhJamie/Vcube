@@ -2,7 +2,7 @@
 
 > **Security Baseline**: Supabase PostgreSQL 15+  
 > **Enforcement Tier**: Database Kernel Layer (PostgreSQL Row Level Security)  
-> **Policy Count**: 90 Table Policies in the hardening allowlist (88 applied on a fresh DB, since the 2 `pricing_config` policies are skipped when it is a VIEW) + 6 Storage Policies across 32 target relations (31 tables + the `pricing_config` view)  
+> **Policy Count (toàn chuỗi 12 migration, 2026-10-21)**: **92 policy bảng hiệu lực** trên **32 bảng** + **7 policy storage** trên `storage.objects` + **1 policy** `realtime.messages` (`orders_admin_realtime`, chỉ admin; có thể SKIP nếu Realtime Authorization chưa bật). `20261010_harden_rls.sql` một mình tạo **88** policy hiệu lực từ allowlist `v_keep` **90 tên** — 2 policy `pricing_config` bị bỏ qua vì `pricing_config` là **VIEW**; 4 policy `designer_payout_info` được thêm ở `20261013090000_sec01_payout_table.sql` ⇒ 92.  
 > **Compliance Target**: Zero Trust, Least Privilege, Vietnam Personal Data Protection Decree 13/2023/NĐ-CP
 
 ---
@@ -148,6 +148,23 @@ RLS governs row-level access (which rows a user can see or alter). However, stan
   - Modifying `partner_id` or `verified_status` raises `SQLSTATE '42501'`.
   - Only administrators or server-side service keys can assign partner codes and verify facilities.
 
+### 4.4 Designer Privilege Lockdown (`designer_profiles`)
+- **Trigger**: `trg_protect_designer_profile_privileged_columns` (`20261011110000_designer_profile_column_guard.sql`)
+- **Function**: `fn_protect_designer_profile_privileged_columns()`
+- **Security Invariant**: designer không phải admin không được sửa cột đặc quyền (`royalty_percent`, `verified_status`, …) — `SQLSTATE 42501`. Chặn việc tự nâng tỉ lệ hoa hồng hoặc tự xác minh hồ sơ.
+
+### 4.5 Orders Realtime Broadcast (`orders`)
+- **Trigger**: `trg_orders_broadcast` (`20261012130000_orders_broadcast.sql`) → `orders_broadcast_status()`
+- **Security Invariant**: phát **payload tối giản `{id, status}`** lên topic riêng tư `orders:admin` qua `realtime.send`; **không** phát `secure_access_token`/PII. Quyền đọc topic do policy `orders_admin_realtime` trên `realtime.messages` quyết định: chỉ `authenticated` có `current_app_role() = 'admin'`.
+
+---
+
+### 4.6 Designer payout PII (`designer_payout_info`)
+- **Nguồn**: `20261013090000_sec01_payout_table.sql` (SEC-01 / T20 phase 1)
+- **Bảng 1-1** tách PII nhận tiền khỏi `designer_profiles`; RLS bật, `revoke all` khỏi `public, anon, authenticated` rồi chỉ `grant select, insert, update` (không có DELETE, kể cả admin).
+- **4 policy**: `vcube_designer_payout_info_owner_select` / `_owner_insert` / `_owner_update` (chủ hồ sơ: `designer_id in (select id from designer_profiles where user_id = auth.uid())`) + `vcube_designer_payout_info_admin_all` (`public.is_admin()`).
+- Đọc/ghi chỉ qua RPC security definer: `get_my_payout_info()`, `admin_get_designer_payout(uuid)`, `upsert_my_payout_info(text,text,text)` (không nhận `designer_id` từ client).
+
 ---
 
 ## 5. Storage Security & File Protection
@@ -168,7 +185,8 @@ VCUBE enforces multi-tenant security across its two storage buckets:
 - **Allowed MIME**: `application/octet-stream`, `model/stl`, `model/step`, `model/3mf`, `model/obj`, `application/zip`
 - **Path Schemes**:
   - Designer Assets: `digital/<auth.uid()>/<asset_name>.<ext>`
-  - Order Attachments: `orders/<order_id>/<file_name>.<ext>`
+  - CAD owner scheme (T25 / D3, `20261013110000_storage_scheme.sql`): `cad/<auth.uid()>/<uuid>/<file>` — bắt buộc đủ ≥3 cấp + chặn mọi đoạn `..`; guest chưa có luồng upload riêng (cần service-role/signed upload).
+  - Order attachments **không** nằm dưới `orders/<order_id>/…` (file upload TRƯỚC khi đơn tồn tại); liên kết qua bảng `order_files` (T40).
 - **Policies**:
   1. `vcube_cad_files_admin_all`: Admin full control across all buckets.
   2. `vcube_cad_files_digital_owner_rw`: Designers have full read/write/delete access **only** inside their scoped folder:
@@ -186,12 +204,20 @@ VCUBE enforces multi-tenant security across its two storage buckets:
      )
      ```
   4. `vcube_cad_files_buyer_read`: Backwards-compatible heuristic verifying if the file name is referenced in `orders.items` JSON.
+  5. `vcube_cad_files_cad_owner_rw`: `ALL` cho `authenticated` trong `cad/<auth.uid()>/<uuid>/<file>` (guard `position('..' in name) = 0` + `array_length(storage.foldername(name),1) >= 3` ở **cả** `USING` và `WITH CHECK`) — tái tạo ở `20261013110000_storage_scheme.sql`.
+
+> Tổng: **7 policy storage** (allowlist `v_ok`), không phải 6 — `vcube_cad_files_cad_owner_rw` thêm bởi T25.
 
 ---
 
-## 6. Complete Inventory of All 90 Table RLS Policies
+## 6. Complete Inventory of Table RLS Policies
 
-Below is the exhaustive catalog of all 90 table-level policies in the `v_keep` allowlist of `supabase/migrations/20261010_harden_rls.sql`, checked for parity against the policies the migration actually creates by `scripts/lint-rls-migration.mjs`. On a fresh DB built from `20260901_baseline_schema.sql`, `pricing_config` is a VIEW, so its 2 policies (6.9) are skipped and **88** table policies are applied.
+Dưới đây là catalog **90 tên** trong allowlist `v_keep` của `supabase/migrations/20261010_harden_rls.sql`, đối chiếu parity với policy migration thực tạo bằng `scripts/lint-rls-migration.mjs`. Trên DB dựng mới từ `20260901_baseline_schema.sql`, `pricing_config` là **VIEW** nên 2 policy (6.9) bị bỏ qua ⇒ **88 policy hiệu lực** ở file hardening.
+
+**Bổ sung sau hardening (toàn chuỗi 12 file = 92 policy hiệu lực):**
+- `20261012090000_sec02_open_requests.sql` **định nghĩa lại** 2 policy `vcube_custom_design_requests_designer_select` / `_designer_update` — bỏ nhánh `designer_id is null` (nhận việc qua RPC `claim_design_request` nguyên tử). Tên policy không đổi ⇒ không tăng số đếm.
+- `20261013090000_sec01_payout_table.sql` thêm **4 policy** cho bảng mới `designer_payout_info` → xem §6.11.
+- `20261012130000_orders_broadcast.sql` thêm **1 policy** trên `realtime.messages` (`orders_admin_realtime`) — không thuộc bảng `public` nên không tính vào 92.
 
 ### 6.1 Products (2 Policies)
 | Policy Name | Cmd | Target Roles | Security Rule (`USING` / `WITH CHECK`) |
@@ -327,8 +353,23 @@ These 2 policies are created **only if** `public.pricing_config` exists as a tab
 | `vcube_custom_design_requests_customer_insert` | `INSERT` | `authenticated` | `WITH CHECK (customer_id::text = (select auth.uid())::text)` |
 | `vcube_custom_design_requests_customer_update` | `UPDATE` | `authenticated` | `USING (customer_id::text = (select auth.uid())::text) WITH CHECK (customer_id::text = (select auth.uid())::text)` |
 | `vcube_custom_design_requests_designer_select` | `SELECT` | `authenticated` | `USING (public.is_admin() OR designer_id::text = (select auth.uid())::text OR designer_id is null)` |
-| `vcube_custom_design_requests_designer_update` | `UPDATE` | `authenticated` | `USING (public.is_admin() OR designer_id::text = (select auth.uid())::text OR designer_id is null) WITH CHECK (public.is_admin() OR designer_id::text = (select auth.uid())::text OR designer_id is null)` |
+| `vcube_custom_design_requests_designer_update` | `UPDATE` | `authenticated` | `USING (public.is_admin() OR designer_id::text = (select auth.uid())::text) WITH CHECK (public.is_admin() OR designer_id::text = (select auth.uid())::text)` — **định nghĩa lại** bởi `20261012090000_sec02_open_requests.sql` (bỏ nhánh `designer_id is null`; nhận việc qua RPC `claim_design_request`) |
 | `vcube_custom_design_requests_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` |
+
+### 6.11 Designer Payout PII (`designer_payout_info`, 4 Policies)
+Thêm bởi `20261013090000_sec01_payout_table.sql`; bảng RLS bật, `revoke all` khỏi `public/anon/authenticated` rồi chỉ grant `select, insert, update` (không DELETE).
+
+| Policy Name | Cmd | Target Roles | Security Rule |
+|---|:---:|---|---|
+| `vcube_designer_payout_info_owner_select` | `SELECT` | `authenticated` | `USING (designer_id in (select id from public.designer_profiles where user_id = (select auth.uid())))` |
+| `vcube_designer_payout_info_owner_insert` | `INSERT` | `authenticated` | `WITH CHECK (designer_id in (select id from public.designer_profiles where user_id = (select auth.uid())))` |
+| `vcube_designer_payout_info_owner_update` | `UPDATE` | `authenticated` | same `USING` + `WITH CHECK` |
+| `vcube_designer_payout_info_admin_all` | `ALL` | `authenticated` | `USING (public.is_admin()) WITH CHECK (public.is_admin())` — không có DELETE do grant bảng |
+
+### 6.12 Realtime topic (`realtime.messages`, 1 Policy)
+| Policy Name | Cmd | Target Roles | Security Rule |
+|---|:---:|---|---|
+| `orders_admin_realtime` | `SELECT` | `authenticated` | `USING (realtime.topic() = 'orders:admin' AND public.current_app_role() = 'admin')` — tạo có điều kiện nếu `realtime.messages` tồn tại; payload broadcast chỉ `{id,status}` |
 
 ---
 

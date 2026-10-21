@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon } from '@frontend/ui';
-import type { AnalysisFile, TransformState } from '../../types';
+import type { AnalysisFile, TransformState } from '@/types';
 import { countMeasuredScoreInputs, describeUnmeasuredScoreInputs, formatOverhangLabel } from './tool3dAnalysis';
 import { PresetPalettePanel } from './PresetPalettePanel';
 import { TransformControlsPanel } from './TransformControlsPanel';

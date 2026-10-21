@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
-import type { AnalysisFile, MaterialProfile, PrinterProfile } from '../../types';
+import type { AnalysisFile, MaterialProfile, PrinterProfile } from '@/types';
 import { ParseFailurePanel } from './ParseFailurePanel';
 import type { ParseFailure } from './tool3dAnalysis';
 

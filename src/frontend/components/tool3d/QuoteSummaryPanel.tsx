@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AnalysisFile, MaterialProfile, PrinterProfile, CartItem, DeliveryPackageOption, MachineComparisonItem, InkiriCostFormulaConfig } from '../../types';
-import { MATERIALS_CATALOG, PRINTER_PROFILES } from '../../data/mockData';
+import { AnalysisFile, MaterialProfile, PrinterProfile, CartItem, DeliveryPackageOption, MachineComparisonItem, InkiriCostFormulaConfig } from '@/types';
+import { MATERIALS_CATALOG, PRINTER_PROFILES } from '@/data/mockData';
 import {
   calculateDetailedPricing,
   generateDeliveryPackages,
   comparePrintersForModel
-} from '../../utils/pricingEngine';
+} from '@/utils/pricingEngine';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent } from '../../lib/vat';
 import { usePricingGlobalSettings } from '../../hooks/useSettings';
 import { InternalCostBreakdownModal } from './InternalCostBreakdownModal';

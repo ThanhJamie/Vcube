@@ -2,8 +2,8 @@
 # VCUBE icon migration map (Material Symbols -> lucide-react)
 
 > **STATUS: COMPLETED / HISTORICAL (2026-09).** Migration đã xong trong commit
-> `4a7eea5`. `src/frontend/ui/iconMap.ts` là **nguồn sự thật runtime** (hiện **206 glyph** sau
-> đợt prune Phase 1 — 2026-10-21; `scripts/check-icon-names.mjs` kiểm tự động). Không còn
+> `4a7eea5`. `src/frontend/ui/iconMap.ts` là **nguồn sự thật runtime** (hiện **205 glyph** sau
+> prune Phase 1 + Phase 6 — 2026-10-21; `scripts/check-icon-names.mjs` kiểm tự động). Không còn
 > `material-symbols-outlined`
 > trong `src/` hay `index.html`. Các bảng "Scope"/"How to use"/"Files by usage"/"Delete in
 > the same change" dưới đây là **kế hoạch gốc lúc viết** (số liệu 2026-09), giữ để tra cứu
@@ -21,6 +21,11 @@
 > Các dòng/tương ứng trong bảng mapping và bảng state-pairs dưới đây **chỉ còn giá trị lịch
 > sử**; nếu cần dùng lại glyph nào thì thêm lại vào `iconMap.ts` kèm dòng ở đây và chạy
 > `node scripts/check-icon-names.mjs`.
+>
+> **PRUNE Phase 6 (2026-10-21):** `cloud_sync` còn **0 reference** (grep literal + dynamic
+> `icon:`/`iconName:`/`<Icon name=…>`); đã xoá component ghép + entry khỏi `iconMap.ts`
+> (**206 → 205 glyph**). Dòng `cloud_sync` trong bảng mapping / "Icons needing a decision"
+> dưới đây chỉ còn giá trị lịch sử.
 
 Scope gốc: every `<span className="material-symbols-outlined">` in `src/**/*.tsx` - **213** distinct glyph names across **696** render sites in **69** files. Target: `lucide-react@0.546.0` (already a dependency).
 
@@ -385,7 +390,7 @@ Files that look light by site count but carry **data-driven icon lists** - these
 
 ## Icons needing a decision
 
-lucide has no equivalent for these 5; each needs a small local component (compose two lucide icons, or one inline SVG).
+lucide has no equivalent for these 5 (nay **4** sau Phase 6 prune `cloud_sync`); each needs a small local component (compose two lucide icons, or one inline SVG).
 
 | Material Symbols | usages | what it draws | recommendation |
 | --- | ---: | --- | --- |

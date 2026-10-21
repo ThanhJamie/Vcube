@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TransformState } from '../../types';
+import { TransformState } from '@/types';
 import { Icon } from '@frontend/ui';
 
 interface TransformControlsPanelProps {

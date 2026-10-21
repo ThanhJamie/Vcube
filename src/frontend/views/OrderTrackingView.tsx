@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Order } from '../types';
+import { Order } from '@/types';
 import { OrderProgress } from '../components/OrderProgress';
 import { dbService } from '../../backend/supabase/database';
 import { Icon, Button, Badge, Card, Field, Input, Skeleton } from '@frontend/ui';

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type React from 'react';
 import * as THREE from 'three';
 import { disposeHierarchy } from '../../three/dispose';
-import type { ModelPart, PlateInfo } from '../../types';
+import type { ModelPart, PlateInfo } from '@/types';
 
 /** Tham số cho hook dựng mesh + stencil cross-section của ModelViewer3D. */
 export interface UseModelViewerMeshParams {

@@ -1,8 +1,8 @@
-<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
+<!-- doc-meta: status=active; verified=2026-10-21; owner=thanh -->
 # VCUBE Database Seeds, Migrations & Bootstrap Guide
 
 > **Target Platform**: Supabase PostgreSQL 15+  
-> **Active Migration Chain**: 3 core files + W2 forward migrations (`20261011*` / `20261012*` / `20261013*`) in `supabase/migrations/`  
+> **Active Migration Chain**: **12 files** = 3 core (`20260900`, `20260901`, `20261010`) + 9 forward (`20261011*`–`20261013*`; 8 file nằm trong bundle apply + 1 file **H-gated** `20261013100000_drop_designer_bank_columns.sql`)  
 > **Consolidated Executable**: `supabase/scripts/apply_all_manual.sql`  
 > **Admin Provisioning**: `supabase/scripts/bootstrap_admin.sql`  
 > **Catalog Testing**: `scripts/test-catalog-sync.ts` (offline mock)  
@@ -34,10 +34,12 @@ To ensure transactional atomicity and prevent circular dependency locks between 
 ┌─────────────────────────────────────────────────────────────┐
 │ 3. supabase/migrations/20261010_harden_rls.sql              │
 │    Purges 73+ legacy / rogue policies                       │
-│    Enables RLS on all 31 tables                             │
-│    90 allowlisted table policies (88 applied; the 2         │
-│    pricing_config policies are skipped when it is a view)   │
-│    + 6 Storage Policies                                     │
+│    Bật RLS trên 32 target (31 bảng baseline + view         │
+│    pricing_config bị skip); bảng thứ 32 designer_payout_info│
+│    tạo ở migration #10                                      │
+│    88 policy bảng hiệu lực từ allowlist 90 tên (2 policy    │
+│    pricing_config bị skip vì là VIEW)                       │
+│    + 7 Storage Policies                                     │
 │    Refreshes 4 privilege/automation triggers (re-creates    │
 │    profile triggers; adds order + workshop lockdowns)       │
 └──────────────────────────────┬──────────────────────────────┘
@@ -73,10 +75,10 @@ To ensure transactional atomicity and prevent circular dependency locks between 
 | 8 | `20261012100000_check_constraints.sql` | T22b: enum-like `CHECK`s (`NOT VALID` → audit → `VALIDATE`) | `20261012100000_down.sql` |
 | 9 | `20261012130000_orders_broadcast.sql` | T35-mig: private `orders:admin` realtime broadcast (`realtime.send`, payload `{id,status}`) | `20261012130000_down.sql` |
 | 10 | `20261013090000_sec01_payout_table.sql` | SEC-01 / T20 phase 1: `designer_payout_info` table + `upsert_my_payout_info` RPC | `20261013090000_down.sql` |
-| 11 | `20261013110000_storage_scheme.sql` | T25 / D3: owner-scoped `cad/<uid>/<uuid>/<file>` policy for the `cad-files` bucket | `20261013110000_down.sql` |
-| — | `20261013100000_drop_designer_bank_columns.sql` | SEC-01 / T20 phase 2 — **H-GATED, not in the bundle**: apply only after phase 1 + client deploy + verification | `20261013100000_down.sql` |
+| 11 | `20261013100000_drop_designer_bank_columns.sql` | SEC-01 / T20 phase 2 — **H-GATED, not in the bundle**: apply only after phase 1 + client deploy + verification | `20261013100000_down.sql` |
+| 12 | `20261013110000_storage_scheme.sql` | T25 / D3: owner-scoped `cad/<uid>/<uuid>/<file>` policy for the `cad-files` bucket | `20261013110000_down.sql` |
 
-The consolidated `supabase/scripts/apply_all_manual.sql` is regenerated with `node scripts/gen-apply-all.mjs`; it currently bundles the 3 core files + all eight W2/W2b forward migrations (`20261011*`–`20261013*`) + `bootstrap_admin.sql`. The only migration **not** bundled is the H-gated `20261013100000_drop_designer_bank_columns.sql` — apply it separately under the §1.4 protocol of `docs/tasks/DRIFT-TASKS.md`, and log each apply in `docs/security/rls-runbook.md` §11. Ready-to-paste bundles live in `docs/runbooks/hotfix-2026-09-24.sql` and `docs/runbooks/w2b-2026-09-24.sql`.
+The consolidated `supabase/scripts/apply_all_manual.sql` is regenerated with `node scripts/gen-apply-all.mjs`; it currently bundles the 3 core files + **8** forward migrations (`20261011*`–`20261013*`, trừ file H-gated) + `bootstrap_admin.sql`. The only migration **not** bundled is the H-gated `20261013100000_drop_designer_bank_columns.sql` — apply it separately under the §1.4 protocol of `docs/tasks/DRIFT-TASKS.md`, and log each apply in `docs/security/rls-runbook.md` §11. Ready-to-paste bundles live in `docs/runbooks/hotfix-2026-09-24.sql` and `docs/runbooks/w2b-2026-09-24.sql`.
 
 ---
 
@@ -95,7 +97,7 @@ The consolidated `supabase/scripts/apply_all_manual.sql` is regenerated with `no
 ### Phase 2: Baseline Database Schema & Seeds (`20260901_baseline_schema.sql`)
 - **Execution Priority**: Second (`20260901`)
 - **Key Deliverables**:
-  1. **31 Core Tables**: Creates tables across Catalog, Orders, Profiles, Workshops, Custom Requests, and Audit systems.
+  1. **31 Core Tables** (baseline; cộng `designer_payout_info` ở migration #10 ⇒ **32 bảng** toàn chuỗi): Creates tables across Catalog, Orders, Profiles, Workshops, Custom Requests, and Audit systems.
   2. **Compatibility View**: Creates `public.pricing_config` with `(security_invoker = true)` to maintain backward compatibility with older UI client builds.
   3. **49 High-Performance Indexes**:
      - Status and timestamp ordering composites: `idx_products_status_created`, `idx_orders_created`, `idx_reviews_target`.
@@ -119,9 +121,9 @@ The consolidated `supabase/scripts/apply_all_manual.sql` is regenerated with `no
 - **Execution Priority**: Third (`20261010`)
 - **Key Deliverables**:
   1. **Legacy Policy Sweep**: Identifies and drops over 73 historically recorded policy names to avoid permissive policy remnants.
-  2. **RLS Activation**: Enables Row Level Security on all 31 tables while safely skipping views (`relkind IN ('r', 'p')`).
-  3. **Establishment of 90 Allowlisted Table Policies (88 applied)**: Exhaustive role-based policies for `anon`, `authenticated`, `customer`, `designer`, `workshop`, and `admin`. The `v_keep` allowlist names 90 public policies, but the 2 `pricing_config` policies are only created when `pricing_config` is a table; because it is a view here, they are skipped and **88** table policies exist at runtime.
-  4. **Establishment of 6 Storage Policies**: Locks down `storage.objects` for both public images and scoped designer/buyer private CAD files.
+  2. **RLS Activation**: Enables Row Level Security on every target **table** (32 relations trong allowlist: 31 bảng baseline + view `pricing_config` bị skip; `designer_payout_info` bật RLS trong migration #10) while safely skipping views (`relkind IN ('r', 'p')`).
+  3. **Establishment of 88 effective table policies**: `v_keep` allowlist names **90** policies, but the 2 `pricing_config` policies are only created when `pricing_config` is a table; because it is a view here, they are skipped. Sau các migration sau (`20261011*`–`20261013*`) có thêm **4** policy cho `designer_payout_info` ⇒ toàn chuỗi 12 file có **92 policy bảng hiệu lực** (xem `AGENTS.md` + `docs/security/rls-policies.md`).
+  4. **Establishment of 7 Storage Policies** (allowlist `v_ok` 7 tên; `vcube_cad_files_cad_owner_rw` được tái tạo với guard path ở migration #12): locks down `storage.objects` for both public images and scoped designer/buyer private CAD files.
   5. **Column Lockdown Triggers**:
      - `trg_protect_order_privileged_columns`: Restricts workshop partners from modifying monetary/customer order fields.
      - `trg_protect_workshop_profile_privileged_columns`: Restricts workshop owners from modifying their `partner_id` or `verified_status`.
@@ -198,7 +200,7 @@ This file is automatically compiled by running:
 ```bash
 node scripts/gen-apply-all.mjs
 ```
-It bundles the 3 core files (`20260900_rls_helpers.sql`, `20260901_baseline_schema.sql`, `20261010_harden_rls.sql`), all eight W2/W2b forward migrations (`20261011*`–`20261013*`), and `bootstrap_admin.sql` into a single, idempotent file with safety checks for schema cache reloading. The H-gated `20261013100000_drop_designer_bank_columns.sql` is deliberately **not** bundled — apply it separately (see §1).
+It bundles the 3 core files (`20260900_rls_helpers.sql`, `20260901_baseline_schema.sql`, `20261010_harden_rls.sql`), the **8 non-gated** forward migrations (`20261011*`–`20261013*`; tổng 12 file SQL, trừ `20261013100000` H-gated), and `bootstrap_admin.sql` into a single, idempotent file with safety checks for schema cache reloading. The H-gated `20261013100000_drop_designer_bank_columns.sql` is deliberately **not** bundled — apply it separately (see §1).
 
 ---
 

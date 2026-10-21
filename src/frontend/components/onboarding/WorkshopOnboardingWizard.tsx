@@ -27,7 +27,7 @@ import {
   WorkshopProfile,
   WorkshopMachine,
   WorkshopMaterial
-} from '../../types';
+} from '@/types';
 import { useAuth } from '@frontend/context/AuthContext';
 import { WorkshopService } from '@backend/services/workshopService';
 

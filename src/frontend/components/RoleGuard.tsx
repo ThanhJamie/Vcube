@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserRole } from '../types';
+import { UserRole } from '@/types';
 import { Button, Icon } from '@frontend/ui';
 
 /**

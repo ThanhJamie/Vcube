@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { ModelPart, TransformState, MeasurementResult, PlateInfo } from '../../types';
+import { ModelPart, TransformState, MeasurementResult, PlateInfo } from '@/types';
 
 import { useModelViewerScene } from './useModelViewerScene';
 import { useModelViewerMesh } from './useModelViewerMesh';

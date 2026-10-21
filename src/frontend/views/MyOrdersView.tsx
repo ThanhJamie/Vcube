@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Order } from '../types';
+import { Order } from '@/types';
 import { OrderProgress } from '../components/OrderProgress';
 import { Icon, Button, Badge, Card, Modal, Field, Input, Select, EmptyState, type BadgeVariant } from '@frontend/ui';
 import { formatCurrency, formatDateTime } from '../lib/format';

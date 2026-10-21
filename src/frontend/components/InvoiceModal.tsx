@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Order } from '../types';
+import { Order } from '@/types';
 import { vatLabel, vatNotConfiguredLabel, vatRateFromPercent } from '../lib/vat';
 import { Button, Icon, Modal } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';

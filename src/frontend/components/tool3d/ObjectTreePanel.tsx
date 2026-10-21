@@ -1,5 +1,5 @@
 import React from 'react';
-import { ModelPart, SlicerPresetInfo, PlateInfo, MaterialProfile } from '../../types';
+import { ModelPart, SlicerPresetInfo, PlateInfo, MaterialProfile } from '@/types';
 import { EmptyState, Icon } from '@frontend/ui';
 import { EMPTY_VALUE, formatNumber, formatWeight } from '@frontend/lib/format';
 

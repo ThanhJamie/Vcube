@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Icon } from '@frontend/ui';
-import type { AnalysisFile } from '../../types';
+import type { AnalysisFile } from '@/types';
 
 /**
  * Thanh "Tệp đang xử lý" + khối kéo–thả mở rộng của /quote — block-move từ

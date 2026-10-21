@@ -7,7 +7,7 @@ import {
   ProductionStageKey,
   regionFromAddress,
 } from '@frontend/stores/useProductionStore';
-import { Order } from '../../../types';
+import { Order } from '@/types';
 import { dbService } from '../../../../backend/supabase/database';
 import { EMPTY_VALUE, formatNumber } from '../../../lib/format';
 import { Badge, Button, EmptyState, Field, Icon, InfoTip, Input, Modal, Select, Skeleton } from '@frontend/ui';

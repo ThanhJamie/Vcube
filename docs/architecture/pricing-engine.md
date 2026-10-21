@@ -10,7 +10,7 @@
 
 ## 1. Engine Architecture & Data Honesty Foundation
 
-The VCUBE Pricing Engine (`src/utils/pricingEngine.ts`, re-exported via `src/frontend/utils/pricingEngine.ts` and encapsulated in `src/backend/services/pricingService.ts`) is a deterministic, multi-variable manufacturing economics calculator. It translates CAD geometry analysis and machine fleet parameters into integer VND quotations and financial splits.
+The VCUBE Pricing Engine (`src/utils/pricingEngine.ts`, import canonical qua alias `@/utils/pricingEngine`; shim `src/frontend/utils/pricingEngine.ts` đã xoá ở Phase 6c, và `src/backend/services/pricingService.ts` cũng đã xoá ở Phase 1) is a deterministic, multi-variable manufacturing economics calculator. It translates CAD geometry analysis and machine fleet parameters into integer VND quotations and financial splits.
 
 ```
 +-----------------------------------------------------------------------------------------------+

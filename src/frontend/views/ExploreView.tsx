@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Star } from 'lucide-react';
-import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../types';
-import { CATEGORIES, POPULAR_TAGS } from '../data/mockData';
+import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '@/types';
+import { CATEGORIES, POPULAR_TAGS } from '@/data/mockData';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { SEOHead } from '../components/SEOHead';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';

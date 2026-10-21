@@ -14,7 +14,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CartItem, SiteContentConfig } from '../types';
+import { CartItem, SiteContentConfig } from '@/types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserAvatarMenu } from './auth/UserAvatarMenu';

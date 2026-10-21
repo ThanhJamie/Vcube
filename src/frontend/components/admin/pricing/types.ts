@@ -1,5 +1,5 @@
 import type { Dispatch, FormEvent, SetStateAction, SyntheticEvent } from 'react';
-import type { AccessoryItem, InkiriCostFormulaConfig, MaterialProfile, PrinterProfile, VolumeDiscountTier } from '../../../types';
+import type { AccessoryItem, InkiriCostFormulaConfig, MaterialProfile, PrinterProfile, VolumeDiscountTier } from '@/types';
 import type { GlobalFormField } from './pricingShared';
 
 export interface PricingHeaderProps {

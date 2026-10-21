@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Order, Product, PrinterProfile, MaterialProfile, AccessoryItem } from '../../../types';
+import { Order, Product, PrinterProfile, MaterialProfile, AccessoryItem } from '@/types';
 import { AdminNavSection } from '../AdminSidebar';
 import {
   Button,

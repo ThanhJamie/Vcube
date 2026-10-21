@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Star } from 'lucide-react';
-import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, SiteContentConfig } from '../types';
-import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_SITE_CONTENT } from '../data/mockData';
+import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, SiteContentConfig } from '@/types';
+import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_SITE_CONTENT } from '@/data/mockData';
 import { ThreeModelViewer } from '../components/LazyThreeModelViewer';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
@@ -1374,7 +1374,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 leadingIcon={<Icon name="lightbulb" size={20} />}
                 className="w-full sm:w-auto border border-on-inverse/15 bg-surface-inverse-raised text-on-inverse"
               >
-                <span>{'Tư Vấn & Custom Theo Ý Tưởng'}</span>
+                <span>{'Tư Vấn & Tuỳ Biến Theo Ý Tưởng'}</span>
               </Button>
             </div>
 

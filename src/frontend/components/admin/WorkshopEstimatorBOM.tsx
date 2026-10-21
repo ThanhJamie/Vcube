@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { MaterialProfile, PrinterProfile, InkiriCostFormulaConfig, AccessoryItem } from '../../types';
-import { calculateManualInkiriEstimate } from '../../utils/pricingEngine';
+import { MaterialProfile, PrinterProfile, InkiriCostFormulaConfig, AccessoryItem } from '@/types';
+import { calculateManualInkiriEstimate } from '@/utils/pricingEngine';
 import { getStore, settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
 import { Icon, Button } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';

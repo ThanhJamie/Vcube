@@ -1,4 +1,4 @@
-import { AdminNavSection } from '../../types';
+import { AdminNavSection } from '@/types';
 
 export type { AdminNavSection };
 

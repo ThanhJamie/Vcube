@@ -1,5 +1,5 @@
 import React from 'react';
-import { MachineComparisonItem } from '../../types';
+import { MachineComparisonItem } from '@/types';
 import { Icon, Modal } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency, formatNumber } from '../../lib/format';
 

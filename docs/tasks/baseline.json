@@ -7,6 +7,12 @@
       "rc": 0,
       "violations": 0
     },
+    "test-unit": {
+      "cmd": "npm run test:unit",
+      "rc": 0,
+      "violations": 0,
+      "note": "Đo lại 2026-10-21 (Phase 6b): 71 test/24 suite PASS."
+    },
     "build": {
       "cmd": "npm run build",
       "rc": 0,

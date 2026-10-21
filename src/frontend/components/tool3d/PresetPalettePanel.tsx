@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SlicerPresetInfo, ModelPart, FilamentPaletteItem } from '../../types';
+import { SlicerPresetInfo, ModelPart, FilamentPaletteItem } from '@/types';
 import { Icon } from '@frontend/ui';
 
 interface PresetPalettePanelProps {

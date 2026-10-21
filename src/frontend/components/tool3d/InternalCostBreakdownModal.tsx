@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DetailedCostBreakdown, PrinterProfile } from '../../types';
+import { DetailedCostBreakdown, PrinterProfile } from '@/types';
 import { formatCurrency, formatNumber } from '@frontend/lib/format';
 import { Icon, Modal, Money } from '@frontend/ui';
 

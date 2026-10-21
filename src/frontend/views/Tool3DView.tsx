@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import * as THREE from 'three';
-import { AnalysisFile, CartItem, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, PrintabilityAnalysis, InkiriCostFormulaConfig, SlicerPresetInfo } from '../types';
-import { SAMPLE_ANALYSIS_FILES, PRINTER_PROFILES, MATERIALS_CATALOG } from '../data/mockData';
+import { AnalysisFile, CartItem, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, PrintabilityAnalysis, InkiriCostFormulaConfig, SlicerPresetInfo } from '@/types';
+import { SAMPLE_ANALYSIS_FILES, PRINTER_PROFILES, MATERIALS_CATALOG } from '@/data/mockData';
 import { ModelViewer3D } from '../components/tool3d/ModelViewer3D';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { StlVs3mfComparisonModal } from '../components/tool3d/StlVs3mfComparisonModal';

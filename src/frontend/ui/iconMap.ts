@@ -11,7 +11,7 @@
  *   đi qua `<Icon name={...} />`. Không sót icon nào vì tất cả đều qua map này.
  *
  * 5 glyph không có tương đương trực tiếp trong lucide 0.546 (`add_shopping_cart`,
- * `remove_shopping_cart`, `cloud_sync`, `lock_reset`, `square_foot`) được **ghép** bằng
+ * `remove_shopping_cart`, `lock_reset`, `square_foot`) được **ghép** bằng
  * `createLucideIcon` — xem khối COMPOSED bên dưới. Ghép bằng icon-node (không bọc `<span>`)
  * nên vẫn là MỘT `<svg>` 24×24, không đổi layout so với icon thường.
  *
@@ -249,12 +249,6 @@ const RemoveShoppingCart: LucideIcon = createLucideIcon('remove-shopping-cart', 
   ['path', { d: 'M21.4 1.6l-4.8 4.8' }],
 ]);
 
-/** `cloud_sync` = đám mây + mũi tên tròn ngược chiều ở góc dưới phải. */
-const CloudSync: LucideIcon = createLucideIcon('cloud-sync', [
-  ['path', { d: 'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z' }],
-  ...ccwBadge(19.2, 19.2, 2.8),
-]);
-
 /** `lock_reset` = ổ khoá (thu nhỏ 0.78) + mũi tên tròn ngược chiều (đặt lại mật khẩu). */
 const LockReset: LucideIcon = createLucideIcon('lock-reset', [
   ['rect', { width: '14', height: '8.6', x: '2.4', y: '8.6', rx: '1.6', ry: '1.6' }],
@@ -477,10 +471,9 @@ export const iconMap: Record<string, LucideIcon> = {
   'warning': TriangleAlert,
   'wb_incandescent': Lightbulb,
 
-  /* 5 glyph ghép — xem khối COMPOSED ở trên. */
+  /* 4 glyph ghép — xem khối COMPOSED ở trên. */
   add_shopping_cart: AddShoppingCart,
   remove_shopping_cart: RemoveShoppingCart,
-  cloud_sync: CloudSync,
   lock_reset: LockReset,
   square_foot: SquareFoot,
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { UserRole } from '../types';
+import { UserRole } from '@/types';
 import { Button, ConfirmDialog, Field, Icon, Input, Modal } from '@frontend/ui';
 
 /**

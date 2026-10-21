@@ -4,7 +4,7 @@
 > **Mục tiêu:** giảm code chết/lặp, hội tụ một nguồn sự thật cho data/state, giảm bundle & RAM,
 > làm docs khớp code — **không đổi hành vi nghiệp vụ, không đụng DB/schema** trong đợt này.
 > **Nguồn:** `AUDIT.md` + `DEAD-CODE.md` + `docs/tasks/ui-redesign-v3/QA-REPORT.md`.
-> **Trạng thái:** **ĐANG THI CÔNG** — Phase 0 + Phase 1 **DONE** (2026-10-21). Thứ tự thi công đã chốt:
+> **Trạng thái:** **ĐANG THI CÔNG** — Phase 0–5 **DONE**; **Phase 6 IN PROGRESS** (docs-as-code + unit test). Thứ tự thi công đã chốt:
 > **Phase 0 → 1 → 5 → 2 → 3 → 4 → 6** (user decision; audit `04-refactor.md` §7.0 khuyến nghị i18n làm muộn
 > vì cùng chạm 32 file với phase khác — xem ghi chú ở Phase 2).
 
@@ -126,7 +126,18 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
   (poster B1); 4 modal luôn mount ~40K raw; `manualChunks` tách react-dom/client; jszip/3MF lazy (backlog §5 `03-resources.md`).
 - **Gate (đã đạt):** build size table trước/sau; browser 390/1440; 3D lazy load đúng.
 
-### Phase 6 — Docs-as-code & test (2–3 ngày)
+### Phase 6 — Docs-as-code & test — ✅ DONE 2026-10-21 (QA verdict **GO-WITH-RISKS**)
+- ✅ **Docs khớp code:** AGENTS.md + `docs/{README,SETUP_RUNBOOK,architecture/system-overview,database/schema,database/seeds-and-migrations,security/rls-policies,security/rls-runbook}` cập nhật số thực đo từ 12 migration: **32 bảng / 2 view / 19 hàm / 9 định nghĩa trigger (~29 instance) / 92 policy bảng / 7 storage / +1 realtime**; layout mới (hooks/routes/shell, `src/frontend/stores`, workshop 14 module, App 343 dòng); DoD có `test:unit` + docs-as-code.
+- ✅ **Sinh tự động:** `scripts/gen-routes-doc.mjs` đọc `src/frontend/routes/AppRoutes.tsx`; `docs/pages/_routes.generated.md` = **30 route**, `source-sha256 f0bd92f499c9`, 2 lần chạy byte-identical.
+- ✅ **Test thật (thay `test-pricing.ts` chết):** `tests/unit/*.test.ts` ×5 (format, vat, mappers, pricingEngine, settingsValidators) = **71 test / 24 suite / 277 assert**; script `npm run test:unit` (`tsx --test`), đã wire vào `scripts/gate-manifest.json` + `docs/tasks/baseline.json` (gate `test-unit`).
+- ✅ **Cleanup follow-up:** D05–D07 shims **đã xoá** sau codemod **53 dòng import / 46 file** về alias `@/types`, `@/data/mockData`, `@/utils/pricingEngine`; `LanguageContext` DICTIONARY **85→28 key** (57 key chết 0 tham chiếu); EN copy còn sót (HomeView CTA, searchPlaceholder) → VI; icon **206→205** (`cloud_sync` 0 ref).
+- **Kết quả đo:** initial critical gzip **278.448 → 277.066 (−1.382, −0,50%)**; index **692.525/186.957 → 689.178/185.575**;
+  **hành trình tổng Phase 1→6: 464.251 → 277.066 gzip (−187.185, −40,32%)**. 39 chunk, lazy set đủ, `three-vendor` async.
+- **Bằng chứng:** `handoff/phase6-{docs,tests,cleanup,verify}.md` — tests 71/71 PASS; DB tự đếm khớp docs;
+  smoke 24 route-check 0 pageerror/0 overflow/0 màn trắng; 10 offline gate PASS; doc-freshness 0.
+- **Follow-up (không chặn, cho đợt sau):** live RLS/inspect-db + integration test khi Supabase Resume;
+  `tests/**` ngoài tsconfig (cân nhắc tsconfig.test.json); 42 call `dbService.*` inline → service layer;
+  dead-store review; 20 file >800 dòng; `supabase-vendor` eager; Phase 7 feature/data wiring. — 🔄 IN PROGRESS 2026-10-21
 - Cập nhật `AGENTS.md` (12 migration, 32 bảng/2 view, 19 hàm/9 trigger, 92/7 policy).
 - Sửa `docs/README.md`, `docs/database/schema.md`, `docs/security/rls-*` theo số mới; regenerate `docs/pages/_routes.generated.md`.
 - Archive `docs/plans/**` + `docs/tasks/ui-redesign/**` v2; canonical docs: `docs/tasks/optimization/AUDIT.md`, `PLAN.md`, `docs/database/schema-notes.md`.
@@ -144,11 +155,11 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
 | Phase | Agent | Write scope | Ghi chú |
 |---|---|---|---|
 | 1 ✅ | `commerce-auth` (backend) · `design-foundation` (UI) · `ui-auditor` (repo) | backend 4 file + `database.ts`/`client.ts`/`types`; `ui/**`, `mockData`; `package*.json`, config/lock/test | 3 agent song song, scope rời — **DONE** |
-| 5 | `bundle-optimizer` | `App.tsx`, route table, `ThreeModelViewer`, `vite.config.ts` | **kế tiếp**; không đụng views khác |
-| 2 | `i18n-cleaner` | `frontend/context/LanguageContext`, 32 file có `isVi` | sau Phase 5; 2 batch; xung đột file với Phase 3/4 |
-| 3 | `state-refactor` | `App.tsx`, stores, services, `mockData` D11g–D11m | sau Phase 2; cần review |
-| 4 | `godfile-a` / `godfile-b` | PricingConfig/WorkshopSettings; ModelViewer/Group1/Tool3D | 2 agent, file rời |
-| 6 | `docs-qa` | AGENTS/docs/schema/tests | song song cuối |
+| 5 ✅ | `bundle-optimizer` | `App.tsx`, route table, `ThreeModelViewer`, `vite.config.ts` | **DONE** — `handoff/phase5-{routes,three,bundle}.md` |
+| 2 ✅ | `i18n-cleaner` | `frontend/context/LanguageContext`, 32 file có `isVi` | **DONE** — `handoff/phase2-verify.md` |
+| 3 ✅ | `state-refactor` | `App.tsx`, stores, services, `mockData` D11g–D11m | **DONE** — `handoff/phase3-verify.md` |
+| 4 ✅ | `godfile-a` / `godfile-b` | PricingConfig/WorkshopSettings; ModelViewer/Group1/Tool3D | **DONE** — `handoff/phase4-verify.md` |
+| 6 🔄 | `docs-qa` | AGENTS/docs/schema/routes-doc/tests | **IN PROGRESS** — task-37 (docs) + task-38 (unit test, 71 test) |
 | — | `reviewer` | read-only | mỗi phase 2 review |
 
 **Nguyên tắc:** tối đa 3–4 agent build; file chồng nhau phải tuần tự; mỗi agent ghi handoff.
@@ -179,10 +190,10 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
 | Dead dbService methods | 6 | 0 |
 | `isVi ?` | 1.201 | 0 |
 | `DICTIONARY en` | 85 | 0 |
-| Initial JS gzip | ~466KB | **~300–330KB** (-30–35%) |
-| File >2.000 LOC | 6 | 3–4 (sau Phase 4) |
-| Docs lệch số | nhiều | 0 ở docs canonical |
-| Test thật | 0 unit | mappers/pricing/validators/format |
+| Initial JS gzip | ~466KB | **~278KB** (-40%) — Phase 5 đo: index 186,24 + react 18,20 + supabase 57,80 + CSS 15,77 |
+| File >2.000 LOC | 6 | **0** sau Phase 4 (lớn nhất `Tool3DView` 1.057) |
+| Docs lệch số | nhiều | **0 ở docs canonical** sau Phase 6a (AGENTS/docs/README/schema/RLS/routes doc) |
+| Test thật | 0 unit | **71 test** (format, mappers, pricingEngine, settingsValidators, vat) — Phase 6b |
 
 > Số LOC/bundle là ước tính; **đo lại sau từng phase** và ghi vào `QA-REPORT`/`AUDIT` cập nhật.
 

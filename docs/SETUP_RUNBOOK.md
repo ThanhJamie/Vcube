@@ -393,7 +393,7 @@ VCUBE utilizes an automated suite of standalone Node.js and TypeScript quality g
 | `node scripts/check-error-handling.mjs` | Error-Swallowing Gate | `catch` blocks in `src/**/*.ts(x)` | Exit `0`, 0 empty-catch, 0 false-success, warn-in-catch ≤ budget |
 | `node scripts/a8-sql-syntax-check.mjs` | Static SQL Syntax Validator | Default SQL file set resolved by the script (run via `npm run check`) | Exit `0`, balanced tags, no syntax errors |
 | `npx tsx scripts/test-catalog-sync.ts` | Catalog & RLS Integration Test | Mock DB, state store & RLS logic | Exit `0`, 5/5 test suites passing (100%) |
-| `node scripts/inspect-db.mjs` | DB Schema State Comparison | 31 tables in Supabase | Exit `0`, 31/31 tables verified, 0 exposed |
+| `node scripts/inspect-db.mjs` | DB Schema State Comparison | **32 tables** (31 baseline + `designer_payout_info`) + 2 views in Supabase | Exit `0`, all declared tables verified, 0 exposed |
 | `node scripts/verify-rls.mjs` | Empirical Anon Key Security Probe | Live Supabase endpoint | Exit `0`, 0 sensitive tables readable by anon |
 
 ### 5.3 Deep Dive into Each Verification Script
@@ -433,7 +433,7 @@ VCUBE utilizes an automated suite of standalone Node.js and TypeScript quality g
 #### 5. `node scripts/check-unitprice-multiplier.mjs`
 - **Objective:** Prevents catastrophic financial calculation regressions.
 - **Background:** `unit_price_multiplier` is a **cost-per-gram derivation factor** (đ/g) used in `src/utils/pricingEngine.ts:70-88` (`resolveMaterialCostPerGram`, `costPerKg / 1000 * unitPriceMultiplier`). It must **never** be multiplied directly against base retail selling prices.
-- **Allowlist:** Only `src/utils/pricingEngine.ts`, its re-export `src/frontend/utils/pricingEngine.ts`, and admin forms under `src/frontend/components/admin/` may reference this property.
+- **Allowlist:** Only `src/utils/pricingEngine.ts` and admin forms under `src/frontend/components/admin/` may reference this property. (Shim `src/frontend/utils/pricingEngine.ts` đã bị xoá ở Phase 6c — import canonical qua alias `@/utils/pricingEngine`.)
 
 #### 6. `node scripts/a8-sql-syntax-check.mjs`
 - **Objective:** Performs static parsing on the default SQL file set resolved by the script (`supabase/migrations/`, `supabase/scripts/`, `supabase/diagnostics/`) without requiring a running Postgres server. The authoritative gate entry point is `npm run check`.
@@ -518,7 +518,7 @@ npx tsx scripts/test-catalog-sync.ts
 
 ### 6.1 Database Schema & Migration Architecture
 
-VCUBE utilizes a hardened schema comprising 31 relational tables + 1 compatibility view (`pricing_config`), 49 explicit indexes (48 from the `idx_*` loop + the partial unique `uq_kyc_records_one_pending`; 2 are GIN), 13 permanent functions (6 helper/RPC — `current_app_role`, `is_admin`, `is_admin_or_lab`, `current_workshop_partner_id`, `get_order_by_guest_token`, `fn_recompute_product_review_stats` — plus 7 trigger functions), 7 trigger definitions (27 instances: 21 `trg_touch_updated_at` + 6 others), and 2 storage buckets (`cad-files` 150 MB, `product-images` 10 MB). The hardening migration creates and then drops 2 temporary helpers (`_vcube_make_policy`, `_vcube_has_columns`).
+VCUBE utilizes a hardened schema (chuỗi **12 migration**, `20260900`–`20261013`) comprising **32 relational tables + 2 views** (`pricing_config` — compatibility view `security_invoker=true`; `open_design_requests` — designer/admin market view `security_invoker=false`), 49 explicit indexes (48 from the `idx_*` loop + the partial unique `uq_kyc_records_one_pending`; 2 are GIN), **19 permanent functions** (9 helper/RPC — `current_app_role`, `is_admin`, `is_admin_or_lab`, `current_workshop_partner_id`, `get_order_by_guest_token`, `claim_design_request`, `get_my_payout_info`, `admin_get_designer_payout`, `upsert_my_payout_info` — plus **10 trigger functions**), **9 trigger definitions** (≈**29 instances**: 21 `trg_touch_updated_at` + 8 single-attach triggers), **92 effective table policies + 7 storage policies** (+1 `realtime.messages`), and 2 storage buckets (`cad-files` 150 MB, `product-images` 10 MB). The hardening migration creates and then drops 2 temporary helpers (`_vcube_make_policy`, `_vcube_has_columns`).
 
 > **Rule:** Never execute files inside `supabase/legacy/`. Those represent obsolete iterations. All database management is restricted to `supabase/migrations/` and `supabase/scripts/`.
 
@@ -527,10 +527,14 @@ VCUBE utilizes a hardened schema comprising 31 relational tables + 1 compatibili
 When setting up a fresh Supabase project, execute the migration files sequentially in the **Supabase SQL Editor**:
 
 ```
-supabase/migrations/
+supabase/migrations/            # 12 file, chạy theo thứ tự tên
 ├── 20260900_rls_helpers.sql       # 1. Helper functions: current_app_role() & is_admin()
-├── 20260901_baseline_schema.sql     # 2. 31 tables + 1 view, 49 indexes, 7 trigger definitions (27 instances), buckets & seeds
-└── 20261010_harden_rls.sql         # 3. 90 table policies (88 applied), 6 storage policies & guards
+├── 20260901_baseline_schema.sql   # 2. 31 tables + 1 view (pricing_config), 49 indexes, 5 trigger definitions (25 instances), buckets & seeds
+├── 20261010_harden_rls.sql        # 3. 88 effective table policies (allowlist 90, 2 view skipped) + 7 storage policies & guards
+├── 20261011*–20261013*.sql        # 4. 9 file W2: SEC-01 payout hotfix/table, signup designer, column guard,
+│                                  #    SEC-02 open-requests view/RPC, CHECK constraints, orders broadcast,
+│                                  #    drop bank columns (H-gated), storage scheme cad/<uid>/…
+└── (tổng chuỗi: 32 tables + 2 views, 19 functions, 9 trigger definitions, 92 table + 7 storage policies)
 ```
 
 #### Step-by-Step Migration Guide:

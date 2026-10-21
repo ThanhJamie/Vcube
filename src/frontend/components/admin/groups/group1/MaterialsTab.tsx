@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon, Button, EmptyState, DataTable } from '@frontend/ui';
-import type { WorkshopMaterial } from '../../../../types';
+import type { WorkshopMaterial } from '@/types';
 import type { MaterialsTabProps } from './types';
 
 export const MaterialsTab: React.FC<MaterialsTabProps> = (props) => {

@@ -1,8 +1,8 @@
-<!-- doc-meta: status=active; verified=2026-09-24; owner=thanh -->
+<!-- doc-meta: status=active; verified=2026-10-21; owner=thanh -->
 # Runbook — Sửa lỗ hổng RLS của VCUBE
 
 Tài liệu này là hướng dẫn thi công và khắc phục sự cố cho việc siết Row Level Security.
-**Trạng thái (2026-09-24):** baseline + hardening **đã áp và kiểm chứng trên production ngày 2026-09-12** (§10.6). Các migration W2 (SEC-01, SEC-02, T20, T22b, T25, T35, T58) đã soạn trong `supabase/migrations/` — nhật ký áp ở **§11**. Việc còn lại: rotate `sb_secret_…`, seed dữ liệu mẫu, khai env trên Vercel.
+**Trạng thái (2026-10-21):** baseline + hardening **đã áp và kiểm chứng trên production ngày 2026-09-12** (§10.6; lúc đó baseline có **21 bảng** — nay **32 bảng + 2 view**). Các migration W2 (SEC-01, SEC-02, T20, T22b, T25, T35, T58) đã soạn trong `supabase/migrations/` — nhật ký áp ở **§11**; file #11 `20261013100000` là **cổng H, CHƯA ÁP**. Việc còn lại: rotate `sb_secret_…`, seed dữ liệu mẫu, khai env trên Vercel.
 
 ---
 
@@ -68,8 +68,8 @@ Kết quả quét: **0 policy tin metadata do client ghi, 0 email hardcode, 0 `F
 1. Tạo/chuẩn hoá 4 helper: `current_app_role()`, `is_admin()`, `is_admin_or_lab()` (admin hoặc lab)
    và `current_workshop_partner_id()` (partner_id của xưởng đang đăng nhập; `limit 1` vì `workshop_profiles.user_id` không unique).
 2. `DROP` toàn bộ 73 tên policy cũ từng tồn tại trong repo.
-3. **Quét sạch policy lạ** trên 32 relation mục tiêu (31 bảng + view `pricing_config`) không nằm trong allowlist (kể cả policy tạo tay trong Dashboard).
-4. Tạo 90 policy đúng + 6 policy storage.
+3. **Quét sạch policy lạ** trên 32 relation mục tiêu của file (31 bảng baseline + view `pricing_config`; bảng thứ 32 `designer_payout_info` do migration sau tạo) không nằm trong allowlist (kể cả policy tạo tay trong Dashboard).
+4. Tạo **88 policy bảng hiệu lực** (allowlist `v_keep` 90 tên, 2 tên `pricing_config` bị skip vì là view) + **7 policy storage** (`v_ok`). Toàn chuỗi 12 migration: **92 policy bảng** (thêm 4 cho `designer_payout_info`) + 7 storage + 1 `realtime.messages`.
 5. Trigger `trg_protect_profile_privileged_columns` — chặn người dùng tự đổi `role`/`kyc_status`/`account_status`/`total_*` của chính mình.
 6. Trigger `trg_create_profile_for_new_user` — tự tạo `user_profiles` (role `customer`) khi có user mới, vì client hiện **không** tạo dòng này.
 7. Trigger `trg_protect_order_privileged_columns` — xưởng in được giao đơn **chỉ** được đổi `status`/`status_stage_index`/`layer_progress`/`updated_at` (RLS không giới hạn được cột; đổi cột khác ⇒ `42501`).
@@ -116,8 +116,8 @@ Chuỗi lõi **3 file** (6 file cũ đã chuyển sang `supabase/legacy/`, xem R
 | Thứ tự | File | Vai trò |
 |---|---|---|
 | 1 | `supabase/migrations/20260900_rls_helpers.sql` | `current_app_role()` + `is_admin()` (fail-closed khi chưa có bảng profile) |
-| 2 | `supabase/migrations/20260901_baseline_schema.sql` | **Toàn bộ schema**: **31 bảng** + 1 view (`pricing_config`), **49 index** (48 + 1 unique index một phần cho KYC; 2 GIN), **7 hàm**, **5 trigger** / 25 instance (tự sinh profile, chống nâng quyền profile, đồng bộ kho, touch `updated_at` trên 21 bảng, giữ `products.reviews_count`/`rating` theo đánh giá), 2 storage bucket, realtime, seed tối thiểu. Có bật RLS trên mọi bảng (deny-all cho tới khi có policy). |
-| 3 | `supabase/migrations/20261010_harden_rls.sql` | **Toàn bộ policy**: dọn policy cũ + policy lạ (kể cả tạo tay trong Dashboard), tạo **90 policy** đúng + **6 policy storage** trên **32 bảng mục tiêu** (2 policy `pricing_config` bị bỏ qua vì `pricing_config` là view ⇒ **88 policy áp dụng** trên DB dựng mới), 2 trigger mới chống sửa cột đặc quyền (`orders` + `workshop_profiles`) + tái tạo 2 trigger profile, `security_invoker` cho view `pricing_config`, kiểm tra cuối |
+| 2 | `supabase/migrations/20260901_baseline_schema.sql` | **Toàn bộ schema baseline**: **31 bảng** + 1 view (`pricing_config`), **49 index** (48 + 1 unique index một phần cho KYC; 2 GIN), **7 hàm**, **5 định nghĩa trigger** / **25 instance** (tự sinh profile, chống nâng quyền profile, đồng bộ kho, touch `updated_at` trên 21 bảng, giữ `products.reviews_count`/`rating` theo đánh giá), 2 storage bucket, realtime, seed tối thiểu. Có bật RLS trên mọi bảng (deny-all cho tới khi có policy). *Cộng dồn 12 migration: 32 bảng + 2 view, 19 hàm, 9 định nghĩa trigger / ≈29 instance.* |
+| 3 | `supabase/migrations/20261010_harden_rls.sql` | **Toàn bộ policy**: dọn policy cũ + policy lạ (kể cả tạo tay trong Dashboard), tạo **88 policy bảng hiệu lực** từ allowlist `v_keep` **90 tên** (2 policy `pricing_config` bị bỏ qua vì `pricing_config` là **VIEW**) + **7 policy storage** (`v_ok`) trên **32 relation mục tiêu** (31 bảng baseline + view `pricing_config`), 2 trigger mới chống sửa cột đặc quyền (`orders` + `workshop_profiles`) + tái tạo 2 trigger profile, `security_invoker` cho view `pricing_config`, kiểm tra cuối. *Toàn chuỗi 12 file: 92 policy bảng hiệu lực (thêm 4 policy `designer_payout_info`).* |
 
 Sau 3 file lõi, áp tiếp các **migration W2** (`20261011*`/`20261012*`/`20261013*`) theo đúng thứ tự tên file:
 
@@ -288,7 +288,7 @@ Mỗi file là một transaction riêng, nên khi file 3 lỗi thì **file 1 và
 | Bước | Trạng thái |
 |---|---|
 | `20260900_rls_helpers.sql` | ✅ đã áp |
-| `20260901_baseline_schema.sql` | ✅ đã áp — 21 bảng, index, hàm, trigger, 2 bucket đã tồn tại. **Cập nhật:** baseline hiện tại tạo **31 bảng** (Đợt 10 thêm `reviews`, `digital_assets`, `cart_items`; đợt cuối thêm `custom_design_requests`) + 1 view |
+| `20260901_baseline_schema.sql` | ✅ đã áp — 21 bảng, index, hàm, trigger, 2 bucket đã tồn tại. **Cập nhật:** file baseline tạo **31 bảng** (Đợt 10 thêm `reviews`, `digital_assets`, `cart_items`; đợt cuối thêm `custom_design_requests`) + 1 view; **toàn chuỗi 12 migration hiện tạo 32 bảng + 2 view** |
 | `20261010_harden_rls.sql` | ❌ rollback — **chưa có policy nào** (đã chạy lại thành công, xem §10.6) |
 
 Vì baseline bật RLS trên mọi bảng mà chưa có policy, database khi đó ở trạng thái **deny-all** (an toàn: không ai đọc/ghi được gì qua API). App hiển thị dữ liệu mock cho tới khi file 3 chạy xong.
@@ -314,16 +314,18 @@ Sau khi chạy xong file 3 → chạy `bootstrap_admin.sql` → `node scripts/ve
 
 ### 10.6 KẾT QUẢ SAU KHI CHẠY ĐỦ 3 FILE — đã kiểm chứng (2026-09-12)
 
+> **Số liệu dưới đây là ảnh chụp lịch sử tại 2026-09-12** (baseline khi đó 21 bảng, 6 storage policy). Trạng thái hiện tại (2026-10-21, sau 12 migration): **32 bảng + 2 view**, **92 policy bảng hiệu lực + 7 storage (+1 `realtime.messages`)**, 19 hàm, 9 định nghĩa trigger / ≈29 instance — xem `AGENTS.md` §"Số liệu DB thực tế" và `docs/security/rls-policies.md`. Live verify phải chạy lại sau khi Supabase Resume.
+
 | Kiểm tra | Kết quả |
 |---|---|
-| Bảng tồn tại | **15/15** (kiểm tra mẫu lúc đó; baseline **hiện tại** tạo **31 bảng** + 1 view) |
+| Bảng tồn tại | **15/15** kiểm tra mẫu **tại thời điểm 2026-09-12** (baseline khi đó 21 bảng) — **số hiện tại: 32 bảng + 2 view** sau 12 migration (2026-10-21); cần chạy lại `scripts/verify-rls.mjs` sau khi Supabase Resume |
 | Bảng còn hở RLS | **0** |
 | `anon` đọc `orders` / `user_profiles` / `payment_transactions` / `cost_rules` / `material_inventory_logs` | **0 dòng** ✅ |
 | `anon` đọc `products` chưa publish | **0 dòng** ✅ |
 | `anon` đọc `products` published / `materials` / `printer_fleet` / `pricing_configs` | 0 dòng (bảng rỗng — chưa seed, không phải lỗi RLS) |
 | `site_content` | 1 dòng, đọc được (đúng thiết kế) |
 | RPC `get_order_by_guest_token` | tồn tại, trả 0 dòng với token sai ✅ |
-| Storage buckets `product-images`, `cad-files` | đã tạo ✅ |
+| Storage buckets `product-images`, `cad-files` | đã tạo ✅ (7 storage policy hiện tại; 6 lúc kiểm chứng 2026-09-12) |
 | `scripts/verify-rls.mjs` | **9 PASS · 0 FAIL · 4 INFO** ✅ |
 
 ⇒ **Lỗ hổng đã được đóng và có bằng chứng.** Bước còn lại là cấp quyền admin, seed dữ liệu, và siết nốt phía client.
@@ -338,7 +340,7 @@ Sau khi chạy xong file 3 → chạy `bootstrap_admin.sql` → `node scripts/ve
 | # | Migration | Task / Issue | Ngày áp | Post-check | Rollback | Ghi chú |
 |---|---|---|---|---|---|---|
 | 1 | `20260900_rls_helpers.sql` | baseline | 2026-09-12 | §10.6 | — | lần áp đầu |
-| 2 | `20260901_baseline_schema.sql` | baseline | 2026-09-12 | §10.6 | — | 31 bảng + 1 view |
+| 2 | `20260901_baseline_schema.sql` | baseline | 2026-09-12 | §10.6 | — | file này tạo 31 bảng + 1 view (đo lúc áp: 21 bảng); toàn chuỗi 12 file hiện là 32 bảng + 2 view |
 | 3 | `20261010_harden_rls.sql` | hardening | 2026-09-12 | §10.6 — 0 bảng hở RLS | `git revert` commit SQL | idempotent; **FREEZE** áp lại tới khi T23 xong (§1.4-5 DRIFT-TASKS) |
 | 4 | `20261011090000_sec01_designer_payout_hotfix.sql` | SEC-01 / T0A-3 | `<ngày>` | `has_column_privilege` 3 cột + `curl` anon | `supabase/rollback/20261011090000_down.sql` | T0A-4: deploy client trước; đóng phơi nhiễm — `incident-2026-09-SEC01.md` |
 | 5 | `20261011100000_signup_role_designer.sql` | T58 | `<ngày>` | — | `supabase/rollback/20261011100000_down.sql` | guard đóng: chỉ `'designer'` được ánh xạ |
@@ -347,7 +349,7 @@ Sau khi chạy xong file 3 → chạy `bootstrap_admin.sql` → `node scripts/ve
 | 8 | `20261012100000_check_constraints.sql` | T22b / DB-03, DB-04 | `<ngày>` | `pg_constraint.convalidated = true` sau `VALIDATE` | `supabase/rollback/20261012100000_down.sql` | `NOT VALID` → audit → dọn → `VALIDATE` |
 | 9 | `20261012130000_orders_broadcast.sql` | T35-mig | `<ngày>` | có `realtime.send` + policy `realtime.messages` | `supabase/rollback/20261012130000_down.sql` | payload chỉ `{id,status}` — không lộ token |
 | 10 | `20261013090000_sec01_payout_table.sql` | SEC-01 / T20 phase 1 | `<ngày>` | 2 RPC đọc đúng từ `designer_payout_info` | `supabase/rollback/20261013090000_down.sql` | chép dữ liệu, **chưa** drop cột |
-| 11 | `20261013110000_storage_scheme.sql` | T25 / D3 | `<ngày>` | policy `vcube_cad_files_cad_owner_rw` + thử đọc chéo | `supabase/rollback/20261013110000_down.sql` | scheme `cad/<uid>/<uuid>/<file>`; object cũ cần backfill (T40) |
-| 12 | `20261013100000_drop_designer_bank_columns.sql` | SEC-01 / T20 phase 2 | `<ngày>` — **cổng H, CHƯA ÁP** | grep `src` + `scripts` không còn reader/writer 3 cột; phase 1 đã áp | `supabase/rollback/20261013100000_down.sql` | chỉ sau khi client deploy + verify — xem `incident-2026-09-SEC01.md` |
+| 11 | `20261013100000_drop_designer_bank_columns.sql` | SEC-01 / T20 phase 2 | `<ngày>` — **cổng H, CHƯA ÁP** | grep `src` + `scripts` không còn reader/writer 3 cột; phase 1 đã áp | `supabase/rollback/20261013100000_down.sql` | chỉ sau khi client deploy + verify — xem `incident-2026-09-SEC01.md` |
+| 12 | `20261013110000_storage_scheme.sql` | T25 / D3 | `<ngày>` | policy `vcube_cad_files_cad_owner_rw` + thử đọc chéo | `supabase/rollback/20261013110000_down.sql` | scheme `cad/<uid>/<uuid>/<file>`; object cũ cần backfill (T40) |
 
 Sau mỗi lần áp, chạy `node scripts/verify-rls.mjs --writes` (kỳ vọng `anon` đọc `orders`/`user_profiles` = 0 dòng), `node scripts/inspect-db.mjs`, rồi ghi kết quả vào dòng tương ứng.

@@ -8,7 +8,7 @@
 > **TRẠNG THÁI (Phase 1, 2026-10-21) — ĐÃ THI CÔNG phần lớn:**
 > **−552 LOC** backend (D01–D04, D12, D13, D14) · **−~700 LOC** UI (D08–D10, D15, D16, D11a–D11f) ·
 > **−357 LOC** test chết (D19) · **−132 KB** lock/artifact (D21–D24, D26) · **−2 dependency** (D27–D28).
-> **Hoãn có lý do:** D05–D07 (đính chính §1 — không phải dead code) · D11g–D11m → Phase 3 ·
+> **Hoãn có lý do:** ~~D05–D07~~ **đã xoá Phase 6c** (sau codemod 53 dòng import/46 file về alias `@/…`) · D11g–D11m → Phase 3 ·
 > D17–D18 → Phase 2/6 · `workshopService` legacy/`SEED_*` (~1.140 LOC) → cần rewrite 2 method onboarding
 > trước, xem `04-refactor.md` §4.4. Chi tiết bằng chứng: `handoff/phase1-{backend,ui,repo}.md`.
 
@@ -22,9 +22,9 @@
 | D02 | `src/backend/services/catalogService.ts` | 34 | 0 importer; mọi method trả `[]` | ✅ |
 | D03 | `src/backend/services/pricingService.ts` | 46 | 0 importer; chỉ dùng bởi D01 | ✅ |
 | D04 | `src/backend/supabase/seedService.ts` | 134 | 0 importer; chỉ còn comment trong `mappers.ts` | ✅ |
-| D05 | `src/frontend/data/mockData.ts` | 1 | **~~0 importer~~ SAI — 3 importer** | ⛔ HOÃN |
-| D06 | `src/frontend/types/index.ts` | 1 | **~~0 importer~~ SAI — 11 importer** | ⛔ HOÃN |
-| D07 | `src/frontend/utils/pricingEngine.ts` | 1 | **~~0 importer~~ SAI — 2 importer** | ⛔ HOÃN |
+| D05 | `src/frontend/data/mockData.ts` | 1 | **~~0 importer~~ SAI — 3 importer** | ✅ DONE Phase 6c |
+| D06 | `src/frontend/types/index.ts` | 1 | **~~0 importer~~ SAI — 11 importer** | ✅ DONE Phase 6c |
+| D07 | `src/frontend/utils/pricingEngine.ts` | 1 | **~~0 importer~~ SAI — 2 importer** | ✅ DONE Phase 6c |
 
 > **⚠️ ĐÍNH CHÍNH (Phase 1, 2026-10-21).** D05–D07 **không phải dead code** — audit ban đầu sai vì
 > grep mặc định của công cụ resolve alias/thư mục không thấy import tương đối. Đây là các file **shim
@@ -42,7 +42,7 @@
 > `views/**` + `components/**` sang đường dẫn canonical hoặc alias `@/*`, rồi xoá 3 file trong **một**
 > thay đổi; đề xuất gộp vào Phase 6 (docs/test) hoặc một task follow-up riêng — **không** làm trong Phase 1.
 
-**Cách xoá cụm (đã thi công):** D02–D04 → D01 (xong). D05–D07: **hoãn** theo đính chính trên.
+**Cách xoá cụm (đã thi công):** D02–D04 → D01 (Phase 1). D05–D07: **xoá ở Phase 6c** sau codemod import → alias `@/types`, `@/data/mockData`, `@/utils/pricingEngine` (46 file/53 dòng; shim không còn importer).
 
 ---
 

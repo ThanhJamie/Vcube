@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { MaterialProfile, AccessoryItem } from '../../types';
+import { MaterialProfile, AccessoryItem } from '@/types';
 import { Icon, InfoTip, DataTable, EmptyState, Field, Input, Button, Badge } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatNumber } from '../../lib/format';

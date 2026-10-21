@@ -41,7 +41,7 @@
 |                                                                                       |
 |   +--------------------------+  +--------------------------+  +-------------------+   |
 |   |     POSTGRESQL 15 DB     |  |      SUPABASE AUTH       |  | STORAGE BUCKETS   |   |
-|   |  - 31 Tables + 1 View    |  |  - JWT & Session Engine  |  |  - product-images |   |
+|   |  - 32 Tables + 2 Views   |  |  - JWT & Session Engine  |  |  - product-images |   |
 |   |  - 90 Hardened RLS Rules |  |  - Role Resolution via   |  |  - cad-files      |   |
 |   |  - Realtime CDC PubSub   |  |    `public.user_profiles`|  |    (Authenticated)|   |
 |   +--------------------------+  +--------------------------+  +-------------------+   |
@@ -73,7 +73,7 @@ The project follows a modular directory layout segregating frontend UI, backend 
 ├── tsconfig.json                        # Strict TypeScript 5.8 settings
 ├── src/
 │   ├── main.tsx                         # Bootstrap entry point, error guards, settings warmup
-│   ├── App.tsx                          # Root router, shell layout, global realtime subscriptions
+│   ├── App.tsx                          # Provider stack + shell chrome (343 dòng; Phase 4). Route table KHÔNG còn ở đây
 │   ├── index.css                        # Tailwind CSS 4 theme variables and design tokens
 │   │
 │   ├── frontend/                        # Presentation & User Experience Layer
@@ -90,15 +90,19 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │   │   │   ├── designer/                # Modular 3D Creator Studio tabs
 │   │   │   ├── onboarding/              # Workshop verification & onboarding wizards
 │   │   │   ├── personalize/             # Parametric CAD customizer components
+│   │   │   ├── services/                # Service showcase section
+│   │   │   ├── custom/                  # Custom idea request modal
+│   │   │   ├── shell/                   # AppOverlays, DashboardShell, Designer/Lab shells, LabRoute, navConfig, screens
 │   │   │   └── tool3d/                  # Industrial 3D inspection & slicing cockpit
 │   │   │       ├── ModelViewer3D.tsx    # Full-featured 3D viewer (FSM, stencils, clipping)
 │   │   │       ├── QuoteSummaryPanel.tsx# Detailed B.O.M breakdown & quotation viewer
 │   │   │       └── UnifiedCadToolbar.tsx# 3D viewport manipulation toolbar
 │   │   ├── context/                     # Shared React Contexts
 │   │   │   ├── AuthContext.tsx          # Supabase Auth session & DB role resolver
-│   │   │   └── LanguageContext.tsx      # Vietnamese-only locale (bilingual dict retained) + admin claims
-│   │   ├── hooks/                       # Custom React hooks (useInViewport, useSettings)
-│   │   ├── stores/                      # Frontend Zustand stores (useCartStore, useUIStore)
+│   │   │   └── LanguageContext.tsx      # VI-only (Phase 2): chỉ còn `{ t }`, không `isVi`, không dictionary `en:`
+│   │   ├── routes/                      # Route table (Phase 4d): AppRoutes.tsx + routeWrappers.tsx
+│   │   ├── hooks/                       # Data + realtime hooks (useCatalogData, useSiteSettings, useOrdersData, useAppNavigation…)
+│   │   ├── stores/                      # 6 Zustand stores (src/stores đã xoá ở Phase 3)
 │   │   ├── theme/                       # Design token reader for JS/WebGL (light-only)
 │   │   │   └── tokens.ts                # JavaScript color token reader (CSS var + light fallback)
 │   │   ├── lib/                         # Framework-agnostic helpers (format, VAT, productImage, reportError)
@@ -113,14 +117,15 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │   │   │   ├── database.ts              # Database abstraction service (dbService)
 │   │   │   ├── mappers.ts               # Row-to-Entity transformation mappers
 │   │   │   └── seedService.ts           # Supabase health check & read-only table sync (no fixture seeding)
-│   │   └── services/
+│   │   └── services/                    # catalogService/pricingService đã xoá (Phase 1 dead code)
 │   │       ├── assetService.ts          # Signed URLs for the private `cad-files` storage bucket
-│   │       ├── catalogService.ts        # Product catalog operations
 │   │       ├── customDesignService.ts   # Custom CAD requests & quotes operations
+│   │       ├── designerService.ts       # Designer profile/publication operations
 │   │       ├── orderService.ts          # Order creation, status updates, tracking
-│   │       ├── pricingService.ts        # Compatibility wrapper for core pricing engine calculations
-│   │       ├── settingsService.ts       # Global settings cache & audit logger
-│   │       └── workshopService.ts       # MES, machine fleet & workshop management
+│   │       ├── settingsService.ts       # Global settings cache, audit log + `vcube:settings` realtime
+│   │       ├── workshopService.ts       # Façade 128 dòng (Phase 4) trên 14 module `workshop/*`
+│   │       └── workshop/                # profiles, machines, materials, accessories, inventory, queue,
+│   │                                    # customers, designers, catalogs, seed, shared, storage, constants, types
 │   │
 │   ├── stores/                          # Backend & Operations Zustand stores
 │   │   ├── useProductionStore.ts        # Workshop manufacturing queue state
@@ -140,10 +145,13 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │       └── index.ts                     # Core domain contracts (Product, Order, Profile, etc.)
 │
 ├── supabase/
-│   ├── migrations/                      # Active Sequential PostgreSQL Migrations
-│   │   ├── 20260900_rls_helpers.sql     # Database helper functions (`current_app_role`, `is_admin`)
-│   │   ├── 20260901_baseline_schema.sql # 31 Tables + 1 view, enums, 49 indexes, 5 triggers, 2 buckets
-│   │   └── 20261010_harden_rls.sql      # 90 table policies + 6 storage policies
+│   ├── migrations/                      # 12 migration chạy theo thứ tự tên file (20260900…20261013)
+│   │   ├── 20260900_rls_helpers.sql     # Helper `current_app_role`, `is_admin`
+│   │   ├── 20260901_baseline_schema.sql # 31 bảng + 1 view (pricing_config), enums, 49 index, 5 định nghĩa trigger, 2 bucket
+│   │   ├── 20261010_harden_rls.sql      # 88 policy bảng hiệu lực (allowlist 90; 2 policy view bị skip) + 7 storage
+│   │   └── 20261011*–20261013*.sql      # 9 file W2: SEC-01 payout hotfix/table, signup designer, column guard,
+│   │                                    # SEC-02 open-requests view/RPC, CHECK constraints, orders broadcast,
+│   │                                    # drop bank columns (H-gated), storage scheme cad/<uid>/…
 │   └── scripts/                         # Database admin bootstrap scripts
 │
 ├── scripts/                             # Quality Gate & Static Analysis Scripts
@@ -424,12 +432,12 @@ Communication between the frontend SPA and the Supabase backend is handled throu
 +---------------------------------------------------------------------------------+
 ```
 
-### Realtime Multi-User Subscriptions (`src/App.tsx`)
+### Realtime Multi-User Subscriptions (`src/frontend/hooks/useCatalogData.ts` + `settingsService`)
 
-To ensure catalogs, orders, and configuration remain synchronized across multiple clients and admin sessions, `App.tsx` establishes WebSocket subscriptions over Supabase Realtime channels:
+To ensure catalogs, orders, and configuration remain synchronized across multiple clients and admin sessions, the **data hooks** (Phase 3) establish WebSocket subscriptions over Supabase Realtime channels. `App.tsx` **không còn** đăng ký realtime trực tiếp:
 
 ```typescript
-// Realtime Channel for Catalog Synchronization (src/App.tsx)
+// Realtime Channel for Catalog Synchronization (src/frontend/hooks/useCatalogData.ts)
 const channel = supabase
   .channel('public:products')
   .on(

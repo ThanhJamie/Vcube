@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Icon, EmptyState, DataTable, Modal, Field, Input, Select } from '@frontend/ui';
-import type { WorkshopPartner } from '../../../../types';
+import type { WorkshopPartner } from '@/types';
 import type { PartnersTabProps } from './types';
 
 export const PartnersTab: React.FC<PartnersTabProps> = (props) => {

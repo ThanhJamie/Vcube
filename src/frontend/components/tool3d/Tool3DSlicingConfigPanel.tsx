@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon } from '@frontend/ui';
-import type { MaterialProfile, PrinterProfile } from '../../types';
+import type { MaterialProfile, PrinterProfile } from '@/types';
 import { bedText, measuredText } from './tool3dAnalysis';
 
 /**

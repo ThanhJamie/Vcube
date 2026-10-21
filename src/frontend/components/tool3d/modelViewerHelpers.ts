@@ -1,4 +1,4 @@
-import type { PlateInfo } from '../../types';
+import type { PlateInfo } from '@/types';
 import { EMPTY_VALUE, formatWeight } from '../../lib/format';
 
 /**

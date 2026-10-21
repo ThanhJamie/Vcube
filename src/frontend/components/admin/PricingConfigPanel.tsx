@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MaterialProfile, PrinterProfile, InkiriCostFormulaConfig, VolumeDiscountTier, AccessoryItem } from '../../types';
+import { MaterialProfile, PrinterProfile, InkiriCostFormulaConfig, VolumeDiscountTier, AccessoryItem } from '@/types';
 import {
   MARKETPLACE_FEE_MAX_PERCENT,
   MARKETPLACE_FEE_MIN_PERCENT,

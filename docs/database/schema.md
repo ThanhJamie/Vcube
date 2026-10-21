@@ -2,8 +2,9 @@
 
 > **Platform**: VCUBE 3.0 Digital Manufacturing & CAD Marketplace  
 > **Database**: Supabase PostgreSQL 15+  
-> **Schema Revision**: 20260901 Baseline + 20261010 Hardening + Phase 3 Studio Extensions  
-> **Total Entities**: 31 Relational Tables + 1 Compatibility View (`pricing_config`) + 49 Indexes (48 + 1 partial unique; 2 GIN) + 13 Functions (6 helper/security + 7 trigger functions) + 7 Triggers (27 instances) + 2 Storage Buckets
+> **Schema Revision**: `20260900` helpers + `20260901` baseline + `20261010` hardening + 9 migration sau (`20261011…`–`20261013…`)  
+> **Total Entities**: **32 tables + 2 views** (`pricing_config`, `open_design_requests`) + 49 Indexes (48 + 1 partial unique; 2 GIN) + **19 functions thường trực** (9 helper/RPC + 10 trigger functions) + **9 định nghĩa trigger** (≈29 instance runtime) + 2 Storage Buckets + **92 policy bảng hiệu lực** + **7 policy storage** (+1 `realtime.messages`)  
+> **Cách đếm:** xem `AGENTS.md` §"Số liệu DB thực tế" (policy sinh động trong `DO` block nên `grep -c 'create policy'` **không** dùng được).
 
 ---
 
@@ -544,15 +545,36 @@ Public portfolio, biography, royalty terms, and sales metrics for CAD designers.
 | `bio` | `text` | YES | `''` | Professional summary |
 | `portfolio_url` | `text` | YES | `''` | External portfolio link |
 | `avatar_url` | `text` | YES | `''` | Creator avatar |
-| `bank_name` | `text` | YES | `''` | Payout bank name |
-| `bank_account` | `text` | YES | `''` | Payout bank account number |
-| `tax_id` | `text` | YES | `''` | Personal income tax code |
+| `bank_name` | `text` | YES | `''` | Payout bank name — **legacy**: từ `20261013090000_sec01_payout_table.sql` dữ liệu nằm ở `public.designer_payout_info`; 3 cột này sẽ bị drop bởi `20261013100000_drop_designer_bank_columns.sql` (**cổng H, CHƯA ÁP**) |
+| `bank_account` | `text` | YES | `''` | Payout bank account — legacy (xem trên) |
+| `tax_id` | `text` | YES | `''` | Personal income tax code — legacy (xem trên) |
 | `royalty_percent` | `numeric` | NO | `10` | Default royalty share (%) on digital sales |
 | `verified_status` | `text` | NO | `'Pending'` | Verification badge status |
 | `rating` | `numeric` | YES | `NULL` | Designer average rating |
 | `total_sales` | `numeric` | NO | `0` | Cumulative digital CAD sales in VND |
 | `created_at` | `timestamptz` | NO | `now()` | Creation timestamp |
 | `updated_at` | `timestamptz` | NO | `now()` | Auto-updated timestamp |
+
+---
+
+#### `public.designer_payout_info`
+Bảng 1-1 tách PII nhận tiền khỏi `designer_profiles` (SEC-01 / T20 phase 1, `20261013090000_sec01_payout_table.sql`) để bề mặt đọc công khai của designer **không** chứa thông tin ngân hàng dù ai đó `grant nhầm select *`.
+
+- **Primary Key**: `designer_id` (`uuid`) — đồng thời **FK** `-> public.designer_profiles(id) ON DELETE CASCADE`
+- **RLS**: bật; `revoke all … from public, anon, authenticated` rồi chỉ `grant select, insert, update` (không có đường DELETE — kể cả admin)
+- **Policies (4)**: `vcube_designer_payout_info_owner_select` / `_owner_insert` / `_owner_update` (chủ hồ sơ: `designer_id in (select id from designer_profiles where user_id = auth.uid())`) + `vcube_designer_payout_info_admin_all` (`public.is_admin()`)
+- **RPC đọc/ghi**: `get_my_payout_info()`, `admin_get_designer_payout(uuid)`, `upsert_my_payout_info(...)` (security definer)
+
+| Column | Data Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| `designer_id` | `uuid` | NO | — | PK + FK tới `designer_profiles(id)`, cascade |
+| `bank_name` | `text` | YES | `''` | Tên ngân hàng nhận tiền |
+| `bank_account` | `text` | YES | `''` | Số tài khoản nhận tiền |
+| `tax_id` | `text` | YES | `''` | MST cá nhân |
+| `created_at` | `timestamptz` | NO | `now()` | — |
+| `updated_at` | `timestamptz` | NO | `now()` | — |
+
+> Hàng toàn rỗng không được tạo (backfill chỉ chép hàng có ≥1 cột non-empty); đọc không có hàng ⇒ RPC trả `NULL` thay vì bịa dữ liệu.
 
 ---
 
@@ -900,6 +922,23 @@ create or replace view public.pricing_config with (security_invoker = true) as
 ```
 Enforces `security_invoker = true` to guarantee that queries against the view execute under the caller's RLS constraints rather than view owner privileges.
 
+#### Market View: `public.open_design_requests`
+"Chợ yêu cầu CAD chưa gán" cho designer/admin (`20261012090000_sec02_open_requests.sql`). View **cố ý** dùng `security_invoker = false` (definer) để trả đúng tập hàng mà bảng gốc `custom_design_requests` chặn qua RLS, nhưng **chỉ phơi cột brief không nhạy cảm**:
+```sql
+create view public.open_design_requests with (security_invoker = false) as
+select r.id, r.title, r.budget, r.deadline, r.service_type, r.status,
+       r.created_at, r.updated_at,
+       jsonb_build_object(
+         'material', coalesce(r.target_specs->>'material',''),
+         'infill',   coalesce(r.target_specs->>'infill',''),
+         'nozzle',   coalesce(r.target_specs->>'nozzle','')
+       ) as target_specs
+  from public.custom_design_requests r
+ where r.designer_id is null
+   and public.current_app_role() in ('designer','admin');
+```
+`revoke all … from public, anon` + `grant select … to authenticated`; không có cột PII (`client_email`, `client_phone`, `messages`…) trong projection. Nhận việc qua RPC nguyên tử `claim_design_request(text)` (trả `NULL` nếu đã có người nhận).
+
 ---
 
 ### 4.6 Group 6: Community, Reviews & Studio Services
@@ -972,7 +1011,7 @@ Custom industrial design commissioning inbox between customers and designers.
 
 ## 5. Database Functions
 
-The database implements 6 helper/security functions. The 7 trigger functions they support are documented in §6:
+Tổng **19 hàm thường trực** = **9 helper/RPC** (mục 1–9) + **10 hàm trigger** (mục 10–11 ở đây, phần còn lại là các `fn_*` mô tả ở §6). Hai helper tạm `_vcube_make_policy` / `_vcube_has_columns` bị `drop` ở cuối `20261010_harden_rls.sql` nên **không tính**. Danh sách giữ các hàm cũ và bổ sung hàm mới của `20261011…`–`20261013…`:
 
 ### 1. `public.current_app_role() RETURNS text`
 - **Characteristics**: `LANGUAGE plpgsql`, `STABLE`, `SECURITY DEFINER`, `SET search_path = public`
@@ -995,13 +1034,39 @@ The database implements 6 helper/security functions. The 7 trigger functions the
 - **Characteristics**: `LANGUAGE plpgsql`, `SECURITY DEFINER`, `SET search_path = public`
 - **Purpose**: Allows anonymous guest customers to look up their specific order progress without granting `SELECT` on `orders` to the `anon` role. The caller must match `order_number` (or `id`) and the `secure_access_token`, whose trimmed length must be $\ge 12$.
 
-### 6. `public.fn_recompute_product_review_stats(p_product_id text) RETURNS void`
+### 6. `public.claim_design_request(p_id text) RETURNS text`
+- **Nguồn**: `20261012090000_sec02_open_requests.sql`
+- **Characteristics**: `LANGUAGE plpgsql`, `SECURITY DEFINER`, `SET search_path = public, pg_temp`
+- **Purpose**: RPC nhận việc **nguyên tử** cho designer/admin: `update … set designer_id = auth.uid() where id = p_id and designer_id is null returning id`. Trả `NULL` nếu đã có người nhận (chống nhận trùng); `42501` nếu caller không phải designer/admin.
+
+### 7. `public.get_my_payout_info() RETURNS TABLE(bank_name text, bank_account text, tax_id text)`
+- **Nguồn**: `20261011090000_sec01_designer_payout_hotfix.sql`, trỏ sang bảng mới ở `20261013090000_sec01_payout_table.sql`
+- **Characteristics**: `LANGUAGE sql`, `STABLE`, `SECURITY DEFINER`, `SET search_path = public, pg_temp`
+- **Purpose**: Chủ hồ sơ designer đọc PII nhận tiền **của chính mình** (join `designer_payout_info`); không có hàng ⇒ `NULL`. Đây là đường đọc duy nhất sau khi thu hồi `select` trên 3 cột legacy.
+
+### 8. `public.admin_get_designer_payout(p_designer_id uuid) RETURNS TABLE(...)`
+- **Nguồn**: `20261011090000…` → bảng mới ở `20261013090000…`
+- **Characteristics**: `LANGUAGE plpgsql`, `STABLE`, `SECURITY DEFINER`
+- **Purpose**: Admin đọc PII nhận tiền của một designer; ném `42501` nếu `current_app_role() <> 'admin'`.
+
+### 9. `public.upsert_my_payout_info(p_bank_name text, p_bank_account text, p_tax_id text) RETURNS void`
+- **Nguồn**: `20261013090000_sec01_payout_table.sql`
+- **Purpose**: Chủ hồ sơ tự ghi thông tin nhận tiền; **không nhận `designer_id` từ client** (suy ra từ `auth.uid()` + `designer_profiles` cũ nhất) ⇒ không ghi hộ người khác; `42501` nếu không có hồ sơ designer / chưa đăng nhập.
+
+### 10. `public.orders_broadcast_status() RETURNS trigger`
+- **Nguồn**: `20261012130000_orders_broadcast.sql`
+- **Characteristics**: `LANGUAGE plpgsql`, `SECURITY DEFINER`, `SET search_path = public, realtime, pg_temp`
+- **Purpose**: Hàm trigger phát `{id, status}` lên kênh riêng tư `orders:admin` qua `realtime.send` (không lộ token/PII). Được `trg_orders_broadcast` gọi.
+
+### 11. `public.fn_recompute_product_review_stats(p_product_id text) RETURNS void`
 - **Characteristics**: `LANGUAGE plpgsql`, `SECURITY DEFINER`, `SET search_path = public`
 - **Purpose**: Recomputes `rating` and `reviews_count` in `public.products` by executing `AVG(rating)` and `COUNT(*)` over published reviews for the given product.
 
 ---
 
 ## 6. Database Triggers & Security Invariants
+
+**9 định nghĩa trigger** (12 câu `create trigger` tĩnh; một số được tái tạo ở migration sau). Số **instance runtime ≈ 29** = `trg_touch_updated_at` × 21 bảng + 8 trigger gắn 1 bảng.
 
 ### 6.1 Privilege Lockdown Triggers
 
@@ -1033,25 +1098,39 @@ The database implements 6 helper/security functions. The 7 trigger functions the
 
 ### 6.2 Automation & Consistency Triggers
 
-#### 4. `trg_create_profile_for_new_user`
+#### 4. `trg_protect_designer_profile_privileged_columns`
+- **Target**: `BEFORE UPDATE ON public.designer_profiles`
+- **Function**: `public.fn_protect_designer_profile_privileged_columns()`
+- **Nguồn**: `20261011110000_designer_profile_column_guard.sql`
+- **Enforcement**: Designer không phải admin không được đổi cột đặc quyền (`royalty_percent`, `verified_status`, …) — ném `SQLSTATE 42501`. Chặn designer tự nâng tỉ lệ hoa hồng/đổi trạng thái xác minh.
+
+### 6.2 Automation & Consistency Triggers
+
+#### 5. `trg_create_profile_for_new_user`
 - **Target**: `AFTER INSERT ON auth.users`
 - **Function**: `public.fn_create_profile_for_new_user()`
 - **Enforcement**: Automatically provisions a corresponding row in `public.user_profiles` with `role = 'customer'` and `email = NEW.email` upon any new user registration.
 
-#### 5. `trg_sync_material_on_inventory_log`
+#### 6. `trg_sync_material_on_inventory_log`
 - **Target**: `AFTER INSERT ON public.material_inventory_logs`
 - **Function**: `public.fn_sync_material_on_inventory_log()`
 - **Enforcement**: Adjusts `current_stock_grams` in `public.workshop_materials` only for `Import` ($+g$, also refreshes `price_per_kg`/`stock_status`) and `Export` ($-g$, floored at 0). `Adjustment` is accepted by the `action` CHECK but the trigger does **not** change stock for it.
 
-#### 6. `trg_sync_product_review_stats`
+#### 7. `trg_sync_product_review_stats`
 - **Target**: `AFTER INSERT OR UPDATE OR DELETE ON public.reviews`
 - **Function**: `public.fn_sync_product_review_stats()`
 - **Enforcement**: Triggers `fn_recompute_product_review_stats` whenever a review targeting a product is created, modified, or deleted, ensuring public ratings never drift out of sync.
 
-#### 7. `trg_touch_updated_at`
+#### 8. `trg_touch_updated_at`
 - **Target**: `BEFORE UPDATE` across 21 core tables having an `updated_at` timestamp.
 - **Function**: `public.fn_touch_updated_at()`
 - **Enforcement**: Guarantees accurate cache invalidation and change tracking.
+
+#### 9. `trg_orders_broadcast`
+- **Target**: `AFTER INSERT OR UPDATE OF status ON public.orders`
+- **Function**: `public.orders_broadcast_status()`
+- **Nguồn**: `20261012130000_orders_broadcast.sql`
+- **Enforcement**: `realtime.send` payload tối giản `{id, status}` lên topic riêng tư `orders:admin`; chỉ admin đọc được nhờ policy `orders_admin_realtime` trên `realtime.messages`. Không lộ `secure_access_token`/PII. Trigger này **không** thay policy RLS của `orders`.
 
 ---
 
@@ -1067,11 +1146,23 @@ storage.buckets
 │       └── product-gallery/
 └── cad-files (public: false, limit: 150 MB)
     └── Allowed: octet-stream, model/stl, model/step, model/3mf, model/obj, zip
-        ├── digital/<designer_uid>/<asset_uuid>.<ext>
-        └── orders/<order_id>/<file_uuid>.<ext>
+        └── cad/<uid|guest_session>/<uuid>/<file>   (scheme T25 / D3 — 20261013110000)
 ```
 
-### Storage Security Policies
+> `orders/<order_id>/…` **không khả thi** (file được upload TRƯỚC khi đơn tồn tại) — gắn file vào đơn làm sau qua `order_files` (T40). Guest chưa có luồng upload riêng (cần service-role/signed upload, ngoài scope).
+
+### Storage Security Policies (7 policy trên `storage.objects`)
+
+| # | Policy | Cmd | Roles | Phạm vi |
+|---:|---|---|---|---|
+| 1 | `vcube_product_images_public_read` | SELECT | anon, authenticated | bucket `product-images` |
+| 2 | `vcube_product_images_admin_write` | ALL | authenticated | `product-images` + `is_admin()` |
+| 3 | `vcube_cad_files_admin_all` | ALL | authenticated | `cad-files` + `is_admin()` |
+| 4 | `vcube_cad_files_order_files_read` | SELECT | authenticated | file gắn qua `order_files` của chính người mua |
+| 5 | `vcube_cad_files_buyer_read` | SELECT | authenticated | người mua theo `orders.items`/`digital_assets` |
+| 6 | `vcube_cad_files_digital_owner_rw` | ALL | authenticated | chủ sở hữu file số `digital/<uid>/…` |
+| 7 | `vcube_cad_files_cad_owner_rw` | ALL | authenticated | `cad/<auth.uid()>/<uuid>/<file>` (đủ ≥3 cấp, chặn `..`) — tái tạo ở `20261013110000` |
+
 1. **`product-images` (Public)**:
    - Anyone (`anon`, `authenticated`) can read images directly via public CDN URLs.
    - Only administrators (`public.is_admin()`) can upload, replace, or delete files.

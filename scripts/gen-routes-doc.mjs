@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 /**
- * T27 — SINH `docs/pages/_routes.generated.md` từ `src/App.tsx`.
+ * T27 — SINH `docs/pages/_routes.generated.md` từ khối `<Routes>…</Routes>`.
+ *
+ * NGUỒN SỰ THẬT (cập nhật Phase 4d, 2026-10-21): route table đã tách khỏi `src/App.tsx`
+ * sang `src/frontend/routes/AppRoutes.tsx`. Script đọc file MỚI trước, chỉ fallback về
+ * `src/App.tsx` nếu file mới chưa có / chưa chứa `<Routes>` (tương thích ngược).
  *
  * Vì sao cần script: bảng route trong docs bị chép tay nên lệch code (IDX-05/IDX-07,
- * DS-02, NEW-04). Nguồn sự thật là khối `<Routes>…</Routes>` trong `src/App.tsx`;
- * script parse và sinh bảng `Path | Component/Element | Guard | Redirect?`.
+ * DS-02, NEW-04). Script parse và sinh bảng `Path | Component/Element | Guard | Redirect?`.
  *
  * Cách parse (không thêm dependency — chỉ đọc chuỗi):
  *   1. Cắt vùng giữa `<Routes>` và `</Routes>`.
@@ -28,9 +31,35 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SRC_FILE = 'src/App.tsx';
+/** Thứ tự ưu tiên: route table hiện tại (Phase 4d) → file cũ (tương thích ngược). */
+const SOURCE_CANDIDATES = ['src/frontend/routes/AppRoutes.tsx', 'src/App.tsx'];
 const OUT_FILE = 'docs/pages/_routes.generated.md';
-const src = readFileSync(resolve(root, SRC_FILE), 'utf8');
+
+/** Chọn nguồn đầu tiên tồn tại VÀ có khối `<Routes>`; null nếu không có. */
+function resolveSource() {
+  for (const rel of SOURCE_CANDIDATES) {
+    let text;
+    try {
+      text = readFileSync(resolve(root, rel), 'utf8');
+    } catch {
+      continue;
+    }
+    if (text.includes('<Routes>') && text.includes('</Routes>')) {
+      return { rel, text };
+    }
+  }
+  return null;
+}
+
+const resolved = resolveSource();
+if (!resolved) {
+  console.error(
+    `FAIL: không tìm thấy khối <Routes>…</Routes> trong bất kỳ nguồn nào: ${SOURCE_CANDIDATES.join(', ')}.`,
+  );
+  process.exit(1);
+}
+const SRC_FILE = resolved.rel;
+const src = resolved.text;
 
 /** Bỏ qua chuỗi `'…'`, `"…"`, `` `…` `` (có `\` escape). Trả về index ký tự nháy đóng. */
 function skipString(text, start) {
@@ -213,7 +242,7 @@ while ((match = ROUTE_RE.exec(region)) !== null) {
 
 console.log(`Đã parse ${routes.length} route từ ${SRC_FILE}.`);
 if (routes.length === 0) {
-  console.error('FAIL: parse ra 0 route — không ghi file. Kiểm tra cú pháp <Route …> trong App.tsx.');
+  console.error(`FAIL: parse ra 0 route — không ghi file. Kiểm tra cú pháp <Route …> trong ${SRC_FILE}.`);
   process.exit(1);
 }
 
@@ -221,13 +250,13 @@ const hash = createHash('sha256').update(src).digest('hex').slice(0, 12);
 const cell = (v) => v.replace(/\|/g, '\\|');
 
 const out = [
-  `<!-- AUTO-GENERATED — đừng sửa tay · routes: ${routes.length} · source-sha256: ${hash} -->`,
+  `<!-- AUTO-GENERATED — đừng sửa tay · routes: ${routes.length} · source: ${SRC_FILE} · source-sha256: ${hash} -->`,
   '',
   '# Bảng route (sinh tự động)',
   '',
-  `> Sinh bởi \`scripts/gen-routes-doc.mjs\` từ \`src/App.tsx\` — **đừng sửa tay**.`,
-  `> Sửa route trong \`src/App.tsx\` rồi chạy lại: \`node scripts/gen-routes-doc.mjs\`.`,
-  `> routes: **${routes.length}** · source-sha256: \`${hash}\` (output ổn định, không kèm ngày).`,
+  `> Sinh bởi \`scripts/gen-routes-doc.mjs\` từ \`${SRC_FILE}\` — **đừng sửa tay**.`,
+  `> Sửa route trong \`${SRC_FILE}\` rồi chạy lại: \`node scripts/gen-routes-doc.mjs\`.`,
+  `> routes: **${routes.length}** · source: \`${SRC_FILE}\` · source-sha256: \`${hash}\` (output ổn định, không kèm ngày).`,
   '',
   '| Path | Component/Element | Guard | Redirect? |',
   '|---|---|---|---|',
