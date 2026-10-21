@@ -4,6 +4,13 @@
 > **Điều kiện:** mỗi mục đã đối chiếu import graph + grep toàn `src/`, `scripts/`, `tests/`.
 > Không xoá DB/schema trong đợt này. Mọi mục `SAFE` phải xoá theo cụm + chạy `lint/build/check`.
 > **Tổng ước tính:** ~1.500 LOC code + 357 LOC test chết + 112 KB lockfile + 3.9 MB artifact local.
+>
+> **TRẠNG THÁI (Phase 1, 2026-10-21) — ĐÃ THI CÔNG phần lớn:**
+> **−552 LOC** backend (D01–D04, D12, D13, D14) · **−~700 LOC** UI (D08–D10, D15, D16, D11a–D11f) ·
+> **−357 LOC** test chết (D19) · **−132 KB** lock/artifact (D21–D24, D26) · **−2 dependency** (D27–D28).
+> **Hoãn có lý do:** D05–D07 (đính chính §1 — không phải dead code) · D11g–D11m → Phase 3 ·
+> D17–D18 → Phase 2/6 · `workshopService` legacy/`SEED_*` (~1.140 LOC) → cần rewrite 2 method onboarding
+> trước, xem `04-refactor.md` §4.4. Chi tiết bằng chứng: `handoff/phase1-{backend,ui,repo}.md`.
 
 ---
 
@@ -15,12 +22,27 @@
 | D02 | `src/backend/services/catalogService.ts` | 34 | 0 importer; mọi method trả `[]` | ✅ |
 | D03 | `src/backend/services/pricingService.ts` | 46 | 0 importer; chỉ dùng bởi D01 | ✅ |
 | D04 | `src/backend/supabase/seedService.ts` | 134 | 0 importer; chỉ còn comment trong `mappers.ts` | ✅ |
-| D05 | `src/frontend/data/mockData.ts` | 1 | shim `export *`; 0 importer | ✅ |
-| D06 | `src/frontend/types/index.ts` | 1 | shim `export *`; 0 importer | ✅ |
-| D07 | `src/frontend/utils/pricingEngine.ts` | 1 | shim `export *`; 0 importer | ✅ |
+| D05 | `src/frontend/data/mockData.ts` | 1 | **~~0 importer~~ SAI — 3 importer** | ⛔ HOÃN |
+| D06 | `src/frontend/types/index.ts` | 1 | **~~0 importer~~ SAI — 11 importer** | ⛔ HOÃN |
+| D07 | `src/frontend/utils/pricingEngine.ts` | 1 | **~~0 importer~~ SAI — 2 importer** | ⛔ HOÃN |
 
-**Cách xoá cụm:** xoá D02–D04 → D01; xoá D05–D07 + 3 dòng re-export tương ứng trong
-`src/frontend/ui/index.ts` (barrel đang kéo mock/types vào graph UI). Sau đó `rg` lại.
+> **⚠️ ĐÍNH CHÍNH (Phase 1, 2026-10-21).** D05–D07 **không phải dead code** — audit ban đầu sai vì
+> grep mặc định của công cụ resolve alias/thư mục không thấy import tương đối. Đây là các file **shim
+> `export *`** nhưng vẫn là **đường import sống** (`../../utils/pricingEngine` từ file ở độ sâu 3 trỏ
+> `src/frontend/utils/`, không phải `src/utils/`):
+>
+> | Shim | Importer thật | Ví dụ |
+> |---|---:|---|
+> | `frontend/data/mockData.ts` | **3** | `views/{Home,Explore,Tool3D}View.tsx` |
+> | `frontend/types/index.ts` | **11** | `components/{AuthModal,Header,InvoiceModal,RoleGuard}.tsx` + 7 view (`'../types'`) |
+> | `frontend/utils/pricingEngine.ts` | **2** | `admin/WorkshopEstimatorBOM.tsx:3`, `tool3d/QuoteSummaryPanel.tsx:9` |
+>
+> Thử xoá trong Phase 1 gây `TS2307` ×2 ⇒ đã rollback byte-identical. `src/frontend/ui/index.ts` **không**
+> có re-export shim nào (khẳng định cũ ở dòng 22 là sai). **Điều kiện xoá:** codemod 16 dòng import ở
+> `views/**` + `components/**` sang đường dẫn canonical hoặc alias `@/*`, rồi xoá 3 file trong **một**
+> thay đổi; đề xuất gộp vào Phase 6 (docs/test) hoặc một task follow-up riêng — **không** làm trong Phase 1.
+
+**Cách xoá cụm (đã thi công):** D02–D04 → D01 (xong). D05–D07: **hoãn** theo đính chính trên.
 
 ---
 
@@ -55,6 +77,12 @@ Xoá 3 file + 3 dòng `export *` trong `src/frontend/ui/index.ts`. Giữ `Progre
 | D11l | `PRODUCTS`, `INITIAL_CART_ITEMS`, `DIGITAL_ASSETS`, `MATERIALS_CATALOG`, `PRINTER_PROFILES` | `App.tsx`/`HomeView`/`pricingEngine` khởi tạo state/fallback bằng mảng rỗng | thay `[]` tại call-site rồi xoá constant |
 | D11m | `PAYOUT_TRANSACTIONS` | `DesignerPayoutsTab` | thay `[]`/empty state rồi xoá |
 | — | `DEFAULT_SITE_CONTENT`, `CATEGORIES`, `POPULAR_TAGS`, `INKIRI_REFERENCE_VALUES`, `DEFAULT_INKIRI_FORMULA_CONFIG` | **còn dùng thật** | giữ |
+
+**Trạng thái Phase 1 (2026-10-21):** D11a–D11f **đã xoá** (6 constant + comment + 6 type import;
+`src/data/mockData.ts` 347 → **311 LOC**), grep sau xoá = 0. **D11g–D11m còn nguyên** → chuyển Phase 3
+(state consolidation) vì phải sửa call-site `App.tsx`/`HomeView`/`DesignerPayoutsTab`. Lưu ý grep nhanh
+hiện tại: `MATERIALS_CATALOG` 20 ref, `PRINTER_PROFILES` 14 ref, `PRODUCTS` 3, `MOCK_ORDERS` 3,
+`DIGITAL_ASSETS` 2, `PAYOUT_TRANSACTIONS` 2 (gồm cả type/comment ⇒ phải phân tích từng call-site trước khi xoá).
 
 Ước tính xoá **~120–160 LOC** comment + constant rỗng.
 
@@ -138,12 +166,12 @@ Tổng **~168 LOC** + import/type đi kèm. Xoá sau khi grep 0 call-site (đã 
 
 ## 9. Thứ tự xoá an toàn
 
-1. **Cụm A** D01–D07 (backend service chết + shim) → sửa `ui/index.ts` → lint/build.
-2. **Cụm B** D08–D10 (primitive chết) + D15/D16 (icon/barrel) → lint/build.
-3. **Cụm C** D11/D12 (mock/type) → thay call-site → typecheck.
-4. **Cụm D** D13 (dbService) → grep 0 caller → lint/build.
-5. **Cụm E** D19–D29 (test/config/lock/docs) → repo sạch, không ảnh hưởng runtime.
-6. **Cụm F** D17–D18 (i18n/settings public surface) sau khi codemod một ngôn ngữ.
+1. **Cụm A** D01–D04 (backend service chết) → lint/build. **✅ DONE Phase 1** (D05–D07 hoãn — xem §1).
+2. **Cụm B** D08–D10 (primitive chết) + D15/D16 (icon/barrel) → lint/build. **✅ DONE Phase 1** (18 glyph + 12 lucide import; `ui/index.ts` 28→25 export).
+3. **Cụm C** D11/D12: **D11a–D11f + D12a–D12h ✅ DONE Phase 1**; D11g–D11m → Phase 3 (cần sửa call-site).
+4. **Cụm D** D13 (dbService) → grep 0 caller → lint/build. **✅ DONE Phase 1** (6 method + helper, `database.ts` 1017→800).
+5. **Cụm E** D19–D29 (test/config/lock/docs) → repo sạch, không ảnh hưởng runtime. **✅ DONE Phase 1** (D19–D24, D26–D28; `README.md` bun.lock đã sửa).
+6. **Cụm F** D17–D18 (i18n/settings public surface) sau khi codemod một ngôn ngữ → Phase 2 / Phase 6.
 
 **Gate mỗi cụm:** `npm run lint` PASS · `npm run build` PASS · 10 gate offline PASS · `git diff`
 không có thay đổi ngoài danh sách.

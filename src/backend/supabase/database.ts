@@ -148,53 +148,6 @@ function toIsoTimestampOrNull(value: unknown): string | null {
   return null;
 }
 
-/**
- * MIME theo đuôi file CAD — phải khớp `allowed_mime_types` của bucket `cad-files`
- * (`20260901_baseline_schema.sql` §10: application/octet-stream, model/stl, model/step,
- * model/3mf, model/obj, application/zip).
- *
- * VÌ SAO map cố định thay vì dùng `file.type`: trình duyệt thường báo MIME KHÁC allowlist
- * (vd .3mf → `application/vnd.ms-package.3dmanufacturing-3dmodel+3mf`, .obj → chuỗi rỗng),
- * Supabase sẽ từ chối; map theo đuôi giữ upload chạy được trên mọi trình duyệt.
- */
-const CAD_MIME_BY_EXTENSION: Record<string, string> = {
-  '.stl': 'model/stl',
-  '.step': 'model/step',
-  '.stp': 'model/step',
-  '.iges': 'application/octet-stream',
-  '.igs': 'application/octet-stream',
-  '.3mf': 'model/3mf',
-  '.obj': 'model/obj',
-  '.zip': 'application/zip',
-};
-
-/**
- * Chuẩn hoá tên file CAD trước khi đưa lên Storage (D3 — T25):
- *   * chỉ lấy BASENAME ⇒ chặn `../`, đường dẫn tuyệt đối, thư mục giả trong tên file;
- *   * đuôi phải nằm trong `CAD_MIME_BY_EXTENSION` (allowlist D3), ném lỗi rõ ràng nếu không;
- *   * phần tên còn lại chỉ giữ [a-z0-9._-], cắt còn 80 ký tự, rỗng thì dùng `model`.
- *
- * UUID nằm ở tầng thư mục (`cad/<uid>/<uuid>/…`) nên tên file chỉ cần AN TOÀN, không cần duy
- * nhất — mọi ký tự lạ đều bị thay bằng `-`.
- */
-function sanitizeCadFileName(rawName: string): { fileName: string; contentType: string } {
-  const base = (rawName ?? '').split(/[\\/]/).pop() ?? '';
-  const lower = base.normalize('NFC').toLowerCase();
-  const dot = lower.lastIndexOf('.');
-  const ext = dot >= 0 ? lower.slice(dot) : '';
-  if (!(ext in CAD_MIME_BY_EXTENSION)) {
-    throw new Error(
-      `Đuôi file CAD không được phép: "${ext || '(không có)'}". ` +
-        `Chỉ nhận ${Object.keys(CAD_MIME_BY_EXTENSION).join(', ')}.`
-    );
-  }
-  const stem = (dot >= 0 ? lower.slice(0, dot) : lower)
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/^[.-]+|[.-]+$/g, '')
-    .slice(0, 80);
-  return { fileName: `${stem || 'model'}${ext}`, contentType: CAD_MIME_BY_EXTENSION[ext] };
-}
-
 export const dbService = {
   // Products
   // LUẬT TRUNG THỰC DỮ LIỆU (docs/design/data-honesty.md CI-01): lỗi truy vấn ⇒ ném lỗi
@@ -277,94 +230,6 @@ export const dbService = {
     } catch (err: any) {
       console.warn('DB error on deleteProduct:', err);
       return fail(err);
-    }
-  },
-
-  /**
-   * ⚠️ TRƯỚC ĐÂY: tự đẩy fixture `PRODUCTS` vào bảng `products` khi bảng rỗng
-   * (data-honesty CI-01: dữ liệu bịa lọt vào DB thật rồi không phân biệt được với hàng
-   * thật). NAY: **KHÔNG ghi gì vào DB**.
-   *
-   * Giữ nguyên tên + kiểu trả về (`Promise<boolean>`) để call site `src/App.tsx:371`
-   * không phải sửa: `false` = "không nạp fixture". DB rỗng là thông tin thật và được
-   * truyền cho caller qua danh sách rỗng (caller hiện trạng thái rỗng).
-   */
-  async seedInitialProductsIfEmpty(): Promise<boolean> {
-    const { error, count } = await supabase
-      .from('products')
-      .select('id', { count: 'exact', head: true });
-
-    if (error) {
-      throw new Error(`Không kiểm tra được bảng products: ${error.message}`);
-    }
-    if (count === 0) {
-      // KHÔNG nạp dữ liệu mẫu. Catalog thật nhập ở /admin (Sản phẩm) hoặc qua SQL.
-      console.info('[vcube] Bảng products rỗng — không nạp dữ liệu mẫu (data-honesty CI-01).');
-    }
-    return false;
-  },
-
-  // Supabase Storage: Upload product image
-  async uploadProductImage(file: File): Promise<{ url?: string; error?: string }> {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-      const filePath = `products/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-
-      if (uploadError) {
-        return { error: uploadError.message };
-      }
-
-      const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
-      return { url: data.publicUrl };
-    } catch (err: any) {
-      return { error: err?.message || 'Upload failed' };
-    }
-  },
-
-  // Supabase Storage: Upload CAD file (.stl, .step, .stp, .iges, .igs, .3mf, .obj, .zip)
-  //
-  // SCHEME (D3, chốt 2026-09-24): `cad/<ownerId>/<crypto.randomUUID()>/<tên-đã-chuẩn-hoá>`.
-  // Policy RLS `vcube_cad_files_cad_owner_rw` (20261013110000_storage_scheme.sql) chỉ cho
-  // chủ file đọc/ghi trong `cad/<uid>/...` của chính mình. KHÔNG còn `cad/<tên file>` phẳng
-  // như bản cũ (trùng tên, không có chủ, không policy nào phủ).
-  //
-  // ⚠️ GUEST: scheme có nhánh `<guest_session>` nhưng khách vãng lai có `auth.uid()` = NULL
-  // nên KHÔNG thể upload bằng publishable key; cần luồng service-role/signed upload riêng
-  // (chưa làm). Hàm này chỉ dành cho user ĐÃ đăng nhập.
-  //
-  // Giới hạn dung lượng: bucket `cad-files` đặt `file_size_limit = 157286400` byte (~150 MiB,
-  // 20260901_baseline_schema.sql §10) — file lớn hơn bị Storage từ chối; caller nên kiểm
-  // `file.size` trước khi gọi.
-  //
-  // `ownerId` BẮT BUỘC và ném lỗi ngay khi thiếu (không tự đoán `auth.uid()` — tránh ghi
-  // nhầm chủ). Mọi lỗi khác (đuôi file, Storage) trả `{ error }` như trước.
-  async uploadCadFile(file: File, ownerId: string): Promise<{ path?: string; error?: string }> {
-    if (!ownerId) {
-      throw new Error('uploadCadFile: thiếu ownerId — cần truyền auth.uid() của người đăng nhập.');
-    }
-
-    try {
-      const { fileName, contentType } = sanitizeCadFileName(file.name);
-      const filePath = `cad/${ownerId}/${crypto.randomUUID()}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage.from('cad-files').upload(filePath, file, {
-        contentType,
-        upsert: false
-      });
-
-      if (uploadError) {
-        return { error: uploadError.message };
-      }
-
-      return { path: filePath };
-    } catch (err: any) {
-      return { error: err?.message || 'CAD Upload failed' };
     }
   },
 
@@ -571,30 +436,6 @@ export const dbService = {
     return (data ?? []).map(rowToUserProfile);
   },
 
-  async saveUser(user: Partial<AppUserProfile> & { uid: string }): Promise<WriteResult> {
-    try {
-      const { error } = await supabase.from('user_profiles').upsert({
-        id: user.uid,
-        email: user.email,
-        display_name: user.displayName,
-        phone: user.phone,
-        role: user.role,
-        company: user.company,
-        avatar_url: user.avatarUrl,
-        kyc_status: user.kycStatus,
-        account_status: user.accountStatus,
-        total_orders: user.totalOrders,
-        total_spent: user.totalSpent,
-        notes: user.notes,
-        updated_at: new Date().toISOString(),
-      });
-      if (error) return fail(error);
-      return ok();
-    } catch (err: any) {
-      return fail(err);
-    }
-  },
-
   async updateUserKyc(userId: string, kycStatus: 'verified' | 'pending_review' | 'rejected' | 'unverified', notes?: string): Promise<WriteResult> {
     try {
       const { error } = await supabase.from('user_profiles').update({
@@ -720,33 +561,6 @@ export const dbService = {
     throw new Error('Chưa cấu hình công thức giá trong hệ thống (bảng pricing_configs rỗng).');
   },
 
-  async savePricingConfig(config: InkiriCostFormulaConfig): Promise<WriteResult> {
-    try {
-      // KHÔNG ghi localStorage: đây không còn là kênh dữ liệu (App.tsx tự giữ cache
-      // riêng của nó). DB là nguồn duy nhất — nếu ghi DB lỗi thì trả lỗi thật bên dưới.
-      const { error } = await supabase.from('pricing_configs').upsert({
-        id: 'default-active-formula',
-        config_name: 'Default Inkiri Formula v3.4',
-        formula_version: 'v3.4',
-        is_active: true,
-        config: config,
-        updated_at: new Date().toISOString(),
-      });
-      if (error) {
-        // Fallback upsert on legacy table if present
-        const legacy = await supabase.from('pricing_config').upsert({
-          id: 'default-active-formula',
-          config: config,
-          updated_at: new Date().toISOString(),
-        });
-        if (legacy.error) return fail(error);
-      }
-      return ok();
-    } catch (err: any) {
-      return fail(err);
-    }
-  },
-
   // Site Content & CMS
   // Chưa có hàng `site_content` ⇒ "chưa cấu hình" (ném lỗi thật, không đọc localStorage,
   // không coi nội dung mẫu là nội dung thật). Cột nào thiếu thì lấy nhãn từ
@@ -765,7 +579,7 @@ export const dbService = {
 
   async saveSiteContent(content: SiteContentConfig): Promise<WriteResult> {
     try {
-      // KHÔNG ghi localStorage (xem savePricingConfig).
+      // KHÔNG ghi localStorage: DB là nguồn duy nhất.
       //
       // Cột `settings` (jsonb) là nơi duy nhất giữ 3 khoá mở rộng (SITE_CONTENT_EXTRA_KEYS).
       // Luật ghi (W3-A/Bug 2):
@@ -854,37 +668,6 @@ export const dbService = {
         updated_at: new Date().toISOString(),
       });
       if (error) return fail(error);
-      return ok();
-    } catch (err: any) {
-      return fail(err);
-    }
-  },
-
-  // Banking Idempotency: Record Payment Transaction
-  async recordPaymentTransaction(tx: {
-    orderId: string;
-    transactionId: string;
-    amount: number;
-    gateway?: string;
-    payload?: any;
-  }): Promise<WriteResult<void, { alreadyProcessed?: boolean }>> {
-    try {
-      const { error } = await supabase.from('payment_transactions').insert({
-        id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        order_id: tx.orderId,
-        transaction_id: tx.transactionId,
-        amount: tx.amount,
-        payment_gateway: tx.gateway || 'vietqr',
-        payload: tx.payload || {},
-        status: 'success',
-      });
-      if (error) {
-        if (error.code === '23505') {
-          // Unique constraint violation on transaction_id
-          return { success: true, alreadyProcessed: true };
-        }
-        return fail(error);
-      }
       return ok();
     } catch (err: any) {
       return fail(err);

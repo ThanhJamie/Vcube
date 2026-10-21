@@ -3,19 +3,13 @@ import {
   Order,
   DigitalAsset,
   AnalysisFile,
-  CustomDesignRequest,
   PayoutTransaction,
-  ModerationProductItem,
-  DesignerApplication,
-  DisputeRecord,
-  DMCAReport,
   MaterialProfile,
   PrinterProfile,
   InkiriCostFormulaConfig,
   AccessoryItem,
   WorkshopPartner,
-  AppUserProfile,
-  OrderFinancialSplit
+  AppUserProfile
 } from '../types';
 
 export const CATEGORIES = [
@@ -215,34 +209,9 @@ export const DEFAULT_INKIRI_FORMULA_CONFIG: InkiriCostFormulaConfig = {
 export const SAMPLE_ANALYSIS_FILES: AnalysisFile[] = [];
 
 // ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// AD-08: hàng đợi yêu cầu thiết kế là bịa.
-// Nguồn thật: bảng riêng trong DB.
-export const CUSTOM_REQUESTS: CustomDesignRequest[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
 // AD-08/AD-06: lệnh chi trả royalty là bịa.
 // Nguồn thật: bảng riêng trong DB.
 export const PAYOUT_TRANSACTIONS: PayoutTransaction[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// AD-08: hàng đợi kiểm duyệt là bịa.
-// Nguồn thật: bảng riêng trong DB.
-export const MODERATION_PRODUCTS: ModerationProductItem[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// AD-08: hồ sơ đăng ký designer là bịa.
-// Nguồn thật: bảng riêng trong DB.
-export const DESIGNER_APPLICATIONS: DesignerApplication[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// AD-08: hồ sơ tranh chấp là bịa.
-// Nguồn thật: bảng riêng trong DB.
-export const DISPUTES_LIST: DisputeRecord[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// AD-08: báo cáo DMCA là bịa.
-// Nguồn thật: bảng riêng trong DB.
-export const DMCA_REPORTS: DMCAReport[] = [];
 
 export const DEFAULT_SITE_CONTENT: import('../types').SiteContentConfig = {
   // Top Announcement / Campaign
@@ -339,9 +308,4 @@ export const WORKSHOP_PARTNERS: WorkshopPartner[] = [];
 // từng được đẩy vào user_profiles/kyc_records của project thật.
 // Nguồn thật: bảng `user_profiles` + `kyc_records` (RLS).
 export const MOCK_APP_USERS: AppUserProfile[] = [];
-
-// ⚠️ RỖNG CÓ CHỦ Ý — dữ liệu bịa đã bị gỡ khỏi production.
-// AD-08/CI-08: phân chia doanh thu là bịa.
-// Nguồn thật: bảng riêng trong DB.
-export const MOCK_FINANCIAL_SPLITS: OrderFinancialSplit[] = [];
 

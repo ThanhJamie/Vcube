@@ -35,9 +35,4 @@ export const supabase: SupabaseClient = createClient(
   }
 );
 
-export function createBrowserClient(): SupabaseClient {
-  return supabase;
-}
-
-export { createBrowserClient as createClient };
 export default supabase;

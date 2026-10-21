@@ -7,7 +7,7 @@ VCUBE là hệ sinh thái số hóa công nghệ in 3D và giao dịch tệp CAD
 
 ## 🛠️ Yêu Cầu Môi Trường (Prerequisites)
 * **Node.js**: Phiên bản `>= 18.x` (Khuyên dùng Node 20 LTS).
-* **Trình quản lý gói**: theo lockfile có trong repo (`package-lock.json` → `npm`, `bun.lock` → `bun`).
+* **Trình quản lý gói**: **npm** — lockfile duy nhất là `package-lock.json` (`bun.lock` đã xoá ở Phase 1 tối ưu hoá; `scripts/dev/new-worktree.sh` dùng `npm ci`).
 * **Git**: Phiên bản mới nhất.
 
 ---

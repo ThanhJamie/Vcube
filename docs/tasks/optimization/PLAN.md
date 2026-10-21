@@ -1,10 +1,12 @@
-<!-- doc-meta: status=draft; verified=2026-10-21; owner=lead -->
+<!-- doc-meta: status=active; verified=2026-10-21; owner=lead -->
 # PLAN — Clean-code & resource optimization (2026-10-21)
 
 > **Mục tiêu:** giảm code chết/lặp, hội tụ một nguồn sự thật cho data/state, giảm bundle & RAM,
 > làm docs khớp code — **không đổi hành vi nghiệp vụ, không đụng DB/schema** trong đợt này.
 > **Nguồn:** `AUDIT.md` + `DEAD-CODE.md` + `docs/tasks/ui-redesign-v3/QA-REPORT.md`.
-> **Trạng thái:** DRAFT FOR REVIEW — chưa thi công.
+> **Trạng thái:** **ĐANG THI CÔNG** — Phase 0 + Phase 1 **DONE** (2026-10-21). Thứ tự thi công đã chốt:
+> **Phase 0 → 1 → 5 → 2 → 3 → 4 → 6** (user decision; audit `04-refactor.md` §7.0 khuyến nghị i18n làm muộn
+> vì cùng chạm 32 file với phase khác — xem ghi chú ở Phase 2).
 
 ---
 
@@ -21,32 +23,43 @@
 
 ## 1. Kế hoạch phase
 
-### Phase 0 — Checkpoint & baseline (0.5 ngày)
+### Phase 0 — Checkpoint & baseline (0.5 ngày) — ✅ DONE 2026-10-21
 - Commit/tag working tree hiện tại thành **baseline UI v3** (hoặc tạo worktree/branch `chore/clean-code`).
 - Lưu backup `.loop/backups/` (đã có bản trước v3; tạo bản mới).
 - Chốt baseline: `npm run lint`, `npm run build`, `npm run check` offline, bundle sizes từ `dist/`.
 - **Gate:** baseline xanh; có commit/tag để revert.
+- **Kết quả:** `4d4a5d1` (UI v3 + W2b security/docs) + `aaff7c4` (audit docs) đã push lên `main`; baseline
+  lint/build xanh; initial gzip **~466KB** (index 241 + three 133 + supabase 58 + react 18 + CSS 16).
 
-### Phase 1 — Xoá dead code an toàn (2–3 ngày) — **ROI cao nhất**
-Theo `DEAD-CODE.md` cụm A→E:
-1. Xoá 4 backend file chết (D01–D04) + 3 shim (D05–D07); sửa `src/frontend/ui/index.ts`.
-2. Xoá 3 primitive chết (D08–D10); bỏ export.
-3. Xoá mock constant rỗng (D11) sau khi thay call-site bằng `[]`.
+### Phase 1 — Xoá dead code an toàn — ✅ DONE 2026-10-21
+Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
+1. Xoá 4 backend file chết (D01–D04); **D05–D07 hoãn** (đính chính: 16 importer sống — xem `DEAD-CODE.md` §1).
+2. Xoá 3 primitive chết (D08–D10) + 3 export barrel; bỏ export.
+3. Xoá mock constant rỗng D11a–D11f; **D11g–D11m → Phase 3** (cần sửa call-site `App.tsx`).
 4. Xoá 8 type chết (D12).
-5. Xoá 6 `dbService` method 0 caller (D13).
-6. Xoá `test-pricing.ts`, `tests` rỗng, firebase/metadata/assets, `bun.lock` (D19–D26).
-7. Bỏ `dotenv`/`autoprefixer` khỏi package (D27–D28).
+5. Xoá 6 `dbService` method 0 caller (D13) + helper chỉ chúng dùng.
+6. Xoá `test-pricing.ts`, `tests` rỗng, firebase/metadata/assets, `bun.lock` (D19–D24, D26).
+7. Bỏ `dotenv`/`autoprefixer` khỏi package (D27–D28); prune `package-lock.json` −72 dòng.
+8. Prune 18 glyph `iconMap` không tham chiếu (D15, 224→206) + 12 lucide import.
 - **Không** xoá `SEED_*`/legacy WorkshopService ở phase này.
-- **Ước tính:** ~1.500–1.600 LOC + 357 LOC test + 112KB lock + 3.9MB artifact local.
-- **Gate:** lint/build/10 gate; `rg` 0 hit các symbol đã xoá; bundle không tăng.
+- **Kết quả đo được:** **−552 LOC** backend · **−~700 LOC** UI · **−357 LOC** test chết · **−132 KB**
+  lock/artifact · **−2 dependency**. `lint` PASS · `build` PASS · 7/7 gate offline PASS (không tệ hơn baseline);
+  `check-icon-names` PASS 206 glyph. Handoff: `handoff/phase1-{backend,ui,repo}.md`.
+- **Gate (đã đạt):** lint/build/10 gate; `rg` 0 hit các symbol đã xoá; bundle không tăng.
 
-### Phase 2 — Một ngôn ngữ, xoá nhánh i18n chết (3–4 ngày)
+### Phase 2 — Một ngôn ngữ, xoá nhánh i18n chết (3–4 ngày) — ⏭️ sau Phase 5
+- **Thứ tự thi công:** Phase 0 → 1 → **5** → **2** → 3 → 4 → 6 (user decision). Audit `04-refactor.md` §7.0
+  khuyến nghị i18n làm **muộn nhất** vì Phase 2 chạm cùng 32 file với Phase 3/4 (xung đột write scope);
+  nếu vẫn giữ thứ tự này, bắt buộc: chỉ chạy Phase 2 khi **không** có agent Phase 3/4 đang mở cùng file.
 - Codemod 1.201 `isVi ? 'VI' : 'EN'` → chỉ giữ VI; 46 `language ===` → bỏ.
 - Xoá `DICTIONARY` `en:` (85 entries), `Language` type, `setLanguage`/`toggleLanguage` nếu không còn caller; giữ API `useLanguage` nếu cần `t()` cho claims.
 - Xoá `configuredClaims` en fallback; giữ claims đọc từ settings.
 - Giữ nguyên technical acronyms/allowlist; copy review theo `COPY-GLOSSARY.md`.
 - Làm theo file, không codemod toàn repo một lần; 2 batch: storefront/transaction, console.
-- **Ước tính:** ~500–1.200 LOC + 85 dictionary entries; giảm dead branch, dễ đọc.
+- **Ước tính (đã đính chính):** **1.201 là số điểm sửa**, số dòng **xoá được chỉ ~250–350 LOC** + 85
+  dictionary entries (audit `04-refactor.md` §3.2). Đừng dùng con số “500–1.200 LOC” cũ.
+- **Bước zero-risk nên làm trước:** đặt `const isVi = true` (hoặc bỏ hẳn biến) để TypeScript loại nhánh
+  EN ở compile-time mà chưa cần sửa 1.201 site; sau đó mới codemod theo file.
 - **Gate:** lint/build; grep visible EN = 0 ngoài allowlist; smoke 12 route; không đổi text VI.
 
 ### Phase 3 — Hợp nhất data/state (3–5 ngày)
@@ -68,13 +81,14 @@ Theo `DEAD-CODE.md` cụm A→E:
 | `App.tsx` | 2.152 | sau Phase 3, mục tiêu <500 |
 - **Gate:** mỗi file tách xong build + browser key flow; không đổi behavior.
 
-### Phase 5 — Bundle & dependency (2–3 ngày)
+### Phase 5 — Bundle & dependency (2–3 ngày) — ⬅️ KẾ TIẾP
 1. Lazy `ThreeModelViewer` ở Home/PDP (Suspense + skeleton) → three-vendor rời initial (~-134KB gzip).
 2. Lazy 8 route không critical (Cart, Checkout, Orders, Tracking, Assets, Login, Register, Personalize) → tách index chunk.
 3. `canvas-confetti` dynamic import trong handler (bỏ khỏi initial).
-4. Prune 18 iconMap glyph không dùng (verify dynamic data trước); xem xét tách iconMap theo nhóm.
-5. Bỏ dep chết Phase 1; đo lại `dist` và ghi baseline.
+4. ~~Prune 18 iconMap glyph~~ **✅ đã làm ở Phase 1** (224→206, `check-icon-names` PASS); còn lại: xem xét tách `iconMap` theo nhóm nếu vẫn nặng.
+5. ~~Bỏ dep chết~~ **✅ đã làm ở Phase 1** (`dotenv`/`autoprefixer`/`bun.lock`); việc còn lại: đo lại `dist/` và ghi baseline bundle trước/sau.
 - **Ước tính:** initial JS gzip **~466KB → ~300–330KB (-30–35%)**; LCP cải thiện.
+- **Đo baseline thực tế Phase 1:** index `892.82K` → gzip **240.15K** (build 5.5s). Three vendor vẫn eager.
 - **Gate:** build size table trước/sau; browser 390/1440; 3D lazy load đúng.
 
 ### Phase 6 — Docs-as-code & test (2–3 ngày)
@@ -94,11 +108,11 @@ Theo `DEAD-CODE.md` cụm A→E:
 
 | Phase | Agent | Write scope | Ghi chú |
 |---|---|---|---|
-| 1 | `deadcode-cleaner` | 4 service chết, 3 shim, 3 primitive, mock/type/dbService, config | 1 agent; chạy cụm A→E |
-| 2 | `i18n-cleaner` | `frontend/context/LanguageContext`, 32 file có `isVi` | sau Phase 1; 2 batch |
-| 3 | `state-refactor` | `App.tsx`, stores, services | sau Phase 2; cần review |
+| 1 ✅ | `commerce-auth` (backend) · `design-foundation` (UI) · `ui-auditor` (repo) | backend 4 file + `database.ts`/`client.ts`/`types`; `ui/**`, `mockData`; `package*.json`, config/lock/test | 3 agent song song, scope rời — **DONE** |
+| 5 | `bundle-optimizer` | `App.tsx`, route table, `ThreeModelViewer`, `vite.config.ts` | **kế tiếp**; không đụng views khác |
+| 2 | `i18n-cleaner` | `frontend/context/LanguageContext`, 32 file có `isVi` | sau Phase 5; 2 batch; xung đột file với Phase 3/4 |
+| 3 | `state-refactor` | `App.tsx`, stores, services, `mockData` D11g–D11m | sau Phase 2; cần review |
 | 4 | `godfile-a` / `godfile-b` | PricingConfig/WorkshopSettings; ModelViewer/Group1/Tool3D | 2 agent, file rời |
-| 5 | `bundle-optimizer` | `App.tsx`, routes, ThreeModelViewer, vite.config | sau Phase 3/4 |
 | 6 | `docs-qa` | AGENTS/docs/schema/tests | song song cuối |
 | — | `reviewer` | read-only | mỗi phase 2 review |
 
@@ -153,9 +167,13 @@ Theo `DEAD-CODE.md` cụm A→E:
 
 ---
 
-## 6. Việc cần chốt
+## 6. Việc cần chốt — ✅ ĐÃ CHỐT
 
-1. **Phase 0:** commit/tag baseline hay làm trên worktree riêng?
-2. Có chấp nhận xoá `bun.lock`/`firebase*`/`test-pricing.ts` không?
-3. Có chấp nhận bỏ legacy `WorkshopService` seed/fallback (data-honesty) trong Phase 3 không?
-4. Ưu tiên Phase 1 (dead code) + Phase 5 (bundle) trước, hay Phase 2 (i18n) trước?
+1. **Phase 0:** commit/tag baseline hay worktree riêng? → **commit trên `main`** (`4d4a5d1` + `aaff7c4`);
+   mỗi phase commit riêng, **không** force-push.
+2. Xoá `bun.lock`/`firebase*`/`test-pricing.ts`? → **CÓ** (Phase 1, đã push cùng phase).
+3. Bỏ legacy `WorkshopService` seed/fallback trong Phase 3? → **hoãn**, tách quyết định riêng; phải rewrite
+   2 method onboarding còn dùng trước (audit `04-refactor.md` §4.4, ~1.140 LOC).
+4. Ưu tiên Phase 5 hay Phase 2 trước? → **Phase 5 trước**, rồi Phase 2 (user decision 2026-10-21).
+5. **Quản lý agent:** tối đa 3–4 builder song song, write scope rời; Lead commit sau mỗi phase;
+   agent **không** commit/push.

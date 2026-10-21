@@ -3,7 +3,7 @@
 
 > **Phạm vi:** audit **cấu trúc code** + cơ hội clean-code. **Không sửa `src/`, không commit, không chạy build.**
 > File duy nhất được ghi: `docs/tasks/optimization/04-refactor.md`.
-> Toàn bộ số đo lấy trên cây làm việc ngày **2026-10-21** (HEAD `97cc256` + working tree dirty ~30 file).
+> Toàn bộ số đo lấy trên cây làm việc ngày **2026-10-21**. Cây đó sau khi đo đã được commit thành `4d4a5d1` + `aaff7c4` (HEAD hiện tại); **LOC và nội dung 8 god file không đổi sau commit** — số liệu vẫn đúng.
 > Mọi lệnh tái lập nằm ở **§9 Phụ lục đo lường**.
 
 ## TL;DR (đọc 60 giây)
@@ -16,12 +16,14 @@
 | 4 | Cùng một dữ liệu có **4 nguồn sự thật** (DB → `dbService`, cache `settingsService`, state `App.tsx`, `localStorage`). `useSiteContent()` và `App.siteContent` có thể lệch nhau sau khi admin lưu. | §2.2, §2.6 |
 | 5 | **1.201 ternary `isVi ?` là dead branch**: `language` bị hardcode `'vi'` tại `LanguageContext.tsx:459`, `setLanguage` ép `'vi'` (`:472-474`), `toggleLanguage` là no-op (`:481`). Không có đường nào render nhánh EN. | §3.1 |
 | 6 | Xoá được **≈ 250–350 dòng** từ i18n (KHÔNG phải 1.201 — 1.201 là *số điểm sửa*, không phải số dòng xoá). | §3.2 |
-| 7 | **≈ 2.220 LOC code chết** đã xác minh 0 importer/caller — **1.140** trong `workshopService` (26 method = 684 dòng, 7 bộ `SEED_*` = 382, helper localStorage = 42) và **1.083** ngoài (4 service/barrel, 3 shim, 3 UI primitive, `test-pricing.ts`). | §4, §7 P1 |
+| 7 | **≈ 2.223 LOC code chết tại thời điểm đo** (phần lớn đã được Phase 1 xoá) đã xác minh 0 importer/caller — **1.140** trong `workshopService` (26 method = 684 dòng, 7 bộ `SEED_*` = 382, helper localStorage = 42) và **1.083** ngoài (4 service/barrel, 3 shim, 3 UI primitive, `test-pricing.ts`). | §4, §7 P1 |
 | 8 | **0 unit test** trong repo; `tests/unit` + `tests/adversarial` rỗng; `test-pricing.ts` (357 dòng) **không chạy được** (import 2 module đã xoá). | §5.1 |
-| 9 | `docs/tasks/baseline.json` đo tại `4a7eea5` (2026-09-24); HEAD hiện là `97cc256` ⇒ gate `npm run check` đang so với baseline **3 commit cũ**. | §5.3 |
+| 9 | `docs/tasks/baseline.json` đo tại `4a7eea5` (2026-09-24); HEAD hiện là `aaff7c4` ⇒ gate `npm run check` đang so với baseline **4 commit cũ**. | §5.3 |
 | 10 | Docs drift có số: **31 bảng / 1 view** (≥ 8 chỗ trong `docs/**` + `AGENTS.md`) vs thực tế **32 bảng / 2 view**; `AGENTS.md` liệt kê **3** migration, thực tế **12**. | §6.1 |
 
-**Top 10 refactor ROI** → **§8**. **Kế hoạch theo pha + gate** → **§7**.
+**Top 10 refactor ROI** → **§8**. **Kế hoạch theo pha + gate** → **§7** (map sang `PLAN.md` ở **§7.0**, kèm 2 điểm cần lead chốt).
+
+> ⚠️ **3 điểm file này sửa lại so với tài liệu cùng bộ:** (1) `DEAD-CODE.md` §8 hoãn `workshopService` vì "admin panel còn dùng" — **sai**, xem §4.4; (2) `PLAN.md` ước i18n "500–1.200 LOC" là *số dòng chạm*, số dòng **xoá được** là 250–350 (§3.2); (3) `PLAN.md` xếp i18n Phase 2, audit này khuyến nghị làm **sau cùng** (§7.0).
 
 ---
 
@@ -34,7 +36,19 @@
 - Dead code: tính **0 reference** sau khi **strip comment** (grep thường đếm cả comment ⇒ dương tính giả; xem `getDesignerProfiles` chỉ xuất hiện trong comment ở `src/stores/useDesignerAdminStore.ts:7`).
 - Không dùng heuristic "file dài = xấu". Mỗi đề xuất tách phải có **seam theo dòng** + **đích đến cụ thể**.
 
-### 0.2 Quan hệ với `docs/tasks/as-is/05-debt-and-refactor-targets.md`
+### 0.2 Vị trí trong bộ `docs/tasks/optimization/`
+
+Bộ này có một **lead** giữ `README.md` + `PLAN.md` (kế hoạch cấp phase, `status=draft`) + `DEAD-CODE.md` (danh sách chết, ID `D01`–`D30`) + `AUDIT.md`. File `04` này là **work breakdown chi tiết cho phần refactor code** — không thay `PLAN.md`:
+
+| File | Sở hữu | File này dùng thế nào |
+|---|---|---|
+| `PLAN.md` | thứ tự phase, ownership, gate mức cao | §7.0 map P0–P8 ↔ Phase 0–7 + nêu 2 điểm khác |
+| `DEAD-CODE.md` | ID + bằng chứng từng mục chết | §4.1 map ID, chỉ bổ sung phần audit này xác minh |
+| `AUDIT.md` | snapshot, page/feature matrix | §2.2 (4 pattern DB) là phần sâu hơn của nó |
+| `03-resources.md` / `RESOURCES.md` | bundle/asset | **không trùng** — file này không đo bundle |
+| `04-refactor.md` (đây) | seam god-file, Δ LOC, codemod risk, test/doc plan | — |
+
+### 0.3 Quan hệ với `docs/tasks/as-is/05-debt-and-refactor-targets.md`
 
 Tài liệu đó (2026-10-19) đã có §1 số đo nợ và §5 "khung refactor đề xuất (chờ chốt)". File này **kế thừa khung đó** và bổ sung: seam theo dòng, Δ LOC, rủi ro codemod, gate kiểm chứng. Số liệu lệch nhẹ vì code đã tăng:
 
@@ -46,9 +60,9 @@ Tài liệu đó (2026-10-19) đã có §1 số đo nợ và §5 "khung refactor
 | `isVi ?` | 1.193 | **1.201** | +8 |
 | `: any` | 138 | **139** | +1 |
 
-> ⚠️ **Xung đột cần chốt:** as-is/05 §6 **D-D** ghi "plan ở `docs/tasks/REFACTOR-PLAN.md`". Theo yêu cầu của chủ task, kế hoạch thực thi nằm ở **file này** (`docs/tasks/optimization/04-*.md`, bộ tài liệu mới 01–0N). Đề nghị: khi bộ `optimization/` hoàn tất, sửa D-D trỏ về đây và hạ as-is/05 §5 xuống `status=historical` — **không để hai kế hoạch song song** (đúng luật "Không tạo kế hoạch song song chồng lấn" của chính as-is/05).
+> ⚠️ **Xung đột cần chốt:** as-is/05 §6 **D-D** ghi "plan ở `docs/tasks/REFACTOR-PLAN.md`". Thực tế bộ `docs/tasks/optimization/` đã thay thế vai trò đó. Đề nghị: sửa D-D trỏ về `docs/tasks/optimization/README.md` + `PLAN.md`, và hạ as-is/05 §5 xuống `status=historical` — **không để hai kế hoạch song song** (đúng luật "Không tạo kế hoạch song song chồng lấn" của chính as-is/05).
 
-### 0.3 Nguyên tắc đề xuất
+### 0.4 Nguyên tắc đề xuất
 
 1. **Không thêm dependency** (as-is D-A). Codemod i18n dùng `typescript` đã có trong `devDependencies` (AST, không cần `ts-morph`).
 2. **Không đổi hành vi** trong pha tách file. Mọi thay đổi hành vi phải là pha riêng, có test trước.
@@ -66,7 +80,7 @@ Tài liệu đó (2026-10-19) đã có §1 số đo nợ và §5 "khung refactor
 | `src/App.tsx` | 2.152 | 3,3% | 6 (router, shell, catalog state, settings state, order/mutation, chrome) | ~165 | **−140** |
 | `src/frontend/components/admin/PricingConfigPanel.tsx` | 3.079 | 4,7% | 7 (6 sub-tab + validation state ×4) | ~200 | **−270** |
 | `src/frontend/views/WorkshopSettingsView.tsx` | 2.574 | 3,9% | 9 (6 tab + data loading ×7 + form CRUD ×6) | ~210 | **−150** |
-| `src/backend/services/workshopService.ts` | 2.243 | 3,4% | 5 (fixture, legacy CRUD, self-service CRUD, catalog read, mapper) | ~560 (2 file) | **−1.000** |
+| `src/backend/services/workshopService.ts` | 2.243 | 3,4% | 5 (fixture, legacy CRUD, self-service CRUD, catalog read, mapper) | 4 file, lớn nhất ~590 | **−1.000** |
 | `src/frontend/components/tool3d/ModelViewer3D.tsx` | 2.116 | 3,2% | 6 (scene, loader, stencil, controls, caliper, chrome) | ~190 | **+30** |
 | `src/frontend/components/admin/groups/Group1WorkshopsPanel.tsx` | 2.081 | 3,2% | 6 (4 tab + 3 modal + stats) | ~160 | **−130** |
 | `src/frontend/views/Tool3DView.tsx` | 1.956 | 3,0% | 5 (upload/parse, config, viewer, quote, modals) | ~230 | **−60** |
@@ -222,7 +236,7 @@ Tài liệu đó (2026-10-19) đã có §1 số đo nợ và §5 "khung refactor
 
 **Smell đo được**
 
-1. **53 method, chỉ 27 method có caller thật.** Sau khi strip comment: **24 public method 0 reference (621 LOC)**. Xoá 24 method đó làm **cascade** thêm 2 method chỉ còn được gọi bởi chúng: `getDesignerProfiles`(914, 37 dòng) và `getCustomerProfiles`(1.026, 26 dòng) ⇒ **26 method / 684 LOC**. `getWorkshopProfiles`(459, 35 dòng) **phải giữ** vì `getWorkshopProfileByUserId`(499, đang dùng) gọi nó — nhưng phải **viết lại** (xem smell 2).
+1. **60 method (52 public + 8 private), 26 method không còn caller thật.** Sau khi strip comment: **24 public method 0 reference (621 LOC)**. Xoá 24 method đó làm **cascade** thêm 2 method chỉ còn được gọi bởi chúng: `getDesignerProfiles`(914, 37 dòng) và `getCustomerProfiles`(1.026, 26 dòng) ⇒ **26 method / 684 LOC**. `getWorkshopProfiles`(459, 35 dòng) **phải giữ** vì `getWorkshopProfileByUserId`(499, đang dùng) gọi nó — nhưng phải **viết lại** (xem smell 2).
 2. **D2 gần như dead**, chỉ 2 method còn sống: `getWorkshopProfileByUserId`(499) + `saveWorkshopProfile`(504) — dùng bởi `App.tsx:575` (`LabRoute` gate) và `WorkshopOnboardingWizard.tsx:355,369`. **Cả 2 vẫn mang pattern sai:** chúng đi qua `getWorkshopProfiles` → `readFromStorage(..., SEED_WORKSHOP_PROFILES)` khi bảng **rỗng hoặc lỗi** (490 và 23 chỗ khác: 526, 563, 605, 624, 653, 671, 714, 733, 763, 793, 833, 852, 856, 948, 984, 1012, 1049, 1081, 1105, 1156, 1176, 1197), và `saveWorkshopProfile` ghi localStorage **trước** DB (526–528). Seed có `verifiedStatus: 'Verified'` (72) ⇒ nếu một seed khớp `user_id` thì `/lab` mở bằng hồ sơ bịa; hiện seed không có `userId` nên **chưa xảy ra**, nhưng đây là bẫy. ⇒ P1 phải **viết lại 2 method này** trên `getMyWorkshopProfile` (đọc bảng thật, 3 trạng thái lỗi) chứ không chỉ xoá D2. Đây cũng chính là lý do 3 store ở `src/stores` phải viết lại (`useDesignerAdminStore.ts:6-15`, `useCustomerAdminStore.ts:5-18`).
 3. **Hai tên cho một class:** `export const workshopService = WorkshopService` (2.243) ⇒ 27 call-site chia làm 2 kiểu (`WorkshopService.` 9, `workshopService.` 18) — grep nào cũng thiếu một nửa.
 4. **5 private mapper (1.815–1.949)** map `workshop_machines`/`workshop_materials`/… mà `mappers.ts` (672 LOC) đã có trách nhiệm tương ứng cho bảng khác — cùng một luật "row→domain" nằm 2 nơi.
@@ -238,7 +252,7 @@ Tài liệu đó (2026-10-19) đã có §1 số đo nợ và §5 "khung refactor
 | `services/onboardingWorkshop.ts` | `getWorkshopProfileByUserId` + `saveWorkshopProfile` | ~80 |
 | **XOÁ** | D1 + D2 (dead) + helper localStorage (17–58) + alias `workshopService` | **−1.140** |
 
-**Kỳ vọng:** 1 file 2.243 → 2 file ~560; **Δ ròng −1.000** (sau khi trừ boilerplate + re-export). **Rủi ro: THẤP sau khi xác minh 0 caller** — đây là mục ROI cao nhất của toàn bộ audit (§8 #2).
+**Kỳ vọng:** 1 file 2.243 → 4 file (~1.100 tổng, file lớn nhất ~590); **Δ ròng −1.000** (sau khi trừ boilerplate + re-export). **Rủi ro: THẤP sau khi xác minh 0 caller** — đây là mục ROI cao nhất của toàn bộ audit (§8 #2).
 **Gate riêng:** trước khi xoá, chạy lại phép đếm ở §9-A và `grep` trên `scripts/` (hiện 0 usage).
 
 ---
@@ -567,22 +581,27 @@ Phân bố nặng nhất: `Group1WorkshopsPanel` 162, `ExploreView` 113, `Group3
 
 ### 4.1 Dead — 0 importer (đã xác minh, comment-stripped)
 
-| File / khối | LOC | Bằng chứng 0 reference | Ghi chú |
-|---|---:|---|---|
-| `src/backend/services/catalogService.ts` | 34 | chỉ được `backend/index.ts:7` export | 4 method, **tất cả `return []`** — "service" không có dữ liệu |
-| `src/backend/services/pricingService.ts` | 46 | chỉ `backend/index.ts:6` | `getMaterials`/`getPrinters` trả `[]`; `getFormulaConfig` trả hằng mẫu mà chính comment (`:16-19`) nói "KHÔNG được dùng làm fallback" |
-| `src/backend/supabase/seedService.ts` | 134 | chỉ `backend/index.ts:4`; `syncFromSupabase` 0 caller | `mappers.ts:377` còn comment tham chiếu |
-| `src/backend/index.ts` (barrel) | 8 | **0 file** import `@backend` / `../backend` | barrel chết ⇒ 3 file trên chết theo |
-| `src/frontend/types/index.ts` | 1 | 0 importer | shim `export *` |
-| `src/frontend/data/mockData.ts` | 1 | 0 importer | shim |
-| `src/frontend/utils/pricingEngine.ts` | 1 | 0 importer | shim |
-| `src/frontend/services/` (thư mục) | 0 | **rỗng** | xoá |
-| `src/frontend/ui/ToastViewport.tsx` | 297 | 0 render; `useUIStore.toasts` chỉ phục vụ nó | xoá cùng `toasts` |
-| `src/frontend/ui/Section.tsx` | 117 | 0 import | |
-| `src/frontend/ui/Toolbar.tsx` | 87 | 0 import | |
-| `test-pricing.ts` (root) | 357 | **không chạy được**: import `./src/backend/services/pricingEngineService` + `./src/backend/services/quoteVerifier` — cả hai **không tồn tại** (`ERR_MODULE_NOT_FOUND` đã tái hiện) | ngoài `tsconfig include` nên `npm run lint` không bắt |
-| `workshopService` D1+D2 + helper localStorage | **1.140** | xem §1.4 | 26 method (684) + 7 bộ `SEED_*` (382) + helper (42) + comment/header (~31); **2 method onboarding phải viết lại, không xoá** |
-| **Tổng** | **≈ 2.223** (gồm 1.140 của workshopService) | | ≈ **1.083** ngoài workshopService |
+> **Quan hệ với [`DEAD-CODE.md`](./DEAD-CODE.md):** file đó là **danh sách chuẩn** (ID `D01`–`D30`). Mục này **không lặp lại** `D11`–`D13` (mock constant, 8 type chết, 6 `dbService` method 0 caller) và `D21`–`D28` (config/artifact/dependency) — đã có bằng chứng ở đó. Dưới đây là phần **xác minh độc lập** (có ID đối chiếu) + phần **DEAD-CODE bỏ sót**.
+
+| ID | File / khối | LOC | Bằng chứng 0 reference | Ghi chú |
+|---|---|---:|---|---|
+| D01 | `src/backend/index.ts` (barrel) | 8 | **0 file** import `@backend` / `../backend` | barrel chết ⇒ D02–D04 chết theo |
+| D02 | `src/backend/services/catalogService.ts` | 34 | chỉ được `backend/index.ts:7` export | 4 method, **tất cả `return []`** — "service" không có dữ liệu |
+| D03 | `src/backend/services/pricingService.ts` | 46 | chỉ `backend/index.ts:6` | `getMaterials`/`getPrinters` trả `[]`; `getFormulaConfig` trả hằng mẫu mà chính comment (`:16-19`) nói "KHÔNG được dùng làm fallback" |
+| D04 | `src/backend/supabase/seedService.ts` | 134 | chỉ `backend/index.ts:4`; `syncFromSupabase` 0 caller | `mappers.ts:377` còn comment tham chiếu |
+| D05 | `src/frontend/data/mockData.ts` | 1 | 0 importer | shim `export *` |
+| D06 | `src/frontend/types/index.ts` | 1 | 0 importer | shim `export *` |
+| D07 | `src/frontend/utils/pricingEngine.ts` | 1 | 0 importer | shim `export *` |
+| D08 | `src/frontend/ui/Section.tsx` | 117 | 0 import | |
+| D09 | `src/frontend/ui/Toolbar.tsx` | 87 | 0 import | |
+| D10 | `src/frontend/ui/ToastViewport.tsx` | 297 | 0 render; `useUIStore.toasts` chỉ phục vụ nó | xoá cùng `toasts` |
+| D19 | `test-pricing.ts` (root) | 357 | **không chạy được**: import `./src/backend/services/pricingEngineService` + `./src/backend/services/quoteVerifier` — cả hai **không tồn tại** (`ERR_MODULE_NOT_FOUND` đã tái hiện) | ngoài `tsconfig include` nên `npm run lint` không bắt |
+| — | `src/frontend/services/` (thư mục) | 0 | **rỗng** | xoá (DEAD-CODE không liệt kê) |
+| **#** | **`workshopService` D1+D2 + helper localStorage** | **1.140** | xem §1.4 — **DEAD-CODE §8 đang hoãn mục này với lý do "admin panel còn dùng"; lý do đó SAI** | 26 method (684) + 7 bộ `SEED_*` (382) + helper (42) + comment/header (~31); **2 method onboarding phải viết lại, không xoá** |
+| | **Tổng phần xác minh ở đây** | **≈ 2.223** | | = **1.083** (`D01`–`D10`+`D19`, khớp tuyệt đối với DEAD-CODE) + **1.140** (`workshopService`) |
+| | **Tổng toàn bộ dead (gộp DEAD-CODE)** | **≈ 2.700–2.800** | | thêm `D11` ~120–160, `D12` ~100–150, `D13` ~168, `D21`–`D28` (config/lock/dep) |
+
+> ✅ **Trạng thái thi công (cập nhật cuối ngày 2026-10-21):** `D01`–`D10` + `D19` **đã được xoá** trên working tree bởi Phase 1 (cùng `bun.lock`, `firebase*`, `metadata.json`, `firestore.rules`). `test-pricing.ts` cũng đã xoá; `src/frontend/services/` (thư mục rỗng) **vẫn còn**. **Còn nguyên:** `workshopService` (2.243 dòng, chưa chạm), 1.201 `isVi`, toàn bộ §2/§5/§6. ⇒ các mục §4.1 ở trên nên đọc là **bằng chứng của audit**, không phải việc còn phải làm — trừ dòng `#` (`workshopService`) và `src/frontend/services/`.
 
 ### 4.2 Trùng lặp
 
@@ -616,6 +635,7 @@ Phân bố nặng nhất: `Group1WorkshopsPanel` 162, `ExploreView` 113, `Group3
 - **Xoá** (không cần thay thế): 4 service/barrel + 3 shim + 1 thư mục rỗng + 3 UI primitive + `test-pricing.ts` ≈ **1.083 dòng**.
 - **Xoá** trong `workshopService`: **1.140 dòng** (D1+D2+helper), giữ 3 thứ đang chạy được (self-service, catalog read, onboarding) — trong đó **2 method onboarding phải viết lại**, không chỉ giữ nguyên.
 - **Hợp nhất**: 7 hàm ghi settings (6 cửa + dispatcher) → 4; 2 đường đọc `pricing`/`siteContent` → 1; 2 bản `siteContentExtras` → 1; 2 shape `PricingGlobalSettings` → 1.
+- **Sửa `DEAD-CODE.md` §8:** mục "`workshopService` `SEED_*` + legacy `getWorkshop*`/`saveWorkshop*` — *vẫn được admin panel dùng*" là **không đúng**. Bằng chứng: 3 panel admin dùng `use*AdminStore` (`Group1WorkshopsPanel.tsx:2`, `Group2DesignersPanel.tsx:2`, `Group3CustomersPanel.tsx:2`) và **không** gọi `WorkshopService.getWorkshop*` (grep 0 hit, đã strip comment); 2 method còn sống chỉ phục vụ `LabRoute` (`App.tsx:575`) + onboarding (`WorkshopOnboardingWizard.tsx:355,369`). ⇒ có thể xoá **1.140 dòng** sớm hơn 1 phase, với điều kiện viết lại 2 method đó (§1.4).
 
 ---
 
@@ -628,7 +648,7 @@ Phân bố nặng nhất: `Group1WorkshopsPanel` 162, `ExploreView` 113, `Group3
 | `tests/unit/` | **rỗng** (0 file) | `ls -la tests/unit` |
 | `tests/adversarial/` | **rỗng** (0 file) | `ls -la tests/adversarial` |
 | Test runner | **không có** (`vitest`/`jest` không nằm trong `package.json`) | devDeps |
-| `test-pricing.ts` (root) | **hỏng**, không chạy | import 2 module đã xoá; `ERR_MODULE_NOT_FOUND` |
+| `test-pricing.ts` (root) | **hỏng**, không chạy *(đã bị Phase 1 xoá trong ngày — vẫn cần test thật thay thế)* | import 2 module đã xoá; `ERR_MODULE_NOT_FOUND` |
 | `scripts/test-catalog-sync.ts` (6.413 B) | chạy được **nếu có env + mạng** | gate `test-catalog-sync` |
 | Số gate trong `gate-manifest.json` | **17** (2 `live`, 2 `advisory+optional`) | `scripts/gate-manifest.json` |
 | Gate **unit test** | **0** | manifest |
@@ -642,7 +662,7 @@ Phân bố nặng nhất: `Group1WorkshopsPanel` 162, `ExploreView` 113, `Group3
 ### 5.3 Baseline của gate đã cũ
 
 - `docs/tasks/baseline.json` ghi `date: 2026-09-24`, "chạy trên main @ **4a7eea5**".
-- HEAD hiện tại: **`97cc256`** (3 commit sau) + working tree dirty.
+- HEAD hiện tại: **`aaff7c4`** — **4 commit sau** baseline (`a59ef03`, `97cc256`, `4d4a5d1`, `aaff7c4`).
 - Hệ quả: `verify-rls` baseline `rc:1` / `inspect-db` baseline `rc:1` là **số của quá khứ**; một hồi quy mới sẽ bị "baseline đã đỏ" che mất.
 - **Việc cần làm ở P0:** `npm run check -- --update-baseline` (hoặc cơ chế tương đương của `run-checks.mjs`) sau khi commit cây hiện tại, **trước** khi bắt đầu refactor.
 
@@ -728,11 +748,36 @@ Nếu chủ dự án chấp nhận **1 devDependency** thì `vitest` cho DX tố
 
 ## 7. Kế hoạch refactor theo pha
 
+### 7.0 Quan hệ với [`PLAN.md`](./PLAN.md) — tránh hai kế hoạch song song
+
+`PLAN.md` (owner `lead`, status `draft`) là **kế hoạch cấp phase**. Mục §7 này là **work breakdown + gate chi tiết** cho các phase đụng code refactor, không phải kế hoạch cạnh tranh.
+
+| PLAN.md | Nội dung | Tương ứng ở đây | Ghi chú |
+|---|---|---|---|
+| Phase 0 | Checkpoint & baseline | **P0** | Đã xong phần commit (`4d4a5d1`, `aaff7c4`); còn refresh `baseline.json` |
+| Phase 1 | Xoá dead code `D01`–`D13`, `D19`–`D28` | **P1** | §4.1 map ID; **cộng thêm** `workshopService` (1.140) mà PLAN hoãn sang Phase 3 |
+| Phase 2 | Một ngôn ngữ | **P6** | Khác thứ tự (xem dưới) |
+| Phase 3 | Hợp nhất data/state | **P2 + P3** | §2.7 là work breakdown S1–S7 |
+| Phase 4 | Tách god-file | **P5a–P5f** | §1.1–§1.8 là seam theo dòng |
+| Phase 5 | Bundle & dependency | — | Ngoài phạm vi file này; xem `RESOURCES.md` / `03-resources.md` |
+| Phase 6 | Docs-as-code & test | **P7 + P8** | §5.4 (test) + §6.3 (docs) |
+| Phase 7 | Feature/data wiring | — | Ngoài phạm vi (feature, không phải refactor) |
+
+**Hai điểm KHÁC `PLAN.md` — cần lead chốt:**
+
+1. **Thứ tự i18n.** `PLAN.md` để Phase 2 (ngay sau dead code) và ước "**~500–1.200 LOC**". Audit này khuyến nghị **làm sau cùng (P6)** và ước **250–350 LOC**:
+   - *Vì sao sau:* i18n chạm **32 file**, trùng gần hết với file mà P2/P4/P5 sẽ sửa (`Group1WorkshopsPanel` 162, `AdminDashboardPanel`…). Làm trước = **merge conflict 2 lần** trên cùng dòng.
+   - *Vì sao 250–350 chứ không 500–1.200:* `PLAN.md` đếm **số dòng bị chạm**; audit này đếm **số dòng biến mất** (bỏ nhánh EN của ternary **không xoá dòng**, chỉ rút ngắn; chỉ 85 dòng `en:` + 28 dòng `isVi` + ~10 ternary nhiều dòng là mất hẳn). Hai cách đếm khác nhau, **không phải mâu thuẫn số liệu** — nhưng đừng dùng con số 1.200 để cam kết giảm LOC.
+   - Nếu lead vẫn muốn Phase 2 sớm: làm **bước A** của §3.3 (`isVi = true`, 28 dòng, rủi ro ~0) ngay, và hoãn AST transform.
+2. **`workshopService` (1.140 dòng).** `PLAN.md` Phase 1 ghi "**Không** xoá `SEED_*`/legacy WorkshopService ở phase này"; `DEAD-CODE.md` §8 hoãn với lý do "admin panel còn dùng". Audit này xác định lý do đó **sai** (§4.4) ⇒ đề nghị gộp vào **P1** (hoặc Phase 1b) kèm viết lại 2 method onboarding. Đây là mục ROI #2 và là **bẫy data-honesty** (seed `verifiedStatus: 'Verified'`).
+
+**Trả lời câu hỏi chốt của `PLAN.md` §6:** Q1 → đã có commit baseline (`aaff7c4`), làm tiếp trên branch mới. Q2 → đồng ý xoá `bun.lock`/`firebase*`/`test-pricing.ts` (nhưng `test-pricing.ts` nên **viết lại** thành test thật thay vì xoá trắng — §5.4). Q3 → **đồng ý bỏ**, kèm 2 điều kiện ở §1.4. Q4 → **dead code trước, i18n sau, bundle xen kẽ sau P4** (lý do ở trên).
+
 ### 7.1 Bảng pha
 
 | Pha | Nội dung | File trọng tâm | Phụ thuộc | Rủi ro | Δ LOC | Gate |
 |---|---|---|---|---:|---:|---|
-| **P0** | Chốt baseline: commit/dọn working tree; refresh `docs/tasks/baseline.json`; chốt 4 quyết định D-1…D-4; thêm script đếm §9 vào `scripts/` (không vào gate) | `docs/tasks/baseline.json`, `scripts/` | — | THẤP | 0 | `npm run check` xanh trên HEAD thật |
+| **P0** | Chốt baseline: ~~commit/dọn working tree~~ (**đã xong** — `4d4a5d1`, `aaff7c4`); **refresh `docs/tasks/baseline.json` trên HEAD mới**; chốt 4 quyết định D-1…D-4; thêm script đếm §9 vào `scripts/` (không vào gate) | `docs/tasks/baseline.json`, `scripts/` | — | THẤP | 0 | `npm run check` xanh trên HEAD thật |
 | **P1** | **Xoá code chết** (§4.1) + viết lại 2 method onboarding của `workshopService` trên `getMyWorkshopProfile` + `useUIStore.toasts` + `frontend/services/` rỗng + `test-pricing.ts` | 11 file xoá + 2 file sửa | P0 | **THẤP** | **−1.083** (ngoài workshopService) | `lint`, `build`, `check`; `grep` 0 ref; smoke `/lab` (chưa có hồ sơ ⇒ onboarding) |
 | **P2** | **Hợp nhất tầng dữ liệu** (§2.7 S1–S7) | `database.ts`, `services/*`, `App.tsx`, `stores/*` | P1 + **T-1** | **CAO** | −420 | `lint`, `check`, browser 3 breakpoint ở `/`, `/admin`, `/lab`, `/checkout` |
 | **P3** | **Store consolidation** (gom `src/stores/`, barrel, bỏ store gọi DB trực tiếp) | 6 store | P2 | TRUNG BÌNH | −240 | `lint`, browser admin 4 group |
@@ -788,7 +833,7 @@ npm run dev   # + Playwright MCP, không chấp nhận "chỉ lint xanh"
 
 | Rủi ro | Xác suất | Tác động | Giảm thiểu |
 |---|---|---|---|
-| Working tree đang dirty (~30 file) ⇒ diff refactor trộn với thay đổi dở | **CAO** | Không review được, không revert được | **P0 bắt buộc**: commit hoặc stash trước khi bắt đầu |
+| Working tree dirty lúc đo (~98 file sửa/xoá) ⇒ diff refactor trộn với thay đổi dở | **ĐÃ GIẢM** | Không review được, không revert được | **Đã xử lý một phần**: cây được commit ở `4d4a5d1` + `aaff7c4`. Phần còn lại của P0 = refresh `baseline.json` + chốt D-1…D-4 |
 | P2 (settings) làm storefront hiện số cũ/số sai | TRUNG BÌNH | Sai tiền | T-2 golden pricing chạy **trước** P2; so sánh 5 con số trên `/` và `/checkout` trước/sau |
 | Tách `App.tsx` làm mất route (32 `<Route>` + 8 `<Navigate>`) | TRUNG BÌNH | 404 | `gen-routes-doc` trước/sau phải ra **cùng 30 route** (diff = 0) |
 | Tách `ModelViewer3D` làm rò WebGL/context | TRUNG BÌNH | Trắng canvas | Đo `renderer.info.memory` + fps trước/sau; `CanvasErrorBoundary` phải vẫn bắt được |
@@ -805,7 +850,7 @@ npm run dev   # + Playwright MCP, không chấp nhận "chỉ lint xanh"
 | # | Refactor | Lợi ích đo được | LOC | Rủi ro | Pha | Phụ thuộc |
 |---|---|---|---:|---|---|---|
 | **1** | **Xoá code chết đã xác minh**: `catalogService`(34) + `pricingService`(46) + `seedService`(134) + `backend/index.ts`(8) + 3 shim(3) + `ToastViewport`(297) + `Section`(117) + `Toolbar`(87) + `test-pricing.ts`(357) + thư mục rỗng `frontend/services/` | 11 file biến mất; `grep` sạch; không còn "service" trả `[]` làm người đọc hiểu sai kiến trúc | **−1.083** | **THẤP** (0 ref, build xác nhận) | P1 | P0 |
-| **2** | **Cắt `workshopService`**: xoá 24 method dead + 3 method chỉ được nhắc trong comment + toàn bộ D2 legacy localStorage/`SEED_*` | Bỏ 1.140 dòng; **xoá luôn nguồn "dữ liệu bịa"** khiến 3 store phải viết lại; file 2.243 → 2 file ~560 | **−1.000** | **THẤP** | P1 | P0 |
+| **2** | **Cắt `workshopService`**: xoá 24 method dead + 2 method cascade-dead + toàn bộ D2 legacy localStorage/`SEED_*`, **viết lại 2 method onboarding** | Bỏ 1.140 dòng; **xoá luôn nguồn "dữ liệu bịa"** khiến 3 store phải viết lại; file 2.243 → 4 file, lớn nhất ~590 | **−1.000** | **THẤP** | P1 | P0 |
 | **3** | **Một nguồn sự thật cho settings** (§2.7): xoá state `App.tsx` + 4 ghi localStorage + 4 hàm `dbService` trùng; mọi đọc qua `useSettings()` | Hết lớp bug "admin lưu → storefront cũ"; mọi ghi có audit; 7 hàm ghi → 4 | **−420** | **CAO** | P2 | P1, T-1, T-2 |
 | **4** | **Giải phẫu `App.tsx`** 2.152 → ~165 (5 hook + routes + shells + chrome) | File bị sửa nhiều nhất không còn là nút cổ chai merge; route table 1 nguồn; bỏ `onNavigate(any)` | **−140** | **CAO** | P4 | P2, P3 |
 | **5** | **Test T-1 + T-3 + gate `unit`**: mappers (pure) + validators (sau khi tách) | Lưới an toàn cho #3/#4/#6; là điều kiện *không thể thiếu* để refactor tiếp | +~250 test | **THẤP** | P7 | P1 |

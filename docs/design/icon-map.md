@@ -2,14 +2,25 @@
 # VCUBE icon migration map (Material Symbols -> lucide-react)
 
 > **STATUS: COMPLETED / HISTORICAL (2026-09).** Migration đã xong trong commit
-> `4a7eea5`. `src/frontend/ui/iconMap.ts` là **nguồn sự thật runtime** (hiện **224 glyph**;
-> `scripts/check-icon-names.mjs` kiểm tự động). Không còn `material-symbols-outlined`
+> `4a7eea5`. `src/frontend/ui/iconMap.ts` là **nguồn sự thật runtime** (hiện **206 glyph** sau
+> đợt prune Phase 1 — 2026-10-21; `scripts/check-icon-names.mjs` kiểm tự động). Không còn
+> `material-symbols-outlined`
 > trong `src/` hay `index.html`. Các bảng "Scope"/"How to use"/"Files by usage"/"Delete in
 > the same change" dưới đây là **kế hoạch gốc lúc viết** (số liệu 2026-09), giữ để tra cứu
 > lịch sử, KHÔNG phải việc cần làm lại. Riêng bảng mapping và bảng state-pairs vẫn phải
 > khớp `iconMap.ts` — thêm glyph mới phải sửa cả hai nơi. **Lưu ý:** quy tắc "sửa 2 nơi" này
 > **không** được gate tự động kiểm (`check-icon-names.mjs` chỉ soi `iconMap.ts`, không đọc doc)
 > — phải tự nhớ khi thêm glyph.
+>
+> **PRUNE Phase 1 (2026-10-21):** 18 glyph có **0 reference** (grep literal + dynamic
+> `icon:`/`iconName:`/`<Icon name=…>` + gate `check-icon-names.mjs` đều 0) đã bị xoá khỏi
+> `iconMap.ts` (224 → 206 glyph):
+> `arrow_upward, call_split, celebration, event, hexagon, home_repair_service, hourglass_top,
+> location_on, navigate_next, pending_actions, price_check, production_quantity_limits,
+> rocket_launch, route, science, security, shield_person, warehouse`.
+> Các dòng/tương ứng trong bảng mapping và bảng state-pairs dưới đây **chỉ còn giá trị lịch
+> sử**; nếu cần dùng lại glyph nào thì thêm lại vào `iconMap.ts` kèm dòng ở đây và chạy
+> `node scripts/check-icon-names.mjs`.
 
 Scope gốc: every `<span className="material-symbols-outlined">` in `src/**/*.tsx` - **213** distinct glyph names across **696** render sites in **69** files. Target: `lucide-react@0.546.0` (already a dependency).
 

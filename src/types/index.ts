@@ -465,7 +465,6 @@ export interface PrinterProfile {
   status: 'Idle' | 'Printing' | 'Maintenance';
 }
 
-export type QuoteTierType = 'quick_estimate' | 'exact_slice' | 'manual_review';
 
 export interface DetailedCostBreakdown {
   // 3.1 Material
@@ -558,26 +557,6 @@ export interface MachineComparisonItem {
   completionDate: string;
   riskLevel: 'Thấp' | 'Trung Bình' | 'Cảnh Báo';
   recommendationTag?: 'Rẻ Nhất' | 'Nhanh Nhất' | 'Lợi Nhuận Tối Đa' | 'Máy Sẵn Sàng';
-}
-
-export interface QuoteSnapshot {
-  id: string;
-  quoteNumber: string;
-  createdAt: string;
-  expiresAt: string; // 7 days validity
-  tier: QuoteTierType;
-  slicerVersion: string;
-  profileVersion: string;
-  formulaVersion: string;
-  isLocked: boolean;
-  manualReviewReasons?: string[];
-  operatorOverride?: {
-    originalPrice: number;
-    overriddenPrice: number;
-    reason: string;
-    operatorName: string;
-    overrideTimestamp: string;
-  };
 }
 
 export interface AnalysisFile {
@@ -867,15 +846,6 @@ export interface WorkshopPartner {
   status: 'active' | 'busy' | 'offline';
 }
 
-export interface ProductLicensingConfig {
-  allowDigitalDownload: boolean;
-  priceDigital: number;
-  allowPhysicalManufacturing: boolean;
-  physicalRoyaltyPercent: number; // 5% to 20%
-  exclusiveBuyoutPrice?: number;
-  commercialLicenseFee?: number;
-}
-
 export interface OrderFinancialSplit {
   orderId: string;
   orderNumber: string;
@@ -886,34 +856,6 @@ export interface OrderFinancialSplit {
   platformTakeRate: number;  // VCUBE platform revenue
   escrowStatus: 'holding' | 'disputed' | 'released';
   escrowReleaseDate: string; // 7 days after completion
-}
-
-export interface DispatchAssignment {
-  id: string;
-  orderId: string;
-  workshopId: string;
-  workshopName: string;
-  assignedAt: string;
-  responseDeadline: string; // 30 minutes SLA
-  status: 'dispatched' | 'accepted' | 'rejected' | 'auto_rerouted' | 'in_production' | 'completed';
-  assignedPrinterId?: string;
-  printHoursEstimated: number;
-}
-
-export interface QualityControlRecord {
-  id: string;
-  orderId: string;
-  workshopId: string;
-  inspectorName: string;
-  measuredWeightGrams: number;
-  expectedWeightGrams: number;
-  criticalDimensionsToleranceMm: number; // e.g. 0.03
-  isWithinTolerance: boolean;
-  visualDefectCheck: boolean;
-  photoInspectionUrls: string[];
-  inspectionNotes?: string;
-  inspectedAt: string;
-  passed: boolean;
 }
 
 export type AdminNavSection =
@@ -947,7 +889,6 @@ export type AdminNavSection =
   | 'seo'
   | 'settings';
 
-export type AdminTab = AdminNavSection;
 
 // ==============================================================================
 // INKIRI COST ENGINE & ROLE PROFILES (MULTI-TENANT VCUBE)
@@ -1083,54 +1024,5 @@ export interface WorkshopAccessory {
   pricePerPack: number;
   isActive: boolean;
   createdAt?: string;
-}
-
-export interface InkiriCalculationInput {
-  printHours: number;
-  postProcessingHours?: number;
-  setupHours?: number;
-  laborHours?: number;
-  machine: {
-    avgPowerKW: number;
-    purchasePrice: number;
-    lifetimeHours: number;
-    maintenanceCostPerHour?: number;
-  };
-  material: {
-    grams: number;
-    pricePerKg: number;
-    materialName?: string;
-  };
-  materials?: {
-    grams: number;
-    pricePerKg: number;
-    materialName?: string;
-  }[];
-  accessories?: {
-    name?: string;
-    usedQty: number;
-    packQty: number;
-    packPrice: number;
-  }[];
-  customCosts?: number;
-  globalSettings?: Partial<PricingGlobalSettings>;
-}
-
-export interface InkiriCalculationResult {
-  depreciationPerHour: number;
-  electricityPerHour: number;
-  machineCost: number;
-  materialCost: number;
-  laborCost: number;
-  accessoriesCost: number;
-  allocatedOverhead: number;
-  rawBaseCost: number;
-  scrapReserveCost: number;
-  finalCost: number;
-  sellingPricePreFee: number;
-  marketplaceFeeAmount: number;
-  finalSellingPrice: number;
-  profitMode: 'Markup' | 'Margin';
-  profitPercent: number;
 }
 
