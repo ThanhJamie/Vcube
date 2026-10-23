@@ -8,7 +8,10 @@
 > (Supabase đã sống lại, DB có dữ liệu demo `[MẪU]`) và quan sát bằng Chromium headless
 > 390/1440. Không sửa `src/**`; chỉ ghi bộ tài liệu này.
 >
-> **Bộ tài liệu:** `USER-PERSONAS.md` · `FEATURE-MATRIX.md` · `UX-ASSESSMENT.md` ·
+> > **Bước tiếp theo:** kế hoạch chỉnh sửa để đạt world-class cho 4 nhóm đối tượng nằm ở
+> [`docs/tasks/world-class/PLAN.md`](../world-class/PLAN.md) (8 workstream · phase WC-0→WC-7 · acceptance gates).
+
+**Bộ tài liệu:** `USER-PERSONAS.md` · `FEATURE-MATRIX.md` · `UX-ASSESSMENT.md` ·
 > `screens/` (33 ảnh chụp 390/1440) · handoff `docs/tasks/optimization/handoff/product-review.md`.
 
 ---
