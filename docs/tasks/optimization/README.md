@@ -15,6 +15,7 @@
 | [`RESOURCES.md`](./RESOURCES.md) | Bản tóm tắt bundle/asset/dependency/runtime, hành động giảm initial ~30–35% gzip |
 | [`PLAN.md`](./PLAN.md) | Plan 7 phase, agent ownership, gate, impact, risk — **nguồn chuẩn để thi công** |
 | [`handoff/`](./handoff/) | Handoff từng agent/phase: bằng chứng, diff, gate, rủi ro |
+| [`../product-review/`](../product-review/) | Review sản phẩm từ góc nhìn 6 persona + feature gap + đánh giá UX trực quan (2026-10-23) |
 
 ## Trạng thái thi công
 
