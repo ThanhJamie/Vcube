@@ -2,8 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Product } from '../../../types';
 import { ThreeModelViewer } from '../LazyThreeModelViewer';
 import { Button, Field, Icon, Input, Select } from '@frontend/ui';
-import { EMPTY_VALUE } from '@frontend/lib/format';
+import { EMPTY_VALUE, formatNumber } from '@frontend/lib/format';
 import { settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
+import { useAuth } from '@frontend/context/AuthContext';
+import { AssetService } from '@backend/services/assetService';
+import {
+  buildCadStoragePath,
+  computeSha256Hex,
+  getCadFileStorage,
+  formatCadFileSize,
+  isMeshParseable,
+  validateCadFile,
+} from '@backend/integrations/fileStorage';
+import { parse3DFile } from '../../../utils/meshParser';
 
 /** Nhãn VI cho `category` (slug kỹ thuật trong DB) — không render thô `mechanical`/`iot`… */
 const CATEGORY_LABELS: Record<string, string> = {
@@ -31,7 +42,7 @@ function useDesignerRoyaltyPercent(): number | null {
 }
 
 export interface DesignerUploadWizardTabProps {
-  onAddNewProduct: (product: Product) => void;
+  onAddNewProduct: (product: Product) => void | Promise<void>;
   onShowToast: (message: string) => void;
   currentDesignerName: string;
   designerAvatar?: string;
@@ -64,6 +75,21 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [uploadedFileSize, setUploadedFileSize] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  /** Tệp thật đang chờ upload (FL-2a) — KHÔNG chỉ tên/dung lượng như bản cũ. */
+  const [cadFile, setCadFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState('');
+  const [fileFormat, setFileFormat] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
+  const [checksum, setChecksum] = useState<string | null>(null);
+  const [parseSummary, setParseSummary] = useState<{
+    triangles: number;
+    volumeCm3: number;
+    dimensions: string;
+  } | null>(null);
+  /** `undefined` = chưa phân tích; `null` = parser không kết luận được (giữ trung thực). */
+  const [isWatertight, setIsWatertight] = useState<boolean | null | undefined>(undefined);
+  const [publishPhase, setPublishPhase] = useState<'idle' | 'uploading' | 'saving' | 'done' | 'error'>('idle');
+  const { user } = useAuth();
   const designerRoyaltyPercent = useDesignerRoyaltyPercent();
 
   const handleAddTag = (e: React.KeyboardEvent) => {
@@ -81,12 +107,83 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
     setTags(tags.filter((t) => t !== tagToRemove));
   };
 
-  // Publish New Model
-  const handlePublishModel = (e: React.FormEvent) => {
+  /**
+   * Chọn tệp CAD: validate → giữ File thật → parse lưới (một lần) → checksum.
+   * Không bịa thông số khi parser không đọc được: UI hiện "—" + cảnh báo.
+   */
+  const handleCadFileSelected = async (file: File) => {
+    const validation = validateCadFile(file);
+    if (validation.ok === false) {
+      setCadFile(null);
+      setFileError(validation.message);
+      onShowToast(validation.message);
+      return;
+    }
+
+    setFileError('');
+    setCadFile(file);
+    setFileFormat(validation.format);
+    setUploadedFileName(file.name);
+    setUploadedFileSize(formatCadFileSize(file.size));
+    setModelName(file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' '));
+    setParseSummary(null);
+    setIsWatertight(undefined);
+    setChecksum(null);
+    setWizardStep(2);
+
+    setIsParsing(true);
+    const [hash, mesh] = await Promise.all([
+      computeSha256Hex(file),
+      isMeshParseable(file.name)
+        ? parse3DFile(file).catch((err: unknown) => {
+            console.warn('[DesignerUpload] Không parse được lưới:', err);
+            return null;
+          })
+        : Promise.resolve(null),
+    ]);
+    setChecksum(hash);
+    setIsParsing(false);
+
+    if (mesh) {
+      setParseSummary({
+        triangles: mesh.triangleCount,
+        volumeCm3: mesh.volume,
+        dimensions: `${mesh.dimensions.x.toFixed(1)} × ${mesh.dimensions.y.toFixed(1)} × ${mesh.dimensions.z.toFixed(1)} mm`,
+      });
+      setIsWatertight(mesh.isWatertight);
+    } else if (isMeshParseable(file.name)) {
+      onShowToast('Không đọc được lưới của tệp — vẫn có thể gửi duyệt, nhưng thông số hình học để trống.');
+    }
+  };
+
+  // Publish New Model — FL-2a: upload Storage THẬT + ghi `digital_assets`.
+  const handlePublishModel = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!modelName.trim()) return;
+    if (!modelName.trim()) {
+      onShowToast('Chưa nhập tên ấn phẩm.');
+      return;
+    }
+
+    if (!cadFile) {
+      setFileError('Chưa chọn tệp CAD.');
+      onShowToast('Chưa chọn tệp CAD — không thể phát hành bản vẽ không có tệp.');
+      return;
+    }
+    const validation = validateCadFile(cadFile);
+    if (validation.ok === false) {
+      setFileError(validation.message);
+      onShowToast(validation.message);
+      return;
+    }
+    if (!user?.id) {
+      onShowToast('Cần đăng nhập tài khoản Nhà thiết kế để tải tệp lên kho riêng tư.');
+      return;
+    }
 
     setIsSubmitting(true);
+    setPublishPhase('uploading');
+    let uploadedPath = '';
+
     const newProd: Product = {
       id: `prod-${Date.now()}`,
       sku: `VC-${Math.floor(1000 + Math.random() * 9000)}X`,
@@ -129,9 +226,43 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
       status: 'Under Review',
     };
 
-    onAddNewProduct(newProd);
-    setIsSubmitting(false);
-    onShowToast(`Đã gửi bản vẽ "${newProd.name}" để kiểm duyệt (chờ duyệt).`);
+    try {
+      // (1) Upload file thật lên bucket private `cad-files`, path theo policy cad/<uid>/<uuid>/<file>.
+      uploadedPath = buildCadStoragePath(user.id, cadFile.name);
+      await getCadFileStorage().upload(uploadedPath, cadFile);
+
+      // (2) Tạo sản phẩm (App đang lưu DB + rollback nếu lỗi; wrapper ở DesignerDashboardView
+      //     không trả promise nên client chỉ chờ UI, KHÔNG xác nhận được DB đã ghi).
+      setPublishPhase('saving');
+      await onAddNewProduct(newProd);
+
+      // (3) Ghi metadata file số. Hiện là 2 request riêng (client-side) — FL-7 sẽ gộp transaction
+      //     server-side; nếu (2) thất bại sau khi (3) xong có thể còn asset mồ côi (ghi rõ handoff).
+      await AssetService.createDigitalAsset({
+        productId: newProd.id,
+        designerId: user.id,
+        storagePath: uploadedPath,
+        fileFormat: validation.format,
+        fileSizeBytes: cadFile.size,
+        checksum,
+        licenseType,
+        downloadLimit: null,
+        watermarkRequired: true,
+      });
+
+      setPublishPhase('done');
+      onShowToast(
+        `Đã tải tệp CAD lên kho riêng tư và tạo hồ sơ file số cho "${newProd.name}". Sản phẩm đang chờ duyệt.`
+      );
+    } catch (err) {
+      setPublishPhase('error');
+      // Compensation: asset/product lỗi ⇒ xoá object vừa upload để không để file mồ côi.
+      if (uploadedPath) await getCadFileStorage().remove(uploadedPath);
+      const message = err instanceof Error ? err.message : 'Không xác định';
+      onShowToast(`Không xuất bản được: ${message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -200,23 +331,21 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                 Kéo thả tệp CAD vào đây hoặc bấm để chọn tệp
               </p>
               <p className="mt-1 font-mono text-xs text-fg-muted">
-                Hỗ trợ .STL, .STEP, .STP, .3MF, .OBJ (Tối đa 150 MB)
+                Hỗ trợ .STL, .STEP, .STP, .3MF, .OBJ, .ZIP (Tối đa 150 MB)
               </p>
+              {fileError ? (
+                <p className="mt-2 text-xs font-medium text-danger" role="alert">{fileError}</p>
+              ) : null}
             </div>
             <input
               type="file"
-              accept=".stl,.step,.stp,.3mf,.obj"
+              accept=".stl,.step,.stp,.3mf,.obj,.zip"
               className="hidden"
               id="file-upload-designer"
               onChange={(e) => {
-                if (e.target.files?.[0]) {
-                  const f = e.target.files[0];
-                  setUploadedFileName(f.name);
-                  setUploadedFileSize(`${(f.size / (1024 * 1024)).toFixed(1)} MB`);
-                  setModelName(f.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' '));
-                  setWizardStep(2);
-                  onShowToast(`Đã nhận tệp "${f.name}". Bắt đầu phân tích hình học 3D!`);
-                }
+                const f = e.target.files?.[0];
+                if (f) void handleCadFileSelected(f);
+                e.target.value = '';
               }}
             />
             <label
@@ -248,6 +377,14 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                   {uploadedFileName ? `${uploadedFileName}${uploadedFileSize ? ` • ${uploadedFileSize}` : ''}` : 'Chưa chọn tệp'}
                 </span>
               </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-fg-subtle">
+                <Icon name="lock" size={14} aria-hidden="true" />
+                <span>Kho riêng tư cad-files · chỉ bạn và quản trị đọc được</span>
+                {isParsing ? <span>· Đang phân tích lưới…</span> : null}
+                {!isParsing && checksum ? (
+                  <span className="font-mono">· SHA-256 {checksum.slice(0, 12)}…</span>
+                ) : null}
+              </div>
 
               <div className="rounded-lg border border-line bg-surface-muted p-2">
                 <ThreeModelViewer
@@ -260,23 +397,36 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="rounded-md border border-line-subtle bg-surface-muted p-2.5">
                   <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">THỂ TÍCH LƯỚI</span>
-                  <span className="font-mono text-sm font-semibold text-fg-subtle">—</span>
+                  <span className="font-mono text-sm font-semibold text-fg-subtle">
+                    {parseSummary ? `${parseSummary.volumeCm3.toFixed(2)} cm³` : isParsing ? 'Đang đo…' : '—'}
+                  </span>
                 </div>
                 <div className="rounded-md border border-line-subtle bg-surface-muted p-2.5">
                   <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">KÍCH THƯỚC (X,Y,Z)</span>
-                  <span className="font-mono text-sm font-semibold text-fg-subtle">—</span>
+                  <span className="font-mono text-sm font-semibold text-fg-subtle">
+                    {parseSummary ? parseSummary.dimensions : isParsing ? 'Đang đo…' : '—'}
+                  </span>
                 </div>
                 <div className="rounded-md border border-line-subtle bg-surface-muted p-2.5">
                   <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
                     ĐỘ KÍN NƯỚC
                   </span>
                   <span className="flex items-center gap-0.5 text-sm font-semibold text-fg-subtle">
-                    — Chưa phân tích
+                    {isWatertight === true
+                      ? 'Kín (watertight)'
+                      : isWatertight === false
+                        ? 'Có lỗ hổng lưới'
+                        : isParsing
+                          ? 'Đang phân tích…'
+                          : '— Chưa phân tích'}
                   </span>
                 </div>
                 <div className="rounded-md border border-line-subtle bg-surface-muted p-2.5">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">KHUYẾN NGHỊ VẬT LIỆU</span>
-                  <span className="text-sm font-semibold text-fg">PETG / Nylon-CF</span>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">ĐỊNH DẠNG &amp; TAM GIÁC</span>
+                  <span className="font-mono text-sm font-semibold text-fg">
+                    {fileFormat || '—'}
+                    {parseSummary ? ` · ${formatNumber(parseSummary.triangles, { maximumFractionDigits: 0 })} tam giác` : ''}
+                  </span>
                 </div>
               </div>
             </div>
@@ -497,7 +647,11 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
                 disabled={isSubmitting}
                 leadingIcon={<Icon name="cloud_upload" size={16} />}
               >
-                {isSubmitting ? 'ĐANG LƯU…' : 'XUẤT BẢN VÀO DANH MỤC'}
+                {isSubmitting
+                  ? publishPhase === 'uploading'
+                    ? 'ĐANG TẢI TỆP LÊN KHO…'
+                    : 'ĐANG LƯU HỒ SƠ FILE…'
+                  : 'XUẤT BẢN VÀO DANH MỤC'}
               </Button>
             </div>
           </div>

@@ -101,6 +101,24 @@ Ghi chú thêm: `order_items.workshop_id` và `order_items.designer_id` cũng **
 (comment ngay trong baseline). Vì vậy ERD (kể cả mermaid trong `schema.md`) là mô hình
 logic; generator T26 chỉ nên vẽ FK thật, các cạnh trên ghi chú riêng.
 
+### 5b. File CAD: `products.cad_file_url` (cũ) **khác** `digital_assets.storage_path` (private, FL-2a)
+
+| Cột | Bản chất | Ai đọc được | Ghi bởi |
+|---|---|---|---|
+| `products.cad_file_url` / `cad_format` / `file_size_bytes` | Metadata + URL **công khai kiểu cũ** (có thể trỏ CDN ngoài) | Bất kỳ ai đọc được products đã publish | Seed/legacy + `saveProduct` (nếu form có) |
+| `digital_assets.storage_path` | Đường dẫn object trong bucket **private `cad-files`**, scheme `cad/<designer_uid>/<uuid>/<file>` | Designer sở hữu + admin (RLS); khách nhận qua signed URL sau khi mua (FL-2b) | FL-2a: `DesignerUploadWizardTab` upload thật → `AssetService.createDigitalAsset` |
+
+Nguyên tắc (FL-2a):
+
+- **Không trộn hai nguồn.** Upload mới **KHÔNG** set `products.cad_file_url` — tránh biến file
+  private thành URL công khai/đoán được. `cad_file_url` chỉ còn là dữ liệu cũ, **không ghi đè**.
+- Tệp đã mua phải lấy qua `AssetService.createSignedUrl(storage_path, ttl)`; không dùng
+  `getPublicUrl` cho bucket `cad-files`.
+- Khi tạo sản phẩm (FL-2a) client ghi `digital_assets` **sau** khi upload Storage thành công;
+  product + asset hiện là 2 request riêng (chưa transaction) — FL-7 sẽ gộp RPC server-side.
+  Nếu insert asset lỗi, client compensation xoá object vừa upload.
+- `digital_assets.product_id` là `text`, **không FK** (xem §5) — đừng dựa FK để đảm bảo thứ tự.
+
 ---
 
 ## 6. `designer_payout_info` (SEC-01 / T20) và việc drop cột `bank_*`
