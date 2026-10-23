@@ -20,6 +20,7 @@ import { NotFoundView } from '@frontend/components/NotFoundView';
 import { PageSkeleton } from '@frontend/components/PageSkeleton';
 import { Button, EmptyState, Icon } from '@frontend/ui';
 import { ExploreView } from '@frontend/views/ExploreView';
+import { OrderService } from '@backend/services/orderService';
 import { ProductDetailView } from '@frontend/views/ProductDetailView';
 
 // View chỉ dùng bởi các wrapper dưới đây ⇒ lazy declaration đặt tại đây (cùng pattern
@@ -214,9 +215,43 @@ export const OrderSuccessRoute: React.FC<{
   onOpenInvoice: (order: Order) => void;
 }> = ({ orders, onNavigate, onOpenInvoice }) => {
   const { orderId } = useParams<{ orderId?: string }>();
-  const order = resolveOrderById(orders, orderId);
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token') ?? undefined;
+  const fromRam = resolveOrderById(orders, orderId);
+
+  // FL-1 — HOÁ ĐƠN BỀN qua F5: nếu đơn không còn trên RAM (reload/tab mới) thì đọc lại từ DB.
+  //   * Chủ đơn đã đăng nhập: RLS `vcube_orders_owner_read` cho đọc theo id.
+  //   * Khách vãng lai: cần `?token=<secure_access_token>` (RPC SECURITY DEFINER) — không đoán.
+  // Không có fallback sang đơn khác: sai id/token ⇒ trạng thái "không tìm thấy" như cũ.
+  const [dbOrder, setDbOrder] = React.useState<Order | null>(null);
+  const [loadState, setLoadState] = React.useState<'idle' | 'loading' | 'error'>('idle');
+
+  React.useEffect(() => {
+    if (!orderId || fromRam) {
+      setDbOrder(null);
+      setLoadState('idle');
+      return;
+    }
+    let alive = true;
+    setLoadState('loading');
+    OrderService.getOrderDetail(orderId, { token })
+      .then((res) => {
+        if (!alive) return;
+        setDbOrder(res.order);
+        setLoadState('idle');
+      })
+      .catch(() => {
+        if (alive) setLoadState('error');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [orderId, fromRam, token]);
+
+  const order = fromRam ?? dbOrder;
 
   if (!order) {
+    if (loadState === 'loading') return <PageSkeleton />;
     return <OrderNotFoundView onNavigate={onNavigate} context="order-success" />;
   }
 

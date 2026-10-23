@@ -10,6 +10,8 @@ import { usePricingGlobalSettings } from '../hooks/useSettings';
 import { Icon, Button, Card, EmptyState, Field, Input, Money, Select } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
 import { OrderService } from '../../backend/services/orderService';
+import { manualPaymentProvider } from '../../backend/integrations/paymentProvider';
+import type { PaymentInstructions } from '../../backend/integrations/paymentProvider';
 
 /** Nhãn vai trò hiển thị VI (giá trị `role` trong DB là enum tiếng Anh — không render thô). */
 const ROLE_LABEL: Record<string, string> = {
@@ -96,6 +98,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
    * điều đó; màn hình thành công chỉ được mở khi DB đã nhận đơn (data-honesty OT-03).
    */
   const [orderError, setOrderError] = useState<string | null>(null);
+  /**
+   * FL-1: đơn VỪA TẠO (đã xuống DB). Có giá trị ⇒ màn hình chuyển sang khối thanh toán thủ công
+   * (số tiền + nội dung chuyển khoản + thông tin nhận tiền từ `app_settings`) thay vì rời trang
+   * ngay. KHÔNG bịa thông tin ngân hàng: thiếu cấu hình ⇒ hiện "Chưa cấu hình thông tin nhận tiền".
+   */
+  const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+  const [copiedPaymentField, setCopiedPaymentField] = useState<string | null>(null);
 
   const physicalItems = cart.filter(i => i.type === 'physical');
   const digitalItems = cart.filter(i => i.type === 'digital');
@@ -232,9 +241,11 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         }
       }
 
-      // Chỉ tới đây — khi DB ĐÃ nhận đơn — mới được chuyển sang màn hình thành công.
+      // Chỉ tới đây — khi DB ĐÃ nhận đơn — mới được coi là thành công.
+      // FL-1: giữ khách ở lại để đọc HƯỚNG DẪN THANH TOÁN THỦ CÔNG (số tiền, nội dung CK,
+      // thông tin nhận tiền) — màn hình thành công vẫn mở được từ CTA bên dưới.
       onOrderCompleted(savedOrder);
-      onNavigate('order_success', { order: savedOrder });
+      setCreatedOrder(savedOrder);
     } catch (err: any) {
       // Ghi DB hỏng ⇒ KHÔNG có màn hình thành công, KHÔNG đơn "trên RAM".
       // Hiện nguyên văn lỗi thật để người dùng/người vận hành biết chuyện gì xảy ra.
@@ -245,6 +256,175 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       setIsProcessing(false);
     }
   };
+
+  // FL-1 — màn hình SAU KHI ĐẶT ĐƠN: khối thanh toán thủ công (không tự rời trang).
+  // Đặt TRƯỚC guard giỏ rỗng vì `onOrderCompleted` đã clear cart (guard sẽ che mất khối này).
+  if (createdOrder) {
+    const instructions: PaymentInstructions = manualPaymentProvider.buildInstructions(createdOrder, {
+      bankName: transferSettings?.bankName ?? null,
+      bankAccount: transferSettings?.bankAccount ?? null,
+      accountHolder: transferSettings?.legalName ?? null,
+    });
+    const payment = createdOrder.payment;
+    const copyText = async (field: string, value: string | null) => {
+      if (!value) return;
+      try {
+        await navigator.clipboard?.writeText(value);
+        setCopiedPaymentField(field);
+        window.setTimeout(() => setCopiedPaymentField(null), 2000);
+      } catch {
+        /* ignore: clipboard bị trình duyệt chặn — không báo thành công giả, người dùng vẫn copy tay được */
+      }
+    };
+
+    return (
+      <div className="min-h-dvh bg-canvas text-fg py-8 sm:py-12 px-4 sm:px-6 md:px-12">
+        <div className="mx-auto max-w-3xl space-y-6">
+          <Card variant="soft" padding="lg" className="space-y-6">
+            <div className="text-center space-y-2">
+              <div className="mx-auto grid size-12 place-items-center rounded-full bg-positive-tint text-positive">
+                <Icon name="check_circle" size={24} aria-hidden="true" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-fg">Đã tạo đơn hàng</h1>
+              <p className="text-sm text-fg-muted">
+                Mã đơn{' '}
+                <strong className="font-mono text-fg tabular-nums">{createdOrder.orderNumber}</strong>. Đơn đang ở
+                trạng thái <strong className="text-warning">CHỜ THANH TOÁN</strong> — VCUBE xác nhận khoản chuyển
+                thủ công trước khi xưởng bắt đầu.
+              </p>
+            </div>
+
+            {/* Số tiền + hướng dẫn chuyển khoản */}
+            <div className="rounded-lg border border-line bg-surface-muted p-4 space-y-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-sm font-semibold text-fg">Số tiền cần chuyển</span>
+                <Money value={instructions.amount} size="heading" className="text-fg" />
+              </div>
+
+              {instructions.configured ? (
+                <div className="space-y-2 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-fg-muted">Ngân hàng</span>
+                    <strong className="text-fg">{instructions.bankName}</strong>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-fg-muted">Số tài khoản</span>
+                    <span className="flex items-center gap-2">
+                      <strong className="font-mono text-fg tabular-nums">{instructions.bankAccount}</strong>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void copyText('account', instructions.bankAccount)}
+                        leadingIcon={<Icon name={copiedPaymentField === 'account' ? 'check' : 'content_copy'} size={14} />}
+                      >
+                        {copiedPaymentField === 'account' ? 'Đã chép' : 'Sao chép'}
+                      </Button>
+                    </span>
+                  </div>
+                  {instructions.accountHolder && (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-fg-muted">Chủ tài khoản</span>
+                      <strong className="text-fg">{instructions.accountHolder}</strong>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle pt-2">
+                    <span className="text-fg-muted">Nội dung chuyển khoản</span>
+                    <span className="flex items-center gap-2">
+                      <strong className="font-mono text-fg">{instructions.transferContent}</strong>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void copyText('content', instructions.transferContent)}
+                        leadingIcon={<Icon name={copiedPaymentField === 'content' ? 'check' : 'content_copy'} size={14} />}
+                      >
+                        {copiedPaymentField === 'content' ? 'Đã chép' : 'Sao chép'}
+                      </Button>
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-md border border-warning/20 bg-warning-tint p-3 text-sm text-fg-muted">
+                  <p className="font-semibold text-warning">Chưa cấu hình thông tin nhận tiền</p>
+                  <p className="mt-1 leading-relaxed">
+                    VCUBE chưa khai báo ngân hàng / số tài khoản nhận chuyển khoản trong hệ thống. Vui lòng liên hệ
+                    VCUBE để nhận thông tin chính xác — không chuyển tiền theo số khác.
+                  </p>
+                </div>
+              )}
+
+              <p className="text-xs leading-relaxed text-fg-muted">
+                Đơn chỉ chuyển sang trạng thái <strong>ĐÃ THANH TOÁN</strong> sau khi VCUBE đối soát được khoản chuyển.
+                Bạn có thể tra cứu đơn bằng mã đơn {createdOrder.secureAccessToken ? 'kèm mã truy cập bên dưới' : 'trong mục Đơn hàng của tôi'}.
+              </p>
+            </div>
+
+            {/* Breakdown tiền — giữ nguyên cách tính của checkout */}
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between gap-3 text-fg-muted">
+                <span>Tiền hàng (chưa VAT)</span>
+                <Money value={(payment?.subtotalPhysical ?? 0) + (payment?.subtotalDigital ?? 0)} size="base" className="text-fg" />
+              </div>
+              {(payment?.shippingFee ?? 0) > 0 && (
+                <div className="flex justify-between gap-3 text-fg-muted">
+                  <span>Phí vận chuyển</span>
+                  <Money value={payment.shippingFee} size="base" className="text-fg" />
+                </div>
+              )}
+              {(payment?.discount ?? 0) > 0 && (
+                <div className="flex justify-between gap-3 text-positive">
+                  <span>Giảm giá</span>
+                  <span className="font-mono tabular-nums">
+                    − <Money value={payment.discount} size="base" className="text-positive" />
+                  </span>
+                </div>
+              )}
+              {(payment?.tax ?? 0) > 0 && (
+                <div className="flex justify-between gap-3 text-fg-muted">
+                  <span>{vatLabel(payment?.vatRate ?? null)}</span>
+                  <Money value={payment.tax} size="base" className="text-fg" />
+                </div>
+              )}
+              <div className="flex items-baseline justify-between gap-3 border-t border-line-subtle pt-2">
+                <span className="text-base font-bold text-fg">Tổng thanh toán</span>
+                <Money value={payment?.total} size="heading" className="text-fg" />
+              </div>
+            </div>
+
+            {createdOrder.secureAccessToken && (
+              <div className="rounded-md border border-dashed border-line bg-surface-muted p-3 text-sm">
+                <span className="text-fg-muted">Mã truy cập tra cứu đơn (lưu lại): </span>
+                <code className="font-mono text-fg break-all">{createdOrder.secureAccessToken}</code>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full sm:flex-1"
+                onClick={() => onNavigate('order_tracking', { orderId: createdOrder.id })}
+                leadingIcon={<Icon name="sensors" size={18} aria-hidden="true" />}
+              >
+                Theo dõi đơn hàng
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full sm:flex-1"
+                onClick={() => onNavigate('order_success', { order: createdOrder })}
+                leadingIcon={<Icon name="receipt_long" size={18} aria-hidden="true" />}
+              >
+                Xem đơn &amp; hoá đơn
+              </Button>
+            </div>
+            <p className="text-center text-xs text-fg-subtle">
+              Đơn đã được lưu trên hệ thống. Bạn không cần đặt lại.
+            </p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   // Critical: giỏ rỗng (deep-link hoặc đã xoá ở tab khác) KHÔNG được render form
   // thanh toán rồi tạo đơn 0đ trong DB.

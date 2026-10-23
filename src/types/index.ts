@@ -1,3 +1,5 @@
+import type { OrderMoneySnapshot } from './orderRecords';
+
 export interface Product {
   id: string;
   name: string;
@@ -37,6 +39,8 @@ export interface Product {
   cadFormat?: 'STL' | 'STEP' | '3MF';
   fileSizeBytes?: number;
   thumbnailUrl?: string;
+  /** FL-1 — ai bán sản phẩm (nguồn cho `order_items.seller_type`); thiếu ⇒ `undefined` = chưa khai. */
+  sellerType?: 'platform' | 'designer';
 }
 
 export type ProductStatus = 'draft' | 'published' | 'archived';
@@ -91,6 +95,8 @@ export interface Order {
   timeRemaining?: string | null;
   customerType?: 'guest' | 'registered';
   secureAccessToken?: string;
+  /** FL-1 — xưởng được gán (`orders.assigned_workshop_id`); null = chưa điều phối. */
+  assignedWorkshopId?: string | null;
   items: {
     id: string;
     name: string;
@@ -138,6 +144,8 @@ export interface Order {
     isPaid?: boolean;
     status?: OrderPaymentStatus;
   };
+  /** FL-1 — snapshot tiền đã chốt trên `orders` (null = chưa chốt/chưa cấu hình). */
+  money?: OrderMoneySnapshot;
 }
 
 /** Một dòng VAT dùng chung cho cart / checkout / order summary / hoá đơn. */

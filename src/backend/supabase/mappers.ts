@@ -57,6 +57,12 @@ import type {
   SiteContentConfig,
   WorkshopPartner,
 } from '../../types';
+import type {
+  OrderFileRecord,
+  OrderItemRecord,
+  OrderMoneySnapshot,
+  PaymentTransactionRecord,
+} from '../../types/orderRecords';
 
 /** Một dòng bất kỳ đọc từ PostgREST (chưa có type sinh từ DB). */
 export type SupabaseRow = Record<string, any>;
@@ -208,6 +214,12 @@ export function rowToProduct(d: SupabaseRow): Product {
     // (tinh nang giay phep hong tu dau-cuoi). Rong/khong co cot ⇒ `null` = CHUA AI KHAI:
     // khong duoc khang dinh mot loai giay phep nao.
     licenseType: (optStr(d.license_type ?? d.licenseType) ?? null) as Product['licenseType'],
+    // FL-1: `products.seller_type` (CHECK platform|designer) — nguồn cho `order_items.seller_type`.
+    // Cột vắng ⇒ `undefined` = CHƯA KHAI (không tự nhận 'designer').
+    sellerType:
+      d.seller_type === 'platform' || d.seller_type === 'designer'
+        ? (d.seller_type as Product['sellerType'])
+        : undefined,
   } as Product;
 }
 
@@ -348,6 +360,8 @@ export function rowToOrder(d: SupabaseRow): Order {
     layerProgress: d.layer_progress ?? d.layerProgress ?? null,
     timeRemaining: d.time_remaining ?? null,
     secureAccessToken: d.secure_access_token || d.secureAccessToken,
+    // FL-1: xưởng được gán — cần cho snapshot chiết khấu xưởng khi admin xác nhận tiền.
+    assignedWorkshopId: d.assigned_workshop_id ?? null,
     items: d.items || [],
     shippingAddress: d.shipping_address || {
       fullName: '',
@@ -370,6 +384,8 @@ export function rowToOrder(d: SupabaseRow): Order {
       isPaid: payment.isPaid === true || d.payment_status === 'paid',
       status: d.payment_status || (payment.isPaid === true ? 'paid' : 'unpaid'),
     },
+    // FL-1 — snapshot tiền §3b (NULL = chưa chốt; không bịa 0).
+    money: rowToOrderMoney(d),
   } as Order;
 }
 
@@ -670,3 +686,76 @@ export function rowToCustomDesignRequest(row: SupabaseRow): CustomDesignRequest 
   };
 }
 
+
+
+/* ============================================================================
+ * FL-1 — row mappers cho dòng tiền / thanh toán / file của đơn
+ * ========================================================================== */
+
+const nullableNumber = (v: unknown): number | null =>
+  v === null || v === undefined || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null;
+
+/** Snapshot tiền §3b trên `orders` — mọi cột nullable ⇒ `null` khi chưa chốt. */
+export function rowToOrderMoney(d: SupabaseRow): OrderMoneySnapshot {
+  const payout = (v: unknown): OrderMoneySnapshot['workshopPayoutStatus'] =>
+    v === 'paid' || v === 'unpaid' || v === 'partial' ? v : null;
+  return {
+    subtotalAmount: nullableNumber(d.subtotal_amount),
+    vatPercentSnapshot: nullableNumber(d.vat_percent_snapshot),
+    vatAmount: nullableNumber(d.vat_amount),
+    platformFeePercentSnapshot: nullableNumber(d.platform_fee_percent_snapshot),
+    platformFixedFeeSnapshot: nullableNumber(d.platform_fixed_fee_snapshot),
+    platformFeeAmount: nullableNumber(d.platform_fee_amount),
+    workshopPayoutAmount: nullableNumber(d.workshop_payout_amount),
+    designerPayoutAmount: nullableNumber(d.designer_payout_amount),
+    workshopPayoutStatus: payout(d.workshop_payout_status),
+    designerPayoutStatus: payout(d.designer_payout_status),
+  };
+}
+
+/** Row `order_items` → domain. Chip tiền/tỉ lệ giữ `null` khi DB để trống. */
+export function rowToOrderItem(d: SupabaseRow): OrderItemRecord {
+  return {
+    id: String(d.id ?? ''),
+    orderId: String(d.order_id ?? ''),
+    productId: String(d.product_id ?? ''),
+    sellerType: d.seller_type === 'platform' ? 'platform' : 'designer',
+    fulfillment: d.fulfillment === 'digital' ? 'digital' : 'print',
+    quantity: nullableNumber(d.quantity) ?? 1,
+    unitPrice: nullableNumber(d.unit_price) ?? 0,
+    lineTotal: nullableNumber(d.line_total) ?? 0,
+    workshopId: d.workshop_id ? String(d.workshop_id) : null,
+    designerId: d.designer_id ? String(d.designer_id) : null,
+    workshopCommissionPercentSnapshot: nullableNumber(d.workshop_commission_percent_snapshot),
+    royaltyPercentSnapshot: nullableNumber(d.royalty_percent_snapshot),
+    workshopPayoutAmount: nullableNumber(d.workshop_payout_amount),
+    designerPayoutAmount: nullableNumber(d.designer_payout_amount),
+    platformFeeAmount: nullableNumber(d.platform_fee_amount),
+  };
+}
+
+/** Row `payment_transactions` → domain. */
+export function rowToPaymentTransaction(d: SupabaseRow): PaymentTransactionRecord {
+  return {
+    id: String(d.id ?? ''),
+    orderId: d.order_id ? String(d.order_id) : null,
+    transactionId: String(d.transaction_id ?? ''),
+    amount: nullableNumber(d.amount) ?? 0,
+    paymentGateway: String(d.payment_gateway ?? ''),
+    payload: d.payload && typeof d.payload === 'object' ? (d.payload as Record<string, unknown>) : {},
+    status: String(d.status ?? ''),
+    createdAt: (optStr(d.created_at) ?? null) as string | null,
+  };
+}
+
+/** Row `order_files` → domain. `storage_path` là dữ liệu nội bộ, KHÔNG trả cho khách. */
+export function rowToOrderFile(d: SupabaseRow): OrderFileRecord {
+  return {
+    id: String(d.id ?? ''),
+    orderId: String(d.order_id ?? ''),
+    productId: d.product_id ? String(d.product_id) : null,
+    storagePath: String(d.storage_path ?? ''),
+    license: String(d.license ?? 'personal'),
+    createdAt: (optStr(d.created_at) ?? null) as string | null,
+  };
+}

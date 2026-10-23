@@ -76,9 +76,9 @@
 
 | ID | Workstream | Phạm vi | Phụ thuộc | Ước lượng |
 |---|---|---|---|---|
-| **FL-0** | Harness & adapter skeleton | seed 4 role, e2e script đặt đơn, adapter interfaces (`PaymentProvider`, `PayoutProvider`, `NotificationProvider`, `FileStorage`) | — | 2–3 ngày |
-| **FL-1** | Transaction core | checkout ghi `order_items` + snapshot tiền + `payment_transactions`; admin order detail + xác nhận paid; invoice đọc DB | FL-0 | 1–2 tuần |
-| **FL-2** | Digital fulfilment | designer upload Supabase Storage; `order_files` khi mua file; `/assets` tải signed URL; license/download limit; RLS owner | FL-1 | 1 tuần |
+| **FL-0** ✅ | Harness & adapter skeleton | seed 4 role, e2e script đặt đơn, adapter interfaces (`PaymentProvider`, `PayoutProvider`, `NotificationProvider`, `FileStorage`) | — | 2–3 ngày |
+| **FL-1** ✅ DONE | Transaction core | checkout ghi `order_items` + snapshot tiền + `payment_transactions`; admin order detail + xác nhận paid; invoice đọc DB | FL-0 | 1–2 tuần |
+| **FL-2** 🔄 (2a DONE, 2b tiếp) | Digital fulfilment | designer upload Supabase Storage (`cad/<uid>/<uuid>/…` + `digital_assets`); còn: `order_files` khi mua file + `/assets` tải signed URL + license/download limit | FL-1 | 1 tuần |
 | **FL-3** | Dispatch & workshop flow | admin gán `assigned_workshop_id`; queue xưởng có spec/file; accept/reject; stage + ETA + ghi chú; hoàn tất | FL-1 | 1–2 tuần |
 | **FL-4** | Payout & settlement (manual) | ledger từ `order_items`; công nợ xưởng/designer; yêu cầu rút; admin mark paid; sao kê | FL-1, FL-3 | 1 tuần |
 | **FL-5** | Admin finance & full-flow console | dashboard doanh thu/COGS/margin/take-rate/payables; đối soát; VAT tháng; audit UI | FL-1, FL-4 | 1–2 tuần |
@@ -138,3 +138,19 @@
 - [ ] Admin: `/admin/orders/:id` — items, tiền, payment, files, timeline; nút **Xác nhận đã nhận tiền** (orders.payment_status + payment_transactions + status).
 - [ ] Invoice đọc từ DB theo order id (không phụ thuộc RAM), in được.
 - [ ] Unit test cho split tiền + e2e "đặt đơn ghi đủ 3 bảng".
+
+---
+
+## 9. Tiến độ thực thi (cập nhật 2026-10-23)
+
+| Phase | Trạng thái | Bằng chứng |
+|---|---|---|
+| FL-0 | ✅ xong trong FL-1/FL-2a | Adapter `src/backend/integrations/*` + `scripts/e2e/guest-order-flow.ts` |
+| FL-1 | ✅ DONE | Code: `orderMoney.ts` (công thức 3 bên, 11 test) · `OrderService.confirmManualPayment` (idempotent, compensation) · `AdminOrderDetailPanel` · Checkout payment block · Invoice DB-backed · **sửa bug guest checkout `upsert → insert` (RLS 42501)**. Bằng chứng: **e2e DB thật 10/10 PASS** (guest insert → RPC token → anon bị RLS chặn đúng → admin thật confirm → paid + order_items + payment_transactions; cleanup 0 sót), smoke 14/14, gates 15/15. Handoff `handoff/fl1-order-flow.md`. |
+| FL-2a | ✅ DONE | `fileStorage.ts` (Supabase Storage, path `cad/<uid>/<uuid>/<sanitized>`, 150MB, allowlist) + `AssetService.createDigitalAsset` + wizard upload thật (parse mesh 1 lần, SHA-256, compensation xoá object). 23 test mới (tổng 105). **Chưa verify round-trip với account designer thật** (chưa có account) — cần 1 account để đóng dấu. Handoff `handoff/fl2a-designer-upload.md`. |
+| FL-2b | ⏭ tiếp theo | `order_files` insert đã có ở FL-1 (khi `digital_assets` có `storage_path`); còn: UI `/assets` đọc `order_files` + signed URL + license/download limit. |
+| FL-3 | ⏭ sau FL-2b | Dispatch: admin gán `assigned_workshop_id` → queue xưởng + spec/file + accept/reject + tiến độ. |
+
+**Blocker cần chủ dự án:** cấp **1 tài khoản designer + 1 admin** (hoặc cho phép tạo 4 account demo `@vcube.test`) để
+verify end-to-end thật các luồng upload file & xác nhận thanh toán/thao tác admin (hiện e2e dùng admin tạm tạo–xoá
+bằng secret key; designer upload mới chỉ verify bằng mock + smoke với token giả bị Storage từ chối đúng).

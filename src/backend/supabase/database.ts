@@ -13,7 +13,15 @@ import {
   rowToSiteContent,
   rowToAccessory,
   rowToWorkshopPartner,
+  rowToOrderItem,
+  rowToPaymentTransaction,
+  rowToOrderFile,
 } from './mappers';
+import type {
+  OrderFileRecord,
+  OrderItemRecord,
+  PaymentTransactionRecord,
+} from '../../types/orderRecords';
 // Hợp đồng ghi canonical (discriminated union) — xem src/backend/lib/result.ts.
 import { ok, fail, type WriteResult } from '../lib/result';
 
@@ -279,7 +287,11 @@ export const dbService = {
         }
       }
 
-      const { error } = await supabase.from('orders').upsert({
+      // FL-1: dùng INSERT (không phải UPSERT) — `ON CONFLICT DO UPDATE` yêu cầu policy UPDATE
+      // trên `orders`, mà KHÁCH chỉ có policy INSERT (`vcube_orders_guest_insert`). Dùng upsert
+      // khiến guest checkout bị RLS từ chối (42501) dù INSERT hợp lệ. Đơn tạo mới luôn là INSERT;
+      // trùng id ⇒ lỗi thật (không ghi đè đơn đã có).
+      const { error } = await supabase.from('orders').insert({
         id: order.id,
         order_number: order.orderNumber,
         user_id: userId,
@@ -796,5 +808,235 @@ export const dbService = {
       return fail(err);
     }
   },
-};
 
+  // ==========================================================================
+  // FL-1 — ĐƠN HÀNG: đọc chi tiết + ghi dòng tiền/thanh toán/file (admin-only ở RLS)
+  // ==========================================================================
+  // RLS (20261010_harden_rls.sql): `order_items` chủ đơn đọc + admin ghi; `order_files`
+  // người mua/admin-lab đọc, staff ghi; `payment_transactions` CHỈ admin. Vì vậy các method
+  // GHI dưới đây sẽ bị RLS từ chối nếu caller không phải admin — đó là hành vi ĐÚNG; không
+  // được "thử lại bằng service key" ở client.
+
+  /** Đọc 1 đơn theo id (RLS quyết định ai đọc được). `null` = không tồn tại/không có quyền. */
+  async getOrderById(orderId: string): Promise<Order | null> {
+    if (!orderId) return null;
+    const { data, error } = await supabase.from('orders').select('*').eq('id', orderId).maybeSingle();
+    if (error) throw new Error(`Không tải được đơn hàng: ${error.message}`);
+    return data ? rowToOrder(data) : null;
+  },
+
+  async getOrderItems(orderId: string): Promise<OrderItemRecord[]> {
+    if (!orderId) return [];
+    const { data, error } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+    if (error) throw new Error(`Không tải được dòng tiền của đơn: ${error.message}`);
+    return (data ?? []).map(rowToOrderItem);
+  },
+
+  async getPaymentTransactions(orderId: string): Promise<PaymentTransactionRecord[]> {
+    if (!orderId) return [];
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(`Không tải được giao dịch thanh toán: ${error.message}`);
+    return (data ?? []).map(rowToPaymentTransaction);
+  },
+
+  async getOrderFiles(orderId: string): Promise<OrderFileRecord[]> {
+    if (!orderId) return [];
+    const { data, error } = await supabase.from('order_files').select('*').eq('order_id', orderId);
+    if (error) throw new Error(`Không tải được file của đơn: ${error.message}`);
+    return (data ?? []).map(rowToOrderFile);
+  },
+
+  /** Ghi nhiều dòng `order_items` (admin). Trả lỗi THẬT — caller phải compensation. */
+  async insertOrderItems(rows: Record<string, unknown>[]): Promise<WriteResult> {
+    if (rows.length === 0) return ok();
+    try {
+      const { error } = await supabase.from('order_items').insert(rows);
+      if (error) return fail(`Không ghi được order_items: ${error.message}`);
+      return ok();
+    } catch (err: any) {
+      return fail(err);
+    }
+  },
+
+  /** Xoá `order_items` theo id — compensation khi bước sau thất bại. */
+  async deleteOrderItemsByIds(ids: string[]): Promise<WriteResult> {
+    if (ids.length === 0) return ok();
+    try {
+      const { error } = await supabase.from('order_items').delete().in('id', ids);
+      if (error) return fail(`Không hoàn tác được order_items: ${error.message}`);
+      return ok();
+    } catch (err: any) {
+      return fail(err);
+    }
+  },
+
+  /**
+   * Ghi 1 giao dịch thanh toán (admin). `transaction_id` UNIQUE theo đơn ⇒ chèn lần 2 sẽ bị
+   * từ chối (23505) và caller coi là đã xác nhận (idempotent).
+   */
+  async insertPaymentTransaction(row: Record<string, unknown>): Promise<WriteResult> {
+    try {
+      const { error } = await supabase.from('payment_transactions').insert(row);
+      if (error) return fail(error);
+      return ok();
+    } catch (err: any) {
+      return fail(err);
+    }
+  },
+
+  async deletePaymentTransactionById(id: string): Promise<WriteResult> {
+    try {
+      const { error } = await supabase.from('payment_transactions').delete().eq('id', id);
+      if (error) return fail(`Không hoàn tác được payment_transactions: ${error.message}`);
+      return ok();
+    } catch (err: any) {
+      return fail(err);
+    }
+  },
+
+  /** Ghi nhiều `order_files` (staff: admin/lab). Path phải là `digital_assets.storage_path` THẬT. */
+  async insertOrderFiles(rows: Record<string, unknown>[]): Promise<WriteResult> {
+    if (rows.length === 0) return ok();
+    try {
+      const { error } = await supabase.from('order_files').insert(rows);
+      if (error) return fail(`Không ghi được order_files: ${error.message}`);
+      return ok();
+    } catch (err: any) {
+      return fail(err);
+    }
+  },
+
+  async deleteOrderFilesByIds(ids: string[]): Promise<WriteResult> {
+    if (ids.length === 0) return ok();
+    try {
+      const { error } = await supabase.from('order_files').delete().in('id', ids);
+      if (error) return fail(`Không hoàn tác được order_files: ${error.message}`);
+      return ok();
+    } catch (err: any) {
+      return fail(err);
+    }
+  },
+
+  /** Cập nhật snapshot tiền + trạng thái thanh toán trên `orders` (admin; trigger bảo vệ tiền). */
+  async updateOrderPaymentSnapshot(orderId: string, patch: Record<string, unknown>): Promise<WriteResult> {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq('id', orderId);
+      if (error) return fail(`Không cập nhật được đơn hàng: ${error.message}`);
+      return ok();
+    } catch (err: any) {
+      return fail(err);
+    }
+  },
+
+  /** Cấu hình tiền cần cho snapshot (public read; cột nullable = chưa cấu hình). */
+  async getPricingGlobalMoneyConfig(): Promise<{
+    vatPercent: number | null;
+    marketplaceFeePercent: number | null;
+    marketplaceFixedFeeVnd: number | null;
+    defaultWorkshopCommissionPercent: number | null;
+  }> {
+    const { data, error } = await supabase
+      .from('pricing_global_settings')
+      .select('vat_percent, marketplace_fee_percent, marketplace_fixed_fee_vnd, default_workshop_commission_percent')
+      .eq('id', 'global')
+      .maybeSingle();
+    if (error) throw new Error(`Không đọc được cấu hình phí nền tảng: ${error.message}`);
+    const num = (v: unknown): number | null =>
+      v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v);
+    return {
+      vatPercent: num(data?.vat_percent),
+      marketplaceFeePercent: num(data?.marketplace_fee_percent),
+      marketplaceFixedFeeVnd: num(data?.marketplace_fixed_fee_vnd),
+      defaultWorkshopCommissionPercent: num(data?.default_workshop_commission_percent),
+    };
+  },
+
+  /**
+   * Chiết khấu % của MỘT xưởng. `workshop_commission_terms` chỉ admin đọc (RLS) ⇒ trả
+   * `null` khi chưa có thoả thuận riêng (caller fallback default trong config).
+   */
+  async getWorkshopCommissionPercent(partnerId: string): Promise<number | null> {
+    if (!partnerId) return null;
+    const { data, error } = await supabase
+      .from('workshop_commission_terms')
+      .select('commission_percent')
+      .eq('partner_id', partnerId)
+      .maybeSingle();
+    if (error) {
+      // Không phải admin / bảng chưa có hàng ⇒ KHÔNG bịa số; caller dùng default/NULL.
+      console.warn('getWorkshopCommissionPercent:', error.message);
+      return null;
+    }
+    const v = data?.commission_percent;
+    return v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v);
+  },
+
+  /** Đọc sản phẩm theo danh sách id (admin thấy cả draft; dùng cho snapshot seller_type). */
+  async getProductsByIds(ids: string[]): Promise<Product[]> {
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    if (unique.length === 0) return [];
+    const { data, error } = await supabase.from('products').select('*').in('id', unique);
+    if (error) throw new Error(`Không đọc được sản phẩm của đơn: ${error.message}`);
+    return (data ?? []).map(rowToProduct);
+  },
+
+  /**
+   * Royalty % theo tên hiển thị designer (nguồn: `designer_profiles.royalty_percent`).
+   * Tên khớp > 1 hồ sơ ⇒ KHÔNG chọn bừa: bỏ khỏi map để caller fallback/NULL.
+   */
+  async getDesignerRoyaltyByNames(names: string[]): Promise<Record<string, number>> {
+    const unique = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)));
+    if (unique.length === 0) return {};
+    const { data, error } = await supabase
+      .from('designer_profiles')
+      .select('display_name, royalty_percent')
+      .in('display_name', unique);
+    if (error) {
+      console.warn('getDesignerRoyaltyByNames:', error.message);
+      return {};
+    }
+    const out: Record<string, number> = {};
+    const seen: Record<string, number> = {};
+    for (const row of data ?? []) {
+      const name = String(row.display_name ?? '').trim();
+      if (!name) continue;
+      const pct = row.royalty_percent;
+      if (pct === null || pct === undefined || !Number.isFinite(Number(pct))) continue;
+      seen[name] = (seen[name] ?? 0) + 1;
+      out[name] = Number(pct);
+    }
+    for (const name of Object.keys(seen)) if (seen[name] > 1) delete out[name];
+    return out;
+  },
+
+  /** File số thật của sản phẩm (`digital_assets`) — nguồn path cho `order_files`, không bịa. */
+  async getDigitalAssetsByProductIds(
+    productIds: string[]
+  ): Promise<{ productId: string; storagePath: string; designerId: string | null; licenseType: string | null }[]> {
+    const unique = Array.from(new Set(productIds.filter(Boolean)));
+    if (unique.length === 0) return [];
+    const { data, error } = await supabase
+      .from('digital_assets')
+      .select('product_id, storage_path, designer_id, license_type')
+      .in('product_id', unique);
+    if (error) {
+      console.warn('getDigitalAssetsByProductIds:', error.message);
+      return [];
+    }
+    return (data ?? [])
+      .filter((r) => typeof r.storage_path === 'string' && r.storage_path.trim() !== '')
+      .map((r) => ({
+        productId: String(r.product_id),
+        storagePath: String(r.storage_path),
+        designerId: r.designer_id ? String(r.designer_id) : null,
+        licenseType: r.license_type ? String(r.license_type) : null,
+      }));
+  },
+};

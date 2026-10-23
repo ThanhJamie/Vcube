@@ -9,6 +9,7 @@ import {
 } from '@frontend/stores/useProductionStore';
 import { Order } from '@/types';
 import { dbService } from '../../../../backend/supabase/database';
+import { AdminOrderDetailPanel } from '../orders/AdminOrderDetailPanel';
 import { EMPTY_VALUE, formatNumber } from '../../../lib/format';
 import { Badge, Button, EmptyState, Field, Icon, InfoTip, Input, Modal, Select, Skeleton } from '@frontend/ui';
 
@@ -927,6 +928,18 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                           </ul>
                         </div>
                       )}
+
+                      {/* FL-1 — mở chi tiết đơn: items/tiền/thanh toán/file + xác nhận thủ công */}
+                      <div className="flex items-center justify-end gap-2 border-t border-line-subtle pt-3">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          leadingIcon={<Icon name="visibility" size={14} aria-hidden="true" />}
+                          onClick={() => setSelectedJobId(job.id)}
+                        >
+                          Chi tiết &amp; thanh toán
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -1099,6 +1112,15 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   <span className="text-xs text-fg-muted uppercase tracking-wider font-semibold">Độ Đặc</span>
                   <div className="font-bold text-fg font-mono tabular-nums">{numOrDash(selectedJob.infillPercent, '%')}</div>
                 </div>
+              </div>
+
+              {/* FL-1 — CHI TIẾT ĐƠN TỪ DB: dòng tiền, giao dịch, file, nút xác nhận thanh toán */}
+              <div className="rounded-lg border border-line bg-surface p-4">
+                <AdminOrderDetailPanel
+                  orderId={selectedJob.id}
+                  onShowToast={onShowToast}
+                  onConfirmed={() => void loadOrders()}
+                />
               </div>
 
               {/* Operator Notes Box — CHỈ TRONG PHIÊN (orders không có cột ghi chú kỹ thuật) */}

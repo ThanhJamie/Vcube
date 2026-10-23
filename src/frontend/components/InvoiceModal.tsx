@@ -5,6 +5,8 @@ import { Button, Icon, Modal } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
 import { EMPTY_VALUE, formatCurrency, formatDateTime } from '../lib/format';
+import { OrderService } from '../../backend/services/orderService';
+import type { OrderDetailResult } from '@/types/orderRecords';
 
 /**
  * `Order.date` đến từ HAI nguồn khác nhau:
@@ -63,6 +65,42 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
     return unsubscribe;
   }, []);
 
+  // FL-1 — HOÁ ĐƠN BỀN: đọc lại đơn từ DB theo id (+ token khách vãng lai nếu có) thay vì chỉ
+  // tin object trên RAM. Nhờ vậy F5 / mở từ màn khác vẫn ra đúng số đã lưu, và admin/owner thấy
+  // được giao dịch thanh toán + file đã giao. Lỗi/RLS ⇒ vẫn in từ object đã có + ghi rõ nguồn.
+  const [detail, setDetail] = useState<OrderDetailResult | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const orderId = order?.id ?? null;
+  const orderToken = order?.secureAccessToken ?? undefined;
+
+  useEffect(() => {
+    if (!isOpen || !orderId) {
+      setDetail(null);
+      return;
+    }
+    let alive = true;
+    setDetailLoading(true);
+    OrderService.getOrderDetail(orderId, { token: orderToken })
+      .then((res) => {
+        if (alive) setDetail(res);
+      })
+      .catch((err) => {
+        // Không chặn in hoá đơn: object `order` vẫn là số đã ghi nhận. Ghi nhận lỗi để UI nói thật.
+        console.warn('[vcube] invoice: không đọc lại được đơn từ DB:', err);
+        if (alive) setDetail(null);
+      })
+      .finally(() => {
+        if (alive) setDetailLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [isOpen, orderId, orderToken]);
+
+  /** Bản ghi ưu tiên: DB mới nhất (nếu đọc được) → object đơn đang có. */
+  const effectiveOrder = detail?.order ?? order;
+
   // CC-01 (B) — BẪY StrictMode: trước đây `if (!isOpen || !order) return null;` khiến `<Modal>`
   // chỉ mount lúc mở; cleanup ở lần mount đầu gọi `dialog.close()`, sự kiện `close` bắn BẤT ĐỒNG BỘ
   // vào listener của lần mount thứ hai ⇒ `onClose()` ⇒ hoá đơn tự đóng (nút "Hoá đơn" như chết ở
@@ -74,8 +112,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
 
   // Tiêu đề (header của Modal) chỉ cần tỉ lệ VAT ĐÃ GHI trên đơn ⇒ đọc an toàn khi `order` null.
   const titleVatRate =
-    order && typeof order.payment.vatRate === 'number' && Number.isFinite(order.payment.vatRate)
-      ? order.payment.vatRate
+    effectiveOrder && typeof effectiveOrder.payment.vatRate === 'number' && Number.isFinite(effectiveOrder.payment.vatRate)
+      ? effectiveOrder.payment.vatRate
       : null;
   const titleVat = titleVatRate === null ? null : vatLabel(titleVatRate);
 
@@ -97,7 +135,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
                 {titleVat ? 'HOÁ ĐƠN GTGT & CHỨNG NHẬN GIA CÔNG KỸ THUẬT' : 'HOÁ ĐƠN & CHỨNG NHẬN GIA CÔNG KỸ THUẬT'}
               </span>
               <span className="block font-mono text-xs text-fg-subtle">
-                {order ? `Số HĐ: HD-VCUBE-${order.orderNumber.replace('#', '')}` : 'Chưa chọn đơn để lập hoá đơn'}
+                {effectiveOrder
+                  ? `Số HĐ: HD-VCUBE-${effectiveOrder.orderNumber.replace('#', '')}`
+                  : 'Chưa chọn đơn để lập hoá đơn'}
               </span>
             </span>
           </span>
@@ -123,13 +163,15 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, isOpen, onClo
         </span>
       }
     >
-      {order ? (
+      {effectiveOrder ? (
         <InvoiceModalBody
-          order={order}
+          order={effectiveOrder}
           legal={legal}
           pricingGlobal={pricingGlobal}
           pricingLoading={pricingLoading}
           pricingError={pricingError}
+          detail={detail}
+          detailLoading={detailLoading}
         />
       ) : null}
     </Modal>
@@ -143,6 +185,9 @@ interface InvoiceModalBodyProps {
   pricingGlobal: ReturnType<typeof usePricingGlobalSettings>['data'];
   pricingLoading: boolean;
   pricingError: ReturnType<typeof usePricingGlobalSettings>['error'];
+  /** FL-1 — bản ghi đọc lại từ DB (dòng tiền, giao dịch, file) + nguồn từng phần. */
+  detail: OrderDetailResult | null;
+  detailLoading: boolean;
 }
 
 /** Nội dung hoá đơn in được — mọi con số đọc từ `order` đã lưu (PC-04). */
@@ -152,6 +197,8 @@ const InvoiceModalBody: React.FC<InvoiceModalBodyProps> = ({
   pricingGlobal,
   pricingLoading,
   pricingError,
+  detail,
+  detailLoading,
 }) => {
 
   // PC-04: hoá đơn chỉ in những con số ĐÃ ĐƯỢC GHI NHẬN trên đơn. Trước đây hoá
@@ -230,6 +277,23 @@ const InvoiceModalBody: React.FC<InvoiceModalBodyProps> = ({
               </p>
             </div>
 
+            {/* FL-1 — nguồn bản ghi (bền qua F5) + giao dịch thanh toán đã ghi */}
+            {detailLoading && (
+              <p className="rounded-md border border-line bg-surface-muted px-3 py-2 text-xs text-fg-muted" role="status">
+                Đang đọc lại đơn từ cơ sở dữ liệu…
+              </p>
+            )}
+            {detail && (
+              <div className="rounded-lg border border-line-subtle bg-surface p-4 text-xs space-y-1">
+                <div className="font-semibold uppercase tracking-wider text-fg-muted">Bản ghi đơn trên hệ thống</div>
+                <p className="text-fg-muted">
+                  Mã đơn: <strong className="font-mono text-fg">{detail.order.id}</strong>
+                  {' • '}Nguồn: {detail.sources.order === 'guest_token' ? 'tra cứu token khách vãng lai' : 'bảng orders'}
+                  {detail.sources.order === 'guest_token' && ' (dòng tiền chi tiết chỉ admin/chủ đơn xem được)'}
+                </p>
+              </div>
+            )}
+
             {/* Items Table */}
             <div className="overflow-x-auto rounded-lg border border-line bg-surface">
               <table className="w-full text-left text-xs sm:min-w-[560px]">
@@ -268,6 +332,48 @@ const InvoiceModalBody: React.FC<InvoiceModalBodyProps> = ({
                 </tbody>
               </table>
             </div>
+
+            {/* FL-1 — Giao dịch thanh toán đã ghi (chỉ có khi đọc được bảng; RLS khách ⇒ ẩn) */}
+            {detail && detail.paymentTransactions.length > 0 && (
+              <div className="rounded-lg border border-line-subtle bg-surface p-4 text-xs space-y-2">
+                <div className="font-semibold uppercase tracking-wider text-fg-muted">Giao dịch thanh toán</div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="text-fg-muted">
+                      <tr>
+                        <th className="py-1 pr-3 font-semibold">Mã giao dịch</th>
+                        <th className="py-1 pr-3 font-semibold">Phương thức</th>
+                        <th className="py-1 pr-3 text-right font-semibold">Số tiền</th>
+                        <th className="py-1 text-right font-semibold">Trạng thái</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detail.paymentTransactions.map((tx) => (
+                        <tr key={tx.id} className="border-t border-line-subtle">
+                          <td className="py-1.5 pr-3 font-mono text-fg">{tx.transactionId}</td>
+                          <td className="py-1.5 pr-3 text-fg-muted">{tx.paymentGateway || EMPTY_VALUE}</td>
+                          <td className="py-1.5 pr-3 text-right font-mono tabular-nums text-fg">{formatCurrency(tx.amount)}</td>
+                          <td className="py-1.5 text-right text-fg-muted">{tx.status || EMPTY_VALUE}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* FL-1 — File số đã giao cho đơn (KHÔNG in storage path cho khách) */}
+            {detail && detail.files.length > 0 && (
+              <div className="rounded-lg border border-line-subtle bg-surface p-4 text-xs space-y-1">
+                <div className="font-semibold uppercase tracking-wider text-fg-muted">Tệp số đã giao</div>
+                {detail.files.map((f) => (
+                  <p key={f.id} className="text-fg-muted">
+                    Sản phẩm <strong className="font-mono text-fg">{f.productId}</strong> — giấy phép{' '}
+                    <strong className="text-fg">{f.license || EMPTY_VALUE}</strong>
+                  </p>
+                ))}
+              </div>
+            )}
 
             {/* Payment breakdown & Digital Signature Stamp */}
             <div className="grid grid-cols-1 gap-6 pt-2 sm:grid-cols-2">
