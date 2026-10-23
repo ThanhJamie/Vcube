@@ -78,7 +78,7 @@
 |---|---|---|---|---|
 | **FL-0** ✅ | Harness & adapter skeleton | seed 4 role, e2e script đặt đơn, adapter interfaces (`PaymentProvider`, `PayoutProvider`, `NotificationProvider`, `FileStorage`) | — | 2–3 ngày |
 | **FL-1** ✅ DONE | Transaction core | checkout ghi `order_items` + snapshot tiền + `payment_transactions`; admin order detail + xác nhận paid; invoice đọc DB | FL-0 | 1–2 tuần |
-| **FL-2** 🔄 (2a DONE, 2b tiếp) | Digital fulfilment | designer upload Supabase Storage (`cad/<uid>/<uuid>/…` + `digital_assets`); còn: `order_files` khi mua file + `/assets` tải signed URL + license/download limit | FL-1 | 1 tuần |
+| **FL-2** 🔄 (2a code DONE, **blocked DB**; 2b tiếp) | Digital fulfilment | designer upload Supabase Storage (`cad/<uid>/<uuid>/…` + `digital_assets`); còn: `order_files` khi mua file + `/assets` tải signed URL + license/download limit | FL-1 | 1 tuần |
 | **FL-3** | Dispatch & workshop flow | admin gán `assigned_workshop_id`; queue xưởng có spec/file; accept/reject; stage + ETA + ghi chú; hoàn tất | FL-1 | 1–2 tuần |
 | **FL-4** | Payout & settlement (manual) | ledger từ `order_items`; công nợ xưởng/designer; yêu cầu rút; admin mark paid; sao kê | FL-1, FL-3 | 1 tuần |
 | **FL-5** | Admin finance & full-flow console | dashboard doanh thu/COGS/margin/take-rate/payables; đối soát; VAT tháng; audit UI | FL-1, FL-4 | 1–2 tuần |
@@ -147,10 +147,33 @@
 |---|---|---|
 | FL-0 | ✅ xong trong FL-1/FL-2a | Adapter `src/backend/integrations/*` + `scripts/e2e/guest-order-flow.ts` |
 | FL-1 | ✅ DONE | Code: `orderMoney.ts` (công thức 3 bên, 11 test) · `OrderService.confirmManualPayment` (idempotent, compensation) · `AdminOrderDetailPanel` · Checkout payment block · Invoice DB-backed · **sửa bug guest checkout `upsert → insert` (RLS 42501)**. Bằng chứng: **e2e DB thật 10/10 PASS** (guest insert → RPC token → anon bị RLS chặn đúng → admin thật confirm → paid + order_items + payment_transactions; cleanup 0 sót), smoke 14/14, gates 15/15. Handoff `handoff/fl1-order-flow.md`. |
-| FL-2a | ✅ DONE | `fileStorage.ts` (Supabase Storage, path `cad/<uid>/<uuid>/<sanitized>`, 150MB, allowlist) + `AssetService.createDigitalAsset` + wizard upload thật (parse mesh 1 lần, SHA-256, compensation xoá object). 23 test mới (tổng 105). **Chưa verify round-trip với account designer thật** (chưa có account) — cần 1 account để đóng dấu. Handoff `handoff/fl2a-designer-upload.md`. |
+| FL-2a | ⚠️ CODE DONE — **BLOCKED bởi 2 policy DB** | `fileStorage.ts` + `AssetService.createDigitalAsset` + wizard upload thật + 23 test. **Verify bằng account thật 2026-10-23** (`handoff/real-account-verification.md`): upload `cad/<uid>/...` bị 403 vì migration `20261013110000_storage_scheme.sql` **chưa áp production**; designer insert `products` bị 42501 vì chưa có policy designer. Đối chứng: upload `digital/<uid>/…` + `digital_assets` + signed URL + sha256 **PASS**; cross-user bị chặn. **Cần chủ dự án áp** `docs/tasks/world-class/sql/APPLY-CHECKLIST.md` rồi chạy lại. |
 | FL-2b | ⏭ tiếp theo | `order_files` insert đã có ở FL-1 (khi `digital_assets` có `storage_path`); còn: UI `/assets` đọc `order_files` + signed URL + license/download limit. |
 | FL-3 | ⏭ sau FL-2b | Dispatch: admin gán `assigned_workshop_id` → queue xưởng + spec/file + accept/reject + tiến độ. |
 
 **Blocker cần chủ dự án:** cấp **1 tài khoản designer + 1 admin** (hoặc cho phép tạo 4 account demo `@vcube.test`) để
 verify end-to-end thật các luồng upload file & xác nhận thanh toán/thao tác admin (hiện e2e dùng admin tạm tạo–xoá
 bằng secret key; designer upload mới chỉ verify bằng mock + smoke với token giả bị Storage từ chối đúng).
+
+---
+
+## 10. Real-account verification (2026-10-23) — kết quả & việc cần chủ dự án
+
+**Accounts trong DB (login thật bằng mật khẩu demo):** admin `admin.forge@vcube.vn` + `chithanhso10@gmail.com`;
+designer `creator.lethang@vcube.vn` (verified) + `designer@gmail.com` (unverified); lab `workshop.mes@vcube.vn`;
+riêng `khachhang@vcube.vn` **fail** (sai mật khẩu demo + thiếu row `user_profiles`).
+
+| Hạng mục | Kết quả |
+|---|---|
+| **FL-1 admin confirm (thật)** | ✅ **PASS 17 check** — guest order (anon, 1 in + 1 file số) → admin UI confirm → DB `paid` + `order_items=2` + `payment_transactions=paid/550000/vietqr_manual` + `order_files=1` (khớp asset thật) + snapshot §3b đúng; invoice đọc DB; F5 390/1440 OK. Đơn thứ 2 có `assigned_workshop_id` + terms 12%: platform fee 81.000, workshop payout 470.000, designer payout 10.000 — **công thức chạy đúng trên DB thật**. |
+| **FL-2a designer upload (thật)** | ⛔ **BLOCKED 2 policy DB** — (a) storage `cad/<uid>/...` 403 RLS (migration #12 là DRAFT, chưa áp); (b) `products` designer insert 42501 (chưa có policy). Không phải bug code: cùng session upload `digital/<uid>/…` OK, `digital_assets` insert OK, signed URL 200, sha256 khớp, cross-user DENIED. |
+| **Role gates** | ✅ PASS — admin `/admin`; lab `/lab`; designer `/designer`; customer `/orders`; non-admin vào `/admin` nhận màn 403. |
+| Cleanup | ✅ 0 leftover (orders/products/assets/temp users/storage objects). |
+| Bug phụ | `/lab` @390 tràn ngang do toast viewport `AppOverlays.tsx:105` → **đã sửa trong commit này** (`left-4 right-4 sm:left-6 sm:right-auto sm:w-full`). |
+
+**Việc cần chủ dự án làm để mở khoá FL-2a (5–10 phút):** theo `docs/tasks/world-class/sql/APPLY-CHECKLIST.md`
+1. Chạy `supabase/migrations/20261013110000_storage_scheme.sql` trên SQL Editor (policy `cad/<uid>/…`).
+2. Chạy `docs/tasks/world-class/sql/PROPOSED-20261024-designer-publish.sql` (thêm `products.designer_id` + policy designer tự đăng bản chưa xuất bản; admin vẫn publish).
+3. Sửa sample account `khachhang@vcube.vn` (insert `user_profiles` role customer) — SQL trong checklist.
+
+**Sau đó:** mình wire `designer_id` vào payload sản phẩm + chuẩn hoá status (`Under Review`/`pending`) → chạy lại verify → FL-2b (`order_files` → `/assets` signed URL + license/download limit).

@@ -102,7 +102,7 @@ export function AppOverlays({
         role="status"
         aria-live="polite"
         aria-atomic="false"
-        className="fixed bottom-6 left-6 z-toast flex flex-col gap-2 pointer-events-none max-w-sm w-full"
+        className="fixed bottom-6 left-4 right-4 z-toast flex flex-col gap-2 pointer-events-none max-w-sm sm:left-6 sm:right-auto sm:w-full"
       >
         {toastQueue.map((toast) => (
           <div
