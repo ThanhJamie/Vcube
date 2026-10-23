@@ -6,6 +6,7 @@ import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal
 import type { DataTableColumn } from '@frontend/ui';
 import { formatCurrency } from '@frontend/lib/format';
 import { realProductImageUrl } from '@frontend/lib/productImage';
+import { ADMIN_STATUS_OPTIONS, isUnderReviewStatus, normalizeProductStatus, toAdminSelectStatus } from '@frontend/lib/productStatus';
 
 interface AdminProductsPanelProps {
   products: Product[];
@@ -321,27 +322,34 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
     {
       key: 'status',
       header: 'Trạng Thái',
-      value: (p) => (p.status || 'published').toLowerCase(),
+      value: (p) => normalizeProductStatus(p.status),
       render: (prod) => {
-        const status = (prod.status || 'published').toLowerCase();
+        // FL-2a-fix: DB lưu lowercase; hiển thị select theo canonical để sản phẩm
+        // "under review"/"pending" không rơi về option đầu và mất nhãn "Chờ duyệt".
+        const status = toAdminSelectStatus(prod.status);
+        const pending = isUnderReviewStatus(prod.status);
         return (
           <select
             value={status} aria-label={`Trạng thái ${prod.name}`}
             onChange={(e) => {
-              const nextStatus = e.target.value as ProductStatus;
-              onUpdateProduct({ ...prod, status: nextStatus });
+              // Admin-all policy: chọn "Đang bán" là publish sản phẩm pending.
+              // Lưu đúng giá trị DB ('under review', lowercase) — KHÔNG 'under_review'
+              // (policy so `lower(status) in ('under review','pending','draft')`).
+              onUpdateProduct({ ...prod, status: e.target.value as ProductStatus });
             }}
             className={`h-10 cursor-pointer rounded-md border px-2.5 font-mono text-xs font-medium transition-colors duration-200 motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               status === 'published'
                 ? 'bg-positive-tint text-positive border-positive/30'
-                : status === 'draft'
-                ? 'bg-warning-tint text-warning border-warning/30'
-                : 'bg-surface-muted text-fg-muted border-line-control'
+                : pending
+                  ? 'bg-warning-tint text-warning border-warning/30'
+                  : status === 'draft'
+                    ? 'bg-warning-tint text-warning border-warning/30'
+                    : 'bg-surface-muted text-fg-muted border-line-control'
             }`}
           >
-            <option value="published">Đang bán</option>
-            <option value="draft">Bản nháp</option>
-            <option value="archived">Lưu trữ</option>
+            {ADMIN_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
         );
       },
@@ -591,7 +599,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     >
                       <option value="Published">Đang mở bán</option>
                       <option value="Out of Stock">Tạm hết hàng</option>
-                      <option value="Under Review">Đang Duyệt</option>
+                      <option value="Under Review">Chờ duyệt</option>
                     </Select>
                   )}
                 </Field>

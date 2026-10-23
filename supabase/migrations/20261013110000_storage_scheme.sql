@@ -32,8 +32,8 @@
 --   `foldername` và `auth.uid()`. `select ... from storage.objects` bằng user A phải chỉ thấy
 --   object dưới `cad/<uid-A>/...`.
 --
--- DRAFT: file này do subagent soạn, CHƯA áp lên production. H áp theo §1.4 của
--- docs/tasks/DRIFT-TASKS.md (backup + SQL Editor + post-check).
+-- TRẠNG THÁI: ĐÃ ÁP production 2026-10-23 (chủ dự án chạy SQL Editor; post-check PASS).
+-- File giữ lại làm migration chính thức — không cần chạy lại nếu DB đã có policy.
 begin;
 
 do $do$

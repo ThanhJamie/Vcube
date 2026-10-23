@@ -69,7 +69,7 @@ Kết quả quét: **0 policy tin metadata do client ghi, 0 email hardcode, 0 `F
    và `current_workshop_partner_id()` (partner_id của xưởng đang đăng nhập; `limit 1` vì `workshop_profiles.user_id` không unique).
 2. `DROP` toàn bộ 73 tên policy cũ từng tồn tại trong repo.
 3. **Quét sạch policy lạ** trên 32 relation mục tiêu của file (31 bảng baseline + view `pricing_config`; bảng thứ 32 `designer_payout_info` do migration sau tạo) không nằm trong allowlist (kể cả policy tạo tay trong Dashboard).
-4. Tạo **88 policy bảng hiệu lực** (allowlist `v_keep` 90 tên, 2 tên `pricing_config` bị skip vì là view) + **7 policy storage** (`v_ok`). Toàn chuỗi 12 migration: **92 policy bảng** (thêm 4 cho `designer_payout_info`) + 7 storage + 1 `realtime.messages`.
+4. Tạo **88 policy bảng hiệu lực** (allowlist `v_keep` 90 tên, 2 tên `pricing_config` bị skip vì là view) + **7 policy storage** (`v_ok`). Toàn chuỗi 12 migration: **92 policy bảng** (thêm 4 cho `designer_payout_info`) + 7 storage + 1 `realtime.messages`. **Cập nhật 2026-10-23 (#13):** +4 policy `products` designer ⇒ **96 policy bảng**, và storage policy `cad_owner_rw` (#12) đã áp ⇒ **8 storage**.
 5. Trigger `trg_protect_profile_privileged_columns` — chặn người dùng tự đổi `role`/`kyc_status`/`account_status`/`total_*` của chính mình.
 6. Trigger `trg_create_profile_for_new_user` — tự tạo `user_profiles` (role `customer`) khi có user mới, vì client hiện **không** tạo dòng này.
 7. Trigger `trg_protect_order_privileged_columns` — xưởng in được giao đơn **chỉ** được đổi `status`/`status_stage_index`/`layer_progress`/`updated_at` (RLS không giới hạn được cột; đổi cột khác ⇒ `42501`).
@@ -353,3 +353,5 @@ Sau khi chạy xong file 3 → chạy `bootstrap_admin.sql` → `node scripts/ve
 | 12 | `20261013110000_storage_scheme.sql` | T25 / D3 | `<ngày>` | policy `vcube_cad_files_cad_owner_rw` + thử đọc chéo | `supabase/rollback/20261013110000_down.sql` | scheme `cad/<uid>/<uuid>/<file>`; object cũ cần backfill (T40) |
 
 Sau mỗi lần áp, chạy `node scripts/verify-rls.mjs --writes` (kỳ vọng `anon` đọc `orders`/`user_profiles` = 0 dòng), `node scripts/inspect-db.mjs`, rồi ghi kết quả vào dòng tương ứng.
+
+> **2026-10-23:** migration #12 `20261013110000_storage_scheme.sql` (storage policy `cad/<uid>/…`) và #13 `20261024090000_designer_publish.sql` (products designer publish) **đã áp production** qua SQL Editor; post-check + probe RLS PASS. Số hiện tại: 96 policy bảng + 8 storage.

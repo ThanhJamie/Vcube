@@ -159,6 +159,9 @@ export function rowToProduct(d: SupabaseRow): Product {
     category: d.category,
     // KHÔNG quy kết tác giả 'VCUBE Engineering' cho hàng không rõ nguồn.
     designer: d.designer || '',
+    // FL-2a-fix: cột `products.designer_id` (migration APPLY-TODAY). Cột vắng ⇒ undefined
+    // (dữ liệu cũ hoặc DB chưa migrate) — KHÔNG tự gán chủ sở hữu.
+    designerId: optStr(d.designer_id),
     // GIÁ — W2-E từng đổi sang `numOrNull`; COORDINATOR ĐÃ HOÀN NGUYÊN về `n()` (NULL/vắng ⇒ `0`)
     // vì `null` KHÔNG biểu diễn được đầu-cuối cho hai cột này:
     //   · Cột vẫn là `numeric not null default 0` (20260901_baseline_schema.sql:32-33) và KHÔNG nằm

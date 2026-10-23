@@ -404,6 +404,10 @@
 
 /* Responsive Table Wrapper with Smooth Mobile Scroll Indicator */
 .responsive-table-wrapper {
+  /* Bắt buộc: làm containing block cho nhãn sr-only (position:absolute) nằm trong bảng rộng;
+     thiếu `relative` thì containing block là viewport ⇒ nhãn bám mép phải bảng và làm
+     documentElement.scrollWidth tăng (overflow 390: /lab/queue, /admin/pricing, /admin/users). */
+  position: relative;
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

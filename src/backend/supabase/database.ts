@@ -156,6 +156,50 @@ function toIsoTimestampOrNull(value: unknown): string | null {
   return null;
 }
 
+/**
+ * Payload ghi bảng `products` — MỘT nguồn cho cả insert (tạo mới) và upsert (update/admin publish).
+ *
+ * FL-2a-fix (migration APPLY-TODAY):
+ * - `designer_id` CHỈ được gửi khi `product.designerId` có giá trị. Trước khi migration áp, gửi
+ *   cột không tồn tại sẽ lỗi PostgREST; sau khi áp, admin update sản phẩm của designer cũng không
+ *   xoá mất liên kết (cột omitted ⇒ giữ nguyên giá trị cũ khi upsert conflict).
+ * - `status` lưu lowercase (`Under Review` → `under review`) để khớp policy
+ *   `lower(status) in ('under review','pending','draft')`.
+ */
+export function buildProductRowPayload(product: Product): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    id: product.id,
+    sku: product.sku,
+    name: product.name,
+    category: product.category,
+    designer: product.designer,
+    price_physical: product.pricePhysical,
+    price_digital: product.priceDigital,
+    images: product.images,
+    thumbnail_url: product.thumbnailUrl || product.images?.[0] || '',
+    cad_file_url: product.cadFileUrl || '',
+    cad_format: product.cadFormat || 'STL',
+    file_size_bytes: product.fileSizeBytes || 0,
+    description: product.description,
+    features: product.features,
+    specs: product.specs,
+    supported_materials: product.supportedMaterials,
+    colors: product.colors,
+    tags: product.tags,
+    badge: product.badge,
+    rating: product.rating,
+    reviews_count: product.reviewsCount,
+    prints_count: product.printsCount,
+    print_time: product.printTime,
+    is_customizable: product.isCustomizable,
+    status: product.status ? product.status.toLowerCase() : 'published',
+    production_readiness: product.productionReadiness || 'ready_to_print',
+    updated_at: new Date().toISOString(),
+  };
+  if (product.designerId) payload.designer_id = product.designerId;
+  return payload;
+}
+
 export const dbService = {
   // Products
   // LUẬT TRUNG THỰC DỮ LIỆU (docs/design/data-honesty.md CI-01): lỗi truy vấn ⇒ ném lỗi
@@ -184,38 +228,29 @@ export const dbService = {
     return (data ?? []).map(rowToProduct);
   },
 
+  async insertProduct(product: Product): Promise<WriteResult> {
+    try {
+      // INSERT thật (không upsert): sản phẩm mới phải tạo mới; trùng id ⇒ lỗi thật (không ghi đè
+      // sản phẩm người khác). Designer chỉ insert được sản phẩm chưa xuất bản + designer_id=uid.
+      const { error } = await supabase.from('products').insert(buildProductRowPayload(product));
+      if (error) {
+        console.warn('Supabase insertProduct error:', error.message);
+        return fail(error);
+      }
+      return ok();
+    } catch (err: any) {
+      console.warn('DB error on insertProduct:', err);
+      return fail(err);
+    }
+  },
+
+  /**
+   * Upsert dùng cho UPDATE (admin sửa/publish, designer sửa sản phẩm của mình khi policy cho phép).
+   * Tạo mới phải dùng `insertProduct` — upsert cần UPDATE policy nên designer sẽ bị 42501.
+   */
   async saveProduct(product: Product): Promise<WriteResult> {
     try {
-      const normalizedStatus = (product.status ? product.status.toLowerCase() : 'published');
-      const { error } = await supabase.from('products').upsert({
-        id: product.id,
-        sku: product.sku,
-        name: product.name,
-        category: product.category,
-        designer: product.designer,
-        price_physical: product.pricePhysical,
-        price_digital: product.priceDigital,
-        images: product.images,
-        thumbnail_url: product.thumbnailUrl || product.images?.[0] || '',
-        cad_file_url: product.cadFileUrl || '',
-        cad_format: product.cadFormat || 'STL',
-        file_size_bytes: product.fileSizeBytes || 0,
-        description: product.description,
-        features: product.features,
-        specs: product.specs,
-        supported_materials: product.supportedMaterials,
-        colors: product.colors,
-        tags: product.tags,
-        badge: product.badge,
-        rating: product.rating,
-        reviews_count: product.reviewsCount,
-        prints_count: product.printsCount,
-        print_time: product.printTime,
-        is_customizable: product.isCustomizable,
-        status: normalizedStatus,
-        production_readiness: product.productionReadiness || 'ready_to_print',
-        updated_at: new Date().toISOString()
-      });
+      const { error } = await supabase.from('products').upsert(buildProductRowPayload(product));
       if (error) {
         console.warn('Supabase saveProduct error:', error.message);
         return fail(error);

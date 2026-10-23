@@ -2,7 +2,7 @@
 
 > **Security Baseline**: Supabase PostgreSQL 15+  
 > **Enforcement Tier**: Database Kernel Layer (PostgreSQL Row Level Security)  
-> **Policy Count (toàn chuỗi 12 migration, 2026-10-21)**: **92 policy bảng hiệu lực** trên **32 bảng** + **7 policy storage** trên `storage.objects` + **1 policy** `realtime.messages` (`orders_admin_realtime`, chỉ admin; có thể SKIP nếu Realtime Authorization chưa bật). `20261010_harden_rls.sql` một mình tạo **88** policy hiệu lực từ allowlist `v_keep` **90 tên** — 2 policy `pricing_config` bị bỏ qua vì `pricing_config` là **VIEW**; 4 policy `designer_payout_info` được thêm ở `20261013090000_sec01_payout_table.sql` ⇒ 92.  
+> **Policy Count (toàn chuỗi 12 migration 2026-10-21; cập nhật 2026-10-23 sau migration #13)**: **92 policy bảng hiệu lực** trên **32 bảng** + **7 policy storage** trên `storage.objects` + **1 policy** `realtime.messages` (`orders_admin_realtime`, chỉ admin; có thể SKIP nếu Realtime Authorization chưa bật). `20261010_harden_rls.sql` một mình tạo **88** policy hiệu lực từ allowlist `v_keep` **90 tên** — 2 policy `pricing_config` bị bỏ qua vì `pricing_config` là **VIEW**; 4 policy `designer_payout_info` được thêm ở `20261013090000_sec01_payout_table.sql` ⇒ 92.  
 > **Compliance Target**: Zero Trust, Least Privilege, Vietnam Personal Data Protection Decree 13/2023/NĐ-CP
 
 ---
@@ -418,3 +418,11 @@ node scripts/lint-rls-migration.mjs
 node scripts/inspect-db.mjs
 node scripts/verify-rls.mjs --writes
 ```
+
+---
+
+## Cập nhật 2026-10-23 — migration #13 (products designer publish)
+
+- **+4 policy bảng** trên `products`: `vcube_products_designer_read_own` (select), `..._insert_pending`, `..._update_pending`, `..._delete_pending` — **mọi thao tác chỉ với sản phẩm CỦA MÌNH và `lower(status) in ('under review','pending','draft')`**. Designer KHÔNG tự publish; admin-all + public-read giữ nguyên.
+- Tổng hiện tại: **96 policy bảng hiệu lực** + **8 policy storage** (+1 `realtime.messages`). Cột mới `products.designer_id` (nullable, FK auth.users, on delete set null).
+- Đã áp production 2026-10-23 (chủ dự án chạy `docs/tasks/world-class/sql/APPLY-TODAY.sql`; verify bằng probe: designer insert pending ✅, designer tự publish bị chặn ✅, pending không lộ public ✅, admin publish ✅, anon thấy bản published ✅).

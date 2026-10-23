@@ -281,7 +281,9 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
       return updated;
     });
 
-    const res = await dbService.saveProduct(prod);
+    // FL-2a-fix: sản phẩm MỚI phải INSERT (không upsert) để designer insert được sau khi
+    // migration products-designer áp; upsert cần UPDATE policy ⇒ 42501 với designer.
+    const res = await dbService.insertProduct(prod);
     if (!res.success) {
       // Rollback on DB error
       console.warn('Rollback adding product due to DB error:', res.error);

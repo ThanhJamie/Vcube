@@ -190,6 +190,8 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
       name: modelName.trim(),
       category: selectedCategory,
       designer: currentDesignerName,
+      // FL-2a-fix: chủ sở hữu thật (policy products.designer_id = auth.uid()).
+      designerId: user.id,
       // Không bịa avatar/ảnh Unsplash; dùng đúng dữ liệu tác giả có.
       designerAvatar: designerAvatar || undefined,
       isPro: false,

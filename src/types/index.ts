@@ -5,6 +5,8 @@ export interface Product {
   name: string;
   category: string;
   designer: string;
+  /** FL-2a-fix: chủ sở hữu sản phẩm designer (`products.designer_id`). Thiếu ⇒ dữ liệu cũ/admin tạo. */
+  designerId?: string;
   designerAvatar?: string;
   isPro?: boolean;
   isVerified?: boolean;

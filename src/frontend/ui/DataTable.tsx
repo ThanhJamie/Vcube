@@ -598,7 +598,7 @@ export function DataTable<T>({
         aria-label={caption ?? tableLabel}
         tabIndex={0}
         style={stickyHeader ? { maxHeight: bodyMaxHeight } : undefined}
-        className="w-full overflow-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="relative w-full overflow-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <table
           aria-busy={loading || undefined}

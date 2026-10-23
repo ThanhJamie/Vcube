@@ -3,7 +3,7 @@
 > **Platform**: VCUBE 3.0 Digital Manufacturing & CAD Marketplace  
 > **Database**: Supabase PostgreSQL 15+  
 > **Schema Revision**: `20260900` helpers + `20260901` baseline + `20261010` hardening + 9 migration sau (`20261011…`–`20261013…`)  
-> **Total Entities**: **32 tables + 2 views** (`pricing_config`, `open_design_requests`) + 49 Indexes (48 + 1 partial unique; 2 GIN) + **19 functions thường trực** (9 helper/RPC + 10 trigger functions) + **9 định nghĩa trigger** (≈29 instance runtime) + 2 Storage Buckets + **92 policy bảng hiệu lực** + **7 policy storage** (+1 `realtime.messages`)  
+> **Total Entities**: **32 tables + 2 views** (`pricing_config`, `open_design_requests`) + 49 Indexes (48 + 1 partial unique; 2 GIN) + **19 functions thường trực** (9 helper/RPC + 10 trigger functions) + **9 định nghĩa trigger** (≈29 instance runtime) + 2 Storage Buckets + **96 policy bảng hiệu lực** (thêm 4 policy `products` designer ở `20261024090000_designer_publish.sql`, 2026-10-23) + **8 policy storage** (+1 `realtime.messages`)  
 > **Cách đếm:** xem `AGENTS.md` §"Số liệu DB thực tế" (policy sinh động trong `DO` block nên `grep -c 'create policy'` **không** dùng được).
 
 ---

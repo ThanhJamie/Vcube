@@ -452,7 +452,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       header: 'Thao tác',
       align: 'right',
       render: (r) => (
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           {r.kycStatus !== 'verified' && (
             <Button variant="primary" size="sm" onClick={() => void handleApproveKyc(r)}>
               Duyệt
@@ -818,7 +818,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                 </div>
 
                 {/* Footer Action — ghi thẳng customer_profiles.nda_signed */}
-                <div className="mt-4 pt-3 border-t border-line-subtle flex items-center justify-between text-xs">
+                <div className="mt-4 pt-3 border-t border-line-subtle flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="text-fg-subtle">
                     Ký NDA:{' '}
                     <span className="font-bold text-fg-muted">
@@ -826,7 +826,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                     </span>
                   </span>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
                     {!row.ndaSigned ? (
                       <Button
                         variant="primary"

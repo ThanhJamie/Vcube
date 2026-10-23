@@ -5,6 +5,18 @@ import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
 import { settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
+import { useAuth } from '@frontend/context/AuthContext';
+import {
+  DESIGNER_STATUS_FILTERS,
+  DESIGNER_STATUS_OPTIONS,
+  isDesignerEditableStatus,
+  isDraftStatus,
+  isPublishedStatus,
+  isUnderReviewStatus,
+  normalizeProductStatus,
+  productStatusLabel,
+  toStoredProductStatus,
+} from '@frontend/lib/productStatus';
 
 /**
  * UI-010: nhãn VI cho enum giấy phép / trạng thái xuất bản.
@@ -15,12 +27,6 @@ const LICENSE_LABELS: Record<string, string> = {
   Standard: 'Tiêu chuẩn',
   Commercial: 'Thương mại',
   Exclusive: 'Độc quyền',
-};
-
-const PUBLISH_STATUS_LABELS: Record<string, string> = {
-  Published: 'Đã xuất bản',
-  'Under Review': 'Chờ duyệt',
-  Draft: 'Bản nháp',
 };
 
 /** Nhãn danh mục — giá trị `category` trong DB là slug kỹ thuật, không render thô. */
@@ -66,6 +72,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
   onShowToast,
   onNavigateToUpload,
 }) => {
+  const { user } = useAuth();
   const designerRoyaltyPercent = useDesignerRoyaltyPercent();
   // Filter state
   const [modelCategoryFilter, setModelCategoryFilter] = useState('all');
@@ -81,15 +88,21 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
   const [editPriceDigital, setEditPriceDigital] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editLicense, setEditLicense] = useState<'Standard' | 'Commercial' | 'Exclusive'>('Standard');
-  const [editStatus, setEditStatus] = useState<'Published' | 'Under Review' | 'Draft'>('Published');
+  const [editStatus, setEditStatus] = useState<'draft' | 'under review'>('under review');
   const [editTags, setEditTags] = useState<string[]>([]);
   const [editTagInput, setEditTagInput] = useState('');
 
   // 3D Preview Modal State
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
 
-  // Open Edit Modal
+  // Open Edit Modal — policy DB chỉ cho designer sửa sản phẩm CHƯA xuất bản (APPLY-TODAY §B).
   const handleOpenEditModal = (prod: Product) => {
+    if (!isDesignerEditableStatus(prod.status)) {
+      onShowToast(
+        'Sản phẩm đã xuất bản/lưu trữ: chỉ quản trị viên được sửa. Ấn phẩm chờ duyệt hoặc nháp thì bạn sửa được.'
+      );
+      return;
+    }
     setEditingProduct(prod);
     setEditName(prod.name);
     setEditSku(prod.sku || '');
@@ -98,7 +111,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
     setEditPriceDigital(prod.priceDigital?.toString() || '0');
     setEditDesc(prod.description || '');
     setEditLicense(prod.licenseType || 'Standard');
-    setEditStatus((prod.status as any) || 'Published');
+    setEditStatus(isDraftStatus(prod.status) ? 'draft' : 'under review');
     setEditTags(prod.tags || []);
     setEditTagInput('');
   };
@@ -107,6 +120,11 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
   const handleSaveEditProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
+    if (!isDesignerEditableStatus(editingProduct.status)) {
+      onShowToast('Không sửa được sản phẩm đã xuất bản/lưu trữ — chỉ quản trị viên có quyền.');
+      setEditingProduct(null);
+      return;
+    }
 
     const updatedProd: Product = {
       ...editingProduct,
@@ -117,7 +135,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
       priceDigital: Number(editPriceDigital) || editingProduct.priceDigital,
       description: editDesc.trim() || editingProduct.description,
       licenseType: editLicense,
-      status: editStatus as any,
+      status: toStoredProductStatus(editStatus) as Product['status'],
       tags: editTags.length > 0 ? editTags : editingProduct.tags,
     };
 
@@ -128,9 +146,15 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
     // Không tự báo thành công: App là bên ghi DB và sẽ báo kết quả thật.
   };
 
-  // Quick Toggle Status
+  // Quick Toggle Status — designer chỉ đổi trong nhóm CHƯA xuất bản (không tự publish).
   const handleToggleProductStatus = (prod: Product) => {
-    const nextStatus = prod.status === 'Published' ? 'Draft' : 'Published';
+    if (!isDesignerEditableStatus(prod.status)) {
+      onShowToast(
+        'Ấn phẩm đã xuất bản — không thể đổi trạng thái. Liên hệ quản trị viên nếu cần hạ xuống bản nháp.'
+      );
+      return;
+    }
+    const nextStatus = isDraftStatus(prod.status) ? 'under review' : 'draft';
     const updatedProd: Product = {
       ...prod,
       status: nextStatus as any,
@@ -162,20 +186,25 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
     setEditTags(editTags.filter((t) => t !== tagToRemove));
   };
 
-  // Chỉ ấn phẩm của CHÍNH tác giả đang đăng nhập (khớp tên chính xác, không dò chuỗi tên).
+  // Chỉ ấn phẩm của CHÍNH tác giả: ưu tiên khoá `designerId` (policy products.designer_id),
+  // fallback khớp tên cho dữ liệu cũ chưa có designer_id.
   const myProducts = useMemo(
     () =>
-      products.filter(
-        (p) => (p.designer || '').trim().toLowerCase() === currentDesignerName.trim().toLowerCase()
-      ),
-    [products, currentDesignerName]
+      products.filter((p) => {
+        if (user?.id && p.designerId) return p.designerId === user.id;
+        if (user?.id && p.designerId === undefined) {
+          return (p.designer || '').trim().toLowerCase() === currentDesignerName.trim().toLowerCase();
+        }
+        return (p.designer || '').trim().toLowerCase() === currentDesignerName.trim().toLowerCase();
+      }),
+    [products, currentDesignerName, user?.id]
   );
 
   // Filter products
   const filteredProducts = useMemo(() => {
     return myProducts.filter((p) => {
       if (modelCategoryFilter !== 'all' && p.category !== modelCategoryFilter) return false;
-      if (modelStatusFilter !== 'all' && (p.status || 'Published') !== modelStatusFilter)
+      if (modelStatusFilter !== 'all' && normalizeProductStatus(p.status) !== modelStatusFilter)
         return false;
       if (searchModelQuery.trim()) {
         const q = searchModelQuery.toLowerCase();
@@ -233,32 +262,35 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
       key: 'status',
       header: 'Trạng thái',
       align: 'center',
-      value: (p) => p.status || 'Published',
-      render: (prod) => (
-        <button
-          onClick={() => handleToggleProductStatus(prod)}
-          title="Bấm để đổi trạng thái xuất bản"
-          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            prod.status === 'Under Review'
-              ? 'border-warning/20 bg-warning-tint text-warning'
-              : prod.status === 'Draft'
-              ? 'border-line bg-surface-muted text-fg-muted'
-              : 'border-positive/20 bg-positive-tint text-positive'
-          }`}
-        >
-          <span
-            aria-hidden="true"
-            className={`size-1.5 rounded-full ${
-              prod.status === 'Under Review'
-                ? 'bg-warning'
-                : prod.status === 'Draft'
-                ? 'bg-fg-subtle'
-                : 'bg-positive'
+      value: (p) => normalizeProductStatus(p.status),
+      render: (prod) => {
+        const underReview = isUnderReviewStatus(prod.status);
+        const draft = isDraftStatus(prod.status);
+        const published = isPublishedStatus(prod.status);
+        return (
+          <button
+            onClick={() => handleToggleProductStatus(prod)}
+            title="Bấm để đổi trạng thái xuất bản (chỉ nháp/chờ duyệt; publish do quản trị viên)"
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              underReview
+                ? 'border-warning/20 bg-warning-tint text-warning'
+                : draft
+                  ? 'border-line bg-surface-muted text-fg-muted'
+                  : published
+                    ? 'border-positive/20 bg-positive-tint text-positive'
+                    : 'border-line bg-surface-muted text-fg-muted'
             }`}
-          />
-          {PUBLISH_STATUS_LABELS[prod.status || 'Published'] ?? 'Đã xuất bản'}
-        </button>
-      ),
+          >
+            <span
+              aria-hidden="true"
+              className={`size-1.5 rounded-full ${
+                underReview ? 'bg-warning' : draft ? 'bg-fg-subtle' : published ? 'bg-positive' : 'bg-fg-subtle'
+              }`}
+            />
+            {productStatusLabel(prod.status)}
+          </button>
+        );
+      },
     },
     {
       key: 'actions',
@@ -362,12 +394,7 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                 size="sm"
                 value={modelStatusFilter}
                 onChange={(e) => setModelStatusFilter(e.target.value)}
-                options={[
-                  { value: 'all', label: 'Mọi trạng thái' },
-                  { value: 'Published', label: 'Đã xuất bản' },
-                  { value: 'Under Review', label: 'Chờ duyệt' },
-                  { value: 'Draft', label: 'Bản nháp' },
-                ]}
+                options={DESIGNER_STATUS_FILTERS.map((o) => ({ value: o.value, label: o.label }))}
               />
             )}
           </Field>
@@ -464,12 +491,8 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
                     <Select
                       {...control}
                       value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value as any)}
-                      options={[
-                        { value: 'Published', label: 'Đã xuất bản' },
-                        { value: 'Under Review', label: 'Chờ duyệt' },
-                        { value: 'Draft', label: 'Bản nháp' },
-                      ]}
+                      onChange={(e) => setEditStatus(e.target.value as 'draft' | 'under review')}
+                      options={DESIGNER_STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
                     />
                   )}
                 </Field>

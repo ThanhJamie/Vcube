@@ -34,7 +34,7 @@ UI: **light-only** (v3 "Soft Studio", `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE
 - `src/frontend/stores` — 6 store Zustand: `useCartStore`, `useUIStore`, `useCustomerAdminStore`, `useDesignerAdminStore`, `useProductionStore`, `useWorkshopAdminStore`.
 - `src/backend/supabase` — client, database service, mappers, seed service.
 - `src/backend/services` — pricingService, orderService, catalogService, customDesignService, settingsService; `workshopService.ts` là **façade 128 dòng** (Phase 4) trên 14 module `workshop/{profiles,machines,materials,accessories,inventory,queue,customers,designers,catalogs,seed,shared,storage,constants,types}.ts`.
-- `src/data` (seed/default content), `src/types`, `src/utils`, `supabase/migrations` (**12 file**), `scripts`, `tests/unit`.
+- `src/data` (seed/default content), `src/types`, `src/utils`, `supabase/migrations` (**13 file**), `scripts`, `tests/unit`.
 
 ## Conventions
 
@@ -44,6 +44,9 @@ UI: **light-only** (v3 "Soft Studio", `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE
 - **Một ngôn ngữ (D0):** UI tiếng Việt duy nhất. Dùng `const { t } = useLanguage()`; **không** thêm `isVi ? … : …`, nhánh EN hay `en:` dictionary (Phase 2 đã xoá 1.428 nhánh / 85 entry).
 - **Một nguồn dữ liệu:** server là nguồn duy nhất; **không** cache DB-backed trong `localStorage` (`vcube_products`, `vcube_materials`, `vcube_printers`, `vcube_site_content` — đã xoá Phase 3). Chỉ giữ state UI/cart.
 - **Kích thước module:** sau Phase 4, giữ file ≤ ~800 dòng; seam tách theo **chiều dữ liệu** (1 nguồn dữ liệu + 1 vùng render), không theo chiều JSX.
+- **Sản phẩm & publish (FL-2a, 2026-10-23):** designer chỉ tạo/sửa sản phẩm CỦA MÌNH ở trạng thái chưa xuất bản
+  (`draft`/`under review`/`pending`) qua `dbService.insertProduct`; **admin là bên publish** (`saveProduct` upsert + policy admin-all).
+  Dùng helper `src/frontend/lib/productStatus.ts` cho nhãn/filter (DB lưu status lowercase). Không tự thêm policy publish cho designer.
 - **Icon (một nguồn duy nhất):** mọi icon UI render qua `<Icon name="…" size={…} />` (`src/frontend/ui/Icon.tsx` + `iconMap.ts`); **cấm** `from 'lucide-react'` ngoài `src/frontend/ui/**` và **cấm emoji làm icon** (trừ comment; `<option>`/canvas thì bỏ emoji, giữ text). Gate: `node scripts/check-icon-library.mjs` (+ `check-icon-names`). Raw `<svg>` chỉ cho brand Google logo. Xem `docs/design/icon-map.md` §POLICY.
 - Match existing patterns; make the smallest change; no unrelated refactors.
 - **Engineering skills (mattpocock)**: bộ 27 skill đã vendor ở `.opencode/skills/`, gọi bằng `/grill-me`, `/to-spec`, `/tdd`… hoặc `@<id>`; chạy `/setup-matt-pocock-skills` một lần cho repo này. Chi tiết + cách cập nhật (`npm run skills:sync`): `.opencode/MATT-POCOCK-SKILLS.md`.
@@ -71,7 +74,7 @@ UI: **light-only** (v3 "Soft Studio", `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE
 | `SUPABASE_SECRET_KEY` (`sb_secret_…`) | **SERVER ONLY** — bỏ qua toàn bộ RLS. Không bao giờ đưa vào `define` của Vite |
 | `NEXT_PUBLIC_SUPABASE_*`, `NEXT_PUBLIC_SITE_URL` | **tên cũ (legacy)** — `vite.config.ts`/`client.ts` vẫn đọc làm fallback; khai báo `VITE_*` là đủ |
 
-### Migrations — 12 file, chạy theo thứ tự tên file
+### Migrations — 13 file, chạy theo thứ tự tên file
 
 | # | File | Vai trò |
 |---:|---|---|
@@ -86,21 +89,22 @@ UI: **light-only** (v3 "Soft Studio", `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE
 | 9 | `20261012130000_orders_broadcast.sql` | trigger `trg_orders_broadcast` + `orders_broadcast_status()` (payload chỉ `{id,status}`) + policy `realtime.messages` chỉ admin |
 | 10 | `20261013090000_sec01_payout_table.sql` | **bảng 32:** `designer_payout_info` (1-1 designer, RLS owner+admin, 4 policy) + RPC `upsert_my_payout_info`; chép dữ liệu từ cột cũ |
 | 11 | `20261013100000_drop_designer_bank_columns.sql` | SEC-01 phase 2 — **cổng H, CHƯA ÁP**: drop 3 cột bank/tax khỏi `designer_profiles` |
-| 12 | `20261013110000_storage_scheme.sql` | scheme `cad/<uid>/<uuid>/<file>` — tái tạo policy `vcube_cad_files_cad_owner_rw` (chống path `..`, đủ ≥3 cấp) |
+| 12 | `20261013110000_storage_scheme.sql` | scheme `cad/<uid>/<uuid>/<file>` — tái tạo policy `vcube_cad_files_cad_owner_rw` (chống path `..`, đủ ≥3 cấp). **ĐÃ ÁP production 2026-10-23** (trước đó là DRAFT) |
+| 13 | `20261024090000_designer_publish.sql` | **ĐÃ ÁP 2026-10-23**: `products.designer_id` + index + **4 policy** cho designer tự đăng/sửa/xoá sản phẩm CỦA MÌNH ở trạng thái chưa xuất bản (`under review`/`pending`/`draft`); designer KHÔNG tự publish — admin publish; bản pending không lộ public |
 
-`supabase/legacy/` chứa 6 migration cũ — **không chạy** (xem README ở đó). Không tạo file migration mới chồng lấn: sửa trực tiếp chuỗi 12 file trên.
+`supabase/legacy/` chứa 6 migration cũ — **không chạy** (xem README ở đó). Không tạo file migration mới chồng lấn: sửa trực tiếp chuỗi 13 file trên.
 
 ### Số liệu DB thực tế (đếm từ migration — 2026-10-21)
 
 | Hạng mục | Số thực | Cách đếm / nguồn |
 |---|---:|---|
-| Migration | **12** | `ls supabase/migrations/*.sql \| wc -l` |
+| Migration | **13** | `ls supabase/migrations/*.sql \| wc -l` |
 | Bảng | **32** | `20260901_baseline_schema.sql` 31 + `designer_payout_info` (#10). Đếm: `grep -rhoiE 'create table (if not exists )?(public\.)?[a-z0-9_]+' supabase/migrations/*.sql \| sed -E 's/.*[. ]([a-z0-9_]+)$/\1/' \| sort -u \| grep -vx if \| wc -l` |
 | View | **2** | `pricing_config` (`security_invoker=true` — compatibility view trên `pricing_configs`) + `open_design_requests` (`security_invoker=false`; chỉ designer/admin, cột brief không nhạy cảm) |
 | Hàm thường trực | **19** | 21 `create function` − 2 helper tạm bị `drop` cuối `20261010_harden_rls.sql` (`_vcube_make_policy`, `_vcube_has_columns`). 9 helper/RPC (`current_app_role`, `is_admin`, `is_admin_or_lab`, `current_workshop_partner_id`, `get_order_by_guest_token`, `claim_design_request`, `admin_get_designer_payout`, `get_my_payout_info`, `upsert_my_payout_info`) + 10 hàm trigger (`fn_*` + `orders_broadcast_status`) |
 | Định nghĩa trigger | **9** | 12 câu `create trigger` tĩnh (3 lần tái tạo `trg_create_profile_for_new_user`, 2 lần `trg_protect_profile_…`); **29 instance** runtime = `trg_touch_updated_at` × 21 bảng (vòng lặp baseline) + 8 trigger gắn 1 bảng |
-| Policy bảng hiệu lực | **92** | 62 call `_vcube_make_policy` trên bảng + 22 từ vòng lặp `v_catalog_read` (11 bảng × 2) + 2 từ vòng lặp `workshop_machines/workshop_materials` + 2 policy `orders` tạo trực tiếp (#3) + 4 policy `designer_payout_info` (#10). 2 tên policy `pricing_config` trong `v_keep` **không bao giờ được tạo** vì `pricing_config` là view (`_vcube_make_policy` kiểm `relkind`) |
-| Policy storage | **7** | `v_ok` trong `20261010_harden_rls.sql` + tái tạo `vcube_cad_files_cad_owner_rw` ở #12 |
+| Policy bảng hiệu lực | **96** | 62 call `_vcube_make_policy` trên bảng + 22 từ vòng lặp `v_catalog_read` (11 bảng × 2) + 2 từ vòng lặp `workshop_machines/workshop_materials` + 2 policy `orders` tạo trực tiếp (#3) + 4 policy `designer_payout_info` (#10) + 4 policy `products` designer (#13). 2 tên policy `pricing_config` trong `v_keep` **không bao giờ được tạo** vì `pricing_config` là view (`_vcube_make_policy` kiểm `relkind`) |
+| Policy storage | **8** | `v_ok` trong `20261010_harden_rls.sql` + `vcube_cad_files_cad_owner_rw` (#12, **đã áp 2026-10-23**) ⇒ 7+1 |
 | Policy realtime | **1** | `orders_admin_realtime` trên `realtime.messages` (#9) — chỉ admin đọc topic `orders:admin`; có thể SKIP nếu Realtime Authorization chưa bật |
 
 > Đừng dùng `grep -c 'create policy'` để kết luận: policy bảng được sinh **động** trong `DO` block (`_vcube_make_policy` + `foreach`) nên grep thô chỉ thấy 21 câu literal. Dùng bảng breakdown ở trên hoặc `node scripts/verify-rls.mjs` khi DB sống.
@@ -149,8 +153,9 @@ Vòng lặp tự cải tiến: **audit → chọn 1 mục nợ ưu tiên → s�
 - **Phase 2 — i18n: DONE** — xoá **1.428** nhánh `isVi`/34 file, 85 entry `en:`; API còn `{ t }`; UI VI-only, 0 `isVi` trong `src`.
 - **Phase 3 — Data/state: DONE** — 0 cache `localStorage` DB-backed; store gom về `src/frontend/stores` (6 store); App.tsx 2.153 → 1.100 dòng; hooks/routes/shell tách.
 - **Phase 4 — God-file: DONE** — 7 file tách thành 65 module: App **343**, Tool3DView **1.057**, ModelViewer3D **869**, PricingConfigPanel **985**, Group1WorkshopsPanel **755**, WorkshopSettingsView **865**, `workshopService` façade **128**; parity 98,76–100%; QA **GO-WITH-RISKS** (`handoff/phase4-verify.md`).
-- **Phase 6 — Docs-as-code & test: ĐANG LÀM** — docs-as-code (task này) + unit test `tests/unit/*.test.ts` (**71 test**, `npm run test:unit`) (task 6b).
-- **RLS:** 32 bảng + 2 view, **92 policy bảng hiệu lực** + 7 storage (+1 `realtime.messages`); **0 bảng hở RLS**; anon đọc `orders`/`user_profiles` = 0 dòng. Lần kiểm chứng production đầu tiên (2026-09-12) đo trên **21 bảng** — số hiện tại là 32; lịch sử ghi ở `docs/security/rls-runbook.md` §10.3/§10.6.
+- **FL full-flow (2026-10-23):** FL-1 order flow (snapshot tiền + order_items + payment thủ công + admin detail + invoice DB) ✅; FL-2a designer upload + publish (Supabase Storage + `digital_assets` + `products.designer_id`) ✅ verified thật. FL-2b/FL-3 tiếp.
+- **Phase 6 — Docs-as-code & test: DONE 2026-10-21** — docs-as-code (task này) + unit test `tests/unit/*.test.ts` (**71 test**, `npm run test:unit`) (task 6b).
+- **RLS:** 32 bảng + 2 view, **96 policy bảng hiệu lực** + **8 storage** (+1 `realtime.messages`); **0 bảng hở RLS**; anon đọc `orders`/`user_profiles` = 0 dòng. Lần kiểm chứng production đầu tiên (2026-09-12) đo trên **21 bảng** — số hiện tại là 32; lịch sử ghi ở `docs/security/rls-runbook.md` §10.3/§10.6.
 - **Khoá Supabase: đã sửa** — `client.ts`/`vite.config.ts` không hardcode; app dùng `sb_publishable_…`.
 - **Vai trò UI: đã lấy từ DB** (`AuthContext.resolveDbRole`), không suy từ email; ghi `user_metadata` chỉ còn ở DEV.
 - **Còn tồn / follow-up:** (1) rotate `sb_secret_…` (đã lộ trong chat); (2) bật Google OAuth hoặc bỏ nút Google + nhánh tạo user giả; (3) seed dữ liệu mẫu bằng `node scripts/seed-sample-data.mjs`; (4) khai báo env trên Vercel; (5) D05–D07 (dead-code hoãn, xem `DEAD-CODE.md` §1); (6) bundle: `supabase-vendor` vẫn eager ~57,8 kB gzip, Home tải `three` sau first paint, 4 modal luôn-mount ~40 kB raw (xem `03-resources.md` backlog); (7) live RLS/data verify sau khi Supabase Resume; (8) phase 7 feature/data wiring (plan riêng).
