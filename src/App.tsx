@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { BrowserRouter, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@frontend/context/AuthContext';
 import { LanguageProvider } from '@frontend/context/LanguageContext';
@@ -41,9 +41,11 @@ function MainApp() {
   const addToast = useUIStore((s) => s.addToast);
   const openAuthModal = useUIStore((s) => s.openAuthModal);
 
-  const showToast = (msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+  // Identity ỔN ĐỊNH: `showToast` được truyền xuống AppRoutes → admin panels; hàm thường
+  // (identity mới mỗi render) từng làm callback/effect phía panel phụ thuộc nó chạy lại.
+  const showToast = useCallback((msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     addToast({ message: msg, type });
-  };
+  }, [addToast]);
 
   // Domain hooks — state/effects/handlers theo domain (Phase 3c). Hành vi giữ nguyên:
   // catalog (products/materials/printers/accessories + CRUD + realtime), settings

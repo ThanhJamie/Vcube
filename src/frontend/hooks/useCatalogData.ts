@@ -70,6 +70,29 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
   // KHÔNG có chỗ nào nạp từ bảng `accessories`, nên trang quản trị luôn trống.
   const [accessories, setAccessories] = useState<AccessoryItem[]>([]);
 
+  /**
+   * Ref tới giá trị MỚI NHẤT cho các handler CRUD — để handler giữ **identity ổn định**
+   * (`useCallback`) mà vẫn tính đúng phần "đã bị xoá" khi danh sách đổi.
+   *
+   * VÌ SAO: trước đây các `handleUpdate*` là hàm thường ⇒ identity mới sau MỖI render. Panel
+   * admin nhận handler qua props và đưa nó vào dep của `useCallback`/`useEffect` (vd
+   * `Group1WorkshopsPanel.loadFleet`) ⇒ mỗi lần state catalog đổi lại tạo effect mới ⇒
+   * **vòng lặp fetch vô hạn + ghi DB lặp** (bug "UI nhảy" ở Admin → Xưởng in & Thiết bị).
+   */
+  const productsRef = useRef<Product[]>([]);
+  const materialsRef = useRef<MaterialProfile[]>([]);
+  const printersRef = useRef<PrinterProfile[]>([]);
+  const accessoriesRef = useRef<AccessoryItem[]>([]);
+  const showToastRef = useRef(showToast);
+
+  useEffect(() => {
+    productsRef.current = products;
+    materialsRef.current = materials;
+    printersRef.current = printers;
+    accessoriesRef.current = accessories;
+    showToastRef.current = showToast;
+  }, [products, materials, printers, accessories, showToast]);
+
   // Synchronize products from Supabase DB on startup (retryable, revision-guarded)
   //
   // `loadProducts` là nguồn DUY NHẤT thay `products` từ DB. Cờ `productsLoadingRef` chặn
@@ -212,10 +235,11 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
     };
   }, []);
 
-  const handleUpdateMaterials = (newMaterials: MaterialProfile[]) => {
+  // Identity ỔN ĐỊNH (useCallback + ref) — xem khối `*Ref` ở trên.
+  const handleUpdateMaterials = useCallback((newMaterials: MaterialProfile[]) => {
     // Xoá trên DB những vật liệu đã bị bỏ khỏi danh sách (trước đây chỉ upsert phần còn lại
     // nên hàng đã xoá vẫn sống trong DB và quay lại sau khi tải lại).
-    const removed = materials.filter((m) => !newMaterials.some((n) => n.id === m.id));
+    const removed = materialsRef.current.filter((m) => !newMaterials.some((n) => n.id === m.id));
     setMaterials(newMaterials);
     newMaterials.forEach((m) => {
       dbService.saveMaterial(m).catch((e) => console.warn('Failed to sync material to Supabase:', e));
@@ -223,10 +247,10 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
     removed.forEach((m) => {
       dbService.deleteMaterial(m.id).catch((e) => console.warn('Failed to delete material from Supabase:', e));
     });
-  };
+  }, []);
 
-  const handleUpdatePrinters = (newPrinters: PrinterProfile[]) => {
-    const removed = printers.filter((p) => !newPrinters.some((n) => n.id === p.id));
+  const handleUpdatePrinters = useCallback((newPrinters: PrinterProfile[]) => {
+    const removed = printersRef.current.filter((p) => !newPrinters.some((n) => n.id === p.id));
     setPrinters(newPrinters);
     newPrinters.forEach((p) => {
       dbService.savePrinter(p).catch((e) => console.warn('Failed to sync printer to Supabase:', e));
@@ -234,10 +258,10 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
     removed.forEach((p) => {
       dbService.deletePrinter(p.id).catch((e) => console.warn('Failed to delete printer from Supabase:', e));
     });
-  };
+  }, []);
 
-  const handleUpdateAccessories = (newAccessories: AccessoryItem[]) => {
-    const removed = accessories.filter((a) => !newAccessories.some((n) => n.id === a.id));
+  const handleUpdateAccessories = useCallback((newAccessories: AccessoryItem[]) => {
+    const removed = accessoriesRef.current.filter((a) => !newAccessories.some((n) => n.id === a.id));
     setAccessories(newAccessories);
     newAccessories.forEach((a) => {
       dbService.saveAccessory(a).catch((e) => console.warn('Failed to sync accessory to Supabase:', e));
@@ -245,11 +269,11 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
     removed.forEach((a) => {
       dbService.deleteAccessory(a.id).catch((e) => console.warn('Failed to delete accessory from Supabase:', e));
     });
-  };
+  }, []);
 
   // Product Handlers — DB (Supabase) là nguồn duy nhất, optimistic update + rollback khi lỗi.
-  const handleAddNewProduct = async (prod: Product) => {
-    const previous = [...products];
+  const handleAddNewProduct = useCallback(async (prod: Product) => {
+    const previous = [...productsRef.current];
     // Optimistic UI update
     setProducts((prev) => {
       productsRevisionRef.current++;
@@ -262,14 +286,14 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
       // Rollback on DB error
       console.warn('Rollback adding product due to DB error:', res.error);
       setProducts(previous);
-      showToast('Không thể lưu vào Supabase. Đã hoàn tác.');
+      showToastRef.current('Không thể lưu vào Supabase. Đã hoàn tác.');
     } else {
-      showToast('Đã thêm sản phẩm thành công!');
+      showToastRef.current('Đã thêm sản phẩm thành công!');
     }
-  };
+  }, []);
 
-  const handleUpdateProduct = async (updated: Product) => {
-    const previous = [...products];
+  const handleUpdateProduct = useCallback(async (updated: Product) => {
+    const previous = [...productsRef.current];
     // Optimistic UI update
     setProducts((prev) => {
       productsRevisionRef.current++;
@@ -282,14 +306,14 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
       // Rollback on DB error
       console.warn('Rollback updating product due to DB error:', res.error);
       setProducts(previous);
-      showToast('Lỗi cập nhật trên Supabase. Đã hoàn tác.');
+      showToastRef.current('Lỗi cập nhật trên Supabase. Đã hoàn tác.');
     } else {
-      showToast('Đã cập nhật sản phẩm thành công!');
+      showToastRef.current('Đã cập nhật sản phẩm thành công!');
     }
-  };
+  }, []);
 
-  const handleDeleteProduct = async (productId: string) => {
-    const previous = [...products];
+  const handleDeleteProduct = useCallback(async (productId: string) => {
+    const previous = [...productsRef.current];
     // Optimistic UI update
     setProducts((prev) => {
       productsRevisionRef.current++;
@@ -302,11 +326,11 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
       // Rollback on DB error
       console.warn('Rollback deleting product due to DB error:', res.error);
       setProducts(previous);
-      showToast('Lỗi xóa trên Supabase. Đã hoàn tác.');
+      showToastRef.current('Lỗi xóa trên Supabase. Đã hoàn tác.');
     } else {
-      showToast('Đã xóa sản phẩm thành công!');
+      showToastRef.current('Đã xóa sản phẩm thành công!');
     }
-  };
+  }, []);
 
   return {
     products,

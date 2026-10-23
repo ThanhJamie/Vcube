@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useWorkshopAdminStore } from '@frontend/stores/useWorkshopAdminStore';
 import { dbService } from '../../../../backend/supabase/database';
 import { WorkshopProfile, WorkshopMachine, WorkshopMaterial, WorkshopPartner, PrinterProfile } from '../../../../types';
@@ -34,21 +34,24 @@ export interface Group1WorkshopsPanelProps {
   section?: string;
 }
 
-/**
- * `printer_fleet.status` (Idle | Printing | Maintenance) → nhãn trạng thái của màn Đội Máy.
- * Đây là ánh xạ HIỂN THỊ (1-1, không suy diễn thêm): bảng dùng `Idle`, màn này gọi là "Rảnh".
- */
-
-
 export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   // `printers` (prop) KHÔNG được đọc — xem khối "ĐỘI MÁY IN" bên dưới: App khởi tạo prop đó
   // bằng fixture/localStorage nên nó không phân biệt được "bảng rỗng" với "truy vấn lỗi".
-  // `onUpdatePrinters` thì CÓ dùng: đồng bộ state của App sau mỗi lần ghi DB thành công.
+  // `onUpdatePrinters` thì CÓ dùng: đồng bộ state của App sau mỗi lần GHI DB thành công.
   onUpdatePrinters,
   onShowToast,
-  onNavigateSection,
   section
 }) => {
+  /**
+   * Hai callback từ props được giữ trong ref: chỉ dùng để ĐỒNG BỘ/ BÁO LỖI, KHÔNG phải dữ liệu
+   * để fetch. Nhờ vậy `fetchFleetRows`/`loadPartners` giữ identity ổn định (`useCallback([])`)
+   * và effect chỉ chạy khi mount — trước đây chúng nằm trong dep nên mỗi lần App re-render
+   * (identity handler mới) lại tạo vòng fetch mới ⇒ UI nhảy liên tục.
+   */
+  const onUpdatePrintersRef = useRef(onUpdatePrinters);
+  const onShowToastRef = useRef(onShowToast);
+  useEffect(() => { onUpdatePrintersRef.current = onUpdatePrinters; }, [onUpdatePrinters]);
+  useEffect(() => { onShowToastRef.current = onShowToast; }, [onShowToast]);
 
   const tabFromSection = (s?: string): 'workshops' | 'fleet' | 'materials' | 'partners' =>
     s === 'machines' ? 'fleet' : s === 'partners' ? 'partners' : 'workshops';
@@ -99,8 +102,8 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   //   App khởi tạo prop đó bằng `[]` (Phase 3: đã bỏ hẳn cache localStorage cho danh sách máy)
   //   và CHỈ ghi đè khi mảng remote KHÁC RỖNG ⇒ prop không phân biệt được "bảng rỗng" với
   //   "truy vấn lỗi" (đúng thứ màn này phải nói thật). `dbService.getPrinters()` ném lỗi
-  //   thật nên mới dựng được 3 trạng thái loading / rỗng / lỗi. Sau mỗi lần ghi ta vẫn gọi
-  //   `onUpdatePrinters` để state App khớp DB.
+  //   thật nên mới dựng được 3 trạng thái loading / rỗng / lỗi. Sau mỗi lần GHI ta vẫn gọi
+  //   `onUpdatePrinters` (qua ref) để state App khớp DB — nhưng KHÔNG gọi ở lần load đầu.
   // ==========================================================================
   const [fleetPrinters, setFleetPrinters] = useState<PrinterProfile[] | null>(null);
   const [isFleetLoading, setIsFleetLoading] = useState(false);
@@ -108,21 +111,30 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   /** `null` = CHƯA cấu hình giá điện trong `pricing_global_settings` (KHÔNG rơi về 2.850đ). */
   const [electricityRateVnd, setElectricityRateVnd] = useState<number | null>(null);
 
-  const loadFleet = useCallback(async () => {
+  /**
+   * Đọc `printer_fleet` và trả về các dòng vừa đọc (hoặc `null` khi lỗi).
+   * Identity ỔN ĐỊNH: KHÔNG phụ thuộc prop callback — nhờ vậy effect bên dưới chạy 1 lần.
+   */
+  const fetchFleetRows = useCallback(async (): Promise<PrinterProfile[] | null> => {
     setIsFleetLoading(true);
     setFleetError(null);
     try {
       const rows = await dbService.getPrinters();
       setFleetPrinters(rows);
-      onUpdatePrinters?.(rows);
+      return rows;
     } catch (err: any) {
       // Lỗi thật ⇒ KHÔNG hiện 0 như thể bảng rỗng, KHÔNG rơi về fixture.
       setFleetPrinters(null);
       setFleetError(err?.message || ('lỗi không xác định'));
+      return null;
     } finally {
       setIsFleetLoading(false);
     }
-  }, [onUpdatePrinters]);
+  }, []);
+
+  const loadFleet = useCallback(async (): Promise<void> => {
+    await fetchFleetRows();
+  }, [fetchFleetRows]);
 
   useEffect(() => {
     void loadFleet();
@@ -132,19 +144,22 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     void getPricingGlobalSettings()
       .then((res) => setElectricityRateVnd(res?.data?.electricityRateVnd ?? null))
       .catch(() => setElectricityRateVnd(null));
+    // `loadWorkshops` là action Zustand (identity ổn định); effect chỉ chạy khi mount.
   }, [loadFleet, loadWorkshops]);
 
   /** Ghi 1 máy in xuống `printer_fleet`; chỉ báo thành công khi DB xác nhận. */
   const persistPrinter = async (printer: PrinterProfile, successMessage: string) => {
     const result = await dbService.savePrinter(printer);
     if (!result.success) {
-      onShowToast?.(
+      onShowToastRef.current?.(
         `Lưu máy in thất bại: ${result.error || 'lỗi không xác định'}`
       );
       return false;
     }
-    await loadFleet();
-    onShowToast?.(successMessage);
+    // Đọc lại danh sách thật rồi mới đồng bộ state App — KHÔNG đồng bộ ở lần load đầu.
+    const rows = await fetchFleetRows();
+    if (rows !== null) onUpdatePrintersRef.current?.(rows);
+    onShowToastRef.current?.(successMessage);
     return true;
   };
 
@@ -172,13 +187,13 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       const rows = await dbService.getWorkshopPartners();
       setPartners(Array.isArray(rows) ? rows : []);
     } catch (err: any) {
-      onShowToast?.(
+      onShowToastRef.current?.(
         `Không tải được danh sách đối tác: ${err?.message || 'lỗi không xác định'}`
       );
     } finally {
       setIsPartnersLoading(false);
     }
-  }, [onShowToast]);
+  }, []);
 
   useEffect(() => {
     void loadPartners();
@@ -203,34 +218,35 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
     status: 'active'
   });
 
-  const persistPartner = async (partner: WorkshopPartner, successMessage: string) => {
-    const isNew = !partners.some((p) => p.id === partner.id);
+  const persistPartner = useCallback(async (partner: WorkshopPartner, successMessage: string) => {
     setPartners((prev) =>
-      isNew ? [partner, ...prev] : prev.map((p) => (p.id === partner.id ? partner : p))
+      prev.some((p) => p.id === partner.id)
+        ? prev.map((p) => (p.id === partner.id ? partner : p))
+        : [partner, ...prev]
     );
     const result = await dbService.saveWorkshopPartner(partner);
     if (result.success) {
-      onShowToast?.(successMessage);
+      onShowToastRef.current?.(successMessage);
     } else {
-      onShowToast?.(
+      onShowToastRef.current?.(
         `Lưu đối tác thất bại: ${result.error || 'lỗi không xác định'}`
       );
     }
-  };
+  }, []);
 
-  const handleTogglePartnerStatus = (partner: WorkshopPartner) => {
+  const handleTogglePartnerStatus = useCallback((partner: WorkshopPartner) => {
     const nextStatus: WorkshopPartner['status'] = partner.status === 'active' ? 'busy' : 'active';
     void persistPartner(
       { ...partner, status: nextStatus },
       `Đã cập nhật trạng thái đối tác ${partner.name}: ${nextStatus}`
     );
-  };
+  }, [persistPartner]);
 
   const handleSubmitPartner = (e: React.FormEvent) => {
     e.preventDefault();
     if (!partnerDraft) return;
     if (!partnerDraft.name.trim() || !partnerDraft.address.trim()) {
-      onShowToast?.(
+      onShowToastRef.current?.(
         'Vui lòng nhập tên xưởng và địa chỉ'
       );
       return;
@@ -350,12 +366,12 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   ) => {
     const res = await setWorkshopVerifiedStatus(id, status);
     if (!res.success) {
-      onShowToast?.(
+      onShowToastRef.current?.(
         `Cập nhật trạng thái xưởng thất bại: ${res.error || 'lỗi không xác định'}`
       );
       return;
     }
-    onShowToast?.(
+    onShowToastRef.current?.(
       status === 'Verified'
         ? `Đã ghi trạng thái Đã duyệt cho xưởng: ${name}`
         : `Đã ghi trạng thái Tạm đình chỉ cho xưởng: ${name}`
@@ -373,7 +389,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const handleCreateWorkshop = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkshopForm.workshopName || !newWorkshopForm.address) {
-      onShowToast?.('Vui lòng điền tên xưởng và địa chỉ');
+      onShowToastRef.current?.('Vui lòng điền tên xưởng và địa chỉ');
       return;
     }
     const res = await addWorkshop({
@@ -387,13 +403,13 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
       laborRateOverride: newWorkshopForm.laborRateOverride
     });
     if (!res.success) {
-      onShowToast?.(
+      onShowToastRef.current?.(
         `Tạo xưởng thất bại: ${res.error || 'lỗi không xác định'}`
       );
       return; // giữ modal để không mất dữ liệu đã nhập
     }
     setIsAddWorkshopModalOpen(false);
-    onShowToast?.('Đã ghi xưởng in mới vào workshop_profiles!');
+    onShowToastRef.current?.('Đã ghi xưởng in mới vào workshop_profiles!');
     setNewWorkshopForm({
       workshopName: '',
       address: '',
@@ -409,7 +425,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const handleCreateMachine = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMachineForm.machineName.trim()) {
-      onShowToast?.('Vui lòng nhập tên máy in');
+      onShowToastRef.current?.('Vui lòng nhập tên máy in');
       return;
     }
     // `printer_fleet.id` là text PK KHÔNG có default ⇒ phải tự sinh id.
@@ -450,14 +466,14 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
   const handleCreateMaterial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMaterialForm.materialName) {
-      onShowToast?.('Vui lòng nhập tên vật liệu');
+      onShowToastRef.current?.('Vui lòng nhập tên vật liệu');
       return;
     }
     addMaterial(newMaterialForm);
     setIsAddMaterialModalOpen(false);
     // ⚠️ NÓI THẬT: chưa có hàm service nào ghi tồn kho theo xưởng, nên bản ghi này CHỈ nằm
     // trong bộ nhớ màn hình và mất khi tải lại — không được báo như đã lưu vào DB.
-    onShowToast?.(
+    onShowToastRef.current?.(
       'Bản ghi vật liệu CHỈ nằm trong bộ nhớ màn hình: chưa có hàm ghi DB cho tồn kho theo xưởng nên sẽ mất khi tải lại.'
     );
   };
@@ -626,8 +642,7 @@ export const Group1WorkshopsPanel: React.FC<Group1WorkshopsPanelProps> = ({
         </div>
       ),
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], []);
+  ], [handleTogglePartnerStatus]);
 
   const group1HeaderProps: Group1HeaderProps = {
     setActiveTab,

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useCustomerAdminStore, CustomerRow, isB2b } from '@frontend/stores/useCustomerAdminStore';
 import { dbService } from '../../../../backend/supabase/database';
 import { designerService } from '../../../../backend/services/designerService';
@@ -74,6 +74,13 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
   onShowToast,
   onNavigateSection
 }) => {
+  /**
+   * `onShowToast` chỉ dùng để BÁO LỖI, không phải dữ liệu để fetch ⇒ giữ trong ref để
+   * `loadKycRows` có identity ổn định. Trước đây nó nằm trong dep của `useCallback([onShowToast])`
+   * + effect `[loadKycRows]` ⇒ mỗi lần App re-render (identity mới) lại fetch lại hồ sơ KYC.
+   */
+  const onShowToastRef = useRef(onShowToast);
+  useEffect(() => { onShowToastRef.current = onShowToast; }, [onShowToast]);
 
   const [activeTab, setActiveTab] = useState<'customers' | 'nda' | 'rfq' | 'kyc'>('customers');
 
@@ -119,13 +126,13 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
       const rows = await dbService.getUsers();
       setKycRows(Array.isArray(rows) ? rows.map(toKycRow) : []);
     } catch (err: any) {
-      onShowToast?.(
+      onShowToastRef.current?.(
         `Không tải được hồ sơ KYC: ${err?.message || 'lỗi không xác định'}`
       );
     } finally {
       setIsKycLoading(false);
     }
-  }, [onShowToast]);
+  }, []);
 
   useEffect(() => {
     void loadKycRows();
