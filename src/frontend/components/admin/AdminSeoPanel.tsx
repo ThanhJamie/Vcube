@@ -367,30 +367,30 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-fg-muted">Độ dài tiêu đề</span>
                   <span className={`text-right ${!metaTitle ? 'text-fg-muted' : titleLen >= 50 && titleLen <= 65 ? 'text-positive font-medium' : 'text-warning'}`}>
-                    {!metaTitle ? '— Chưa cấu hình' : titleLen >= 50 && titleLen <= 65 ? '✓ Chuẩn' : 'Cần tối ưu'}
+                    {!metaTitle ? '— Chưa cấu hình' : titleLen >= 50 && titleLen <= 65 ? (<><Icon name="check" size={12} aria-hidden="true" /> Chuẩn</>) : 'Cần tối ưu'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-fg-muted">Độ dài mô tả</span>
                   <span className={`text-right ${!metaDesc ? 'text-fg-muted' : descLen >= 140 && descLen <= 160 ? 'text-positive font-medium' : 'text-warning'}`}>
-                    {!metaDesc ? '— Chưa cấu hình' : descLen >= 140 && descLen <= 160 ? '✓ Chuẩn' : 'Cần tối ưu'}
+                    {!metaDesc ? '— Chưa cấu hình' : descLen >= 140 && descLen <= 160 ? (<><Icon name="check" size={12} aria-hidden="true" /> Chuẩn</>) : 'Cần tối ưu'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-fg-muted">Thẻ Ảnh Chia Sẻ</span>
                   <span className={`text-right ${ogImage ? 'text-positive font-medium' : 'text-danger'}`}>
-                    {ogImage ? '✓ Có sẵn' : '✗ Thiếu'}
+                    {ogImage ? (<><Icon name="check" size={12} aria-hidden="true" /> Có sẵn</>) : (<><Icon name="close" size={12} aria-hidden="true" /> Thiếu</>)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-fg-muted">Thẻ URL Chính Tắc</span>
                   <span className={`text-right ${canonicalUrl ? 'text-positive font-medium' : 'text-danger'}`}>
-                    {canonicalUrl ? '✓ Hợp lệ' : '✗ Thiếu'}
+                    {canonicalUrl ? (<><Icon name="check" size={12} aria-hidden="true" /> Hợp lệ</>) : (<><Icon name="close" size={12} aria-hidden="true" /> Thiếu</>)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-fg-muted">Dữ liệu Schema.org</span>
-                  <span className={`text-right ${localContent.seoStructuredData ? 'text-positive font-medium' : 'text-fg-muted'}`}>{localContent.seoStructuredData ? '✓ Có dữ liệu Schema.org' : '— Chưa cấu hình'}</span>
+                  <span className={`text-right ${localContent.seoStructuredData ? 'text-positive font-medium' : 'text-fg-muted'}`}>{localContent.seoStructuredData ? (<><Icon name="check" size={12} aria-hidden="true" /> Có dữ liệu Schema.org</>) : '— Chưa cấu hình'}</span>
                 </div>
               </div>
             </div>

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Star, Minus } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { MATERIALS_CATALOG } from '../../data/mockData';
 import { ThreeModelViewer } from '../components/LazyThreeModelViewer';
@@ -343,7 +342,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               {/* T3: `rating` NULL hoặc `reviewsCount = 0` ⇒ KHÔNG hiện sao. */}
               {showRating ? (
                 <span className="flex items-center gap-1 font-mono text-xs font-bold text-fg tabular-nums">
-                  <Star size={14} className="text-warning-strong" fill="currentColor" aria-hidden="true" />
+                  <Icon name="star" size={14} className="text-warning-strong" fill="currentColor" aria-hidden="true" />
                   {ratingValue} ({reviewsCountLabel} đánh giá)
                 </span>
               ) : (
@@ -558,7 +557,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         variant="ghost"
                         aria-label="Giảm số lượng"
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        leadingIcon={<Minus size={16} aria-hidden="true" />}
+                        leadingIcon={<Icon name="remove" size={16} aria-hidden="true" />}
                       />
                       <span className="min-w-10 border-x border-line-subtle px-3 text-center font-mono text-sm font-bold tabular-nums text-fg">
                         {quantity}
@@ -932,8 +931,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       </span>
                       <div className="mt-1 flex items-center justify-center gap-0.5" role="img" aria-label={`${ratingValue}/5`}>
                         {[1, 2, 3, 4, 5].map((i) => (
-                          <Star
+                          <Icon
                             key={i}
+                            name="star"
                             size={16}
                             aria-hidden="true"
                             className={i <= Math.round(ratingValue as number) ? 'text-warning-strong' : 'text-line-control'}

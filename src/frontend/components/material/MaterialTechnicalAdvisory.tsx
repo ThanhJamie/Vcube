@@ -227,7 +227,7 @@ export const MaterialTechnicalAdvisory: React.FC<MaterialTechnicalAdvisoryProps>
         {/* 1. Yêu cầu thiết bị gia công */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-fg">
-            <Icon name="precision_manufacturing" size={15} className="text-primary shrink-0" />
+            <Icon name="precision_manufacturing" size={14} className="text-primary shrink-0" />
             <span>1. Yêu cầu thiết bị gia công:</span>
           </div>
           <ul className="pl-5 space-y-1 list-disc text-xs text-fg-muted leading-relaxed">
@@ -240,7 +240,7 @@ export const MaterialTechnicalAdvisory: React.FC<MaterialTechnicalAdvisoryProps>
         {/* 2. Lý do chênh lệch chi phí */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-fg">
-            <Icon name="calculate" size={15} className="text-primary shrink-0" />
+            <Icon name="calculate" size={14} className="text-primary shrink-0" />
             <span>2. Lý do cấu thành chi phí chế tạo:</span>
           </div>
           <ul className="pl-5 space-y-1 list-disc text-xs text-fg-muted leading-relaxed">
@@ -253,7 +253,7 @@ export const MaterialTechnicalAdvisory: React.FC<MaterialTechnicalAdvisoryProps>
         {/* 3. Tỷ lệ co ngót và dung sai khuyến nghị */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-fg">
-            <Icon name="straighten" size={15} className="text-primary shrink-0" />
+            <Icon name="straighten" size={14} className="text-primary shrink-0" />
             <span>{'3. Tỷ lệ co ngót & Dung sai khuyến nghị:'}</span>
           </div>
           <div className="rounded-md bg-surface p-2.5 space-y-1.5">

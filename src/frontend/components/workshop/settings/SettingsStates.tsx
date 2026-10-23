@@ -1,6 +1,5 @@
 // SettingsStates — 3 trạng thái chặn render của WorkshopSettingsView (Phase 4c, block-move).
-import { Building2, RefreshCw, TriangleAlert } from 'lucide-react';
-import { Button, EmptyState, Skeleton } from '@frontend/ui';
+import { Button, EmptyState, Skeleton, Icon } from '@frontend/ui';
 import type { AuthUser } from '@frontend/context/AuthContext';
 
 
@@ -35,11 +34,11 @@ export const SettingsErrorState: React.FC<{ profileError: string; onRetry: () =>
     <div className="mx-auto w-full max-w-3xl">
               <EmptyState
                 live
-                icon={<TriangleAlert className="size-5" />}
+                icon={<Icon name="warning" className="size-5" />}
                 title="Không đọc được hồ sơ xưởng"
                 description={`Máy chủ trả lỗi: ${profileError}. Chưa có dữ liệu nào của xưởng được hiển thị để tránh cho bạn xem nhầm dữ liệu của xưởng khác.`}
                 action={
-                  <Button variant="secondary" leadingIcon={<RefreshCw className="size-4" />} onClick={onRetry}>
+                  <Button variant="secondary" leadingIcon={<Icon name="refresh" className="size-4" />} onClick={onRetry}>
                     Thử lại
                   </Button>
                 }
@@ -51,7 +50,7 @@ export const SettingsMissingProfile: React.FC<{ user: AuthUser; onNavigate?: (sc
     <div className="mx-auto w-full max-w-3xl">
               <EmptyState
                 live
-                icon={<Building2 className="size-5" />}
+                icon={<Icon name="business" className="size-5" />}
                 title="Tài khoản này chưa có hồ sơ xưởng"
                 description={
                   user?.email

@@ -1,7 +1,6 @@
 // QueueTab — tách từ WorkshopSettingsView.tsx (Phase 4c, block-move verbatim; parent giữ state).
 import { useMemo } from 'react';
-import { ClipboardList, Clock, LayoutGrid, List, Printer, TriangleAlert } from 'lucide-react';
-import { Button, DataTable, EmptyState, Field, Input, type DataTableColumn } from '@frontend/ui';
+import { Button, DataTable, EmptyState, Field, Input, type DataTableColumn, Icon } from '@frontend/ui';
 import { formatDate, formatNumber, EMPTY_VALUE } from '@frontend/lib/format';
 import { MES_PIPELINE_STAGES } from '../../OrderProgress';
 import { MY_ORDER_STATUS_LABELS, type MyQueueOrder } from '@backend/services/workshopService';
@@ -178,7 +177,7 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
-                  <ClipboardList className="size-5 text-primary" aria-hidden="true" />
+                  <Icon name="clipboard_list" className="size-5 text-primary" aria-hidden="true" />
                   Hàng đợi việc của xưởng bạn
                 </h2>
                 <p className="mt-0.5 text-xs text-fg-subtle">
@@ -201,7 +200,7 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                       : 'font-medium text-fg-muted hover:text-fg'
                   }`}
                 >
-                  <List className="size-4" aria-hidden="true" /> Danh sách
+                  <Icon name="view_list" className="size-4" aria-hidden="true" /> Danh sách
                 </button>
                 <button
                   type="button"
@@ -213,7 +212,7 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                       : 'font-medium text-fg-muted hover:text-fg'
                   }`}
                 >
-                  <LayoutGrid className="size-4" aria-hidden="true" /> Kanban
+                  <Icon name="grid_view" className="size-4" aria-hidden="true" /> Kanban
                 </button>
               </div>
             </div>
@@ -246,7 +245,7 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                 hasPartner ? (
                   <EmptyState
                     live
-                    icon={<ClipboardList className="size-5" />}
+                    icon={<Icon name="clipboard_list" className="size-5" />}
                     title="Chưa có đơn nào được giao cho xưởng bạn"
                     description={
                       `Hệ thống chưa giao đơn nào cho mã đối tác ${partnerId}. Hãy khai báo năng lực ` +
@@ -266,7 +265,7 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                 ) : (
                   <EmptyState
                     live
-                    icon={<TriangleAlert className="size-5" />}
+                    icon={<Icon name="warning" className="size-5" />}
                     title="Chưa gắn mã đối tác xưởng"
                     description="Hồ sơ xưởng của bạn chưa có partner_id nên không có đơn nào được giao. Hãy nhờ quản trị viên gắn mã đối tác."
                     action={
@@ -320,12 +319,12 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                               {o.items[0]?.material ? ` · ${o.items[0].material}` : ''}
                             </p>
                             <p className="flex items-center gap-1 truncate text-xs text-fg-subtle">
-                              <Printer className="size-3.5 shrink-0 text-fg-subtle" aria-hidden="true" />
+                              <Icon name="printer" className="size-3.5 shrink-0 text-fg-subtle" aria-hidden="true" />
                               {machines.find((m) => m.id === o.assignedPrinterId)?.name || 'Chưa gắn máy'}
                             </p>
                             {o.estimatedDelivery ? (
                               <p className="flex items-center gap-1 truncate text-xs text-fg-subtle">
-                                <Clock className="size-3.5 shrink-0" aria-hidden="true" /> Hạn: {formatDate(o.estimatedDelivery)}
+                                <Icon name="schedule" className="size-3.5 shrink-0" aria-hidden="true" /> Hạn: {formatDate(o.estimatedDelivery)}
                               </p>
                             ) : null}
                           </div>

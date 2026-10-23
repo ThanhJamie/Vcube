@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Star } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, SiteContentConfig } from '@/types';
 import { CATEGORIES, POPULAR_TAGS, MATERIALS_CATALOG, DEFAULT_SITE_CONTENT } from '@/data/mockData';
 import { ThreeModelViewer } from '../components/LazyThreeModelViewer';
@@ -631,7 +630,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <div className={`grid size-12 shrink-0 place-items-center rounded-md ${
                   isDraggingFile ? 'bg-primary text-primary-fg' : 'bg-tile-mint text-fg'
                 }`}>
-                  <Icon name={isDraggingFile ? 'download' : 'cloud_upload'} size={26} aria-hidden="true" />
+                  <Icon name={isDraggingFile ? 'download' : 'cloud_upload'} size={28} aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -979,7 +978,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       aria-hidden="true"
                       className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-fg-subtle"
                     >
-                      <Icon name={categoryIcon(product.category)} size={44} />
+                      <Icon name={categoryIcon(product.category)} size={36} />
                       <span className="font-tech text-xs uppercase tracking-wider">
                         Chưa có ảnh
                       </span>
@@ -1040,7 +1039,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           `rating` NULL hoặc `reviewsCount = 0` ⇒ chữ, KHÔNG `★ 0`/`NaN`. */}
                       {hasRating(product) ? (
                         <span className="flex shrink-0 items-center gap-1 font-tech text-xs font-bold tabular-nums text-fg">
-                          <Star size={14} className="text-warning-strong" fill="currentColor" aria-hidden="true" />
+                          <Icon name="star" size={14} className="text-warning-strong" fill="currentColor" aria-hidden="true" />
                           {product.rating}
                         </span>
                       ) : (

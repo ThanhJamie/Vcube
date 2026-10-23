@@ -10,6 +10,7 @@
     { "id": "check-error-handling", "cmd": "node scripts/check-error-handling.mjs --json" },
     { "id": "check-fabricated", "cmd": "node scripts/check-fabricated.mjs --json" },
     { "id": "check-icon-names", "cmd": "node scripts/check-icon-names.mjs" },
+    { "id": "check-icon-library", "cmd": "node scripts/check-icon-library.mjs --json" },
     { "id": "check-ui-rules", "cmd": "node scripts/check-ui-rules.mjs --json" },
     { "id": "check-unitprice-multiplier", "cmd": "node scripts/check-unitprice-multiplier.mjs" },
     { "id": "a8-sql-syntax-check", "cmd": "node scripts/a8-sql-syntax-check.mjs" },

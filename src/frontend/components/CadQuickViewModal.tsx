@@ -342,7 +342,7 @@ const CadQuickViewBody: React.FC<CadQuickViewBodyProps> = ({
             </span>
             {ratingValue !== null && reviewsCount !== null && reviewsCount > 0 ? (
               <span className="text-xs text-warning font-bold flex items-center gap-1 tabular-nums">
-                ★ {ratingValue} ({formatNumber(reviewsCount, { locale, maximumFractionDigits: 0 })} đánh giá)
+                <Icon name="star" size={12} aria-hidden="true" /> {ratingValue} ({formatNumber(reviewsCount, { locale, maximumFractionDigits: 0 })} đánh giá)
               </span>
             ) : (
               <span className="text-xs text-fg-muted font-mono">

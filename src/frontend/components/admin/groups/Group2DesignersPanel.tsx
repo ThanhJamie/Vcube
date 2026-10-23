@@ -11,9 +11,9 @@ export interface Group2DesignersPanelProps {
 }
 
 const BADGE_TIERS = [
-  { id: 'TopCreator', label: '👑 Tác giả hàng đầu', desc: 'Nhà sáng tạo xuất sắc' },
-  { id: 'VerifiedEngineer', label: '🛡️ Kỹ sư đã kiểm duyệt', desc: 'Kỹ sư cơ khí kiểm duyệt' },
-  { id: 'PioneerMaker', label: '🚀 Nghệ nhân tiên phong', desc: 'Nghệ nhân tiên phong' },
+  { id: 'TopCreator', label: 'Tác giả hàng đầu', desc: 'Nhà sáng tạo xuất sắc' },
+  { id: 'VerifiedEngineer', label: 'Kỹ sư đã kiểm duyệt', desc: 'Kỹ sư cơ khí kiểm duyệt' },
+  { id: 'PioneerMaker', label: 'Nghệ nhân tiên phong', desc: 'Nghệ nhân tiên phong' },
   { id: 'Standard', label: 'Tiêu Chuẩn', desc: 'Tác giả phổ thông' }
 ] as const;
 
@@ -346,11 +346,11 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                       {t === 'all'
                         ? ('Tất cả')
                         : t === 'TopCreator'
-                        ? '👑 Tác giả hàng đầu'
+                        ? (<><Icon name="emoji_events" size={12} aria-hidden="true" /> Tác giả hàng đầu</>)
                         : t === 'VerifiedEngineer'
-                        ? '⚙️ Kỹ sư'
+                        ? (<><Icon name="settings" size={12} aria-hidden="true" /> Kỹ sư</>)
                         : t === 'PioneerMaker'
-                        ? '🚀 Tiên phong'
+                        ? (<><Icon name="rocket_launch" size={12} aria-hidden="true" /> Tiên phong</>)
                         : ('Tiêu chuẩn')}
                     </button>
                   ))}
@@ -503,9 +503,9 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                                   : 'neutral'
                               }
                             >
-                              {d.badgeTier === 'TopCreator' && '👑 Tác giả hàng đầu'}
-                              {d.badgeTier === 'VerifiedEngineer' && '🛡️ Kỹ sư đã kiểm duyệt'}
-                              {d.badgeTier === 'PioneerMaker' && '🚀 Nghệ nhân tiên phong'}
+                              {d.badgeTier === 'TopCreator' && (<><Icon name="emoji_events" size={12} aria-hidden="true" /> Tác giả hàng đầu</>)}
+                              {d.badgeTier === 'VerifiedEngineer' && (<><Icon name="shield_check" size={12} aria-hidden="true" /> Kỹ sư đã kiểm duyệt</>)}
+                              {d.badgeTier === 'PioneerMaker' && (<><Icon name="rocket_launch" size={12} aria-hidden="true" /> Nghệ nhân tiên phong</>)}
                               {d.badgeTier === 'Standard' && 'Tác giả tiêu chuẩn'}
                               {!['TopCreator', 'VerifiedEngineer', 'PioneerMaker', 'Standard'].includes(d.badgeTier) && d.badgeTier}
                             </Badge>
@@ -516,7 +516,7 @@ export const Group2DesignersPanel: React.FC<Group2DesignersPanelProps> = ({
                         </p>
                         <p className="text-xs text-fg-subtle mt-0.5 font-mono">
                           Xác thực: {verifiedStatusLabel(d.verifiedStatus)}
-                          {d.rating !== null ? ` • ★ ${d.rating}` : ''}
+                          {d.rating !== null ? (<span className="inline-flex items-center gap-1">•<Icon name="star" size={12} aria-hidden="true" />{d.rating}</span>) : ''}
                         </p>
                       </div>
                     </div>

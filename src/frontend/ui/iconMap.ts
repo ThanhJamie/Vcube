@@ -193,6 +193,13 @@ import {
   Zap,
   Heart,
   Ellipsis,
+  Star,
+  Rocket,
+  Trophy,
+  ClipboardList,
+  History,
+  MessagesSquare,
+  Minus,
 } from 'lucide-react';import { createLucideIcon, type IconNode, type LucideIcon } from 'lucide-react';
 
 /** Glyph lạ (chưa có trong bảng) → icon này + `console.warn` ở DEV (xem `Icon.tsx`). */
@@ -470,6 +477,18 @@ export const iconMap: Record<string, LucideIcon> = {
   'visibility_off': EyeOff,
   'warning': TriangleAlert,
   'wb_incandescent': Lightbulb,
+
+  'star': Star,
+  'rocket_launch': Rocket,
+  'emoji_events': Trophy,
+  'business': Building2,
+  'shield_check': ShieldCheck,
+  'printer': Printer,
+  'package': Package,
+  'clipboard_list': ClipboardList,
+  'history': History,
+  'forum': MessagesSquare,
+  'remove': Minus,
 
   /* 4 glyph ghép — xem khối COMPOSED ở trên. */
   add_shopping_cart: AddShoppingCart,

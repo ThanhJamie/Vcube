@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Star, X } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { PersonalizeModelViewer3D } from '../components/personalize/PersonalizeModelViewer3D';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
@@ -395,7 +394,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
               <span className="flex items-center gap-1 font-mono text-xs text-fg-muted">
                 {rating ? (
                   <>
-                    <Star aria-hidden="true" className="size-3.5 fill-current text-warning-strong" />
+                    <Icon name="star" aria-hidden="true" className="size-3.5 fill-current text-warning-strong" />
                     <span className="font-bold tabular-nums text-fg">{rating.value}</span>
                     <span>({rating.count} đánh giá)</span>
                   </>
@@ -848,7 +847,7 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
                         variant="danger-ghost"
                         size="sm"
                         className="shrink-0"
-                        leadingIcon={<X size={16} aria-hidden="true" />}
+                        leadingIcon={<Icon name="close" size={16} aria-hidden="true" />}
                         onClick={() => setUploadedLogoName(null)}
                       >
                         Xoá tệp

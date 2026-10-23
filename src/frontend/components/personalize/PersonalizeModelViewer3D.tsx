@@ -312,7 +312,7 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
       ctx.fillStyle = '#57DFFE';
       ctx.font = 'bold 36px "JetBrains Mono", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`⚡ LOGO: ${logoName.toUpperCase()}`, 512, 820);
+      ctx.fillText(`LOGO: ${logoName.toUpperCase()}`, 512, 820);
       ctx.strokeStyle = '#57DFFE';
       ctx.lineWidth = 3;
       ctx.strokeRect(260, 770, 504, 70);

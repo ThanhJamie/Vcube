@@ -286,7 +286,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               className="flex cursor-pointer items-center gap-2 rounded-md px-2 font-medium text-fg-muted transition-colors duration-200 hover:bg-surface-muted hover:text-fg max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-positive-tint text-xs text-positive">
-                ✓
+                <Icon name="check" size={14} aria-hidden="true" />
               </span>
               <span className="hidden sm:inline">01. Giỏ hàng</span>
             </button>

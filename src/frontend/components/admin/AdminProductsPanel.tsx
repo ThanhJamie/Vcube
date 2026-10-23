@@ -300,14 +300,14 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
         if (readiness === 'ready_to_print') {
           return (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-positive/20 bg-positive-tint px-2.5 py-1 text-xs font-medium text-positive">
-              ✓ Sẵn Sàng In
+              <Icon name="check" size={12} aria-hidden="true" /> Sẵn Sàng In
             </span>
           );
         }
         if (readiness === 'missing_profile') {
           return (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/20 bg-warning-tint px-2.5 py-1 text-xs font-medium text-warning">
-              ⚠ Thiếu hồ sơ cắt lớp
+              <Icon name="warning" size={12} aria-hidden="true" /> Thiếu hồ sơ cắt lớp
             </span>
           );
         }
@@ -339,9 +339,9 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                 : 'bg-surface-muted text-fg-muted border-line-control'
             }`}
           >
-            <option value="published">● Đang bán</option>
-            <option value="draft">◌ Bản nháp</option>
-            <option value="archived">✖ Lưu trữ</option>
+            <option value="published">Đang bán</option>
+            <option value="draft">Bản nháp</option>
+            <option value="archived">Lưu trữ</option>
           </select>
         );
       },
@@ -452,8 +452,8 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                 >
                   <option value="all">Tất Cả Chuẩn In</option>
                   <option value="ready_to_print">Sẵn sàng in</option>
-                  <option value="missing_profile">⚠ Thiếu hồ sơ cắt lớp</option>
-                  <option value="cad_review_needed">🔧 Cần duyệt CAD</option>
+                  <option value="missing_profile">Thiếu hồ sơ cắt lớp</option>
+                  <option value="cad_review_needed">Cần duyệt CAD</option>
                 </Select>
               )}
             </Field>
@@ -577,8 +577,8 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                       onChange={(e) => setEditingProduct({ ...editingProduct, productionReadiness: e.target.value as any })}
                     >
                       <option value="ready_to_print">Sẵn sàng in</option>
-                      <option value="missing_profile">⚠ Thiếu hồ sơ cắt lớp</option>
-                      <option value="cad_review_needed">🔧 Cần duyệt CAD</option>
+                      <option value="missing_profile">Thiếu hồ sơ cắt lớp</option>
+                      <option value="cad_review_needed">Cần duyệt CAD</option>
                     </Select>
                   )}
                 </Field>
@@ -725,8 +725,8 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                       onChange={(e) => setNewProductForm({ ...newProductForm, productionReadiness: e.target.value as any })}
                     >
                       <option value="ready_to_print">Sẵn sàng in</option>
-                      <option value="missing_profile">⚠ Thiếu hồ sơ cắt lớp</option>
-                      <option value="cad_review_needed">🔧 Cần duyệt CAD</option>
+                      <option value="missing_profile">Thiếu hồ sơ cắt lớp</option>
+                      <option value="cad_review_needed">Cần duyệt CAD</option>
                     </Select>
                   )}
                 </Field>

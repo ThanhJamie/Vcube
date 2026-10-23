@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Star } from 'lucide-react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '@/types';
 import { CATEGORIES, POPULAR_TAGS } from '@/data/mockData';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
@@ -1068,7 +1067,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             aria-hidden="true"
                             className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface-muted text-fg-muted"
                           >
-                            <Icon name={categoryIcon(product.category)} size={40} />
+                            <Icon name={categoryIcon(product.category)} size={36} />
                             <span className="font-mono text-xs uppercase tracking-wider">
                               {product.cadFormat || 'CAD'}
                             </span>
@@ -1149,7 +1148,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                             </button>
                             {rating ? (
                               <span className="shrink-0 inline-flex items-center gap-1 font-mono text-xs tabular-nums font-semibold text-fg">
-                                <Star aria-hidden="true" className="size-3.5 fill-current text-warning-strong" />
+                                <Icon name="star" aria-hidden="true" className="size-3.5 fill-current text-warning-strong" />
                                 {rating.value}
                                 <span className="font-normal text-fg-muted">({rating.count})</span>
                               </span>

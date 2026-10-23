@@ -8,9 +8,8 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Store } from 'lucide-react';
 import { useAuth } from '@frontend/context/AuthContext';
-import { AppShell, Button, SideNav, Topbar } from '@frontend/ui';
+import { AppShell, Button, SideNav, Topbar, Icon } from '@frontend/ui';
 import type { DashboardNavGroup } from './navConfig';
 
 export const DashboardShell: React.FC<{
@@ -53,7 +52,7 @@ export const DashboardShell: React.FC<{
             items: group.items.map((item) => ({
               id: item.id,
               label: item.label,
-              icon: <item.icon className="size-4.5" aria-hidden="true" />,
+              icon: <Icon name={item.icon} className="size-4.5" aria-hidden="true" />,
             })),
           }))}
         />
@@ -69,7 +68,7 @@ export const DashboardShell: React.FC<{
               onClick={openNav}
               className="lg:hidden"
             >
-              <Menu aria-hidden="true" className="size-4" />
+              <Icon name="menu" aria-hidden="true" className="size-4" />
             </Button>
           }
           brand={
@@ -95,7 +94,7 @@ export const DashboardShell: React.FC<{
             <Button
               variant="secondary"
               size="sm"
-              leadingIcon={<Store aria-hidden="true" className="size-4" />}
+              leadingIcon={<Icon name="store" aria-hidden="true" className="size-4" />}
               onClick={() => navigate('/')}
             >
               Về cửa hàng

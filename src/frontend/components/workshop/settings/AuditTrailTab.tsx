@@ -1,7 +1,6 @@
 // AuditTrailTab — tách từ WorkshopSettingsView.tsx (Phase 4c, block-move verbatim; parent giữ state).
 import { useMemo } from 'react';
-import { ArrowUpRight } from 'lucide-react';
-import { Badge, Button, DataTable, EmptyState, type DataTableColumn } from '@frontend/ui';
+import { Badge, Button, DataTable, EmptyState, type DataTableColumn, Icon } from '@frontend/ui';
 import { formatCurrency, formatDate, formatNumber, EMPTY_VALUE } from '@frontend/lib/format';
 import { type MyInventoryLog } from '@backend/services/workshopService';
 import type { WorkshopSettingsController } from './types';
@@ -93,7 +92,7 @@ const logColumns = useMemo<DataTableColumn<MyInventoryLog>[]>(
 <section className="space-y-4">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
-                <ArrowUpRight className="size-5 text-primary" aria-hidden="true" />
+                <Icon name="open_in_new" className="size-5 text-primary" aria-hidden="true" />
                 Sổ kho của xưởng bạn
               </h2>
               <p className="mt-0.5 text-xs text-fg-subtle">
@@ -126,7 +125,7 @@ const logColumns = useMemo<DataTableColumn<MyInventoryLog>[]>(
               emptyState={
                 <EmptyState
                   live
-                  icon={<ArrowUpRight className="size-5" />}
+                  icon={<Icon name="open_in_new" className="size-5" />}
                   title="Sổ kho chưa có dòng nào"
                   description={
                     materials.length === 0

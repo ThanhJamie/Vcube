@@ -21,6 +21,73 @@
 > Các dòng/tương ứng trong bảng mapping và bảng state-pairs dưới đây **chỉ còn giá trị lịch
 > sử**; nếu cần dùng lại glyph nào thì thêm lại vào `iconMap.ts` kèm dòng ở đây và chạy
 > `node scripts/check-icon-names.mjs`.
+
+---
+
+## POLICY — "icon library only" (2026-10-23, task-43)
+
+> Người dùng báo icon **không đồng bộ**. Nguyên nhân: UI trộn 4 nguồn icon — `<Icon>` (lucide),
+> import `lucide-react` trực tiếp trong feature (tự đặt size/stroke), **emoji làm icon** (font
+> emoji hệ điều hành), và raw `<svg>` (chỉ còn Google logo brand). Policy đã chốt:
+
+1. **Một nguồn duy nhất:** mọi icon UI = lucide, render qua
+   `<Icon name="…" size={…} />` (`src/frontend/ui/Icon.tsx` + `iconMap.ts`).
+2. **Cấm** `from 'lucide-react'` ngoài `src/frontend/ui/**` — feature/view/component dùng `<Icon>`.
+3. **Cấm emoji làm icon** trong `src/**` (ranges `1F300–1FAFF`, `2600–27BF`, `2B00–2BFF`) trừ
+   comment. Với `<option>`/`<select>`/canvas: **bỏ emoji, giữ text** (option không render component).
+4. **Raw `<svg>`** chỉ được là brand asset đã duyệt (Google logo ở `AuthModal`/`LoginView`/`RegisterView`).
+5. Kích thước theo thang hiện có (`12/14/16/18/20/22/24/28/32/36/48` px); `strokeWidth` mặc định
+   **2**, không override lẻ. Icon trang trí mặc định `aria-hidden`; icon là nội dung truyền `label`.
+6. Gate: `node scripts/check-icon-library.mjs` (đã wire `scripts/gate-manifest.json` +
+   `docs/tasks/baseline.json`) — fail nếu vi phạm (1)–(4). Allowlist trong script **cố ý rỗng**;
+   muốn tha phải thêm entry kèm `why` + ngày và xoá khi hết hiệu lực.
+
+### Glyph mới thêm (11) — phục vụ thay emoji + gom import
+
+| Glyph | Lucide | Dùng ở |
+|---|---|---|
+| `star` | `Star` | rating PDP/Explore/Home/CadQuickView/Group2 |
+| `rocket_launch` | `Rocket` | badge "Nghệ nhân tiên phong" (Group2) |
+| `emoji_events` | `Trophy` | badge "Tác giả hàng đầu" (Group2) |
+| `business` | `Building2` | khách doanh nghiệp (Group3), bước onboarding xưởng |
+| `shield_check` | `ShieldCheck` | badge "Kỹ sư đã kiểm duyệt", header workshop |
+| `printer` | `Printer` | nav Máy in, workshop tabs/stats, onboarding |
+| `package` | `Package` | nav Phụ kiện, workshop accessories/stats |
+| `clipboard_list` | `ClipboardList` | nav Hàng đợi việc, workshop queue/stats |
+| `history` | `History` | nav Sổ kho |
+| `forum` | `MessagesSquare` | nav Yêu cầu CAD & chat |
+| `remove` | `Minus` | nút giảm số lượng ở PDP |
+
+Tổng glyph: **216** (`node scripts/check-icon-names.mjs` in ra số này).
+
+### Mapping emoji → glyph đã áp (không còn emoji-icon trong `src/**`)
+
+| Emoji (trước) | Glyph `<Icon>` | Nơi đã sửa |
+|---|---|---|
+| `👑` | `emoji_events` | `admin/groups/Group2DesignersPanel.tsx` (badge tier, filter chip) |
+| `🛡️` | `shield_check` | Group2 (badge "Kỹ sư đã kiểm duyệt") |
+| `🚀` | `rocket_launch` | Group2 (badge/filter "Tiên phong") |
+| `⚙️` | `settings` | Group2 (filter "Kỹ sư") |
+| `🏢` | `business` | `admin/groups/Group3CustomersPanel.tsx` (filter + badge B2B) |
+| `👤` | `person` | Group3 (filter + badge B2C) |
+| `✓` | `check` | `AdminProductsPanel` (chip "Sẵn Sàng In"), `AdminSeoPanel` (5 trạng thái), `CheckoutView` (step), `ServiceShowcaseSection` (feature bullet), `OrderSuccessView` |
+| `✗`/`✖`/`✕` | `close` | `AdminSeoPanel` ("Thiếu"), `AdminProductsPanel` (option đã bỏ emoji), `WorkshopsTab` ("Đình chỉ"), `OrderSuccessView` (cảnh báo thay `!`) |
+| `⚠`/`⚠️` | `warning` | AdminProductsPanel (chip, option bỏ emoji), `FormulaCoreSections` (2 ghi chú), `OrderSuccessView` |
+| `🔧` | `build` (option: bỏ emoji, giữ text) | `AdminProductsPanel` (3 block option) |
+| `★` | `star` | `CadQuickViewModal`, `Group2DesignersPanel` (rating); Home/Explore/PDP/Personalize đã dùng lucide Star trực tiếp ⇒ chuyển sang `<Icon name="star">` |
+| `⏳` | `hourglass_empty` | `WorkshopsTab` ("Chờ duyệt") |
+| `●`/`◌` | *bỏ* (option/status chỉ giữ text) | `AdminProductsPanel` (option trạng thái) |
+| `⚡` | *bỏ emoji* — canvas `fillText('LOGO: …')` | `personalize/PersonalizeModelViewer3D.tsx` |
+
+> Tổng: **34 dòng** chứa emoji-icon trên 15 file đã thay/xoá (đếm `git diff`), + **17 file**
+> bỏ import `lucide-react` trực tiếp để dùng `<Icon>`.
+
+### Kiểm chứng trực quan (2026-10-23)
+
+- 26 ảnh × (guest 6 route + admin 7 route) × 390/1440, lưu `/tmp/icon-before/` và `/tmp/icon-after/`.
+- DOM trước → sau: **emoji trong DOM 68 → 0**; `svg` không phải lucide **0**; fallback glyph **0**;
+  mọi `svg` có class `lucide`; `stroke-width` duy nhất = `2`.
+- Gate: `node scripts/check-icon-library.mjs` PASS (205 file), `check-icon-names` PASS (216 glyph).
 >
 > **PRUNE Phase 6 (2026-10-21):** `cloud_sync` còn **0 reference** (grep literal + dynamic
 > `icon:`/`iconName:`/`<Icon name=…>`); đã xoá component ghép + entry khỏi `iconMap.ts`

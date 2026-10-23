@@ -1,7 +1,6 @@
 // MachinesTab — tách từ WorkshopSettingsView.tsx (Phase 4c, block-move verbatim; parent giữ state).
 import { useMemo } from 'react';
-import { Printer } from 'lucide-react';
-import { Badge, Button, DataTable, EmptyState, type DataTableColumn } from '@frontend/ui';
+import { Badge, Button, DataTable, EmptyState, type DataTableColumn, Icon } from '@frontend/ui';
 import { formatCurrency, EMPTY_VALUE } from '@frontend/lib/format';
 import { MY_MACHINE_STATUS_LABELS, type MyMachine } from '@backend/services/workshopService';
 import { MACHINE_STATUS_STYLE, MACHINE_STATUS_DOT } from './helpers';
@@ -122,7 +121,7 @@ const machineColumns = useMemo<DataTableColumn<MyMachine>[]>(
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
-                  <Printer className="size-5 text-primary" aria-hidden="true" />
+                  <Icon name="printer" className="size-5 text-primary" aria-hidden="true" />
                   Máy in của xưởng bạn
                 </h2>
                 <p className="mt-0.5 text-xs text-fg-subtle">
@@ -131,7 +130,7 @@ const machineColumns = useMemo<DataTableColumn<MyMachine>[]>(
                   không phải số đo tự động từ máy.
                 </p>
               </div>
-              <Button variant="primary" leadingIcon={<Printer className="size-4" />} onClick={() => openMachineModal()}>
+              <Button variant="primary" leadingIcon={<Icon name="printer" className="size-4" />} onClick={() => openMachineModal()}>
                 Khai báo máy in
               </Button>
             </div>
@@ -150,7 +149,7 @@ const machineColumns = useMemo<DataTableColumn<MyMachine>[]>(
               emptyState={
                 <EmptyState
                   live
-                  icon={<Printer className="size-5" />}
+                  icon={<Icon name="printer" className="size-5" />}
                   title="Xưởng bạn chưa khai máy in nào"
                   description="Chưa có hàng nào trong workshop_machines cho hồ sơ xưởng này. Khai báo máy in đầu tiên để bắt đầu nhận việc."
                   action={

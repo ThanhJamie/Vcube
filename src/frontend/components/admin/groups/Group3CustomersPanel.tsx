@@ -620,7 +620,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                         : 'text-fg-muted hover:text-fg'
                     }`}
                   >
-                    {tp === 'all' ? ('Tất cả') : tp === 'B2B' ? ('🏢 Doanh nghiệp (B2B)') : ('👤 Cá nhân (B2C)')}
+                    {tp === 'all' ? ('Tất cả') : tp === 'B2B' ? (<><Icon name="business" size={12} aria-hidden="true" /> Doanh nghiệp (B2B)</>) : (<><Icon name="person" size={12} aria-hidden="true" /> Cá nhân (B2C)</>)}
                   </button>
                 ))}
               </div>
@@ -739,7 +739,7 @@ export const Group3CustomersPanel: React.FC<Group3CustomersPanelProps> = ({
                               : 'bg-positive-tint text-positive'
                           }`}
                         >
-                          {c.type === 'B2B' ? '🏢 Khách Doanh Nghiệp' : '👤 Khách Cá Nhân'}
+                          {c.type === 'B2B' ? (<><Icon name="business" size={12} aria-hidden="true" /> Khách Doanh Nghiệp</>) : (<><Icon name="person" size={12} aria-hidden="true" /> Khách Cá Nhân</>)}
                         </span>
 
                         {row.ndaSigned ? (

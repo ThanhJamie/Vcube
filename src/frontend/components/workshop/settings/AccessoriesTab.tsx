@@ -1,7 +1,6 @@
 // AccessoriesTab — tách từ WorkshopSettingsView.tsx (Phase 4c, block-move verbatim; parent giữ state).
 import { useMemo } from 'react';
-import { Package } from 'lucide-react';
-import { Button, DataTable, EmptyState, type DataTableColumn } from '@frontend/ui';
+import { Button, DataTable, EmptyState, type DataTableColumn, Icon } from '@frontend/ui';
 import { formatCurrency, formatNumber, EMPTY_VALUE } from '@frontend/lib/format';
 import { type MyAccessory } from '@backend/services/workshopService';
 import type { WorkshopSettingsController } from './types';
@@ -72,7 +71,7 @@ const accessoryColumns = useMemo<DataTableColumn<MyAccessory>[]>(
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
-                  <Package className="size-5 text-primary" aria-hidden="true" />
+                  <Icon name="package" className="size-5 text-primary" aria-hidden="true" />
                   Phụ kiện riêng của xưởng bạn
                 </h2>
                 <p className="mt-0.5 text-xs text-fg-subtle">
@@ -80,7 +79,7 @@ const accessoryColumns = useMemo<DataTableColumn<MyAccessory>[]>(
                   Phụ kiện dùng chung của nền tảng không thuộc năng lực riêng của xưởng nên không liệt kê ở đây.
                 </p>
               </div>
-              <Button variant="primary" leadingIcon={<Package className="size-4" />} onClick={() => openAccModal()}>
+              <Button variant="primary" leadingIcon={<Icon name="package" className="size-4" />} onClick={() => openAccModal()}>
                 Khai báo phụ kiện
               </Button>
             </div>
@@ -99,7 +98,7 @@ const accessoryColumns = useMemo<DataTableColumn<MyAccessory>[]>(
               emptyState={
                 <EmptyState
                   live
-                  icon={<Package className="size-5" />}
+                  icon={<Icon name="package" className="size-5" />}
                   title="Xưởng bạn chưa khai phụ kiện nào"
                   description="Chưa có hàng nào trong workshop_accessories cho hồ sơ xưởng này. Khai báo ốc cấy nhiệt, nam châm, hộp đóng gói… nếu xưởng có dùng."
                   action={

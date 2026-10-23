@@ -1,28 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Button, Input, Select } from '@frontend/ui';
+import { Button, Input, Select, Icon } from '@frontend/ui';
 import { formatCurrency, formatNumber } from '@frontend/lib/format';
-import {
-  Printer,
-  Sparkles,
-  Zap,
-  Clock,
-  Coins,
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  Plus,
-  Trash2,
-  ArrowRight,
-  ArrowLeft,
-  Building2,
-  MapPin,
-  Phone,
-  Mail,
-  Layers,
-  HelpCircle,
-  Check,
-  Info
-} from 'lucide-react';
 import {
   WorkshopProfile,
   WorkshopMachine,
@@ -474,11 +452,11 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
         <div className="flex flex-col items-start justify-between gap-4 border-b border-line-subtle p-6 md:flex-row md:items-center">
           <div className="flex items-center gap-4">
             <div className="grid size-14 place-items-center rounded-lg border border-line bg-surface-muted text-fg">
-              <Printer className="size-6" aria-hidden="true" />
+              <Icon name="printer" className="size-6" aria-hidden="true" />
             </div>
             <div>
               <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-tint px-2.5 py-1 text-xs font-medium text-fg">
-                <Sparkles className="size-3.5" aria-hidden="true" />
+                <Icon name="auto_awesome" className="size-3.5" aria-hidden="true" />
                 Đăng ký đối tác xưởng in (MES)
               </div>
               <h1 className="text-2xl font-bold tracking-tight text-fg">
@@ -492,7 +470,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {currentStep < 4 && (
             <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-muted px-3 py-1.5 text-xs text-fg-muted">
-              <Clock className="size-4" aria-hidden="true" />
+              <Icon name="schedule" className="size-4" aria-hidden="true" />
               <span>3 bước khai báo: cơ sở · máy in · vật liệu</span>
             </div>
           )}
@@ -502,12 +480,11 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
         {currentStep < 4 && (
           <div className="flex items-center gap-2 border-b border-line-subtle bg-surface-muted/50 p-4">
             {[
-              { step: 1, label: 'Thông Tin Xưởng', sub: 'Địa chỉ & khu vực', icon: Building2 },
-              { step: 2, label: 'Khai Báo Máy In', sub: 'Đơn giá giờ & khổ in', icon: Printer },
-              { step: 3, label: 'Nhựa Tồn Kho', sub: 'Loại nhựa & Giá nhập', icon: Layers },
-              { step: 4, label: 'Xác Nhận & Gửi', sub: 'Chờ duyệt', icon: Check }
+              { step: 1, label: 'Thông Tin Xưởng', sub: 'Địa chỉ & khu vực', icon: 'business' },
+              { step: 2, label: 'Khai Báo Máy In', sub: 'Đơn giá giờ & khổ in', icon: 'printer' },
+              { step: 3, label: 'Nhựa Tồn Kho', sub: 'Loại nhựa & Giá nhập', icon: 'layers' },
+              { step: 4, label: 'Xác Nhận & Gửi', sub: 'Chờ duyệt', icon: 'check' }
             ].map(item => {
-              const ItemIcon = item.icon;
               const isActive = currentStep === item.step;
               const isCompleted = currentStep > item.step;
               return (
@@ -538,7 +515,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                           : 'bg-surface-muted text-fg-muted'
                       }`}
                     >
-                      {isCompleted ? <Check className="size-4" aria-hidden="true" /> : <ItemIcon className="size-4" aria-hidden="true" />}
+                      {isCompleted ? <Icon name="check" className="size-4" aria-hidden="true" /> : <Icon name={item.icon} className="size-4" aria-hidden="true" />}
                     </div>
                     <div className="hidden sm:block">
                       <div className={`text-xs font-semibold uppercase tracking-wider ${isActive ? 'text-fg' : 'text-fg-muted'}`}>
@@ -561,7 +538,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
         <div className="space-y-6 rounded-xl border border-line bg-surface p-6 sm:p-8">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
-              <Building2 className="size-5 text-fg-muted" aria-hidden="true" />
+              <Icon name="business" className="size-5 text-fg-muted" aria-hidden="true" />
               Bước 1: Khai báo thông tin cơ sở sản xuất & Khu vực địa lý
             </h2>
             <p className="mt-1 text-sm text-fg-muted">
@@ -572,7 +549,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           {initialData?.verifiedStatus === 'Pending' && (
             <div className="flex flex-col justify-between gap-3 rounded-lg border border-info/20 bg-info-tint p-4 text-sm text-info sm:flex-row sm:items-center">
               <div className="flex items-start gap-2">
-                <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <Icon name="error" className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <span>
                   Hồ sơ xưởng <strong>{initialData?.workshopName}</strong> đã được gửi và đang ở trạng thái{' '}
                   <strong>Chờ duyệt</strong> (chờ quản trị viên duyệt). Bạn có thể khai lại hồ sơ bên dưới,
@@ -612,7 +589,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             {/* Hotline Phone */}
             <div className="space-y-2">
               <label htmlFor="w1a-workshop-phone" className="flex items-center gap-1 text-sm font-medium text-fg">
-                <Phone className="size-3.5 text-fg-subtle" aria-hidden="true" />
+                <Icon name="call" className="size-3.5 text-fg-subtle" aria-hidden="true" />
                 Số điện thoại điều phối <span className="text-danger">*</span>
               </label>
               <Input
@@ -628,7 +605,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             {/* Contact Email */}
             <div className="space-y-2">
               <label htmlFor="w1a-workshop-email" className="flex items-center gap-1 text-sm font-medium text-fg">
-                <Mail className="size-3.5 text-fg-subtle" aria-hidden="true" />
+                <Icon name="mail" className="size-3.5 text-fg-subtle" aria-hidden="true" />
                 Email kỹ thuật tiếp nhận tệp 3D <span className="text-danger">*</span>
               </label>
               <Input
@@ -644,7 +621,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           {/* Full Address */}
           <div className="space-y-2">
             <label htmlFor="w1a-workshop-address" className="flex items-center gap-1 text-sm font-medium text-fg">
-              <MapPin className="size-3.5 text-fg-subtle" aria-hidden="true" />
+              <Icon name="pin_drop" className="size-3.5 text-fg-subtle" aria-hidden="true" />
               Địa Chỉ Chi Tiết Xưởng In <span className="text-danger">*</span>
             </label>
             <Input
@@ -659,7 +636,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           {/* Khu vực phục vụ của xưởng (Bắc / Trung / Nam) */}
           <div className="space-y-2 pt-2">
             <label className="flex items-center gap-1.5 text-sm font-medium text-fg">
-              <Zap className="size-4 text-warning" aria-hidden="true" />
+              <Icon name="bolt" className="size-4 text-warning" aria-hidden="true" />
               Khu Vực Phục Vụ (Bắc / Trung / Nam) <span className="text-danger">*</span>
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -700,7 +677,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                       <span className="text-sm font-semibold text-fg">{item.title}</span>
                       {isSel && (
                         <div className="grid size-5 place-items-center rounded-full bg-primary text-primary-fg">
-                          <Check className="size-3.5" aria-hidden="true" />
+                          <Icon name="check" className="size-3.5" aria-hidden="true" />
                         </div>
                       )}
                     </div>
@@ -721,7 +698,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           <div className="flex flex-col items-start justify-between gap-3 rounded-lg border border-line-subtle bg-surface-muted p-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
               <div className="grid size-10 shrink-0 place-items-center rounded-md bg-warning-tint text-warning">
-                <Zap className="size-5" aria-hidden="true" />
+                <Icon name="bolt" className="size-5" aria-hidden="true" />
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-fg">Đơn giá điện cơ sở của xưởng</h4>
@@ -757,7 +734,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             <Button
               type="button"
               variant="primary"
-              trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}
+              trailingIcon={<Icon name="arrow_forward" className="size-4" aria-hidden="true" />}
               onClick={() => {
                 if (!workshopName.trim()) {
                   onShowToast?.('Vui lòng nhập tên xưởng in!');
@@ -780,7 +757,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
-                <Printer className="size-5 text-fg-muted" aria-hidden="true" />
+                <Icon name="printer" className="size-5 text-fg-muted" aria-hidden="true" />
                 Bước 2: Khai báo đội ngũ máy in & Đơn giá giờ máy
               </h2>
               <p className="mt-0.5 text-sm text-fg-muted">
@@ -791,7 +768,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               type="button"
               variant="secondary"
               className="shrink-0"
-              leadingIcon={<Plus className="size-4" aria-hidden="true" />}
+              leadingIcon={<Icon name="add" className="size-4" aria-hidden="true" />}
               onClick={() => {
                 setTempMachineName(`Máy In 3D FDM #${machines.length + 1}`);
                 setTempMachineType('FDM');
@@ -809,7 +786,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           {/* Preset Quick Selectors */}
           <div className="space-y-2">
             <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-fg-muted">
-              <Sparkles className="size-3.5 text-warning" aria-hidden="true" />
+              <Icon name="auto_awesome" className="size-3.5 text-warning" aria-hidden="true" />
               Chọn nhanh máy mẫu phổ biến để nạp cấu hình chuẩn:
             </span>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -840,7 +817,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             <div className="space-y-4 rounded-lg border border-line bg-surface-muted p-5">
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-base font-semibold tracking-tight text-fg">
-                  <Printer className="size-4 text-fg-muted" aria-hidden="true" />
+                  <Icon name="printer" className="size-4 text-fg-muted" aria-hidden="true" />
                   Cấu hình chi tiết máy in
                 </h3>
                 <Button
@@ -950,7 +927,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               <div className="flex flex-col items-center justify-between gap-4 rounded-lg border border-line bg-surface p-4 md:flex-row">
                 <div className="flex items-center gap-3">
                   <div className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-tint text-fg">
-                    <Coins className="size-5" aria-hidden="true" />
+                    <Icon name="payments" className="size-5" aria-hidden="true" />
                   </div>
                   <div>
                     <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
@@ -1010,7 +987,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                           title="Xoá máy in"
                           aria-label={`Xóa máy in ${machine.machineName}`}
                         >
-                          <Trash2 className="size-4" aria-hidden="true" />
+                          <Icon name="delete" className="size-4" aria-hidden="true" />
                         </button>
                       </div>
 
@@ -1052,7 +1029,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             <Button
               type="button"
               variant="ghost"
-              leadingIcon={<ArrowLeft className="size-4" aria-hidden="true" />}
+              leadingIcon={<Icon name="arrow_back" className="size-4" aria-hidden="true" />}
               onClick={() => setCurrentStep(1)}
             >
               Quay lại Bước 1
@@ -1060,7 +1037,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             <Button
               type="button"
               variant="primary"
-              trailingIcon={<ArrowRight className="size-4" aria-hidden="true" />}
+              trailingIcon={<Icon name="arrow_forward" className="size-4" aria-hidden="true" />}
               onClick={() => {
                 if (machines.length === 0) {
                   onShowToast?.('Vui lòng khai báo tối thiểu 1 máy in!');
@@ -1083,7 +1060,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
-                <Layers className="size-5 text-fg-muted" aria-hidden="true" />
+                <Icon name="layers" className="size-5 text-fg-muted" aria-hidden="true" />
                 Bước 3: Khai báo phôi nhựa & Vật liệu tồn kho ban đầu
               </h2>
               <p className="mt-0.5 text-sm text-fg-muted">
@@ -1094,7 +1071,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               type="button"
               variant="secondary"
               className="shrink-0"
-              leadingIcon={<Plus className="size-4" aria-hidden="true" />}
+              leadingIcon={<Icon name="add" className="size-4" aria-hidden="true" />}
               onClick={() => {
                 setTempMaterialName('');
                 setTempMaterialType('PLA');
@@ -1112,7 +1089,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             <div className="space-y-4 rounded-lg border border-line bg-surface-muted p-5">
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-base font-semibold tracking-tight text-fg">
-                  <Plus className="size-4 text-fg-muted" aria-hidden="true" />
+                  <Icon name="add" className="size-4 text-fg-muted" aria-hidden="true" />
                   Khai báo cuộn phôi nhựa mới
                 </h3>
                 <Button
@@ -1306,7 +1283,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
                       title="Xoá vật liệu"
                       aria-label={`Xóa vật liệu ${mat.materialName}`}
                     >
-                      <Trash2 className="size-4" aria-hidden="true" />
+                      <Icon name="delete" className="size-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -1316,7 +1293,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
 
           {/* Notice about Auto Price Update & Audit Log */}
           <div className="flex items-start gap-3 rounded-lg border border-warning/20 bg-warning-tint p-4 text-xs text-warning">
-            <Info className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+            <Icon name="info" className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
             <div>
               <span className="font-semibold">Lưu ý về cơ chế cập nhật đơn giá và kiểm kê:</span>
               <p className="mt-0.5 text-warning">
@@ -1330,7 +1307,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
             <Button
               type="button"
               variant="ghost"
-              leadingIcon={<ArrowLeft className="size-4" aria-hidden="true" />}
+              leadingIcon={<Icon name="arrow_back" className="size-4" aria-hidden="true" />}
               onClick={() => setCurrentStep(2)}
             >
               Quay lại Bước 2
@@ -1342,7 +1319,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
               type="button"
               onClick={handleSubmitOnboarding}
               disabled={isSubmitting}
-              leadingIcon={<CheckCircle2 className="size-4" aria-hidden="true" />}
+              leadingIcon={<Icon name="check_circle" className="size-4" aria-hidden="true" />}
             >
               Hoàn tất &amp; Gửi hồ sơ phê duyệt
             </Button>
@@ -1356,7 +1333,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
       {currentStep === 4 && submittedProfile && (
         <div className="space-y-6 rounded-xl border border-line bg-surface p-6 text-center sm:p-8">
           <div className="mx-auto grid size-16 place-items-center rounded-lg border border-info/20 bg-info-tint text-info">
-            <Clock className="size-8" aria-hidden="true" />
+            <Icon name="schedule" className="size-8" aria-hidden="true" />
           </div>
 
           <div className="mx-auto max-w-xl space-y-2">
@@ -1398,7 +1375,7 @@ export const WorkshopOnboardingWizard: React.FC<WorkshopOnboardingWizardProps> =
           {/* Instructions */}
           <div className="max-w-lg mx-auto p-4 rounded-lg bg-info-tint/80 border border-info/30 text-info text-xs text-left space-y-1.5">
             <div className="font-bold flex items-center gap-1.5 text-info">
-              <ShieldCheck className="w-4 h-4 text-info" />
+              <Icon name="shield_check" className="w-4 h-4 text-info" />
               Các bước tiếp theo dành cho Đối tác Xưởng:
             </div>
             <ul className="list-disc list-inside space-y-1 text-info pl-1">

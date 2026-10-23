@@ -1,6 +1,5 @@
 // SettingsHeader (PageHeader + segmented 6 tab) — tách từ WorkshopSettingsView.tsx (Phase 4c).
-import { ArrowDownToLine, MapPin, RefreshCw, ShieldCheck } from 'lucide-react';
-import { Badge, Button, PageHeader } from '@frontend/ui';
+import { Badge, Button, PageHeader, Icon } from '@frontend/ui';
 import { EMPTY_VALUE } from '@frontend/lib/format';
 import { LAB_TAB_IDS, LAB_TAB_LABELS } from './tabs';
 import type { WorkshopSettingsController } from './types';
@@ -27,7 +26,7 @@ export const SettingsHeader: React.FC<SettingsHeaderProps> = ({ ctl }) => {
                           ? 'danger'
                           : 'warning'
                     }
-                    icon={<ShieldCheck className="size-3.5" aria-hidden="true" />}
+                    icon={<Icon name="shield_check" className="size-3.5" aria-hidden="true" />}
                   >
                     {profile.verifiedStatus === 'Verified'
                       ? 'Đã duyệt'
@@ -40,7 +39,7 @@ export const SettingsHeader: React.FC<SettingsHeaderProps> = ({ ctl }) => {
               description={
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="flex items-center gap-1">
-                    <MapPin className="size-3.5" aria-hidden="true" />
+                    <Icon name="pin_drop" className="size-3.5" aria-hidden="true" />
                     Khu vực: <strong>{profile.region || EMPTY_VALUE}</strong>
                   </span>
                   <span aria-hidden="true">•</span>
@@ -59,14 +58,14 @@ export const SettingsHeader: React.FC<SettingsHeaderProps> = ({ ctl }) => {
                 <>
                   <Button
                     variant="secondary"
-                    leadingIcon={<RefreshCw className="size-4" />}
+                    leadingIcon={<Icon name="refresh" className="size-4" />}
                     onClick={() => void refreshAll()}
                   >
                     Tải lại
                   </Button>
                   <Button
                     variant="primary"
-                    leadingIcon={<ArrowDownToLine className="size-4" />}
+                    leadingIcon={<Icon name="download" className="size-4" />}
                     onClick={() => openLogModal()}
                   >
                     Ghi phiếu kho

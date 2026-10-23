@@ -155,7 +155,7 @@ export const FleetTab: React.FC<FleetTabProps> = (props) => {
                       </div>
                       <h4 className="font-bold text-fg text-base mt-2">{p.name}</h4>
                       <p className="text-xs text-fg-subtle mt-0.5 flex items-center gap-1">
-                        <Icon name="precision_manufacturing" size={13} />
+                        <Icon name="precision_manufacturing" size={14} />
                         {p.brand || '—'}
                       </p>
                     </div>

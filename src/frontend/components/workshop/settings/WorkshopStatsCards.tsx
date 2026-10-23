@@ -1,7 +1,6 @@
 // WorkshopStatsCards (4 StatCard theo tab) — tách từ WorkshopSettingsView.tsx (Phase 4c, block-move verbatim; parent giữ state).
 import { useMemo } from 'react';
-import { ClipboardList, Layers, Package, Printer, TriangleAlert, Wrench } from 'lucide-react';
-import { StatCard } from '@frontend/ui';
+import { StatCard, Icon } from '@frontend/ui';
 import { formatNumber, EMPTY_VALUE } from '@frontend/lib/format';
 import { type MyQueueOrder } from '@backend/services/workshopService';
 import type { WorkshopSettingsController } from './types';
@@ -53,25 +52,25 @@ const stats = useMemo(() => {
               <StatCard
                 label="Máy in"
                 value={formatNumber(machines.length)}
-                icon={<Wrench className="size-4" />}
+                icon={<Icon name="build" className="size-4" />}
                 hint={machines.length === 0 ? 'Chưa khai máy in nào' : `${formatNumber(stats.freeMachines)} đang rảnh`}
               />
               <StatCard
                 label="Đang in"
                 value={formatNumber(machines.filter((m) => m.status === 'Busy').length)}
-                icon={<Printer className="size-4" />}
+                icon={<Icon name="printer" className="size-4" />}
                 hint="Theo trạng thái xưởng tự đặt"
               />
               <StatCard
                 label="Bảo trì / Tắt"
                 value={formatNumber(machines.filter((m) => m.status === 'Maintenance' || m.status === 'Offline').length)}
-                icon={<TriangleAlert className="size-4" />}
+                icon={<Icon name="warning" className="size-4" />}
                 hint="Máy cần chú ý"
               />
               <StatCard
                 label="Chưa khai đơn giá giờ"
                 value={formatNumber(stats.machinesWithoutRate)}
-                icon={<Wrench className="size-4" />}
+                icon={<Icon name="build" className="size-4" />}
                 hint={stats.machinesWithoutRate > 0 ? 'Bổ sung để báo giá chuẩn' : 'Đã khai đủ'}
               />
             </>
@@ -80,25 +79,25 @@ const stats = useMemo(() => {
               <StatCard
                 label="Vật liệu"
                 value={formatNumber(materials.length)}
-                icon={<Layers className="size-4" />}
+                icon={<Icon name="layers" className="size-4" />}
                 hint={materials.length === 0 ? 'Chưa khai vật liệu nào' : 'Loại phôi đã khai'}
               />
               <StatCard
                 label="Tồn kho phôi"
                 value={stats.hasStockData ? `${formatNumber(stats.stockGrams)} g` : EMPTY_VALUE}
-                icon={<Layers className="size-4" />}
+                icon={<Icon name="layers" className="size-4" />}
                 hint={stats.hasStockData ? 'Tổng theo vật liệu' : 'Chưa từng ghi nhận tồn kho'}
               />
               <StatCard
                 label="Tới ngưỡng cảnh báo"
                 value={formatNumber(stats.lowStock)}
-                icon={<TriangleAlert className="size-4" />}
+                icon={<Icon name="warning" className="size-4" />}
                 hint={stats.lowStock > 0 ? 'Cần nhập thêm phôi' : 'Tồn kho an toàn'}
               />
               <StatCard
                 label="Chưa ghi nhận tồn"
                 value={formatNumber(materials.filter((m) => m.currentStockGrams == null).length)}
-                icon={<Layers className="size-4" />}
+                icon={<Icon name="layers" className="size-4" />}
                 hint="Vật liệu chưa từng nhập/xuất"
               />
             </>
@@ -107,25 +106,25 @@ const stats = useMemo(() => {
               <StatCard
                 label="Phụ kiện riêng"
                 value={formatNumber(accessories.length)}
-                icon={<Package className="size-4" />}
+                icon={<Icon name="package" className="size-4" />}
                 hint={accessories.length === 0 ? 'Chưa khai phụ kiện nào' : 'Theo hồ sơ xưởng'}
               />
               <StatCard
                 label="Máy in"
                 value={formatNumber(machines.length)}
-                icon={<Wrench className="size-4" />}
+                icon={<Icon name="build" className="size-4" />}
                 hint={`${formatNumber(stats.freeMachines)} đang rảnh`}
               />
               <StatCard
                 label="Vật liệu"
                 value={formatNumber(materials.length)}
-                icon={<Layers className="size-4" />}
+                icon={<Icon name="layers" className="size-4" />}
                 hint={stats.hasStockData ? `${formatNumber(stats.stockGrams)} g tồn` : 'Chưa ghi nhận tồn'}
               />
               <StatCard
                 label="Đơn đang xử lý"
                 value={hasPartner ? formatNumber(stats.active) : EMPTY_VALUE}
-                icon={<ClipboardList className="size-4" />}
+                icon={<Icon name="clipboard_list" className="size-4" />}
                 hint={hasPartner ? 'Đơn được giao cho xưởng' : 'Chưa gắn mã đối tác'}
               />
             </>
@@ -134,19 +133,19 @@ const stats = useMemo(() => {
               <StatCard
                 label="Đơn đang xử lý"
                 value={hasPartner ? formatNumber(stats.active) : EMPTY_VALUE}
-                icon={<ClipboardList className="size-4" />}
+                icon={<Icon name="clipboard_list" className="size-4" />}
                 hint={hasPartner ? `Tổng ${formatNumber(orders.length)} đơn được giao cho xưởng bạn` : 'Chưa gắn mã đối tác xưởng'}
               />
               <StatCard
                 label="Đang in / hậu kỳ"
                 value={hasPartner ? formatNumber(stats.inPrint) : EMPTY_VALUE}
-                icon={<Printer className="size-4" />}
+                icon={<Icon name="printer" className="size-4" />}
                 hint={hasPartner ? `${formatNumber(stats.done)} đơn đã hoàn thành` : 'Chưa gắn mã đối tác xưởng'}
               />
               <StatCard
                 label="Máy in của xưởng"
                 value={formatNumber(machines.length)}
-                icon={<Wrench className="size-4" />}
+                icon={<Icon name="build" className="size-4" />}
                 hint={
                   machines.length === 0
                     ? 'Chưa khai máy in nào'
@@ -156,7 +155,7 @@ const stats = useMemo(() => {
               <StatCard
                 label="Tồn kho phôi"
                 value={stats.hasStockData ? `${formatNumber(stats.stockGrams)} g` : EMPTY_VALUE}
-                icon={<Layers className="size-4" />}
+                icon={<Icon name="layers" className="size-4" />}
                 hint={
                   materials.length === 0
                     ? 'Chưa khai vật liệu nào'

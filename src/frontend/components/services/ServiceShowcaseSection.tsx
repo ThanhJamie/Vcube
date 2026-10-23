@@ -625,7 +625,7 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 {(modalService.featuresVi).map((feat) => (
                   <div key={feat} className="flex items-start gap-2">
-                    <span className="text-primary font-bold shrink-0">✓</span>
+                    <span className="text-primary shrink-0"><Icon name="check" size={14} aria-hidden="true" /></span>
                     <span className="text-fg">{feat}</span>
                   </div>
                 ))}

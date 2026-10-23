@@ -1,7 +1,6 @@
 // MaterialsTab — tách từ WorkshopSettingsView.tsx (Phase 4c, block-move verbatim; parent giữ state).
 import { useMemo } from 'react';
-import { ArrowDownToLine, Layers } from 'lucide-react';
-import { Badge, Button, Card, DataTable, EmptyState, type DataTableColumn } from '@frontend/ui';
+import { Badge, Button, Card, DataTable, EmptyState, type DataTableColumn, Icon } from '@frontend/ui';
 import { formatCurrency, formatNumber, EMPTY_VALUE } from '@frontend/lib/format';
 import { type MyMaterial } from '@backend/services/workshopService';
 import type { WorkshopSettingsController } from './types';
@@ -121,7 +120,7 @@ const materialColumns = useMemo<DataTableColumn<MyMaterial>[]>(
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
-                  <Layers className="size-5 text-primary" aria-hidden="true" />
+                  <Icon name="layers" className="size-5 text-primary" aria-hidden="true" />
                   Vật liệu & tồn kho của xưởng bạn
                 </h2>
                 <p className="mt-0.5 text-xs text-fg-subtle">
@@ -130,10 +129,10 @@ const materialColumns = useMemo<DataTableColumn<MyMaterial>[]>(
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" leadingIcon={<ArrowDownToLine className="size-4" />} onClick={() => openLogModal()}>
+                <Button variant="secondary" leadingIcon={<Icon name="download" className="size-4" />} onClick={() => openLogModal()}>
                   Ghi phiếu kho
                 </Button>
-                <Button variant="primary" leadingIcon={<Layers className="size-4" />} onClick={() => openMaterialModal()}>
+                <Button variant="primary" leadingIcon={<Icon name="layers" className="size-4" />} onClick={() => openMaterialModal()}>
                   Khai báo vật liệu
                 </Button>
               </div>
@@ -160,7 +159,7 @@ const materialColumns = useMemo<DataTableColumn<MyMaterial>[]>(
               emptyState={
                 <EmptyState
                   live
-                  icon={<Layers className="size-5" />}
+                  icon={<Icon name="layers" className="size-5" />}
                   title="Xưởng bạn chưa khai vật liệu nào"
                   description="Chưa có hàng nào trong workshop_materials cho hồ sơ xưởng này. Khai báo cuộn phôi đầu tiên rồi ghi phiếu nhập để theo dõi tồn."
                   action={

@@ -113,7 +113,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
               <div className={`mx-auto grid size-6 place-items-center text-xs font-bold rounded-full ${
                 isPaid ? 'bg-positive text-primary-fg' : 'bg-warning text-primary-fg'
               }`}>
-                {isPaid ? '✓' : '!'}
+                {isPaid ? <Icon name="check" size={14} aria-hidden="true" /> : <Icon name="warning" size={14} aria-hidden="true" />}
               </div>
               <p className={`font-bold text-xs ${isPaid ? 'text-positive' : 'text-warning'}`}>1. Thanh toán</p>
               <p className={`text-xs ${isPaid ? 'text-positive' : 'text-warning'}`}>

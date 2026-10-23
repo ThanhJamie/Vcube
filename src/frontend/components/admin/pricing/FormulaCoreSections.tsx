@@ -512,7 +512,7 @@ export const FormulaCoreSections: React.FC<FormulaCoreSectionsProps> = (props) =
                     Trước đây hai số này cứng trong mã (50 chiếc / 15.000.000 ₫).
                   </p>
                   <p className="text-xs text-fg-muted leading-relaxed border-t border-line-subtle pt-2">
-                    ⚠️ Phụ phí <strong>vật liệu khó</strong> KHÔNG còn là thông số chung: nay khai theo TỪNG vật liệu
+                    <Icon name="warning" size={14} className="mr-1 inline-block align-text-bottom" aria-hidden="true" />Phụ phí <strong>vật liệu khó</strong> KHÔNG còn là thông số chung: nay khai theo TỪNG vật liệu
                     (<strong>tab Danh Mục Nhựa &amp; Resin → Sửa vật liệu → "Phụ Phí Dự Phòng In Hỏng Riêng"</strong>).
                     Lý do: luật cũ nhận diện bằng chuỗi con trong <span className="font-mono tabular-nums">id</span>
                     (nylon/resin/pa-cf) nên trên nền tảng có id khác nó im lặng không chạy.
@@ -536,7 +536,7 @@ export const FormulaCoreSections: React.FC<FormulaCoreSectionsProps> = (props) =
                         className="h-10 w-full cursor-not-allowed rounded-md border border-line-control bg-surface-muted px-2 text-right font-mono text-sm tabular-nums text-fg-subtle"
                       />
                       <p id="cfg-platform-fee-deprecated" className="text-xs text-warning mt-1 leading-relaxed">
-                        ⚠️ Bộ tính giá KHÔNG đọc ô này. Phí nền tảng có MỘT nguồn: <strong>mục 0 — "Phí nền tảng toàn hệ thống (%)"</strong>.
+                        <Icon name="warning" size={14} className="mr-1 inline-block align-text-bottom" aria-hidden="true" />Bộ tính giá KHÔNG đọc ô này. Phí nền tảng có MỘT nguồn: <strong>mục 0 — "Phí nền tảng toàn hệ thống (%)"</strong>.
                       </p>
                     </div>
                     <div>

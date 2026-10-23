@@ -1,6 +1,5 @@
 // PreferencesTab — tách từ WorkshopSettingsView.tsx (Phase 4c, block-move verbatim; parent giữ state).
-import { Settings, TriangleAlert } from 'lucide-react';
-import { Button, Card, Field, Input, Select } from '@frontend/ui';
+import { Button, Card, Field, Input, Select, Icon } from '@frontend/ui';
 import { formatCurrency, formatDate, EMPTY_VALUE } from '@frontend/lib/format';
 import { REGION_OPTIONS, digitsOnly } from './helpers';
 import type { WorkshopSettingsController } from './types';
@@ -23,7 +22,7 @@ export const PreferencesTab: React.FC<PreferencesTabProps> = ({ ctl }) => {
               <form onSubmit={handleSavePreferences} className="flex flex-col gap-5">
                 <div>
                   <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-fg">
-                    <Settings className="size-5 text-primary" aria-hidden="true" />
+                    <Icon name="settings" className="size-5 text-primary" aria-hidden="true" />
                     Cấu hình xưởng & đơn giá riêng
                   </h2>
                   <p className="mt-0.5 text-xs text-fg-subtle">
@@ -106,7 +105,7 @@ export const PreferencesTab: React.FC<PreferencesTabProps> = ({ ctl }) => {
                         </strong>
                       ) : (
                         <strong className="inline-flex items-center gap-1 text-warning">
-                          <TriangleAlert className="size-3.5" aria-hidden="true" /> Chưa cấu hình — cần bổ sung để tính giá tự động
+                          <Icon name="warning" className="size-3.5" aria-hidden="true" /> Chưa cấu hình — cần bổ sung để tính giá tự động
                         </strong>
                       )}
                     </p>
@@ -135,7 +134,7 @@ export const PreferencesTab: React.FC<PreferencesTabProps> = ({ ctl }) => {
                         </strong>
                       ) : (
                         <strong className="inline-flex items-center gap-1 text-warning">
-                          <TriangleAlert className="size-3.5" aria-hidden="true" /> Chưa cấu hình — cần bổ sung để tính giá tự động
+                          <Icon name="warning" className="size-3.5" aria-hidden="true" /> Chưa cấu hình — cần bổ sung để tính giá tự động
                         </strong>
                       )}
                     </p>

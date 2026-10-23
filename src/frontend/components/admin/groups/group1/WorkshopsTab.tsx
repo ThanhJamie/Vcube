@@ -163,11 +163,13 @@ export const WorkshopsTab: React.FC<WorkshopsTabProps> = (props) => {
                             }
                             dot
                           >
-                            {w.verifiedStatus === 'Verified'
-                              ? '● ' + ('Đã duyệt')
-                              : w.verifiedStatus === 'Pending'
-                              ? '⏳ ' + ('Chờ duyệt')
-                              : '✕ ' + ('Đình chỉ')}
+                            {w.verifiedStatus === 'Verified' ? (
+                              <><Icon name="check_circle" size={12} aria-hidden="true" /> Đã duyệt</>
+                            ) : w.verifiedStatus === 'Pending' ? (
+                              <><Icon name="hourglass_empty" size={12} aria-hidden="true" /> Chờ duyệt</>
+                            ) : (
+                              <><Icon name="close" size={12} aria-hidden="true" /> Đình chỉ</>
+                            )}
                           </Badge>
                         </div>
                         <h3 className="font-bold text-fg text-base mt-2 line-clamp-1">{w.workshopName}</h3>
