@@ -1,5 +1,5 @@
 import React from 'react';
-import { Badge, Button, Icon, Modal } from '@frontend/ui';
+import { Badge, Button, Field, Icon, Input, Modal } from '@frontend/ui';
 import { formatNumber } from '../../../lib/format';
 import { FieldError, isConfiguredNumber } from './pricingShared';
 import type { PrinterEditorModalProps, PrintersTabProps } from './types';
@@ -181,6 +181,20 @@ export const PrinterEditorModal: React.FC<PrinterEditorModalProps> = (props) => 
                     <option value="SLS">SLS (Thiêu kết bột)</option>
                   </select>
                   <FieldError id="prn-technology" message={printerIssues.technology} />
+                </div>
+
+                <div className="col-span-2">
+                  <Field id="prn-model" label="Mã Model Máy" optionalLabel={null}>
+                    {(control) => (
+                      <Input
+                        {...control}
+                        type="text"
+                        placeholder="VD: X1-Carbon, K1 Max, Form 3..."
+                        value={editingPrinter ? (editingPrinter.model ?? '') : (printerForm.model ?? '')}
+                        onChange={(e) => setPrinterField('model', e.target.value)}
+                      />
+                    )}
+                  </Field>
                 </div>
 
                 <div className="col-span-2">

@@ -234,6 +234,9 @@ export function rowToMaterial(d: SupabaseRow): MaterialProfile {
     id: d.id,
     name: d.name,
     brand: d.brand,
+    // `materials.type` là cột NOT NULL default 'FDM' ⇒ fallback trùng đúng default của cột,
+    // KHÔNG suy loại từ tên vật liệu.
+    type: (d.type || 'FDM') as MaterialProfile['type'],
     // density/costPerKg/pricePerGram/unitPriceMultiplier/spoolWeightGrams: Đợt Q đã gỡ default
     // (và gỡ NOT NULL) của các cột này ⇒ `numOrNull` giữ `null` = CHƯA CẤU HÌNH, KHÁC HẲN `0`
     // (0 g/cm³ hay 0 đ/kg là con số vô nghĩa nhưng vẫn bị đọc như một "số đo"). `||` trước đây
@@ -271,6 +274,8 @@ export function rowToPrinter(d: SupabaseRow): PrinterProfile {
     name: d.name,
     // KHÔNG quy kết hãng máy 'Bambu Lab' cho thiết bị không rõ nguồn.
     brand: d.brand || '',
+    // `printer_fleet.model` là cột default '' ⇒ thiếu dữ liệu = chưa khai, KHÔNG suy từ tên máy.
+    model: d.model || '',
     // KHÔNG trưng 256×256×256 mm như thông số thật khi DB chưa ghi; `null` = chưa đo được.
     bedDimensions: d.bed_dimensions
       ? { x: numOrNull(d.bed_dimensions.x), y: numOrNull(d.bed_dimensions.y), z: numOrNull(d.bed_dimensions.z) }

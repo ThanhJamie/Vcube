@@ -1,8 +1,16 @@
 import React from 'react';
-import { Badge, Button, Icon, Modal } from '@frontend/ui';
+import { Badge, Button, Field, Icon, Input, Modal, Select } from '@frontend/ui';
 import { formatNumber } from '../../../lib/format';
 import { FieldError, isConfiguredNumber } from './pricingShared';
 import type { MaterialEditorModalProps, MaterialsTabProps } from './types';
+
+/**
+ * Màu lưu dạng mã CSS (hex/rgb/hsl) thì hiện ô màu; tên màu admin gõ ("Đỏ") hiện thành nhãn chữ.
+ * Không tự đoán tên màu thành mã hex — dữ liệu hiển thị đúng như đã lưu.
+ */
+const isCssColor = (value: string): boolean =>
+  /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value) || /^(?:rgb|hsl)a?\(/i.test(value);
+
 
 export const MaterialsTab: React.FC<MaterialsTabProps> = (props) => {
   const { materials, setIsNewMaterialOpen, setEditingMaterial, handleDeleteMaterial } = props;
@@ -86,9 +94,20 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = (props) => {
                   <div className="flex items-center gap-1.5 pt-2 border-t border-line-subtle">
                     <span className="text-xs text-fg-muted">Màu có sẵn:</span>
                     <div className="flex items-center gap-1">
-                      {mat.colors.map((c, i) => (
-                        <span key={i} className="h-3.5 w-3.5 rounded-full border border-line" style={{ backgroundColor: c }} />
-                      ))}
+                      {mat.colors.map((c, i) =>
+                        isCssColor(c) ? (
+                          <span
+                            key={i}
+                            title={c}
+                            className="h-3.5 w-3.5 rounded-full border border-line"
+                            style={{ backgroundColor: c }}
+                          />
+                        ) : (
+                          <span key={i} className="rounded-sm border border-line-subtle bg-surface px-1.5 py-0.5 text-xs text-fg-muted">
+                            {c}
+                          </span>
+                        ),
+                      )}
                     </div>
                   </div>
                 )}
@@ -120,6 +139,27 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = (props) => {
 
 export const MaterialEditorModal: React.FC<MaterialEditorModalProps> = (props) => {
   const { setIsNewMaterialOpen, setEditingMaterial, setMaterialIssues, editingMaterial, handleSaveEditMaterial, handleSaveNewMaterial, materialIssues, materialForm, setMaterialField, numberOrUndefined } = props;
+
+  /**
+   * `colors` giữ dạng CHUỖI người dùng đang gõ ("Đỏ, Đen, Trắng") để không nuốt dấu phẩy
+   * giữa các lần render. Chỉ parse thành `string[]` khi ghi vào state vật liệu.
+   */
+  const colorsValue = (editingMaterial ? editingMaterial.colors : materialForm.colors) ?? [];
+  const [colorsText, setColorsText] = React.useState<string>(colorsValue.join(', '));
+  // Reset khi mở modal / đổi bản ghi đang sửa. KHÔNG phụ thuộc `colors` đã parse: reset theo
+  // từng ký tự sẽ xoá dấu phẩy vừa gõ.
+  React.useEffect(() => {
+    setColorsText((((editingMaterial ? editingMaterial.colors : materialForm.colors) ?? []).join(', ')));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingMaterial?.id]);
+
+  const handleColorsChange = (text: string) => {
+    setColorsText(text);
+    setMaterialField(
+      'colors',
+      text.split(',').map((c) => c.trim()).filter((c) => c.length > 0),
+    );
+  };
 
   return (
         <Modal
@@ -160,6 +200,22 @@ export const MaterialEditorModal: React.FC<MaterialEditorModalProps> = (props) =
                     onChange={(e) => setMaterialField('brand', e.target.value)}
                     className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                </div>
+
+                <div>
+                  <Field id="mat-type" label="Loại Vật Liệu" optionalLabel={null} error={materialIssues.type}>
+                    {(control) => (
+                      <Select
+                        {...control}
+                        value={editingMaterial ? (editingMaterial.type ?? 'FDM') : (materialForm.type ?? 'FDM')}
+                        onChange={(e) => setMaterialField('type', e.target.value)}
+                      >
+                        <option value="FDM">FDM / FFF (nhựa đùn)</option>
+                        <option value="SLA">SLA / DLP (resin quang trùng hợp)</option>
+                        <option value="SLS">SLS (thiêu kết bột)</option>
+                      </Select>
+                    )}
+                  </Field>
                 </div>
 
                 <div>
@@ -347,6 +403,102 @@ export const MaterialEditorModal: React.FC<MaterialEditorModalProps> = (props) =
                   />
                   <label htmlFor="matStockCheck" className="font-semibold text-fg">Đang Có Sẵn Hàng</label>
                 </div>
+
+                {/* Trường phụ (không bắt buộc) gom vào <details> để modal không quá dài. */}
+                <details className="col-span-2 rounded-md border border-line-subtle bg-surface-muted p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-fg">Thông số kỹ thuật &amp; mô tả</summary>
+                  <div className="mt-3 grid grid-cols-2 gap-4">
+                    <div>
+                      <Field id="mat-strength" label="Độ Bền (Strength)" optionalLabel={null} error={materialIssues.strength}>
+                        {(control) => (
+                          <Input
+                            {...control}
+                            type="text"
+                            placeholder="VD: Cao, 45 MPa..."
+                            value={editingMaterial ? (editingMaterial.strength ?? '') : (materialForm.strength ?? '')}
+                            onChange={(e) => setMaterialField('strength', e.target.value)}
+                          />
+                        )}
+                      </Field>
+                    </div>
+
+                    <div>
+                      <Field id="mat-heat-resistance" label="Chịu Nhiệt (Heat Resistance)" optionalLabel={null} error={materialIssues.heatResistance}>
+                        {(control) => (
+                          <Input
+                            {...control}
+                            type="text"
+                            placeholder="VD: 80 °C, 120 °C..."
+                            value={editingMaterial ? (editingMaterial.heatResistance ?? '') : (materialForm.heatResistance ?? '')}
+                            onChange={(e) => setMaterialField('heatResistance', e.target.value)}
+                          />
+                        )}
+                      </Field>
+                    </div>
+
+                    <div>
+                      <Field id="mat-flexibility" label="Độ Dẻo (Flexibility)" optionalLabel={null} error={materialIssues.flexibility}>
+                        {(control) => (
+                          <Input
+                            {...control}
+                            type="text"
+                            placeholder="VD: Thấp, Trung bình, Cao..."
+                            value={editingMaterial ? (editingMaterial.flexibility ?? '') : (materialForm.flexibility ?? '')}
+                            onChange={(e) => setMaterialField('flexibility', e.target.value)}
+                          />
+                        )}
+                      </Field>
+                    </div>
+
+                    <div>
+                      <Field id="mat-recommended-for" label="Khuyên Dùng Cho" optionalLabel={null} error={materialIssues.recommendedFor}>
+                        {(control) => (
+                          <Input
+                            {...control}
+                            type="text"
+                            placeholder="VD: Mô hình cơ khí, đồ chơi..."
+                            value={editingMaterial ? (editingMaterial.recommendedFor ?? '') : (materialForm.recommendedFor ?? '')}
+                            onChange={(e) => setMaterialField('recommendedFor', e.target.value)}
+                          />
+                        )}
+                      </Field>
+                    </div>
+
+                    <div className="col-span-2">
+                      <Field
+                        id="mat-colors"
+                        label="Màu Có Sẵn"
+                        optionalLabel={null}
+                        error={materialIssues.colors}
+                        hint="Ngăn cách bằng dấu phẩy — VD: Đỏ, Đen, Trắng hoặc mã màu #DC2626. Để trống = chưa khai màu."
+                      >
+                        {(control) => (
+                          <Input
+                            {...control}
+                            type="text"
+                            placeholder="Đỏ, Đen, Trắng"
+                            value={colorsText}
+                            onChange={(e) => handleColorsChange(e.target.value)}
+                          />
+                        )}
+                      </Field>
+                    </div>
+
+                    <div className="col-span-2">
+                      <Field id="mat-desc" label="Mô Tả" optionalLabel={null} error={materialIssues.desc}>
+                        {(control) => (
+                          <Input
+                            {...control}
+                            type="text"
+                            placeholder="VD: Nhựa PLA dễ in, bề mặt mờ, dùng cho mô hình trưng bày..."
+                            value={editingMaterial ? (editingMaterial.desc ?? '') : (materialForm.desc ?? '')}
+                            onChange={(e) => setMaterialField('desc', e.target.value)}
+                          />
+                        )}
+                      </Field>
+                    </div>
+                  </div>
+                </details>
               </div>
 
               <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">

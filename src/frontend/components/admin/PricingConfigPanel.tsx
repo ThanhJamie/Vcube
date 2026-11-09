@@ -192,6 +192,8 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
   const [materialForm, setMaterialForm] = useState<Partial<MaterialProfile>>({
     name: '',
     brand: '',
+    // `type`: cột NOT NULL default 'FDM' ⇒ form mở ở đúng default của DB (admin sửa được).
+    type: 'FDM',
     density: undefined,
     strength: '',
     heatResistance: '',
@@ -219,6 +221,8 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
   const [printerForm, setPrinterForm] = useState<Partial<PrinterProfile>>({
     name: '',
     brand: '',
+    // `model`: cột default '' ⇒ chưa khai thì để trống (không suy từ tên máy).
+    model: '',
     technology: undefined,
     bedDimensions: { x: undefined, y: undefined, z: undefined } as unknown as PrinterProfile['bedDimensions'],
     nozzleDiameter: undefined,
@@ -628,6 +632,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
       id: newId,
       name: materialForm.name,
       brand: materialForm.brand ?? '',
+      type: materialForm.type ?? 'FDM',
       density: materialForm.density as number,
       strength: materialForm.strength ?? '',
       heatResistance: materialForm.heatResistance ?? '',
@@ -763,6 +768,7 @@ export const PricingConfigPanel: React.FC<PricingConfigPanelProps> = ({
       id: newId,
       name: printerForm.name,
       brand: printerForm.brand ?? '',
+      model: printerForm.model ?? '',
       technology: printerForm.technology as PrinterProfile['technology'],
       bedDimensions: printerForm.bedDimensions as PrinterProfile['bedDimensions'],
       nozzleDiameter: printerForm.nozzleDiameter as number,

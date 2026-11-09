@@ -307,6 +307,11 @@ export interface MaterialProfile {
   name: string;
   brand?: string;
   /**
+   * Loại vật liệu — cột `materials.type` (NOT NULL, default `'FDM'`).
+   * Bỏ trống khi ghi DB ⇒ dùng đúng default của cột (`'FDM'`), KHÔNG suy từ tên vật liệu.
+   */
+  type?: 'FDM' | 'SLA' | 'SLS';
+  /**
    * Đợt Q: các cột dưới đây là **nullable trong DB** (baseline đã gỡ default bịa) ⇒
    * `null` = CHƯA CẤU HÌNH, KHÁC HẲN `0`. Mọi nơi đọc PHẢI kiểm `Number.isFinite` trước khi
    * tính toán/hiển thị (engine sẽ CHẶN tính giá nếu thiếu — xem `pricingEngine`).
@@ -453,6 +458,11 @@ export interface PrinterProfile {
   id: string;
   name: string;
   brand: string;
+  /**
+   * Mã model máy — cột `printer_fleet.model` (default `''`).
+   * Bỏ trống = CHƯA KHAI; KHÔNG suy từ tên máy.
+   */
+  model?: string;
   /** Đợt Q: nullable thật — `null` = CHƯA ĐO ĐƯỢC (xem `MaterialProfile`). */
   bedDimensions: { x: number | null; y: number | null; z: number | null } | null; // mm
   nozzleDiameter: number | null; // mm e.g. 0.4

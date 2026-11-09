@@ -3,6 +3,9 @@ import { AccessoryItem } from '@/types';
 import { Icon, InfoTip, ConfirmDialog, DataTable, EmptyState, Field, Input, Modal, Button, Badge, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatNumber } from '../../lib/format';
+import { safeImageUrl } from '@frontend/lib/productImage';
+import { AccessoryFormFields } from './accessories/AccessoryFormFields';
+import { parseNumOrNull } from './accessories/accessoryFormUtils';
 
 /**
  * Đợt S (#1): phòng vệ cho cột nullable — hôm nay `rowToAccessory` vẫn quy NULL về `0`
@@ -13,18 +16,14 @@ const numText = (v: number | null | undefined, suffix = ''): string =>
   typeof v === 'number' && Number.isFinite(v) ? `${formatNumber(v)}${suffix}` : EMPTY_VALUE;
 
 /**
- * Đợt T: ô nhập số để trống ⇒ `null` ("chưa cấu hình"), KHÔNG quy về 0.
- * `Number('')` trả 0 nên không thể dùng lại `Number(x) || 0` như trước.
+ * Tách chuỗi người dùng gõ ("Móc khóa, Vỏ hộp IoT") thành mảng đã trim, bỏ phần rỗng.
+ * Giữ nguyên thứ tự và không tự sinh giá trị — danh sách tương thích là dữ liệu thật do admin nhập.
  */
-const parseNumOrNull = (v: unknown): number | null => {
-  if (v === '' || v === null || v === undefined) return null;
-  const parsed = Number(v);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-/** Giá trị cho `<input type="number">`: chỉ nhận số hữu hạn, còn lại để trống. */
-const numInputValue = (v: number | null | undefined): string | number =>
-  typeof v === 'number' && Number.isFinite(v) ? v : '';
+const parseCommaList = (text: string): string[] =>
+  text
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
 
 /** Thiếu số (`null` / `undefined` / `NaN`) — không được dùng làm toán hạng. */
 const isMissingNum = (v: number | null | undefined): boolean =>
@@ -52,6 +51,12 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [editingItem, setEditingItem] = useState<AccessoryItem | null>(null);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  /**
+   * Local state cho ô "tương thích" — giữ đúng chuỗi admin đang gõ (kể cả dấu phẩy cuối)
+   * thay vì bind trực tiếp vào `string[]` khiến dấu phẩy bị nuốt mỗi lần gõ.
+   */
+  const [newCompatibleText, setNewCompatibleText] = useState('');
+  const [editCompatibleText, setEditCompatibleText] = useState('');
   const [newItemForm, setNewItemForm] = useState<Partial<AccessoryItem>>({
     name: '',
     nameEn: '',
@@ -151,7 +156,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
       description: newItemForm.description || '',
       imageUrl: newItemForm.imageUrl || '',
       isActive: newItemForm.isActive ?? true,
-      compatibleWith: newItemForm.compatibleWith || []
+      compatibleWith: parseCommaList(newCompatibleText)
     };
 
     onUpdateAccessories([...accessories, newItem]);
@@ -162,14 +167,28 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
   const handleSaveEditItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
-    const updated = accessories.map(a => a.id === editingItem.id ? editingItem : a);
+    const nextItem: AccessoryItem = {
+      ...editingItem,
+      compatibleWith: parseCommaList(editCompatibleText)
+    };
+    const updated = accessories.map(a => a.id === nextItem.id ? nextItem : a);
     onUpdateAccessories(updated);
     setEditingItem(null);
-    onShowToast(`Đã cập nhật phụ kiện: "${editingItem.name}"`);
+    onShowToast(`Đã cập nhật phụ kiện: "${nextItem.name}"`);
+  };
+
+  /** Mở form sửa + nạp sẵn chuỗi tương thích để admin thấy đúng dữ liệu hiện có. */
+  const openEditItem = (item: AccessoryItem) => {
+    setEditCompatibleText((item.compatibleWith ?? []).join(', '));
+    setEditingItem(item);
   };
 
   // Đợt T: chỉ đếm khi biết CẢ tồn kho LẪN ngưỡng (trước đây `null <= null` luôn `true` ⇒ báo động giả).
   const lowStockCount = accessories.filter(isLowStock).length;
+
+  // Chỉ xem trước ảnh khi URL không rỗng và KHÔNG phải ảnh placeholder bịa.
+  const newImagePreview = safeImageUrl(newItemForm.imageUrl);
+  const editImagePreview = safeImageUrl(editingItem?.imageUrl);
 
   /** Cột bảng phụ kiện dùng primitive `DataTable` (sort + phân trang + empty ngoài bảng). */
   const accessoryColumns = useMemo<DataTableColumn<AccessoryItem>[]>(() => [
@@ -332,7 +351,7 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
             variant="ghost"
             aria-label={`Sửa ${item.name}`}
             title="Chỉnh sửa thông số"
-            onClick={() => setEditingItem(item)}
+            onClick={() => openEditItem(item)}
             leadingIcon={<Icon name="edit" size={16} />}
           />
           <Button
@@ -491,148 +510,14 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
           title={<span className="flex items-center gap-2"><Icon name="add_circle" size={22} className="text-primary" />Thêm Phụ Kiện / Bao Bì Mới Vào Hệ Thống</span>}
         >
             <form onSubmit={handleSaveNewItem} className="space-y-4 text-sm">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label htmlFor="new-accessory-name" className="mb-1 block text-sm font-medium text-fg">Tên Phụ Kiện (Tiếng Việt) *</label>
-                  <input
-                    id="new-accessory-name"
-                    type="text"
-                    required
-                    placeholder="Ví dụ: Khoen móc khóa Inox 304 có dây xích 25mm"
-                    value={newItemForm.name}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="new-accessory-sku" className="mb-1 block text-sm font-medium text-fg">Mã SKU Quản Lý *</label>
-                  <input
-                    id="new-accessory-sku"
-                    type="text"
-                    required
-                    value={newItemForm.sku}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, sku: e.target.value }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="new-accessory-category" className="mb-1 block text-sm font-medium text-fg">Phân Loại</label>
-                  <select
-                    id="new-accessory-category"
-                    value={newItemForm.category}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, category: e.target.value as any }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="keychain">Móc Khóa & Dây Đeo (Keychain)</option>
-                    <option value="fastener">Ốc Cấy Ren & Tán Nhiệt (Inserts)</option>
-                    <option value="hardware">Bu Lông, Ốc Vít & Chân Silicon</option>
-                    <option value="magnet">Nam Châm Neodymium N52</option>
-                    <option value="bearing">Vòng Bi Bạc Đạn (Bearing)</option>
-                    <option value="packaging">Hộp Quà & Bao Bì Zip</option>
-                    <option value="other">Phụ Tùng Khác</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="new-accessory-unit" className="mb-1 block text-sm font-medium text-fg">Đơn Vị Tính (ĐVT)</label>
-                  <input
-                    id="new-accessory-unit"
-                    type="text"
-                    placeholder="cái, bộ, con, sợi, hộp, túi..."
-                    value={newItemForm.unit}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, unit: e.target.value }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="new-accessory-location" className="mb-1 block text-sm font-medium text-fg">Vị Trí Kệ Kho</label>
-                  <input
-                    id="new-accessory-location"
-                    type="text"
-                    placeholder="Kệ A1 - Hộc 02"
-                    value={newItemForm.warehouseLocation}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, warehouseLocation: e.target.value }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="new-accessory-cost" className="mb-1 block text-sm font-medium text-fg">Giá Vốn Nhập Xưởng (VNĐ)</label>
-                  <input
-                    id="new-accessory-cost"
-                    type="number"
-                    min="0"
-                    step="100"
-                    value={numInputValue(newItemForm.costPrice)}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, costPrice: parseNumOrNull(e.target.value) }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="new-accessory-price" className="mb-1 block text-sm font-medium text-fg">Giá Báo / Bán Cho Khách (VNĐ)</label>
-                  <input
-                    id="new-accessory-price"
-                    type="number"
-                    min="0"
-                    step="500"
-                    value={numInputValue(newItemForm.sellingPrice)}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, sellingPrice: parseNumOrNull(e.target.value) }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-primary placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="new-accessory-stock" className="mb-1 block text-sm font-medium text-fg">Tồn Kho Ban Đầu</label>
-                  <input
-                    id="new-accessory-stock"
-                    type="number"
-                    min="0"
-                    value={numInputValue(newItemForm.stockCount)}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, stockCount: parseNumOrNull(e.target.value) }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="new-accessory-threshold" className="mb-1 block text-sm font-medium text-fg">Ngưỡng Báo Sắp Hết</label>
-                  <input
-                    id="new-accessory-threshold"
-                    type="number"
-                    min="1"
-                    value={numInputValue(newItemForm.lowStockThreshold)}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, lowStockThreshold: parseNumOrNull(e.target.value) }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-danger placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label htmlFor="new-accessory-supplier" className="mb-1 block text-sm font-medium text-fg">Nhà Cung Cấp</label>
-                  <input
-                    id="new-accessory-supplier"
-                    type="text"
-                    placeholder="Xưởng Kim Khí Tân Bình, Fasteners VN..."
-                    value={newItemForm.supplier}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, supplier: e.target.value }))}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label htmlFor="new-accessory-description" className="mb-1 block text-sm font-medium text-fg">Mô Tả Kỹ Thuật</label>
-                  <textarea
-                    id="new-accessory-description"
-                    rows={2}
-                    placeholder="Đặc tính kim loại, dung sai, khả năng chịu lực..."
-                    value={newItemForm.description}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, description: e.target.value }))}
-                    className="min-h-20 w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-              </div>
+              <AccessoryFormFields
+                idPrefix="new-accessory"
+                value={newItemForm}
+                onChange={(field, value) => setNewItemForm(prev => ({ ...prev, [field]: value }))}
+                compatibleText={newCompatibleText}
+                onCompatibleTextChange={setNewCompatibleText}
+                imagePreview={newImagePreview}
+              />
 
               <div className="flex items-center justify-end gap-2 border-t border-line-subtle pt-4">
                 <Button
@@ -659,141 +544,14 @@ export const AccessoriesManager: React.FC<AccessoriesManagerProps> = ({
           title={<span className="flex items-center gap-2"><Icon name="edit" size={22} className="text-primary" />Chỉnh Sửa Phụ Kiện: {editingItem.name}</span>}
         >
             <form onSubmit={handleSaveEditItem} className="space-y-4 text-sm">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label htmlFor="edit-accessory-name" className="mb-1 block text-sm font-medium text-fg">Tên Phụ Kiện *</label>
-                  <input
-                    id="edit-accessory-name"
-                    type="text"
-                    required
-                    value={editingItem.name}
-                    onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="edit-accessory-sku" className="mb-1 block text-sm font-medium text-fg">Mã SKU *</label>
-                  <input
-                    id="edit-accessory-sku"
-                    type="text"
-                    required
-                    value={editingItem.sku}
-                    onChange={(e) => setEditingItem({ ...editingItem, sku: e.target.value })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="edit-accessory-category" className="mb-1 block text-sm font-medium text-fg">Phân Loại</label>
-                  <select
-                    id="edit-accessory-category"
-                    value={editingItem.category}
-                    onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value as any })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="keychain">Móc Khóa & Dây Đeo (Keychain)</option>
-                    <option value="fastener">Ốc Cấy Ren & Tán Nhiệt (Inserts)</option>
-                    <option value="hardware">Bu Lông, Ốc Vít & Chân Silicon</option>
-                    <option value="magnet">Nam Châm Neodymium N52</option>
-                    <option value="bearing">Vòng Bi Bạc Đạn (Bearing)</option>
-                    <option value="packaging">Hộp Quà & Bao Bì Zip</option>
-                    <option value="other">Phụ Tùng Khác</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="edit-accessory-unit" className="mb-1 block text-sm font-medium text-fg">Đơn Vị Tính</label>
-                  <input
-                    id="edit-accessory-unit"
-                    type="text"
-                    value={editingItem.unit}
-                    onChange={(e) => setEditingItem({ ...editingItem, unit: e.target.value })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="edit-accessory-location" className="mb-1 block text-sm font-medium text-fg">Vị Trí Kệ Kho</label>
-                  <input
-                    id="edit-accessory-location"
-                    type="text"
-                    value={editingItem.warehouseLocation || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, warehouseLocation: e.target.value })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 font-mono text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="edit-accessory-cost" className="mb-1 block text-sm font-medium text-fg">Giá Vốn Nhập Xưởng (VNĐ)</label>
-                  <input
-                    id="edit-accessory-cost"
-                    type="number"
-                    min="0"
-                    value={numInputValue(editingItem.costPrice)}
-                    onChange={(e) => setEditingItem({ ...editingItem, costPrice: parseNumOrNull(e.target.value) })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="edit-accessory-price" className="mb-1 block text-sm font-medium text-fg">Giá Báo Khách (VNĐ)</label>
-                  <input
-                    id="edit-accessory-price"
-                    type="number"
-                    min="0"
-                    value={numInputValue(editingItem.sellingPrice)}
-                    onChange={(e) => setEditingItem({ ...editingItem, sellingPrice: parseNumOrNull(e.target.value) })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-primary placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="edit-accessory-stock" className="mb-1 block text-sm font-medium text-fg">Số Lượng Tồn Kho</label>
-                  <input
-                    id="edit-accessory-stock"
-                    type="number"
-                    min="0"
-                    value={numInputValue(editingItem.stockCount)}
-                    onChange={(e) => setEditingItem({ ...editingItem, stockCount: parseNumOrNull(e.target.value) })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="edit-accessory-threshold" className="mb-1 block text-sm font-medium text-fg">Ngưỡng Báo Hết</label>
-                  <input
-                    id="edit-accessory-threshold"
-                    type="number"
-                    min="1"
-                    value={numInputValue(editingItem.lowStockThreshold)}
-                    onChange={(e) => setEditingItem({ ...editingItem, lowStockThreshold: parseNumOrNull(e.target.value) })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-right font-mono text-sm font-bold tabular-nums text-danger placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label htmlFor="edit-accessory-supplier" className="mb-1 block text-sm font-medium text-fg">Nhà Cung Cấp</label>
-                  <input
-                    id="edit-accessory-supplier"
-                    type="text"
-                    value={editingItem.supplier || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, supplier: e.target.value })}
-                    className="h-10 max-md:min-h-11 w-full rounded-md border border-line-control bg-surface px-3 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label htmlFor="edit-accessory-description" className="mb-1 block text-sm font-medium text-fg">Mô Tả</label>
-                  <textarea
-                    id="edit-accessory-description"
-                    rows={2}
-                    value={editingItem.description || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                    className="min-h-20 w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-              </div>
+              <AccessoryFormFields
+                idPrefix="edit-accessory"
+                value={editingItem}
+                onChange={(field, value) => setEditingItem(prev => (prev ? { ...prev, [field]: value } : prev))}
+                compatibleText={editCompatibleText}
+                onCompatibleTextChange={setEditCompatibleText}
+                imagePreview={editImagePreview}
+              />
 
               <div className="flex items-center justify-end gap-2 border-t border-line-subtle pt-4">
                 <Button

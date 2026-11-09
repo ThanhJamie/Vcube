@@ -623,6 +623,8 @@ export const dbService = {
         id: mat.id,
         name: mat.name,
         brand: mat.brand,
+        // `materials.type` là NOT NULL default 'FDM' ⇒ cùng default với cột, không đoán theo tên.
+        type: mat.type ?? 'FDM',
         density: mat.density,
         strength: mat.strength,
         heat_resistance: mat.heatResistance,
@@ -639,6 +641,7 @@ export const dbService = {
         recommended_for: mat.recommendedFor,
         in_stock: mat.inStock,
         stock_rolls_count: mat.stockRollsCount,
+        failure_extra_percent: mat.failureExtraPercent ?? null,
         updated_at: new Date().toISOString(),
       });
       if (error) return fail(error);
@@ -664,6 +667,8 @@ export const dbService = {
         id: printer.id,
         name: printer.name,
         brand: printer.brand,
+        // `printer_fleet.model` là cột default '' ⇒ chưa khai thì ghi chuỗi rỗng, không suy.
+        model: printer.model ?? '',
         bed_dimensions: printer.bedDimensions,
         nozzle_diameter: printer.nozzleDiameter,
         technology: printer.technology,
