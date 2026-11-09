@@ -18,7 +18,8 @@ import { MachineModal } from '../components/workshop/settings/MachineModal';
 import { MaterialModal } from '../components/workshop/settings/MaterialModal';
 import { InventoryLogModal } from '../components/workshop/settings/InventoryLogModal';
 import { AccessoryModal } from '../components/workshop/settings/AccessoryModal';
-import { LAB_TAB_IDS, type TabId } from '../components/workshop/settings/tabs';
+import { LAB_TAB_IDS, LAB_TAB_LABELS, type TabId } from '../components/workshop/settings/tabs';
+import { DashboardPanelHost, type DashboardTab } from '../components/dashboard/DashboardTabs';
 import { parseRateInput } from '../components/workshop/settings/helpers';
 import type { WorkshopSettingsController } from '../components/workshop/settings/types';
 
@@ -834,6 +835,26 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
     setQueueView, user,
     workshopKey,
   };
+
+  /* ------------------------------------------------------------------ */
+  /* Tabs — hạ tầng dùng chung (keep-alive + error boundary mỗi tab)     */
+  /* ------------------------------------------------------------------ */
+  // Cả 6 tab giữ `keepAlive` mặc định (true) ⇒ đổi tab không mất filter/form/scroll và
+  // không fetch lại; không panel nào có id DOM tĩnh trùng nhau (`Field`/`DataTable` dùng useId).
+  const tabElements: Record<TabId, React.ReactNode> = {
+    queue: <QueueTab ctl={controller} />,
+    machines: <MachinesTab ctl={controller} />,
+    materials: <MaterialsTab ctl={controller} />,
+    accessories: <AccessoriesTab ctl={controller} />,
+    audit_trail: <AuditTrailTab ctl={controller} />,
+    preferences: <PreferencesTab ctl={controller} />,
+  };
+  const tabs: DashboardTab[] = LAB_TAB_IDS.map((id) => ({
+    id,
+    label: LAB_TAB_LABELS[id],
+    element: tabElements[id],
+  }));
+
   /* ------------------------------------------------------------------ */
   /* Render                                                              */
   /* ------------------------------------------------------------------ */
@@ -847,12 +868,9 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
         <SettingsBanners ctl={controller} />
 
         <WorkshopStatsCards ctl={controller} />
-        {activeTab === 'queue' && <QueueTab ctl={controller} />}
-        {activeTab === 'machines' && <MachinesTab ctl={controller} />}
-        {activeTab === 'materials' && <MaterialsTab ctl={controller} />}
-        {activeTab === 'accessories' && <AccessoriesTab ctl={controller} />}
-        {activeTab === 'audit_trail' && <AuditTrailTab ctl={controller} />}
-        {activeTab === 'preferences' && <PreferencesTab ctl={controller} />}
+
+        {/* Chỉ phần NỘI DUNG tab vào host; header/banners/stats/modal/gate giữ ngoài. */}
+        <DashboardPanelHost tabs={tabs} activeId={activeTab} maxKept={6} />
       </div>
       <MachineModal ctl={controller} />
       <MaterialModal ctl={controller} />

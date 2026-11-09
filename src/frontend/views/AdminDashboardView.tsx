@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Product,
@@ -13,7 +13,8 @@ import {
   AdminNavSection,
   buildAdminNavGroups,
 } from '../components/admin/AdminSidebar';
-import { AppShell, Button, Field, Icon, Input, PanelErrorBoundary, SideNav, Topbar } from '@frontend/ui';
+import { AppShell, Button, Field, Icon, Input, SideNav, Topbar } from '@frontend/ui';
+import { DashboardPanelHost, type DashboardTab } from '../components/dashboard/DashboardTabs';
 
 // ==============================================================================
 // LAZY-LOADED ADMIN PANELS FOR OPTIMAL CODE SPLITTING & FAST INITIAL LOAD
@@ -43,6 +44,31 @@ const AdminSettingsPanel = React.lazy(() =>
 const WarehouseInventoryPanel = React.lazy(() =>
   import('../components/admin/WarehouseInventoryPanel').then((m) => ({ default: m.WarehouseInventoryPanel }))
 );
+
+// URL alias của nhóm "Danh mục & định giá": cùng `Group4PricingEnginePanel`, chỉ khác sub-tab mở đầu.
+type PricingSection =
+  | 'pricing'
+  | 'pricing-engine'
+  | 'pricing-setup'
+  | 'cost-rules'
+  | 'materials'
+  | 'hardware'
+  | 'quote-calc';
+
+const PRICING_INITIAL_SUBTAB: Record<
+  PricingSection,
+  'formula' | 'materials' | 'accessories' | 'estimator'
+> = {
+  pricing: 'formula',
+  'pricing-engine': 'formula',
+  'pricing-setup': 'formula',
+  'cost-rules': 'formula',
+  materials: 'materials',
+  hardware: 'accessories',
+  'quote-calc': 'estimator',
+};
+
+const PRICING_SECTIONS = Object.keys(PRICING_INITIAL_SUBTAB) as PricingSection[];
 
 // High-tech Suspense Loading Skeleton
 const AdminPanelLoadingSkeleton: React.FC = () => (
@@ -312,6 +338,214 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     })),
   }));
 
+  // ==========================================================================
+  // TAB PANELS — hạ tầng dùng chung `DashboardPanelHost` (keep-alive LRU + boundary mỗi tab).
+  // Mỗi `validSections` có đúng một tab; các route alias trỏ về CÙNG panel với prop tương ứng
+  // để giữ nguyên hành vi cũ (URL vẫn là nguồn sự thật duy nhất).
+  // `keepAlive` mặc định = true: filter/search/form còn nguyên khi đổi mục. Chỉ tắt khi panel
+  // trùng id DOM với tab khác hoặc quá nặng (xem comment tại từng tab).
+  // ==========================================================================
+  const overviewTab = (id: 'overview' | 'group0-overview'): DashboardTab => ({
+    id,
+    label: id === 'overview' ? 'Tổng quan' : 'Tổng quan (alias)',
+    icon: 'dashboard',
+    boundaryLabel: 'Bảng điều khiển tổng quan',
+    // `/admin/group0-overview` là alias của `/admin/overview`: không mount song song hai bộ
+    // biểu đồ giống hệt nhau (tốn RAM, không thêm thông tin).
+    keepAlive: id === 'overview',
+    element: (
+      <Group0OverviewPanel
+        orders={orders}
+        products={products}
+        printers={printers}
+        materials={materials}
+        accessories={accessories}
+        onNavigateSection={handleSelectSection}
+        onNavigateTracking={(order) => onNavigate('tracking', { order })}
+      />
+    ),
+  });
+
+  const workshopsTab = (id: 'workshops' | 'partners' | 'machines'): DashboardTab => ({
+    id,
+    label: id === 'machines' ? 'Đội máy in' : id === 'partners' ? 'Xưởng in đối tác' : 'Xưởng in',
+    icon: id === 'machines' ? 'print' : 'factory',
+    boundaryLabel: 'Xưởng in & thiết bị',
+    element: (
+      <Group1WorkshopsPanel
+        printers={printers}
+        onUpdatePrinters={onUpdatePrinters}
+        onShowToast={onShowToast}
+        onNavigateSection={handleSelectSection}
+        section={id}
+      />
+    ),
+  });
+
+  const customersTab = (id: 'users' | 'customers'): DashboardTab => ({
+    id,
+    label: 'Khách hàng',
+    icon: 'manage_accounts',
+    boundaryLabel: 'Khách hàng & hồ sơ KYC',
+    element: (
+      <Group3CustomersPanel
+        onShowToast={onShowToast}
+        onNavigateSection={handleSelectSection}
+      />
+    ),
+  });
+
+  const pricingTab = (id: PricingSection): DashboardTab => ({
+    id,
+    label:
+      id === 'materials'
+        ? 'Nhựa & Resin'
+        : id === 'hardware'
+          ? 'Phụ kiện & nam châm'
+          : id === 'quote-calc'
+            ? 'Báo giá BOM'
+            : 'Cấu hình định giá',
+    icon: id === 'materials' ? 'layers' : id === 'hardware' ? 'extension' : id === 'quote-calc' ? 'calculate' : 'tune',
+    boundaryLabel: 'Danh mục & định giá',
+    // `PricingConfigPanel` render các id DOM cố định (`pricing-panel-accessories`, …) và nhiều
+    // form chưa lưu. Giữ 2 alias mounted ⇒ id trùng + 2 bộ form ⇒ buộc unmount khi rời tab.
+    keepAlive: false,
+    element: (
+      <Group4PricingEnginePanel
+        initialSubTab={PRICING_INITIAL_SUBTAB[id]}
+        materials={materials}
+        printers={printers}
+        accessories={accessories}
+        pricingConfig={pricingConfig}
+        onUpdateMaterials={onUpdateMaterials}
+        onUpdatePrinters={onUpdatePrinters}
+        onUpdateAccessories={onUpdateAccessories}
+        onUpdatePricingConfig={onUpdatePricingConfig}
+        onShowToast={onShowToast}
+      />
+    ),
+  });
+
+  const productionTab = (id: 'queue' | 'orders'): DashboardTab => ({
+    id,
+    label: id === 'queue' ? 'Hàng đợi & Kanban' : 'Đơn hàng & điều phối',
+    icon: id === 'queue' ? 'precision_manufacturing' : 'receipt_long',
+    boundaryLabel: 'Vận hành sản xuất',
+    // `Group5ProductionPanel` có id `group5-job-notes` và poll DB. Tắt keep-alive cho CẢ HAI
+    // alias: nếu một bên vẫn giữ mounted, mở bên kia sẽ sinh id trùng + 2 vòng fetch song song.
+    keepAlive: false,
+    element: (
+      <Group5ProductionPanel
+        section={id}
+        onUpdateOrderStatus={onUpdateOrderStatus}
+        onNavigateTracking={(order) => onNavigate('tracking', { order })}
+        onShowToast={onShowToast}
+        onNavigateSection={handleSelectSection}
+      />
+    ),
+  });
+
+  const tabs: DashboardTab[] = [
+    overviewTab('overview'),
+    overviewTab('group0-overview'),
+
+    // Xưởng in & thiết bị
+    workshopsTab('workshops'),
+    workshopsTab('partners'),
+    workshopsTab('machines'),
+
+    // Nhà thiết kế & bản quyền
+    {
+      id: 'designers',
+      label: 'Nhà thiết kế',
+      icon: 'draw',
+      boundaryLabel: 'Nhà thiết kế & bản quyền',
+      element: (
+        <Group2DesignersPanel
+          onShowToast={onShowToast}
+          onNavigateSection={handleSelectSection}
+        />
+      ),
+    },
+
+    // Khách hàng & KYC
+    customersTab('users'),
+    customersTab('customers'),
+
+    // Danh mục & định giá (Inkiri) — mỗi alias giữ `initialSubTab` như logic cũ.
+    ...PRICING_SECTIONS.map(pricingTab),
+
+    // Vận hành sản xuất
+    productionTab('queue'),
+    productionTab('orders'),
+    {
+      id: 'inventory',
+      label: 'Kho vật liệu',
+      icon: 'shelves',
+      boundaryLabel: 'Kho vật liệu',
+      element: (
+        <WarehouseInventoryPanel
+          materials={materials}
+          accessories={accessories}
+          onUpdateMaterials={onUpdateMaterials}
+          onUpdateAccessories={onUpdateAccessories}
+          onShowToast={onShowToast}
+        />
+      ),
+    },
+
+    // STOREFRONT, CONTENT & SYSTEM CMS
+    {
+      id: 'products',
+      label: 'Sản phẩm',
+      icon: 'inventory_2',
+      boundaryLabel: 'Sản phẩm & danh mục',
+      // keep-alive (mặc định): filter danh mục + ô tìm kiếm còn nguyên khi sang mục khác rồi quay lại.
+      element: (
+        <AdminProductsPanel
+          products={products}
+          onAddProduct={onAddProduct}
+          onUpdateProduct={onUpdateProduct}
+          onDeleteProduct={onDeleteProduct}
+          onShowToast={onShowToast}
+        />
+      ),
+    },
+    {
+      id: 'storefront',
+      label: 'Trang chủ & quảng cáo',
+      icon: 'storefront',
+      boundaryLabel: 'Cấu hình cửa hàng',
+      element: (
+        <AdminStorefrontPanel
+          siteContent={siteContent}
+          onUpdateSiteContent={onUpdateSiteContent}
+          onShowToast={onShowToast}
+        />
+      ),
+    },
+    {
+      id: 'seo',
+      label: 'SEO',
+      icon: 'travel_explore',
+      boundaryLabel: 'Quản trị SEO',
+      element: (
+        <AdminSeoPanel
+          siteContent={siteContent}
+          onUpdateSiteContent={onUpdateSiteContent}
+          onShowToast={onShowToast}
+        />
+      ),
+    },
+    {
+      id: 'settings',
+      label: 'Cài đặt xưởng in',
+      icon: 'settings',
+      boundaryLabel: 'Cài đặt xưởng in',
+      element: <AdminSettingsPanel onShowToast={onShowToast} />,
+    },
+  ];
+
   const panelContent = (
     <>
       {/*
@@ -321,189 +555,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         đủ 1 h1/trang cho screen reader, không đổi layout/density/visual của console.
       */}
       <h1 className="sr-only">{currentMeta.title}</h1>
-      <Suspense fallback={<AdminPanelLoadingSkeleton />}>
-        {/* Mỗi panel được bọc riêng: một panel lỗi chỉ thay đúng panel đó, không trắng cả console. */}
-        {(activeSection === 'overview' || activeSection === 'group0-overview') && (
-          <PanelErrorBoundary
-            label="Bảng điều khiển tổng quan"
-            resetKey={activeSection}
-          >
-            <Group0OverviewPanel
-              orders={orders}
-              products={products}
-              printers={printers}
-              materials={materials}
-              accessories={accessories}
-              onNavigateSection={handleSelectSection}
-              onNavigateTracking={(order) => onNavigate('tracking', { order })}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {/* Xưởng in & thiết bị */}
-        {(activeSection === 'workshops' || activeSection === 'partners' || activeSection === 'machines') && (
-          <PanelErrorBoundary
-            label={'Xưởng in & thiết bị'}
-            resetKey={activeSection}
-          >
-            <Group1WorkshopsPanel
-              printers={printers}
-              onUpdatePrinters={onUpdatePrinters}
-              onShowToast={onShowToast}
-              onNavigateSection={handleSelectSection}
-              section={activeSection}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {/* Nhà thiết kế & bản quyền */}
-        {activeSection === 'designers' && (
-          <PanelErrorBoundary
-            label={'Nhà thiết kế & bản quyền'}
-            resetKey={activeSection}
-          >
-            <Group2DesignersPanel
-              onShowToast={onShowToast}
-              onNavigateSection={handleSelectSection}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {/* Khách hàng & KYC */}
-        {(activeSection === 'users' || activeSection === 'customers') && (
-          <PanelErrorBoundary
-            label={'Khách hàng & hồ sơ KYC'}
-            resetKey={activeSection}
-          >
-            <Group3CustomersPanel
-              onShowToast={onShowToast}
-              onNavigateSection={handleSelectSection}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {/* Danh mục & định giá (Inkiri) */}
-        {(activeSection === 'pricing' ||
-          activeSection === 'pricing-engine' ||
-          activeSection === 'pricing-setup' ||
-          activeSection === 'cost-rules' ||
-          activeSection === 'materials' ||
-          activeSection === 'hardware' ||
-          activeSection === 'quote-calc') && (
-          <PanelErrorBoundary
-            label={'Danh mục & định giá'}
-            resetKey={activeSection}
-          >
-            <Group4PricingEnginePanel
-              initialSubTab={
-                activeSection === 'materials'
-                  ? 'materials'
-                  : activeSection === 'hardware'
-                  ? 'accessories'
-                  : activeSection === 'quote-calc'
-                  ? 'estimator'
-                  : 'formula'
-              }
-              materials={materials}
-              printers={printers}
-              accessories={accessories}
-              pricingConfig={pricingConfig}
-              onUpdateMaterials={onUpdateMaterials}
-              onUpdatePrinters={onUpdatePrinters}
-              onUpdateAccessories={onUpdateAccessories}
-              onUpdatePricingConfig={onUpdatePricingConfig}
-              onShowToast={onShowToast}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {/* Vận hành sản xuất — BA mục menu, BA màn KHÁC NHAU:
-            queue  = Hàng Đợi & Kanban 8 nấc (tab mặc định: kanban)
-            orders = Đơn Hàng & Điều Phối trạm in (tab mặc định: dispatcher)
-            inventory = Kho Vật Liệu & Vị Trí Kệ (WarehouseInventoryPanel) */}
-        {(activeSection === 'queue' || activeSection === 'orders') && (
-          <PanelErrorBoundary
-            label="Vận hành sản xuất"
-            resetKey={activeSection}
-          >
-            <Group5ProductionPanel
-              section={activeSection}
-              onUpdateOrderStatus={onUpdateOrderStatus}
-              onNavigateTracking={(order) => onNavigate('tracking', { order })}
-              onShowToast={onShowToast}
-              onNavigateSection={handleSelectSection}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {activeSection === 'inventory' && (
-          <PanelErrorBoundary
-            label="Kho vật liệu"
-            resetKey={activeSection}
-          >
-            <WarehouseInventoryPanel
-              materials={materials}
-              accessories={accessories}
-              onUpdateMaterials={onUpdateMaterials}
-              onUpdateAccessories={onUpdateAccessories}
-              onShowToast={onShowToast}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {/* STOREFRONT, CONTENT & SYSTEM CMS */}
-        {activeSection === 'products' && (
-          <PanelErrorBoundary
-            label={'Sản phẩm & danh mục'}
-            resetKey={activeSection}
-          >
-            <AdminProductsPanel
-              products={products}
-              onAddProduct={onAddProduct}
-              onUpdateProduct={onUpdateProduct}
-              onDeleteProduct={onDeleteProduct}
-              onShowToast={onShowToast}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {activeSection === 'storefront' && (
-          <PanelErrorBoundary
-            label="Cấu hình cửa hàng"
-            resetKey={activeSection}
-          >
-            <AdminStorefrontPanel
-              siteContent={siteContent}
-              onUpdateSiteContent={onUpdateSiteContent}
-              onShowToast={onShowToast}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {activeSection === 'seo' && (
-          <PanelErrorBoundary
-            label="Quản trị SEO"
-            resetKey={activeSection}
-          >
-            <AdminSeoPanel
-              siteContent={siteContent}
-              onUpdateSiteContent={onUpdateSiteContent}
-              onShowToast={onShowToast}
-            />
-          </PanelErrorBoundary>
-        )}
-
-        {activeSection === 'settings' && (
-          <PanelErrorBoundary
-            label="Cài đặt xưởng in"
-            resetKey={activeSection}
-          >
-            <AdminSettingsPanel
-              onShowToast={onShowToast}
-            />
-          </PanelErrorBoundary>
-        )}
-      </Suspense>
+      {/* Host tự bọc Suspense + PanelErrorBoundary cho TỪNG tab; lỗi 1 panel không trắng console. */}
+      <DashboardPanelHost
+        tabs={tabs}
+        activeId={activeSection}
+        maxKept={6}
+        fallback={<AdminPanelLoadingSkeleton />}
+      />
     </>
   );
 
@@ -518,7 +576,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           {/* Tìm nhanh mục điều hướng — giữ nguyên tính năng của AdminSidebar cũ. */}
           <div className="shrink-0 border-b border-line px-2 py-2">
             <Field
-              id="admin-nav-search"
               label="Tìm mục điều hướng"
               hideLabel
             >

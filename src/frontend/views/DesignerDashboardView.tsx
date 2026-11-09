@@ -2,7 +2,9 @@ import React, { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Product, MaterialProfile, InkiriCostFormulaConfig } from '@/types';
 import { useAuth } from '../context/AuthContext';
-import { Button, Icon, PageHeader, PanelErrorBoundary } from '@frontend/ui';
+import { Button, Icon, PageHeader } from '@frontend/ui';
+import { DashboardPanelHost, DashboardTabNav } from '../components/dashboard/DashboardTabs';
+import type { DashboardTab } from '../components/dashboard/DashboardTabs';
 import { DesignerOverviewTab } from '../components/designer/DesignerOverviewTab';
 import { DesignerModelsManagerTab } from '../components/designer/DesignerModelsManagerTab';
 import { DesignerUploadWizardTab } from '../components/designer/DesignerUploadWizardTab';
@@ -58,6 +60,79 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
     [navigate]
   );
 
+  /**
+   * Nội dung từng tab — giữ nguyên props của 5 panel cũ.
+   * `keepAlive` mặc định true: đổi tab KHÔNG unmount panel ⇒ giữ bản nháp wizard,
+   * filter danh sách và dữ liệu đã tải (không fetch lại).
+   */
+  const tabContent: Record<DesignerTabId, Pick<DashboardTab, 'element' | 'boundaryLabel'>> = {
+    overview: {
+      boundaryLabel: 'Tổng quan nhà thiết kế',
+      element: (
+        <DesignerOverviewTab
+          products={products}
+          currentDesignerId={user?.id}
+          onNavigate={onNavigate}
+          onTabChange={setActiveTab}
+          onSelectRequest={(reqId) => setSelectedReqId(reqId)}
+        />
+      ),
+    },
+    models: {
+      boundaryLabel: 'Quản lý ấn phẩm',
+      element: (
+        <DesignerModelsManagerTab
+          products={products}
+          currentDesignerName={currentDesignerName}
+          onUpdateProduct={onUpdateProduct}
+          onDeleteProduct={onDeleteProduct}
+          onShowToast={onShowToast}
+          onNavigateToUpload={() => setActiveTab('wizard')}
+        />
+      ),
+    },
+    wizard: {
+      boundaryLabel: 'Đăng tải ấn phẩm',
+      element: (
+        <DesignerUploadWizardTab
+          onAddNewProduct={(prod) => {
+            onAddNewProduct(prod);
+            setActiveTab('models');
+          }}
+          onShowToast={onShowToast}
+          currentDesignerName={currentDesignerName}
+          designerAvatar={profile?.avatarUrl}
+          onCancel={() => setActiveTab('models')}
+        />
+      ),
+    },
+    payouts: {
+      boundaryLabel: 'Quyết toán bản quyền',
+      element: (
+        <DesignerPayoutsTab currentDesignerName={currentDesignerName} onShowToast={onShowToast} />
+      ),
+    },
+    requests: {
+      boundaryLabel: 'Yêu cầu thiết kế',
+      element: (
+        <DesignerRequestsTab
+          currentDesignerName={currentDesignerName}
+          currentDesignerId={user?.id}
+          onShowToast={onShowToast}
+          selectedRequestId={selectedReqId}
+        />
+      ),
+    },
+  };
+
+  // Thứ tự tab lấy từ DESIGNER_TAB_IDS để không lệch với nav cũ.
+  const tabs: DashboardTab[] = DESIGNER_TAB_IDS.map((tabId) => ({
+    id: tabId,
+    label: DESIGNER_TAB_LABELS[tabId],
+    keepAlive: true,
+    ...tabContent[tabId],
+  }));
+
   return (
     <div className="flex w-full flex-col gap-section font-sans text-fg">
       <PageHeader
@@ -90,81 +165,13 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
       />
 
       <div className="flex w-full flex-col gap-block">
-        <nav aria-label="Mục trong bảng điều khiển nhà thiết kế" className="w-full overflow-x-auto">
-          <div className="inline-flex min-w-full items-center gap-1 rounded-full border border-line bg-surface-muted p-1 sm:min-w-0">
-            {DESIGNER_TAB_IDS.map((tabId) => (
-              <button
-                key={tabId}
-                type="button"
-                aria-current={activeTab === tabId ? 'page' : undefined}
-                onClick={() => setActiveTab(tabId)}
-                className={`inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:min-h-11 motion-reduce:transition-none ${
-                  activeTab === tabId
-                    ? 'bg-surface font-semibold text-fg shadow-soft'
-                    : 'font-medium text-fg-muted hover:text-fg'
-                }`}
-              >
-                {DESIGNER_TAB_LABELS[tabId]}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        {activeTab === 'overview' && (
-          <PanelErrorBoundary label="Tổng quan nhà thiết kế" resetKey={activeTab}>
-            <DesignerOverviewTab
-              products={products}
-              currentDesignerId={user?.id}
-              onNavigate={onNavigate}
-              onTabChange={setActiveTab}
-              onSelectRequest={(reqId) => setSelectedReqId(reqId)}
-            />
-          </PanelErrorBoundary>
-        )}
-        {activeTab === 'models' && (
-          <PanelErrorBoundary label="Quản lý ấn phẩm" resetKey={activeTab}>
-            <DesignerModelsManagerTab
-              products={products}
-              currentDesignerName={currentDesignerName}
-              onUpdateProduct={onUpdateProduct}
-              onDeleteProduct={onDeleteProduct}
-              onShowToast={onShowToast}
-              onNavigateToUpload={() => setActiveTab('wizard')}
-            />
-          </PanelErrorBoundary>
-        )}
-        {activeTab === 'wizard' && (
-          <PanelErrorBoundary label="Đăng tải ấn phẩm" resetKey={activeTab}>
-            <DesignerUploadWizardTab
-              onAddNewProduct={(prod) => {
-                onAddNewProduct(prod);
-                setActiveTab('models');
-              }}
-              onShowToast={onShowToast}
-              currentDesignerName={currentDesignerName}
-              designerAvatar={profile?.avatarUrl}
-              onCancel={() => setActiveTab('models')}
-            />
-          </PanelErrorBoundary>
-        )}
-        {activeTab === 'requests' && (
-          <PanelErrorBoundary label="Yêu cầu thiết kế" resetKey={activeTab}>
-            <DesignerRequestsTab
-              currentDesignerName={currentDesignerName}
-              currentDesignerId={user?.id}
-              onShowToast={onShowToast}
-              selectedRequestId={selectedReqId}
-            />
-          </PanelErrorBoundary>
-        )}
-        {activeTab === 'payouts' && (
-          <PanelErrorBoundary label="Quyết toán bản quyền" resetKey={activeTab}>
-            <DesignerPayoutsTab
-              currentDesignerName={currentDesignerName}
-              onShowToast={onShowToast}
-            />
-          </PanelErrorBoundary>
-        )}
+        <DashboardTabNav
+          tabs={tabs}
+          activeId={activeTab}
+          onSelect={(id) => setActiveTab(id as DesignerTabId)}
+          ariaLabel="Mục trong bảng điều khiển nhà thiết kế"
+        />
+        <DashboardPanelHost tabs={tabs} activeId={activeTab} maxKept={5} />
       </div>
     </div>
   );

@@ -376,8 +376,14 @@ export const customDesignService = {
       return () => {};
     }
 
+    // Tên kênh PHẢI duy nhất cho mỗi subscription: Supabase Realtime dùng chung topic theo
+    // tên; nếu 2 instance (StrictMode / keep-alive tab) subscribe cùng tên, lần `.on()` thứ hai
+    // sẽ throw "cannot add postgres_changes callbacks ... after subscribe()".
+    const channelName = `public:custom_design_requests:${Date.now().toString(36)}:${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
     const channel = supabase
-      .channel('public:custom_design_requests')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'custom_design_requests' },
