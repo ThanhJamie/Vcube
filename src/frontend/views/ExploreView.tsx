@@ -4,10 +4,12 @@ import { CATEGORIES, POPULAR_TAGS } from '@/data/mockData';
 import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { SEOHead } from '../components/SEOHead';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
+import { ExploreEmptyCatalog, ExploreEmptyFilter } from '../components/explore/ExploreEmptyCatalog';
+import { CatalogGridSkeleton, CategoryTilesSkeleton, FilterPriceSkeleton } from '../components/explore/ExploreLoadingSkeletons';
 import { useAuth } from '../context/AuthContext';
 import { useCartStore } from '@frontend/stores/useCartStore';
 import { useSearchParams } from 'react-router-dom';
-import { Icon, Badge, Button, Card, EmptyState, InfoTip, Sheet, Skeleton } from '@frontend/ui';
+import { Icon, Badge, Button, Card, EmptyState, InfoTip, Sheet } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency, formatNumber } from '@frontend/lib/format';
 import { realProductImageUrl } from '@frontend/lib/productImage';
 
@@ -46,9 +48,6 @@ interface ExploreViewProps {
 }
 
 type PricePreset = 'all' | 'under100' | '100to250' | '250to500' | 'above500';
-
-/** Skeleton khớp lưới 1/2/3 cột: 6 thẻ = 2 hàng đầy ở desktop. */
-const SKELETON_CARD_COUNT = 6;
 
 /** Bậc giá nhanh — chỉ là tiêu chí lọc, không phải số liệu về kho. */
 const PRICE_PRESETS: { id: PricePreset; vi: string; en: string }[] = [
@@ -169,49 +168,6 @@ const FilterOption: React.FC<{
       <span className="font-mono text-xs tabular-nums shrink-0 ml-2">({count})</span>
     ) : null}
   </button>
-);
-
-/**
- * Thẻ xương đúng layout thẻ thật (khung ảnh 4:3, tiêu đề, thông số, giá, CTA).
- *
- * CLS: phần thân mô phỏng ĐÚNG 3 khối của thẻ thật (tiêu đề → thông số → giá/CTA) thay vì
- * 4 thanh rời; nhờ vậy chiều cao thẻ lúc tải ≈ thẻ thật (đo: 475px vs 481px @1440,
- * 518px vs 513px @390) và lưới không "nở" khi catalog về.
- */
-const ProductCardSkeleton: React.FC = () => (
-  <Card variant="soft" padding="none" className="flex flex-col overflow-hidden">
-    <div className="aspect-[4/3] w-full overflow-hidden">
-      <Skeleton variant="rect" rounded="lg" height="100%" className="block h-full w-full" />
-    </div>
-    <div className="flex flex-1 flex-col gap-3 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <Skeleton variant="text" width="90%" />
-          <Skeleton variant="text" width="55%" />
-        </div>
-        <Skeleton variant="text" width="4ch" className="shrink-0" />
-      </div>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-        <Skeleton variant="text" height="1rem" width="90%" />
-        <Skeleton variant="text" height="1rem" width="80%" />
-        <Skeleton variant="text" height="1rem" width="65%" className="col-span-2" />
-      </div>
-      <div className="mt-auto flex flex-col gap-2 border-t border-line-subtle pt-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <Skeleton variant="text" width="5ch" />
-            <Skeleton variant="text" height="1.25rem" width="8ch" />
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <Skeleton variant="text" width="4ch" />
-            <Skeleton variant="text" height="1.25rem" width="7ch" />
-          </div>
-        </div>
-        <Skeleton variant="text" height="1rem" width="70%" />
-        <Skeleton variant="rect" rounded="md" height="2.75rem" className="w-full" />
-      </div>
-    </div>
-  </Card>
 );
 
 export const ExploreView: React.FC<ExploreViewProps> = ({
@@ -515,8 +471,26 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   const showError = Boolean(productsError) && !hasVisible && !isCatalogLoading;
   const showWarning = Boolean(productsError) && hasVisible;
   const catalogIsEmpty = catalogProducts.length === 0;
+  /**
+   * P0-B — kho TRỐNG thật (không còn loading/lỗi): ẩn toàn bộ điều khiển không có tác dụng
+   * (search, sort, view switch, sidebar/mobile filter, category tiles, tag chips, sticky CTA)
+   * và chỉ giữ MỘT empty-state card có CTA báo giá. Có sản phẩm thì giữ nguyên UI cũ.
+   */
+  const isEmptyCatalog = catalogIsEmpty && !isCatalogLoading && !showError;
   const hasActiveFilters = selectedCategory !== 'all' || selectedTag !== 'all' || (selectedMaterial !== 'all' && materialOptions.length > 0) || pricePreset !== 'all' || priceMax !== null || onlyCustomizable || searchQuery.trim() !== '';
   const goToQuote = () => onNavigate('quote');
+
+  /**
+   * Deep link `?category=…`/`?search=…`/`?tag=…` khi kho rỗng: điều khiển lọc đã ẩn nên giữ
+   * bộ lọc trong state/URL sẽ tạo trạng thái "lọc vô hình". Dọn về mặc định một lần khi kho
+   * chuyển sang rỗng thật (effect URL ở trên sẽ gỡ query tương ứng).
+   */
+  useEffect(() => {
+    if (!isEmptyCatalog) return;
+    setSelectedCategory((prev) => (prev === 'all' ? prev : 'all'));
+    setSearchQuery((prev) => (prev === '' ? prev : ''));
+    setSelectedTag((prev) => (prev === 'all' ? prev : 'all'));
+  }, [isEmptyCatalog]);
 
   /**
    * Bộ lọc dùng CHUNG cho cột trái (desktop) và bottom-sheet (mobile). Dựng bằng hàm để hai
@@ -547,30 +521,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
       </FilterGroup>
 
       {/* CLS: dải giá chỉ suy ra được từ `pricePhysical` của sản phẩm nên trước khi catalog
-          về, group thật chưa thể dựng. Giữ ĐÚNG khung của group đó (head min-h-11 + 2 hàng
-          preset + slider) để card lọc desktop không cao thêm ~236px khi dữ liệu tới.
-          Group "Vật Liệu Hỗ Trợ" không cần bản xương: nó thu gọn mặc định và tự render khi
-          `materials` có dữ liệu (cùng 57px ở cả hai trạng thái). */}
+          về, group thật chưa thể dựng; skeleton giữ đúng khung group để card lọc desktop
+          không cao thêm khi dữ liệu tới. */}
       {isCatalogLoading && (
         <FilterGroup title="Khoảng Giá In Vật Lý">
-          <div aria-hidden="true" className="grid grid-cols-2 gap-1.5 mb-3">
-            {PRICE_PRESETS.map((preset) => (
-              <Skeleton key={preset.id} variant="rect" rounded="full" height="2.75rem" />
-            ))}
-          </div>
-          <div aria-hidden="true" className="pt-1">
-            <div className="flex min-h-4 items-center justify-between gap-2 mb-1">
-              <Skeleton variant="text" width="7ch" />
-              <Skeleton variant="text" width="9ch" />
-            </div>
-            {/* input range THẬT (disabled + ẩn) chỉ để giữ đúng chiều cao của thanh trượt
-                thật — không vẽ thumb giả như một giá trị đã có. */}
-            <input type="range" disabled className="invisible w-full" />
-            <div className="flex min-h-4 items-center justify-between gap-2 mt-0.5">
-              <Skeleton variant="text" width="6ch" />
-              <Skeleton variant="text" width="6ch" />
-            </div>
-          </div>
+          <FilterPriceSkeleton presets={PRICE_PRESETS} />
         </FilterGroup>
       )}
 
@@ -697,7 +652,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                     ? ('Đang tải kho bản vẽ — vật liệu hỗ trợ, định dạng tệp và giá lấy từ dữ liệu sản phẩm.')
                     : catalogProducts.length > 0
                       ? (`${catalogProducts.length} bản vẽ đang có — vật liệu hỗ trợ, định dạng tệp và giá lấy từ dữ liệu sản phẩm.`)
-                      : ('Kho bản vẽ đang trống.')}
+                      : ('Kho bản vẽ đang cập nhật — hiện chưa có bản vẽ nào được đăng.')}
               </span>
               <InfoTip label="Số bản vẽ này đếm gì?">
                 Đếm theo các bản vẽ đang hiển thị với vai trò hiện tại. Trường nào người bán chưa khai (giá, giấy phép, thời gian in, tác giả) sẽ hiện — thay vì một giá trị đoán hộ. Kho trống thì bạn vẫn gửi được tệp 3D để nhận báo giá in.
@@ -705,7 +660,9 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             </p>
           </div>
 
-          {/* Quick Search Bar — search pill (§3.3, ngoại lệ control duy nhất) */}
+          {/* Quick Search Bar — search pill (§3.3, ngoại lệ control duy nhất).
+              Kho rỗng ⇒ ẩn cả search + CTA phụ để không trùng CTA trong empty state. */}
+          {!isEmptyCatalog && (
           <div className="relative w-full lg:w-96 shrink-0 space-y-3">
             <div className="relative">
               <input
@@ -729,7 +686,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 />
               )}
             </div>
-            {/* Đường thoát thật khi kho rỗng: khách vẫn gửi được tệp của mình */}
+            {/* CTA phụ cạnh search khi kho CÓ bản vẽ (kho rỗng đã có CTA trong empty state) */}
             <Button
               variant="secondary"
               size="md"
@@ -740,9 +697,13 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               Báo giá tệp 3D của bạn
             </Button>
           </div>
+          )}
         </div>
 
-        {/* §4.2 v3 — Category tiles pastel: lối vào nhanh theo danh mục, không thay bộ lọc */}
+        {/* §4.2 v3 — Category tiles pastel: lối vào nhanh theo danh mục, không thay bộ lọc.
+            Kho rỗng ⇒ ẩn cả tiles + tag chips (dẫn tới kết quả rỗng, vô nghĩa). */}
+        {!isEmptyCatalog && (
+        <>
         <section aria-labelledby="explore-categories" className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="explore-categories" className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
@@ -756,22 +717,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           </div>
 
           {isCatalogLoading ? (
-            /* CLS: giữ đúng lưới + chiều cao tile (min-h-[104px]) khi catalog đang tải để
-               hàng "Danh mục bản vẽ" không đổi kích thước lúc tile thật hiện ra. */
-            <div
-              aria-hidden="true"
-              className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6"
-            >
-              {CATEGORIES.filter((c) => c.id !== 'all').map((cat, index) => (
-                <div
-                  key={cat.id}
-                  className={`flex min-h-[104px] flex-col justify-between gap-2 rounded-lg p-3 ${TILE_TONE[index % TILE_TONE.length]}`}
-                >
-                  <Skeleton variant="rect" rounded="md" height="2.25rem" className="w-9" />
-                  <Skeleton variant="text" width="80%" />
-                </div>
-              ))}
-            </div>
+            <CategoryTilesSkeleton tones={TILE_TONE} />
           ) : (
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
               {CATEGORIES.filter((c) => c.id !== 'all').map((cat, index) => {
@@ -849,9 +795,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             </HorizontalScrollFilter>
           </div>
         </Card>
+        </>
+        )}
 
         {/* Active Filters Tray */}
-        {hasActiveFilters && (
+        {!isEmptyCatalog && hasActiveFilters && (
           <Card variant="soft" padding="sm" className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-fg-muted">
@@ -922,7 +870,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           </Card>
         )}
 
-        {/* Mobile Filter Toggle Button — cột lọc thành bottom-sheet dưới lg */}
+        {/* Mobile Filter Toggle Button — cột lọc thành bottom-sheet dưới lg (ẩn khi kho rỗng) */}
+        {!isEmptyCatalog && (
         <div className="flex items-center gap-3 lg:hidden">
           <Button
             variant="secondary"
@@ -937,10 +886,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             Đặt lại
           </Button>
         </div>
+        )}
 
-        {/* Main Grid: Filters Sidebar + Products */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+        {/* Main Grid: Filters Sidebar + Products — kho rỗng ⇒ 1 cột, không chừa sidebar */}
+        <div className={`grid grid-cols-1 gap-6 sm:gap-8 items-start ${isEmptyCatalog ? '' : 'lg:grid-cols-12'}`}>
           {/* Left Sidebar Filters — desktop only; mobile dùng bottom-sheet bên dưới */}
+          {!isEmptyCatalog && (
           <aside className="hidden lg:block lg:col-span-3 space-y-5">
             <Card variant="soft" padding="lg" className="space-y-6">
               <div className="flex items-center justify-between gap-2 pb-3.5 border-b border-line">
@@ -958,6 +909,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               {renderFilters()}
             </Card>
           </aside>
+          )}
 
           {/* Right Product Grid & Views */}
           {/*
@@ -965,8 +917,9 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             do `App.tsx` cung cấp. Để `<main>` ở đây thì `/explore` có 2 landmark
             (browser test đo `document.querySelectorAll('main').length === 2`).
           */}
-          <div className="min-w-0 lg:col-span-9 space-y-6">
-            {/* Sorting and Result Summary */}
+          <div className={`min-w-0 space-y-6 ${isEmptyCatalog ? '' : 'lg:col-span-9'}`}>
+            {/* Sorting and Result Summary — ẩn khi kho rỗng (0/0, sort, view switch vô nghĩa) */}
+            {!isEmptyCatalog && (
             <Card variant="soft" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-fg-muted">
@@ -1028,8 +981,11 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 </div>
               </div>
             </Card>
+            )}
 
-            {/* CTA cố định — khách đã có tệp riêng muốn báo giá gia công ngay */}
+            {/* CTA cố định — khách đã có tệp riêng muốn báo giá gia công ngay.
+                Ẩn khi kho rỗng: empty state đã có CTA báo giá (tránh 2 CTA trùng). */}
+            {!isEmptyCatalog && (
             <div className="sticky top-20 z-panel">
               <Card variant="soft" padding="sm" className="flex items-center justify-between gap-3">
                 <span className="min-w-0 truncate text-xs text-fg-muted">
@@ -1046,6 +1002,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 </Button>
               </Card>
             </div>
+            )}
 
             {/* Dải cảnh báo đặt TRÊN state switch: lỗi nhưng vẫn còn dữ liệu cũ để xem (R6). */}
             {showWarning && (
@@ -1059,18 +1016,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             )}
 
             {isCatalogLoading ? (
-              /* LOADING — skeleton đúng layout lưới thẻ.
-                 CLS: sàn chiều cao (min-h-96 = 24rem) để vùng lưới không co lại về 0 trước
-                 khi thẻ đầu tiên được vẽ; 6 thẻ xương phủ 2 hàng đầu ở desktop. */
-              <div
-                role="status"
-                aria-label="Đang tải kho bản vẽ"
-                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 min-h-96"
-              >
-                {Array.from({ length: SKELETON_CARD_COUNT }).map((_, index) => (
-                  <ProductCardSkeleton key={index} />
-                ))}
-              </div>
+              <CatalogGridSkeleton />
             ) : showError ? (
               /* ERROR — lỗi thật, bọc role="alert"; EmptyState KHÔNG truyền `live` (R7). */
               <div role="alert">
@@ -1098,65 +1044,16 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 />
               </div>
             ) : filteredProducts.length === 0 ? (
-              /* EMPTY STATE — nêu đúng nguyên nhân + đường thoát thật */
-              <EmptyState
-                live
-                bordered
-                icon={<Icon name={catalogIsEmpty ? 'inventory_2' : 'search_off'} size={20} />}
-                title={catalogIsEmpty
-                  ? ('Kho bản vẽ đang trống')
-                  : ('Không có bản vẽ nào khớp bộ lọc')}
-                description={
-                  <>
-                    {catalogIsEmpty
-                      ? ('Chưa có bản vẽ CAD nào được đăng trên VCUBE.')
-                      : ('Hãy bỏ bớt điều kiện hoặc đổi từ khoá tìm kiếm.')}
-                    {!catalogIsEmpty && (
-                      <span className="mt-2 block">
-                        <button
-                          type="button"
-                          onClick={goToQuote}
-                          className="cursor-pointer rounded-sm text-sm font-medium text-fg underline underline-offset-4 transition-colors duration-200 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          Báo giá tệp 3D của bạn
-                        </button>
-                      </span>
-                    )}
-                    {catalogIsEmpty && hasActiveFilters && (
-                      <span className="mt-2 block">
-                        <button
-                          type="button"
-                          onClick={resetFilters}
-                          className="cursor-pointer rounded-sm text-sm font-medium text-fg underline underline-offset-4 transition-colors duration-200 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          Xóa bộ lọc
-                        </button>
-                      </span>
-                    )}
-                    <span className="mt-2 flex justify-center">
-                      <InfoTip
-                        label="Vì sao có thể không thấy bản vẽ nào?"
-                        title="Về trạng thái rỗng"
-                      >
-                        {catalogIsEmpty
-                          ? ('Chưa có bản vẽ nào được đăng nên bộ lọc chưa có gì để lọc. Bạn vẫn gửi được tệp 3D của mình để nhận báo giá in.')
-                          : (`${filteredProducts.length} / ${catalogProducts.length} bản vẽ khớp bộ lọc đang chọn.`)}
-                      </InfoTip>
-                    </span>
-                  </>
-                }
-                action={
-                  catalogIsEmpty ? (
-                    <Button variant="primary" size="md" leadingIcon={<Icon name="request_quote" size={18} />} onClick={goToQuote}>
-                      Báo giá tệp 3D của bạn
-                    </Button>
-                  ) : (
-                    <Button variant="primary" size="md" leadingIcon={<Icon name="restart_alt" size={18} />} onClick={resetFilters}>
-                      Xóa toàn bộ bộ lọc
-                    </Button>
-                  )
-                }
-              />
+              isEmptyCatalog ? (
+                <ExploreEmptyCatalog onNavigate={onNavigate} />
+              ) : (
+                <ExploreEmptyFilter
+                  resultCount={filteredProducts.length}
+                  totalCount={catalogProducts.length}
+                  onQuote={goToQuote}
+                  onReset={resetFilters}
+                />
+              )
             ) : viewMode === 'grid' ? (
               /* GRID VIEW — card soft, thứ tự: ảnh/3D → tiêu đề → vật liệu/định dạng → giá/giấy phép → CTA */
               <div className="space-y-6">
@@ -1513,7 +1410,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
           LUÔN mount (chỉ đổi prop `open`): mount có điều kiện + StrictMode làm effect của
           Modal chạy mount→cleanup→mount, `dialog.close()` trong cleanup đóng sheet vừa mở. */}
       <Sheet
-          open={mobileFilterOpen}
+          open={mobileFilterOpen && !isEmptyCatalog}
           side="bottom"
           onClose={() => setMobileFilterOpen(false)}
           title="Bộ lọc bản vẽ"

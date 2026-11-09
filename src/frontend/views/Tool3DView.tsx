@@ -957,8 +957,13 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
             )}
           </div>
 
-          {/* Right Column: Slicer Parameters & Instant Quoting Panel */}
-          <div className="order-2 min-w-0 space-y-6 lg:col-span-4 xl:order-3 xl:col-span-3">
+          {/* Right Column: Slicer Parameters & Instant Quoting Panel.
+              P0-C: sticky trên desktop (xl) để "Tổng phải trả" + CTA đặt in luôn trong tầm mắt
+              khi cuộn cột giữa; `self-start` giữ chiều cao tự nhiên (item grid mặc định stretch
+              sẽ làm sticky không có khoảng để dính). Panel cao hơn viewport nên phần chi tiết
+              (chọn gói, cấu hình in) cuộn trong panel trên desktop — nếu không, một khi đã dính
+              thì đáy panel không bao giờ tới được. Mobile (< xl) giữ nguyên luồng thường. */}
+          <div className="order-2 min-w-0 space-y-6 lg:col-span-4 xl:order-3 xl:col-span-3 xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto self-start">
             {/* Lưới an toàn cấp panel: một throw khi tính/format giá KHÔNG được thay cả trang
                 (sẽ làm mất luôn nút chọn tệp). `resetKey` = tệp đang chọn ⇒ nạp tệp khác tự reset. */}
             <PanelErrorBoundary label="Bảng báo giá" resetKey={selectedFile.id}>

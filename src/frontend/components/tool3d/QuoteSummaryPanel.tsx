@@ -418,6 +418,96 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         </div>
       </div>
 
+      {/* Final Total Summary Bar.
+          Đợt 9 (R1): giá gói là giá CHƯA gồm VAT (hợp đồng của `lib/vat.ts`), nên nhãn cũ
+          "Đã gồm VAT & Gói …" là một khẳng định SAI về thuế — đã bỏ. Nay in giá gói, DÒNG
+          VAT thật (cùng tỉ lệ với /cart → /checkout → hoá đơn) và tổng SAU VAT.
+          P0-1: không có gói giao hàng thật thì KHÔNG có tổng nào để in — ẩn thanh này thay vì
+          bịa số; nguyên nhân đã nêu ở khối "2. Báo Giá Chính Xác" phía dưới.
+          P0-C: khối tổng + CTA đặt in đứng NGAY SAU header để khách thấy "Tổng phải trả" và nút
+          đặt in mà không phải cuộn ở 1440×900 — chỉ đổi thứ tự render, KHÔNG đổi nhãn/logic. */}
+      {selectedPackage && (
+      <div className="rounded-lg border border-line bg-surface p-4 space-y-2.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-xs uppercase font-mono tracking-wider text-fg-muted block">
+            Tổng giá trị đơn hàng ({quantity} cái):
+          </span>
+          <span className="text-xs text-fg-subtle font-mono shrink-0">Gói {selectedPackage.name}</span>
+        </div>
+        <div className="space-y-1 text-sm font-mono">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-fg-muted">Giá gói (chưa gồm VAT):</span>
+            <span className="tabular-nums text-right text-fg">{vnd(selectedPackage.totalPrice)}</span>
+          </div>
+          {vat ? (
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-fg-muted">{vatLabel(vat.rate)}:</span>
+              <span className="tabular-nums text-right text-fg">{vndAllowZero(vat.amount)}</span>
+            </div>
+          ) : (
+            <p className="text-xs text-fg-muted leading-relaxed font-sans">{vatNotConfiguredLabel()}</p>
+          )}
+          <div className="flex items-baseline justify-between gap-2 border-t border-line-subtle pt-2">
+            <span className="text-lg font-bold text-fg">Tổng phải trả:</span>
+            <span className="font-mono tabular-nums text-lg font-bold text-fg text-right">
+              {vnd(vat ? vat.total : selectedPackage.totalPrice)}
+            </span>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* Action Buttons — chỉ hiện khi CÓ gói giao hàng thật (không bán một gói không tồn tại). */}
+      {selectedPackage && (
+      <div className="space-y-2 pt-1">
+        <Button
+          type="button"
+          variant="primary"
+          size="lg"
+          fullWidth
+          onClick={() => onAddToCart(handleBuildCartItem(selectedPackage))}
+          leadingIcon={<Icon name="shopping_cart" size={20} />}
+        >
+          Thêm vào giỏ &amp; đặt hàng
+        </Button>
+
+        <button
+          type="button"
+          onClick={() => onDirectOrder(handleBuildCartItem(selectedPackage))}
+          className="w-full h-12 bg-surface hover:bg-surface-muted text-fg font-semibold text-sm transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer border border-line-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <Icon name="precision_manufacturing" size={18} className="text-fg-muted" />
+          Đặt in ngay (chuyển đến thanh toán)
+        </button>
+
+        {onSaveQuote && (
+          <button
+            type="button"
+            onClick={handleSaveQuote}
+            disabled={saveQuoteState !== 'idle'}
+            aria-busy={saveQuoteState === 'saving'}
+            className="w-full h-10 bg-surface border border-line hover:bg-surface-muted text-fg font-medium text-sm transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <Icon name={saveQuoteState === 'saved' ? 'bookmark' : 'save'} size={18} className="text-primary" />
+            {saveQuoteState === 'saving'
+              ? 'Đang lưu báo giá…'
+              : saveQuoteState === 'saved'
+                ? 'Đã lưu báo giá'
+                : 'Lưu báo giá'}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setIsChatOpen(true)}
+          className="w-full h-10 bg-surface border border-line hover:bg-surface-muted text-fg font-medium text-sm transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <Icon name="support_agent" size={18} className="text-primary" />
+          Gửi yêu cầu hỗ trợ kỹ thuật
+        </button>
+      </div>
+      )}
+
       {/* F7 — khối lượng nhựa & thời gian in kèm NGUỒN (data-honesty PC-05/MP-13).
           Số nào đọc từ file slicer thì ghi "từ file"; số ước tính ghi rõ cách ước. */}
       <div className="rounded-lg border border-line-subtle bg-surface-muted p-3.5 space-y-2">
@@ -746,93 +836,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         </div>
       )}
 
-      {/* Final Total Summary Bar.
-          Đợt 9 (R1): giá gói là giá CHƯA gồm VAT (hợp đồng của `lib/vat.ts`), nên nhãn cũ
-          "Đã gồm VAT & Gói …" là một khẳng định SAI về thuế — đã bỏ. Nay in giá gói, DÒNG
-          VAT thật (cùng tỉ lệ với /cart → /checkout → hoá đơn) và tổng SAU VAT.
-          P0-1: không có gói giao hàng thật thì KHÔNG có tổng nào để in — ẩn thanh này thay vì
-          bịa số; nguyên nhân đã nêu ở khối "2. Báo Giá Chính Xác" ngay phía trên. */}
-      {selectedPackage && (
-      <div className="rounded-lg border border-line bg-surface p-4 space-y-2.5">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs uppercase font-mono tracking-wider text-fg-muted block">
-            Tổng giá trị đơn hàng ({quantity} cái):
-          </span>
-          <span className="text-xs text-fg-subtle font-mono shrink-0">Gói {selectedPackage.name}</span>
-        </div>
-        <div className="space-y-1 text-sm font-mono">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-fg-muted">Giá gói (chưa gồm VAT):</span>
-            <span className="tabular-nums text-right text-fg">{vnd(selectedPackage.totalPrice)}</span>
-          </div>
-          {vat ? (
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-fg-muted">{vatLabel(vat.rate)}:</span>
-              <span className="tabular-nums text-right text-fg">{vndAllowZero(vat.amount)}</span>
-            </div>
-          ) : (
-            <p className="text-xs text-fg-muted leading-relaxed font-sans">{vatNotConfiguredLabel()}</p>
-          )}
-          <div className="flex items-baseline justify-between gap-2 border-t border-line-subtle pt-2">
-            <span className="text-lg font-bold text-fg">Tổng phải trả:</span>
-            <span className="font-mono tabular-nums text-lg font-bold text-fg text-right">
-              {vnd(vat ? vat.total : selectedPackage.totalPrice)}
-            </span>
-          </div>
-        </div>
-      </div>
-      )}
-
-      {/* Action Buttons — chỉ hiện khi CÓ gói giao hàng thật (không bán một gói không tồn tại). */}
-      {selectedPackage && (
-      <div className="space-y-2 pt-1">
-        <Button
-          type="button"
-          variant="primary"
-          size="lg"
-          fullWidth
-          onClick={() => onAddToCart(handleBuildCartItem(selectedPackage))}
-          leadingIcon={<Icon name="shopping_cart" size={20} />}
-        >
-          Thêm vào giỏ &amp; đặt hàng
-        </Button>
-
-        <button
-          type="button"
-          onClick={() => onDirectOrder(handleBuildCartItem(selectedPackage))}
-          className="w-full h-12 bg-surface hover:bg-surface-muted text-fg font-semibold text-sm transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer border border-line-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Icon name="precision_manufacturing" size={18} className="text-fg-muted" />
-          Đặt in ngay (chuyển đến thanh toán)
-        </button>
-
-        {onSaveQuote && (
-          <button
-            type="button"
-            onClick={handleSaveQuote}
-            disabled={saveQuoteState !== 'idle'}
-            aria-busy={saveQuoteState === 'saving'}
-            className="w-full h-10 bg-surface border border-line hover:bg-surface-muted text-fg font-medium text-sm transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <Icon name={saveQuoteState === 'saved' ? 'bookmark' : 'save'} size={18} className="text-primary" />
-            {saveQuoteState === 'saving'
-              ? 'Đang lưu báo giá…'
-              : saveQuoteState === 'saved'
-                ? 'Đã lưu báo giá'
-                : 'Lưu báo giá'}
-          </button>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setIsChatOpen(true)}
-          className="w-full h-10 bg-surface border border-line hover:bg-surface-muted text-fg font-medium text-sm transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Icon name="support_agent" size={18} className="text-primary" />
-          Gửi yêu cầu hỗ trợ kỹ thuật
-        </button>
-      </div>
-      )}
+      {/* Tổng + Action Buttons đã chuyển lên ngay sau header (P0-C): không còn khối nào dưới đây. */}
 
       {/* Modals */}
       {canSeeInternalCost && (

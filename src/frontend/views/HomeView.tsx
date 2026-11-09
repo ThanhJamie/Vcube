@@ -7,6 +7,7 @@ import { CadQuickViewModal } from '../components/CadQuickViewModal';
 import { CustomIdeaRequestModal } from '../components/custom/CustomIdeaRequestModal';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
 import { ServiceShowcaseSection } from '../components/services/ServiceShowcaseSection';
+import { HomeCatalogEmpty, HomeCatalogFilterMiss, HomeCatalogUpdatingBadge } from '../components/home/HomeCatalogEmpty';
 import { SEOHead } from '../components/SEOHead';
 import { EMPTY_VALUE, formatNumber, formatPercent } from '@frontend/lib/format';
 import { realProductImageUrl } from '@frontend/lib/productImage';
@@ -267,6 +268,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
     [displayedProducts, catalogLimit],
   );
   const hasMoreProducts = displayedProducts.length > visibleProducts.length;
+
+  /**
+   * Kho RỖNG THẬT: đã nạp xong, không lỗi và server trả 0 sản phẩm.
+   * Khi đó KHÔNG được mời "Khám phá kho" (CTA/nhãn trỏ vào kho rỗng) — chỉ mời tải tệp để báo giá.
+   * Lúc đang nạp hoặc lỗi tải thì giữ nguyên hành vi cũ (loading skeleton / empty state lỗi).
+   */
+  const catalogEmpty = products.length === 0 && !productsLoading && !productsError;
   // Open Walled Garden: Seamless guest exploration without forced login redirects
   const handleProtectedAction = (action: () => void) => {
     action();
@@ -389,12 +397,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                 <Button size="lg" variant="secondary"
                   onClick={() => {
+                    // Kho rỗng thật ⇒ không mời "khám phá kho"; chuyển thẳng sang báo giá tệp.
+                    if (catalogEmpty) {
+                      onNavigate('quote');
+                      return;
+                    }
                     const el = document.getElementById('browse-cad-catalog');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  leadingIcon={<Icon name="view_in_ar" size={20} className="text-primary" />}
+                  leadingIcon={<Icon name={catalogEmpty ? 'upload_file' : 'view_in_ar'} size={20} className="text-primary" />}
                 >
-                  <span>{activeContent.heroCtaCatalogText || ('Khám Phá Kho Mẫu CAD')}</span>
+                  <span>
+                    {catalogEmpty
+                      ? 'Gửi tệp 3D để báo giá'
+                      : (activeContent.heroCtaCatalogText || ('Khám Phá Kho Mẫu CAD'))}
+                  </span>
                 </Button>
               </div>
 
@@ -643,11 +660,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Section Header with CAD Quality Value Props */}
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-line">
             <div>
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
                 <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted block">
                   KHO BẢN VẼ CAD CÔNG NGHIỆP VCUBE
                 </span>
+                {/* Kho rỗng thật ⇒ nói thẳng trạng thái, không để tiêu đề mời khám phá một kho trống. */}
+                {catalogEmpty && <HomeCatalogUpdatingBadge />}
               </div>
               <h2 className="fluid-h2 text-fg">
                 {'Khám Phá Kho Mẫu & Bản Vẽ CAD Kỹ Thuật'}
@@ -892,33 +911,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </Card>
           ) : displayedProducts.length === 0 ? (
             /* EMPTY — phân biệt KHO RỖNG THẬT với FILTER KHÔNG KHỚP (F9). */
-            <Card variant="soft" padding="none">
-              <EmptyState
-                bordered={false}
-                icon={<Icon name={products.length === 0 ? 'inventory_2' : 'search_off'} size={20} />}
-                title={products.length === 0
-                  ? ('Kho bản vẽ đang trống')
-                  : ('Không tìm thấy linh kiện CAD phù hợp')}
-                description={products.length === 0
-                  ? ('Chưa có bản vẽ CAD nào được đăng trên VCUBE.')
-                  : ('Bộ lọc hiện tại không khớp bản vẽ nào trong kho — thử xóa từ khóa hoặc đổi danh mục.')}
-                action={products.length === 0 ? (
-                  <Button size="sm" onClick={() => handleProtectedAction(() => onNavigate('tool_3d'))}>
-                    Tải tệp CAD của bạn
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="secondary"
-                    onClick={() => {
-                      setCadSearch('');
-                      setSelectedCategory('all');
-                      setSelectedTag('all');
-                    }}
-                  >
-                    Hiển thị tất cả bản vẽ
-                  </Button>
-                )}
+            products.length === 0 ? (
+              <HomeCatalogEmpty onNavigate={onNavigate} />
+            ) : (
+              <HomeCatalogFilterMiss
+                onResetFilters={() => {
+                  setCadSearch('');
+                  setSelectedCategory('all');
+                  setSelectedTag('all');
+                }}
               />
-            </Card>
+            )
           ) : catalogViewMode === 'grid' ? (
             /* GRID VIEW MODE */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
