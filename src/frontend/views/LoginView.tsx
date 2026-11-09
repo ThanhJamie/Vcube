@@ -242,7 +242,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
               Chưa có tài khoản VCUBE?{' '}
               <Link
                 to="/auth/register"
-                className="ml-1 inline-flex items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
+                className="ml-1 -my-3 inline-flex min-h-11 items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
               >
                 <span>Đăng Ký</span>
                 <Icon name="arrow_forward" size={16} />

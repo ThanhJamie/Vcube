@@ -461,7 +461,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
               Đã có tài khoản VCUBE?{' '}
               <Link
                 to="/auth/login"
-                className="ml-1 inline-flex items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
+                className="ml-1 -my-3 inline-flex min-h-11 items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
               >
                 <span>Đăng Nhập</span>
                 <Icon name="arrow_forward" size={16} />

@@ -218,6 +218,9 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
 
   const [selectedServiceId, setSelectedServiceId] = useState<string>('rapid_print');
   const [modalService, setModalService] = useState<ServiceItem | null>(null);
+  // Mobile (< md): dịch vụ đang mở trong accordion. Mặc định mở dịch vụ đầu để
+  // người dùng thấy ngay mô tả + CTA (không ẩn nội dung sau một cú bấm).
+  const [openServiceId, setOpenServiceId] = useState<string | null>('rapid_print');
 
   // Light-only token lookup cho màu vẽ trong Three.js (không dùng hex cứng).
   const colorOf = useMemo(() => (token: ColorTokenName) => readColorToken(token), []);
@@ -252,8 +255,8 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
   };
 
   return (
-    <section className="py-20 sm:py-24 bg-surface px-4 sm:px-6 md:px-12 border-b border-line">
-      <div className="max-w-7xl mx-auto space-y-12">
+    <section className="py-12 sm:py-24 bg-surface px-4 sm:px-6 md:px-12 border-b border-line">
+      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-12">
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-line">
           <div className="max-w-3xl space-y-2">
@@ -288,10 +291,101 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
         </div>
 
         {/* Dual Column Showcase: Interactive Cards Left + 3D Interactive Stage Right */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
           {/* Left: 4 Interactive Service Cards (7 cols) */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="lg:col-span-7 flex flex-col gap-4">
+            {/* Mobile (< md): accordion — mỗi dịch vụ 1 hàng tóm tắt, mở ra xem mô tả + CTA.
+                Giảm ~2/3 chiều cao danh sách card dọc mà không bỏ nội dung/CTA nào. */}
+            <div className="md:hidden">
+              <Card variant="soft" padding="none" className="overflow-hidden divide-y divide-line-subtle">
+                {SERVICES.map((service, idx) => {
+                  const isOpen = service.id === openServiceId;
+                  const isSelected = service.id === selectedServiceId;
+                  const panelId = `service-accordion-panel-${service.id}`;
+                  const triggerId = `service-accordion-trigger-${service.id}`;
+                  return (
+                    <div key={service.id}>
+                      <h3 className="m-0">
+                        <button
+                          type="button"
+                          id={triggerId}
+                          aria-expanded={isOpen}
+                          aria-controls={panelId}
+                          onClick={() => {
+                            handleSelectService(service);
+                            setOpenServiceId(isOpen ? null : service.id);
+                          }}
+                          className={`flex w-full min-h-14 items-center gap-3 px-4 py-3 text-left cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            isSelected ? 'bg-primary-tint' : 'hover:bg-surface-muted'
+                          }`}
+                        >
+                          <span className="font-mono text-xs font-bold text-fg-muted px-2 py-0.5 rounded-sm bg-surface-muted tabular-nums shrink-0">
+                            0{idx + 1}
+                          </span>
+                          <span
+                            className={`grid size-9 shrink-0 place-items-center rounded-md ${
+                              isSelected ? 'bg-primary text-primary-fg' : `${SERVICE_TILE[idx % SERVICE_TILE.length]} text-fg`
+                            }`}
+                          >
+                            <Icon name={service.iconName} size={18} aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-mono text-xs uppercase tracking-wider text-fg-muted font-bold">
+                              {service.badgeVi}
+                            </span>
+                            <span className="block text-sm font-bold text-fg leading-snug">
+                              {service.nameVi}
+                            </span>
+                          </span>
+                          <Icon
+                            name={isOpen ? 'expand_less' : 'expand_more'}
+                            size={18}
+                            className="text-fg-muted shrink-0"
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </h3>
+
+                      <div
+                        id={panelId}
+                        role="region"
+                        aria-labelledby={triggerId}
+                        hidden={!isOpen}
+                        className="px-4 pb-4 space-y-3"
+                      >
+                        <p className="text-xs text-fg-muted leading-relaxed">{service.shortDescVi}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectService(service);
+                              setModalService(service);
+                            }}
+                            className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-fg hover:text-primary hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                          >
+                            <Icon name="info" size={14} aria-hidden="true" />
+                            <span>Chi tiết dịch vụ</span>
+                          </button>
+                          <Button
+                            size="sm"
+                            variant={isSelected ? 'primary' : 'secondary'}
+                            onClick={() => {
+                              handleSelectService(service);
+                              handleExecuteAction(service.actionType);
+                            }}
+                            leadingIcon={<Icon name="arrow_forward" size={14} />}
+                          >
+                            <span>Bắt đầu</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </Card>
+            </div>
+
+            <div className="hidden md:grid sm:grid-cols-2 gap-4">
               {SERVICES.map((service, idx) => {
                 const isSelected = service.id === selectedServiceId;
                 return (
@@ -423,7 +517,8 @@ export const ServiceShowcaseSection: React.FC<ServiceShowcaseSectionProps> = ({
               </div>
 
               {/* 3D Canvas Viewport */}
-              <div className="relative bg-surface-inverse aspect-4/3 sm:aspect-square md:aspect-4/3 w-full">
+              {/* Mobile: khung 16:9 để section gọn hơn; từ sm trở lên giữ tỉ lệ cũ. */}
+              <div className="relative bg-surface-inverse aspect-16/9 sm:aspect-square md:aspect-4/3 w-full">
                 <ThreeModelViewer
                   modelType={activeService.modelType}
                   color={colorOf(viewerColorToken)}

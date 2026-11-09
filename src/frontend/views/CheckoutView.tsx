@@ -480,7 +480,10 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   // thanh toán rồi tạo đơn 0đ trong DB.
   if (cart.length === 0) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-16 text-fg sm:px-6 sm:py-24">
+      /* P1-D: trừ đúng chiều cao header storefront (`h-20` = 80px, xem `Header.tsx`) khỏi
+         `100dvh` — trước đây dùng `min-h-dvh` nên card bị đẩy xuống, chừa ~300px trống
+         phía trên ở 390. Cùng công thức với `LoginView`/`RegisterView` (`calc(100dvh-80px)`). */
+      <div className="flex min-h-[calc(100dvh-80px)] items-center justify-center bg-canvas px-4 py-10 text-fg sm:px-6 sm:py-16">
         {/* A11Y-01: h1 cấp trang DUY NHẤT (sr-only — giữ nguyên layout/density của trang).
             Trước đây /checkout là view duy nhất không có heading cấp 1 (outline bắt đầu ở h2). */}
         <h1 className="sr-only">Thanh Toán</h1>

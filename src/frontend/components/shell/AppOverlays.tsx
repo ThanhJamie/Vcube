@@ -67,6 +67,10 @@ export function AppOverlays({
     siteContent.contactEmail ? `Email: ${siteContent.contactEmail === 'mau@example.com' ? 'contact@vcube.vn' : siteContent.contactEmail}` : '',
   ].filter(Boolean).join(' • ');
 
+  // P1-B: footer link đạt vùng chạm ≥44px ở mobile (640px đổ xuống); desktop giữ nhịp cũ
+  // (min-h/w-full chỉ bật ở mobile, từ `sm` trả về kích thước nội dung như trước).
+  const footerLinkClass = 'inline-flex min-h-11 w-full items-center text-left transition-colors hover:text-on-inverse cursor-pointer sm:min-h-0 sm:w-auto';
+
   return (
     <>
       {/*
@@ -230,22 +234,22 @@ export function AppOverlays({
                 </p>
                 <ul className="space-y-2 text-on-inverse/70">
                   <li>
-                    <button onClick={() => handleNavigate('explore')} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
+                    <button onClick={() => handleNavigate('explore')} className={footerLinkClass}>
                       {t('footerMarketplace', 'Sàn linh kiện 3D')}
                     </button>
                   </li>
                   <li>
-                    <button onClick={() => handleNavigate('quote')} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
+                    <button onClick={() => handleNavigate('quote')} className={footerLinkClass}>
                       {t('footerInstantQuote', 'Báo giá in 3D trực tuyến')}
                     </button>
                   </li>
                   <li>
-                    <button onClick={() => handleNavigate('cart')} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
+                    <button onClick={() => handleNavigate('cart')} className={footerLinkClass}>
                       {t('cartTitle', 'Giỏ hàng của bạn')}
                     </button>
                   </li>
                   <li>
-                    <button onClick={() => handleNavigate('orders')} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
+                    <button onClick={() => handleNavigate('orders')} className={footerLinkClass}>
                       {t('myOrdersTracking', 'Theo dõi đơn hàng thời gian thực')}
                     </button>
                   </li>
@@ -260,22 +264,22 @@ export function AppOverlays({
                   </p>
                   <ul className="space-y-2 text-on-inverse/70">
                     <li>
-                      <button onClick={() => handleNavigate('admin')} className="hover:text-on-inverse transition-colors text-left font-bold text-accent cursor-pointer">
+                      <button onClick={() => handleNavigate('admin')} className={`${footerLinkClass} font-bold text-accent`}>
                         Bảng điều khiển quản trị
                       </button>
                     </li>
                     <li>
-                      <button onClick={() => handleNavigate('admin', { section: 'products' })} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
+                      <button onClick={() => handleNavigate('admin', { section: 'products' })} className={footerLinkClass}>
                         {'Quản lý sản phẩm & giá'}
                       </button>
                     </li>
                     <li>
-                      <button onClick={() => handleNavigate('admin', { section: 'queue' })} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
+                      <button onClick={() => handleNavigate('admin', { section: 'queue' })} className={footerLinkClass}>
                         {'Hàng đợi & tiến độ gia công'}
                       </button>
                     </li>
                     <li>
-                      <button onClick={() => handleNavigate('admin', { section: 'storefront' })} className="hover:text-on-inverse transition-colors text-left cursor-pointer">
+                      <button onClick={() => handleNavigate('admin', { section: 'storefront' })} className={footerLinkClass}>
                         {'Cấu hình phí ship & thông báo'}
                       </button>
                     </li>

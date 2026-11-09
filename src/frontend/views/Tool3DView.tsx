@@ -197,7 +197,6 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
     try {
       const parsed = await parse3DFile(file);
-      const fileSizeMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
 
       // P4: diem kha nang in suy tu so do that cua tep (khong dung hang so 94/76).
       // R4: `printabilityScore === null` = khong co phep do nao ⇒ muc do cung khong duoc suy ra.
@@ -227,7 +226,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
       const newFile: AnalysisFile = {
         id: `ana-${Date.now()}`,
         fileName: file.name,
-        fileSize: fileSizeMb,
+        fileSize: formatFileSize(file.size),
         format: format,
         uploadDate: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         dimensions: parsed.dimensions,

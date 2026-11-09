@@ -103,29 +103,31 @@ export const CartView: React.FC<CartViewProps> = ({
           className="w-full max-w-md bg-surface"
           icon={<Icon name="shopping_cart" size={22} />}
           title="Giỏ hàng của bạn đang trống"
-          description={
-            <>
-              Chưa có bản vẽ kỹ thuật CAD hoặc linh kiện in 3D nào được chọn. Hãy khám phá kho thư viện cơ khí tuyển chọn của VCUBE.
-              <span className="mt-2 block">
-                <button
-                  type="button"
-                  onClick={() => onNavigate('tool_3d')}
-                  className="cursor-pointer rounded-sm text-sm font-medium text-fg underline underline-offset-4 transition-colors duration-200 hover:text-fg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Báo Giá Mesh STL
-                </button>
-              </span>
-            </>
-          }
+          description="Chưa có bản vẽ kỹ thuật CAD hoặc linh kiện in 3D nào được chọn. Hãy khám phá kho thư viện cơ khí tuyển chọn của VCUBE."
           action={
-            <Button
-              variant="primary"
-              size="lg"
-              leadingIcon={<Icon name="explore" size={18} />}
-              onClick={() => onNavigate('explore')}
-            >
-              Khám Phá Bản Vẽ CAD
-            </Button>
+            // 2 intent tách bạch: khám phá kho (primary) và gửi tệp để báo giá (secondary).
+            // Xếp dọc vì 2 nhãn tiếng Việt không vừa một hàng trong card `max-w-md`;
+            // dọc ở mọi bề rộng vẫn giữ vùng chạm ≥44px (size="lg" = 48px).
+            <div className="flex w-full flex-col gap-2">
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                leadingIcon={<Icon name="explore" size={18} />}
+                onClick={() => onNavigate('explore')}
+              >
+                Khám Phá Bản Vẽ CAD
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                fullWidth
+                leadingIcon={<Icon name="upload_file" size={18} />}
+                onClick={() => onNavigate('quote')}
+              >
+                Gửi tệp 3D để báo giá
+              </Button>
+            </div>
           }
         />
       </div>

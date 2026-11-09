@@ -667,7 +667,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             <div className="relative">
               <input
                 type="text"
-                placeholder="Tìm linh kiện CAD (vd: Bánh răng, ESP32, Drone)..."
+                placeholder="Tìm bản vẽ CAD…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 aria-label="Tìm kiếm bản vẽ CAD"
