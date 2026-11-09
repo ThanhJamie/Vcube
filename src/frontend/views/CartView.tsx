@@ -3,6 +3,7 @@ import { CartItem, VatLine } from '../../types';
 import { useCartStore } from '@frontend/stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
+import { safeImageUrl } from '../lib/productImage';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
 import { Button, Card, EmptyState, Icon, Input, Money } from '@frontend/ui';
 
@@ -215,11 +216,20 @@ export const CartView: React.FC<CartViewProps> = ({
                   {digitalItems.map((item) => (
                     <div key={item.id} className="flex flex-col gap-4 rounded-lg border border-line-subtle bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-14 w-14 shrink-0 rounded-md border border-line-subtle bg-surface-muted object-cover"
-                        />
+                        {safeImageUrl(item.image) ? (
+                          <img
+                            src={safeImageUrl(item.image)}
+                            alt={item.name}
+                            className="h-14 w-14 shrink-0 rounded-md border border-line-subtle bg-surface-muted object-cover"
+                          />
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-line-subtle bg-surface-muted text-fg-subtle"
+                          >
+                            <Icon name="photo_library" size={20} />
+                          </span>
+                        )}
                         <div className="space-y-1">
                           <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
                             {item.designer}
@@ -274,11 +284,20 @@ export const CartView: React.FC<CartViewProps> = ({
                   {physicalItems.map((item) => (
                     <div key={item.id} className="flex flex-col gap-4 rounded-lg border border-line-subtle bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-start gap-3 sm:items-center">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-16 w-16 shrink-0 rounded-md border border-line-subtle bg-surface-muted object-cover"
-                        />
+                        {safeImageUrl(item.image) ? (
+                          <img
+                            src={safeImageUrl(item.image)}
+                            alt={item.name}
+                            className="h-16 w-16 shrink-0 rounded-md border border-line-subtle bg-surface-muted object-cover"
+                          />
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-line-subtle bg-surface-muted text-fg-subtle"
+                          >
+                            <Icon name="photo_library" size={20} />
+                          </span>
+                        )}
                         <div className="space-y-1">
                           <span className="block text-xs font-semibold uppercase tracking-wider text-fg-muted">
                             {item.designer}

@@ -487,7 +487,7 @@ export const PersonalizeModelViewer3D: React.FC<PersonalizeModelViewer3DProps> =
     renderer.setSize(width, height, true);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     rendererRef.current = renderer;
 
     renderer.domElement.style.display = 'block';

@@ -13,11 +13,13 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { CartItem, SiteContentConfig } from '@/types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserAvatarMenu } from './auth/UserAvatarMenu';
+import { NotificationBell } from './NotificationBell';
+import type { OrderNotification } from '@frontend/hooks/useOrdersData';
 import { Button, Icon, useBodyScrollLock } from '@frontend/ui';
 
 interface HeaderProps {
@@ -28,6 +30,10 @@ interface HeaderProps {
   onOpenSearch?: () => void;
   onOpenAuth?: (mode?: 'signin' | 'signup' | 'account') => void;
   onOpenCartDrawer?: () => void;
+  /** Cập nhật trạng thái đơn CÓ THẬT từ `useOrdersData` (realtime), RAM-only. */
+  notifications?: OrderNotification[];
+  unreadCount?: number;
+  onMarkNotificationsRead?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -37,8 +43,12 @@ export const Header: React.FC<HeaderProps> = ({
   siteContent,
   onOpenAuth,
   onOpenCartDrawer,
+  notifications = [],
+  unreadCount = 0,
+  onMarkNotificationsRead,
 }) => {
   const { user, profile, role, isLoggedIn, logout } = useAuth();
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickSearchQuery, setQuickSearchQuery] = useState('');
@@ -257,6 +267,20 @@ export const Header: React.FC<HeaderProps> = ({
               </form>
             </div>
 
+            {/* Chuông thông báo đơn — chỉ khi đã đăng nhập; desktop/tablet (>= lg).
+                Dưới `lg` chuông nằm trong drawer (xem khối đăng nhập bên dưới) để
+                không làm tràn thanh header ở 390px. */}
+            {isLoggedIn && onMarkNotificationsRead && (
+              <div className="hidden lg:block">
+                <NotificationBell
+                  notifications={notifications}
+                  unreadCount={unreadCount}
+                  onMarkRead={onMarkNotificationsRead}
+                  onNavigate={handleNavClick}
+                />
+              </div>
+            )}
+
             <Button
               variant="ghost"
               iconOnly
@@ -430,11 +454,28 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   </div>
 
+                  {/* Chuông thông báo cho < lg — đặt trong drawer để header 390px không tràn.
+                      Đóng drawer trước khi điều hướng để không còn lớp panel nào mở. */}
+                  {onMarkNotificationsRead && (
+                    <div className="flex items-center justify-between rounded-lg border border-line-subtle bg-surface-muted px-3 py-2">
+                      <span className="text-sm font-medium text-fg">Thông báo</span>
+                      <NotificationBell
+                        notifications={notifications}
+                        unreadCount={unreadCount}
+                        onMarkRead={onMarkNotificationsRead}
+                        onNavigate={(screen, payload) => {
+                          setMobileMenuOpen(false);
+                          onNavigate(screen, payload);
+                        }}
+                      />
+                    </div>
+                  )}
+
                   <Button
                     fullWidth
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      if (onOpenAuth) onOpenAuth('account');
+                      navigate('/account');
                     }}
                   >
                     {t('switchAccount', 'Tài Khoản & Thông Tin')}

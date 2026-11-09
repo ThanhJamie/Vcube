@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnalysisFile, MaterialProfile, PrinterProfile, CartItem, DeliveryPackageOption, MachineComparisonItem, InkiriCostFormulaConfig } from '@/types';
 import { MATERIALS_CATALOG, PRINTER_PROFILES } from '@/data/mockData';
@@ -26,6 +26,17 @@ const perGramText = (v: number | null | undefined): string =>
 
 /** Số hữu hạn hay không — NULL/NaN ⇒ KHÔNG có giá trị (không đoán hộ). */
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/**
+ * Giá đã chốt của gói khách đang chọn, do panel truyền lên khi bấm "Lưu báo giá".
+ * Không suy lại ở view cha: gói (và giá) do chính panel tính từ cùng state đang hiển thị.
+ */
+export interface QuoteSaveDraft {
+  unitPrice: number;
+  totalPrice: number;
+  packageTier: string;
+  packageName: string;
+}
 
 /** Ảnh trong suốt 1×1 — ô trống trung tính cho tệp tự tải chưa có thumbnail thật. */
 const TRANSPARENT_THUMBNAIL =
@@ -115,6 +126,11 @@ interface QuoteSummaryPanelProps {
   onAddToCart: (item: CartItem) => void;
   onDirectOrder: (item: CartItem) => void;
   onShowToast: (msg: string) => void;
+  /**
+   * Lưu báo giá đã chốt vào tài khoản. Không truyền ⇒ không hiện nút (panel vẫn dùng được
+   * ở nơi chưa có phiên đăng nhập). Promise reject ⇒ panel trở về trạng thái bấm lại được.
+   */
+  onSaveQuote?: (draft: QuoteSaveDraft) => Promise<void> | void;
 }
 
 export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
@@ -139,12 +155,16 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   onQuantityChange,
   onAddToCart,
   onDirectOrder,
-  onShowToast
+  onShowToast,
+  onSaveQuote
 }) => {
   const [selectedPackageTier, setSelectedPackageTier] = useState<'economy' | 'standard' | 'express'>('standard');
   const [isInternalModalOpen, setIsInternalModalOpen] = useState(false);
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
   const [customOverriddenPrice, setCustomOverriddenPrice] = useState<number | null>(null);
+  // Lưu báo giá: idle → saving → saved. Đổi bất kỳ thông số nào cũng đưa về idle để nhãn
+  // "Đã lưu" không nói dối về một cấu hình KHÁC với bản đã lưu.
+  const [saveQuoteState, setSaveQuoteState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const setIsChatOpen = useUIStore((s) => s.setIsChatOpen);
   // A4 (data-honesty): KHÔNG mô phỏng gửi thẩm định rồi báo "đã gửi". Nút chỉ mở ghi chú
   // trung thực rằng hệ thống chưa có kênh gửi hồ sơ tự động (cùng pattern `Tool3DView.tsx`).
@@ -162,6 +182,23 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   // khi cache cấu hình nạp xong (`bootstrapSettings()` ở main.tsx không `await`).
   const { data: pricingGlobal } = usePricingGlobalSettings();
   const vatRate = vatRateFromPercent(pricingGlobal?.vatPercent);
+
+  // Mọi thay đổi cấu hình báo giá đều làm mất hiệu lực nhãn "Đã lưu" (bản đã lưu ứng với
+  // cấu hình CŨ). Hook nằm trước early return bên dưới.
+  useEffect(() => {
+    setSaveQuoteState('idle');
+  }, [
+    file.id,
+    transformedVolume,
+    selectedPrinterId,
+    selectedMaterialId,
+    infillDensity,
+    infillPattern,
+    layerHeight,
+    supportsMode,
+    quantity,
+    selectedPackageTier
+  ]);
 
   // A11 GUARD: nguồn thật của máy in/vật liệu là bảng DB (`materials`, `printer_fleet`);
   // fixture `MATERIALS_CATALOG` / `PRINTER_PROFILES` đã rỗng hoá ⇒ `printers[0]` là `undefined`
@@ -261,6 +298,24 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
     packageOptions.length > 0
       ? packageOptions.find(p => p.tier === selectedPackageTier) || packageOptions[1] || packageOptions[0]
       : null;
+
+  /** Lưu gói khách đang chọn — giá lấy từ chính gói đang hiển thị, không tính lại ở cha. */
+  const handleSaveQuote = async () => {
+    if (!onSaveQuote || !selectedPackage || saveQuoteState !== 'idle') return;
+    setSaveQuoteState('saving');
+    try {
+      await onSaveQuote({
+        unitPrice: selectedPackage.pricePerUnit,
+        totalPrice: selectedPackage.totalPrice,
+        packageTier: selectedPackage.tier,
+        packageName: selectedPackage.name,
+      });
+      setSaveQuoteState('saved');
+    } catch {
+      // Nguyên nhân thật do view cha báo qua toast; ở đây chỉ mở lại nút để thử lại.
+      setSaveQuoteState('idle');
+    }
+  };
 
   // Dòng VAT của báo giá: CÙNG `computeVat` + CÙNG tỉ lệ với /cart, /checkout và hoá đơn.
   // `selectedPackage.totalPrice` là giá CHƯA gồm VAT (`lib/vat.ts`) nên đây là tiền chịu thuế.
@@ -750,6 +805,23 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           <Icon name="precision_manufacturing" size={18} className="text-fg-muted" />
           Đặt in ngay (chuyển đến thanh toán)
         </button>
+
+        {onSaveQuote && (
+          <button
+            type="button"
+            onClick={handleSaveQuote}
+            disabled={saveQuoteState !== 'idle'}
+            aria-busy={saveQuoteState === 'saving'}
+            className="w-full h-10 bg-surface border border-line hover:bg-surface-muted text-fg font-medium text-sm transition-colors flex items-center justify-center gap-2 rounded-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <Icon name={saveQuoteState === 'saved' ? 'bookmark' : 'save'} size={18} className="text-primary" />
+            {saveQuoteState === 'saving'
+              ? 'Đang lưu báo giá…'
+              : saveQuoteState === 'saved'
+                ? 'Đã lưu báo giá'
+                : 'Lưu báo giá'}
+          </button>
+        )}
 
         <button
           type="button"

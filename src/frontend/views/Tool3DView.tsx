@@ -4,12 +4,16 @@ import * as THREE from 'three';
 import { AnalysisFile, CartItem, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, PrintabilityAnalysis, InkiriCostFormulaConfig, SlicerPresetInfo } from '@/types';
 import { SAMPLE_ANALYSIS_FILES, PRINTER_PROFILES, MATERIALS_CATALOG } from '@/data/mockData';
 import { ModelViewer3D } from '../components/tool3d/ModelViewer3D';
+import { SEOHead } from '../components/SEOHead';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { StlVs3mfComparisonModal } from '../components/tool3d/StlVs3mfComparisonModal';
 import { StlUnitConfirmModal } from '../components/tool3d/StlUnitConfirmModal';
 import { ObjectTreePanel } from '../components/tool3d/ObjectTreePanel';
 import { PresetPalettePanel } from '../components/tool3d/PresetPalettePanel';
 import { QuoteSummaryPanel } from '../components/tool3d/QuoteSummaryPanel';
+import type { QuoteSaveDraft } from '../components/tool3d/QuoteSummaryPanel';
+import { useAuth } from '../context/AuthContext';
+import { dbService } from '@backend/supabase/database';
 import { parse3DFile, autoRepairGeometry, analyzeMeshDefects } from '../../utils/meshParser';
 import { Button, Icon, PanelErrorBoundary } from '@frontend/ui';
 import { formatNumber } from '../lib/format';
@@ -57,6 +61,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 }) => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const { isLoggedIn } = useAuth();
+  // Chặn double-click: một lần bấm chỉ ghi MỘT hàng `quotes` (id mới mỗi lần).
+  const savingQuoteRef = useRef(false);
 
   // A11 GUARD: fixture mẫu đã bị rỗng hoá (`SAMPLE_ANALYSIS_FILES = []` — bỏ mock khỏi
   // production) nên `SAMPLE_ANALYSIS_FILES[0]` là `undefined` ⇒ TypeError ngay khi mount
@@ -392,6 +399,56 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   };
   const transformedVolume = selectedFile.volume * Math.pow(scaleMultiplier, 3);
 
+  /**
+   * Lưu báo giá của gói khách đang chọn vào tài khoản (`quotes`).
+   * - Chưa đăng nhập ⇒ chỉ nhắc đăng nhập, KHÔNG ghi gì.
+   * - Payload chỉ chứa trường ĐANG BIẾT từ state; trường không xác định ⇒ null, không bịa.
+   * - `unit_price` / `total_price` do QuoteSummaryPanel truyền lên từ gói đang hiển thị
+   *   (panel là nơi duy nhất tính giá), tránh tính lại lệch với con số khách đang thấy.
+   */
+  const handleSaveQuote = async (draft: QuoteSaveDraft) => {
+    if (savingQuoteRef.current) return;
+    if (!isLoggedIn) {
+      onShowToast('Đăng nhập để lưu báo giá');
+      // Ném để panel KHÔNG chuyển sang nhãn "Đã lưu" khi thực tế chưa ghi gì.
+      throw new Error('Cần đăng nhập để lưu báo giá.');
+    }
+
+    savingQuoteRef.current = true;
+    try {
+      const layerHeightMm = Number.parseFloat(layerHeight);
+      await dbService.saveQuote({
+        id: crypto.randomUUID(),
+        file_name: selectedFile.fileName,
+        material_id: selectedMaterialId || currentMaterial?.id || null,
+        printer_id: selectedPrinterId || currentPrinter?.id || null,
+        volume_cm3: Number.isFinite(transformedVolume) ? transformedVolume : null,
+        infill_percent: Number.isFinite(infillDensity) ? infillDensity : null,
+        layer_height_mm: Number.isFinite(layerHeightMm) ? layerHeightMm : null,
+        quantity,
+        unit_price: Number.isFinite(draft.unitPrice) ? draft.unitPrice : null,
+        total_price: Number.isFinite(draft.totalPrice) ? draft.totalPrice : null,
+        currency: 'VND',
+        payload: {
+          infill_pattern: infillPattern,
+          supports_mode: supportsMode,
+          package_tier: draft.packageTier,
+          package_name: draft.packageName,
+          file_format: selectedFile.format,
+        },
+      });
+      onShowToast('Đã lưu báo giá vào tài khoản của bạn.');
+    } catch (err) {
+      onShowToast(
+        err instanceof Error ? `Không lưu được báo giá: ${err.message}` : 'Không lưu được báo giá.'
+      );
+      // Ném lại để panel mở khoá nút "Lưu báo giá" cho lần thử sau.
+      throw err;
+    } finally {
+      savingQuoteRef.current = false;
+    }
+  };
+
   // Check if model exceeds current printer build volume.
   // A11: chưa có máy in ⇒ không có khổ bàn để so ⇒ không bật banner "vượt khổ" (không đoán).
   // Q (#2): khổ bàn in nay có thể `null` ⇒ không so được thì KHÔNG bật banner "vượt khổ".
@@ -589,6 +646,10 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
   return (
     <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
+      <SEOHead
+        title="Báo giá in 3D & kiểm tra hình học CAD"
+        description="Tải STL/3MF/OBJ/STEP, đo thể tích, phát hiện lỗi lưới và nhận báo giá in 3D tức thì bằng tiếng Việt."
+      />
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         
         {/* Top Title & Benchmark Callout */}
@@ -927,6 +988,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 }}
                 onDirectOrder={handleDirectOrder}
                 onShowToast={onShowToast}
+                onSaveQuote={handleSaveQuote}
               />
             </PanelErrorBoundary>
           </div>

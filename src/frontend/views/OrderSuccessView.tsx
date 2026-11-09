@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Order } from '../../types';
 import { Icon, Button, Badge, Card } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency, formatDateTime } from '../lib/format';
+import { safeImageUrl } from '../lib/productImage';
 
 /**
  * `Order.date` đến từ HAI nguồn khác nhau:
@@ -232,11 +233,20 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
             {order.items.map((item) => (
               <div key={item.id} className="py-3.5 flex items-center justify-between text-xs font-mono">
                 <div className="flex items-center gap-3.5 truncate">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-12 h-12 rounded-md object-cover border border-line bg-surface-muted shrink-0"
-                  />
+                  {safeImageUrl(item.image) ? (
+                    <img
+                      src={safeImageUrl(item.image)}
+                      alt={item.name}
+                      className="w-12 h-12 rounded-md object-cover border border-line bg-surface-muted shrink-0"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="flex w-12 h-12 shrink-0 items-center justify-center rounded-md border border-line bg-surface-muted text-fg-subtle"
+                    >
+                      <Icon name="photo_library" size={18} />
+                    </span>
+                  )}
                   <div className="truncate">
                     <h3 className="font-bold text-xs text-fg truncate">{item.name}</h3>
                     <p className="text-xs text-fg-subtle">

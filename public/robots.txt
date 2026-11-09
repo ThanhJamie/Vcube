@@ -1,0 +1,14 @@
+# VCUBE — sinh bởi scripts/gen-seo-files.mjs
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /designer
+Disallow: /lab
+Disallow: /orders
+Disallow: /assets
+Disallow: /checkout
+Disallow: /cart
+Disallow: /tracking
+Disallow: /auth
+
+Sitemap: http://localhost:3000/sitemap.xml

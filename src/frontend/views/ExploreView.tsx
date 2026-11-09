@@ -6,6 +6,7 @@ import { SEOHead } from '../components/SEOHead';
 import { HorizontalScrollFilter } from '../components/HorizontalScrollFilter';
 import { useAuth } from '../context/AuthContext';
 import { useCartStore } from '@frontend/stores/useCartStore';
+import { useSearchParams } from 'react-router-dom';
 import { Icon, Badge, Button, Card, EmptyState, InfoTip, Sheet, Skeleton } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency, formatNumber } from '@frontend/lib/format';
 import { realProductImageUrl } from '@frontend/lib/productImage';
@@ -170,21 +171,45 @@ const FilterOption: React.FC<{
   </button>
 );
 
-/** Thẻ xương đúng layout thẻ thật (khung ảnh 4:3, tiêu đề, thông số, giá, CTA). */
+/**
+ * Thẻ xương đúng layout thẻ thật (khung ảnh 4:3, tiêu đề, thông số, giá, CTA).
+ *
+ * CLS: phần thân mô phỏng ĐÚNG 3 khối của thẻ thật (tiêu đề → thông số → giá/CTA) thay vì
+ * 4 thanh rời; nhờ vậy chiều cao thẻ lúc tải ≈ thẻ thật (đo: 475px vs 481px @1440,
+ * 518px vs 513px @390) và lưới không "nở" khi catalog về.
+ */
 const ProductCardSkeleton: React.FC = () => (
   <Card variant="soft" padding="none" className="flex flex-col overflow-hidden">
     <div className="aspect-[4/3] w-full overflow-hidden">
-      <Skeleton variant="rect" rounded="lg" height="100%" className="h-full w-full" />
+      <Skeleton variant="rect" rounded="lg" height="100%" className="block h-full w-full" />
     </div>
-    <div className="flex flex-col gap-2.5 p-4">
-      <Skeleton variant="text" width="70%" />
-      <Skeleton variant="text" width="45%" />
-      <Skeleton variant="text" lines={2} />
-      <div className="flex items-center justify-between gap-3 pt-1">
-        <Skeleton variant="text" width="6ch" />
-        <Skeleton variant="text" width="7ch" />
+    <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <Skeleton variant="text" width="90%" />
+          <Skeleton variant="text" width="55%" />
+        </div>
+        <Skeleton variant="text" width="4ch" className="shrink-0" />
       </div>
-      <Skeleton variant="rect" rounded="md" height="2.5rem" className="w-full" />
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+        <Skeleton variant="text" height="1rem" width="90%" />
+        <Skeleton variant="text" height="1rem" width="80%" />
+        <Skeleton variant="text" height="1rem" width="65%" className="col-span-2" />
+      </div>
+      <div className="mt-auto flex flex-col gap-2 border-t border-line-subtle pt-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-1">
+            <Skeleton variant="text" width="5ch" />
+            <Skeleton variant="text" height="1.25rem" width="8ch" />
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <Skeleton variant="text" width="4ch" />
+            <Skeleton variant="text" height="1.25rem" width="7ch" />
+          </div>
+        </div>
+        <Skeleton variant="text" height="1rem" width="70%" />
+        <Skeleton variant="rect" rounded="md" height="2.75rem" className="w-full" />
+      </div>
     </div>
   </Card>
 );
@@ -244,6 +269,43 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   useEffect(() => {
     if (initialTag) setSelectedTag(initialTag);
   }, [initialTag]);
+
+  /**
+   * URL ↔ bộ lọc chính (`category`, `search`, `tag`).
+   *
+   * Trước đây filter chỉ sống trong `useState`: back/forward mất lựa chọn và không thể
+   * chia sẻ link đã lọc (ExploreRoute đã ĐỌC query nhưng view không BAO GIỜ ghi).
+   * Chỉ 3 filter chính vào URL; material/price/sort để vòng sau (tránh URL quá dài).
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Đọc lại khi URL đổi (back/forward hoặc mở link chia sẻ).
+  useEffect(() => {
+    const nextCategory = searchParams.get('category') || 'all';
+    const nextSearch = searchParams.get('search') || '';
+    const nextTag = searchParams.get('tag') || 'all';
+    setSelectedCategory((prev) => (prev === nextCategory ? prev : nextCategory));
+    setSearchQuery((prev) => (prev === nextSearch ? prev : nextSearch));
+    setSelectedTag((prev) => (prev === nextTag ? prev : nextTag));
+  }, [searchParams]);
+
+  // Ghi lựa chọn hiện tại vào URL (replace ⇒ không nhồi history mỗi lần gõ tìm kiếm).
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (selectedCategory === 'all') next.delete('category');
+    else next.set('category', selectedCategory);
+    if (searchQuery.trim() === '') next.delete('search');
+    else next.set('search', searchQuery);
+    if (selectedTag === 'all') next.delete('tag');
+    else next.set('tag', selectedTag);
+
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+    // `searchParams` cố tình không nằm trong deps: đọc URL đã có effect riêng ở trên,
+    // thêm vào đây sẽ tạo vòng ghi-đọc vô ích mỗi lần params đổi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory, searchQuery, selectedTag, setSearchParams]);
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -484,6 +546,34 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
         </div>
       </FilterGroup>
 
+      {/* CLS: dải giá chỉ suy ra được từ `pricePhysical` của sản phẩm nên trước khi catalog
+          về, group thật chưa thể dựng. Giữ ĐÚNG khung của group đó (head min-h-11 + 2 hàng
+          preset + slider) để card lọc desktop không cao thêm ~236px khi dữ liệu tới.
+          Group "Vật Liệu Hỗ Trợ" không cần bản xương: nó thu gọn mặc định và tự render khi
+          `materials` có dữ liệu (cùng 57px ở cả hai trạng thái). */}
+      {isCatalogLoading && (
+        <FilterGroup title="Khoảng Giá In Vật Lý">
+          <div aria-hidden="true" className="grid grid-cols-2 gap-1.5 mb-3">
+            {PRICE_PRESETS.map((preset) => (
+              <Skeleton key={preset.id} variant="rect" rounded="full" height="2.75rem" />
+            ))}
+          </div>
+          <div aria-hidden="true" className="pt-1">
+            <div className="flex min-h-4 items-center justify-between gap-2 mb-1">
+              <Skeleton variant="text" width="7ch" />
+              <Skeleton variant="text" width="9ch" />
+            </div>
+            {/* input range THẬT (disabled + ẩn) chỉ để giữ đúng chiều cao của thanh trượt
+                thật — không vẽ thumb giả như một giá trị đã có. */}
+            <input type="range" disabled className="invisible w-full" />
+            <div className="flex min-h-4 items-center justify-between gap-2 mt-0.5">
+              <Skeleton variant="text" width="6ch" />
+              <Skeleton variant="text" width="6ch" />
+            </div>
+          </div>
+        </FilterGroup>
+      )}
+
       {priceRange && (
         <FilterGroup title="Khoảng Giá In Vật Lý">
           <div className="grid grid-cols-2 gap-1.5 mb-3">
@@ -601,7 +691,10 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                 {showError
                   ? ('Chưa tải được kho bản vẽ.')
                   : isCatalogLoading
-                    ? ('Đang tải kho bản vẽ…')
+                    /* CLS: câu này phải DÀI gần bằng câu đã tải ("… bản vẽ đang có — vật
+                       liệu hỗ trợ …"), nếu không đoạn mô tả + InfoTip sẽ xuống thêm dòng
+                       lúc dữ liệu về và đẩy cả trang xuống (đo được +45px @390). */
+                    ? ('Đang tải kho bản vẽ — vật liệu hỗ trợ, định dạng tệp và giá lấy từ dữ liệu sản phẩm.')
                     : catalogProducts.length > 0
                       ? (`${catalogProducts.length} bản vẽ đang có — vật liệu hỗ trợ, định dạng tệp và giá lấy từ dữ liệu sản phẩm.`)
                       : ('Kho bản vẽ đang trống.')}
@@ -662,35 +755,54 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
-            {CATEGORIES.filter((c) => c.id !== 'all').map((cat, index) => {
-              const active = selectedCategory === cat.id;
-              const count = categoryCounts[cat.id] || 0;
-              return (
-                <button
+          {isCatalogLoading ? (
+            /* CLS: giữ đúng lưới + chiều cao tile (min-h-[104px]) khi catalog đang tải để
+               hàng "Danh mục bản vẽ" không đổi kích thước lúc tile thật hiện ra. */
+            <div
+              aria-hidden="true"
+              className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6"
+            >
+              {CATEGORIES.filter((c) => c.id !== 'all').map((cat, index) => (
+                <div
                   key={cat.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setSelectedCategory(active ? 'all' : cat.id)}
-                  className={`group/tile flex min-h-[104px] flex-col justify-between gap-2 rounded-lg p-3 text-left transition-shadow duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none ${TILE_TONE[index % TILE_TONE.length]} ${
-                    active ? 'shadow-e2 ring-2 ring-primary' : 'shadow-soft hover:shadow-e2'
-                  }`}
+                  className={`flex min-h-[104px] flex-col justify-between gap-2 rounded-lg p-3 ${TILE_TONE[index % TILE_TONE.length]}`}
                 >
-                  <span className="flex items-start justify-between gap-2">
-                    <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-md bg-surface/70 text-fg">
-                      <Icon name={cat.icon} size={18} />
+                  <Skeleton variant="rect" rounded="md" height="2.25rem" className="w-9" />
+                  <Skeleton variant="text" width="80%" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+              {CATEGORIES.filter((c) => c.id !== 'all').map((cat, index) => {
+                const active = selectedCategory === cat.id;
+                const count = categoryCounts[cat.id] || 0;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setSelectedCategory(active ? 'all' : cat.id)}
+                    className={`group/tile flex min-h-[104px] flex-col justify-between gap-2 rounded-lg p-3 text-left transition-shadow duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none ${TILE_TONE[index % TILE_TONE.length]} ${
+                      active ? 'shadow-e2 ring-2 ring-primary' : 'shadow-soft hover:shadow-e2'
+                    }`}
+                  >
+                    <span className="flex items-start justify-between gap-2">
+                      <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-md bg-surface/70 text-fg">
+                        <Icon name={cat.icon} size={18} />
+                      </span>
+                      {count > 0 ? (
+                        <span className="font-mono text-xs tabular-nums text-fg-muted">{count}</span>
+                      ) : null}
                     </span>
-                    {count > 0 ? (
-                      <span className="font-mono text-xs tabular-nums text-fg-muted">{count}</span>
-                    ) : null}
-                  </span>
-                  <span className="text-xs font-semibold leading-snug text-fg">
-                    {cat.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    <span className="text-xs font-semibold leading-snug text-fg">
+                      {cat.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* Popular tag chips — chip là pill (§2.1: pill chỉ cho nav/search/chip) */}
@@ -947,11 +1059,13 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             )}
 
             {isCatalogLoading ? (
-              /* LOADING — skeleton đúng layout lưới thẻ */
+              /* LOADING — skeleton đúng layout lưới thẻ.
+                 CLS: sàn chiều cao (min-h-96 = 24rem) để vùng lưới không co lại về 0 trước
+                 khi thẻ đầu tiên được vẽ; 6 thẻ xương phủ 2 hàng đầu ở desktop. */
               <div
                 role="status"
                 aria-label="Đang tải kho bản vẽ"
-                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
+                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 min-h-96"
               >
                 {Array.from({ length: SKELETON_CARD_COUNT }).map((_, index) => (
                   <ProductCardSkeleton key={index} />

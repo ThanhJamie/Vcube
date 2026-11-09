@@ -33,6 +33,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   switchDemoRole: (role: UserRole) => Promise<void>;
   updateUserProfile: (updates: Partial<AppUserProfile>) => Promise<void>;
+  /** Đổi mật khẩu của phiên hiện tại. Ném lỗi thật để UI hiển thị. */
+  changePassword: (newPassword: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -389,14 +391,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  /**
+   * Cập nhật hồ sơ hiển thị (metadata Supabase Auth).
+   *
+   * Trước đây hàm này chỉ `console.warn` khi `supabase.auth.updateUser` lỗi trong khi vẫn
+   * giữ optimistic update ⇒ UI báo "Đã lưu" sai. Nay: ném lỗi ra call-site và **rollback**
+   * profile về ảnh chụp trước khi lưu để UI không hiển thị dữ liệu chưa được ghi.
+   */
   const updateUserProfile = async (updates: Partial<AppUserProfile>) => {
     if (!profile) return;
+    const previousProfile = profile;
     const updated = { ...profile, ...updates };
     setProfile(updated);
 
     if (user && isSupabaseConfigured) {
       try {
-        await supabase.auth.updateUser({
+        const { error } = await supabase.auth.updateUser({
           data: {
             display_name: updates.displayName || profile.displayName,
             ...(IS_DEV ? { role: updates.role || profile.role } : {}),
@@ -409,9 +419,58 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             bank_account: updates.bankAccount || profile.bankAccount,
           },
         });
+        if (error) {
+          throw new Error(
+            `Không lưu được thông tin hồ sơ${error.message ? `: ${error.message}` : '.'}`
+          );
+        }
       } catch (err) {
+        // Rollback: chỉ khôi phục trạng thái trước khi bấm lưu, rồi báo lỗi thật cho UI.
+        setProfile(previousProfile);
         console.warn('Supabase updateUser error:', err);
+        throw err instanceof Error
+          ? err
+          : new Error('Không lưu được thông tin hồ sơ. Vui lòng thử lại.');
       }
+    }
+  };
+
+  /**
+   * Đổi mật khẩu của người đang đăng nhập qua `supabase.auth.updateUser({ password })`.
+   *
+   * Lỗi được NÉM RA nguyên văn (kèm thông điệp VI cho các trường hợp hay gặp) để
+   * AccountView hiển thị inline. Supabase không cần mật khẩu cũ ở chế độ mặc định; nếu
+   * dự án bật "Secure password change" thì có thể trả `reauthentication_needed` — khi đó
+   * phải đăng xuất/đăng nhập lại rồi thử.
+   */
+  const changePassword = async (newPassword: string) => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Hệ thống xác thực chưa được cấu hình nên không đổi được mật khẩu.');
+    }
+    if (!user) {
+      throw new Error('Bạn cần đăng nhập để đổi mật khẩu.');
+    }
+    if (newPassword.length < 8) {
+      throw new Error('Mật khẩu mới phải có ít nhất 8 ký tự.');
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      const message = error.message || '';
+      if (/email not confirmed|confirm your email/i.test(message)) {
+        throw new Error(
+          'Tài khoản chưa xác nhận email. Vui lòng mở hộp thư, bấm liên kết xác nhận rồi thử đổi mật khẩu lại.'
+        );
+      }
+      if (/reauth|reauthentication|recent login|session.*expired/i.test(message)) {
+        throw new Error(
+          'Dự án yêu cầu xác thực lại trước khi đổi mật khẩu. Vui lòng đăng xuất, đăng nhập lại rồi thử lại.'
+        );
+      }
+      if (/same.*old password|should be different/i.test(message)) {
+        throw new Error('Mật khẩu mới phải khác mật khẩu hiện tại.');
+      }
+      throw new Error(`Không đổi được mật khẩu: ${message || 'lỗi không xác định từ Supabase.'}`);
     }
   };
 
@@ -470,6 +529,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signInWithGoogle,
         switchDemoRole,
         updateUserProfile,
+        changePassword,
         sendPasswordReset,
         logout,
       }}

@@ -8,11 +8,18 @@
     <!-- Favicon: trước đây KHÔNG có (0 thẻ rel="icon", không có public/)
          => tab trình duyệt hiện icon trống/404. public/favicon.svg là mark VCUBE (khối lập phương). -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- PWA: cài được trên mobile/desktop; icon hiện dùng SVG (maskable) — thêm PNG 192/512 khi có brand asset. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Open Graph mặc định: crawler/social đọc được trước khi React mount (SEOHead cập nhật sau). -->
+    <meta property="og:title" content="VCUBE — In 3D công nghiệp & CAD chính xác" />
+    <meta property="og:description" content="Marketplace in 3D và báo giá CAD chính xác: cơ khí, vỏ hộp IoT, khuôn mẫu kỹ thuật số." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="vi_VN" />
+    <meta name="twitter:card" content="summary" />
     <!-- App light-only: màu thanh trình duyệt trên mobile khớp token --color-canvas của light. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F8FAFC" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Fonts self-hosted: @font-face trong src/index.css trỏ tới /fonts/*.woff2.
+         Không dùng CDN font bên thứ ba (0 request ra ngoài cho typography). -->
   </head>
   <body class="bg-canvas text-fg font-sans antialiased selection:bg-primary selection:text-primary-fg">
     <div id="root"></div>

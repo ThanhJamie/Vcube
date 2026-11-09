@@ -58,6 +58,13 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      // Dev server chạy sau proxy của sandbox/AI Studio nên request tới mang hostname
+      // `3000-<id>.sbx.sandboxes-cloud.docker.com`. Vite 6 chặn host lạ (403 "Blocked request"),
+      // nên allowlist theo domain (dấu `.` đầu = mọi subdomain). Thêm host khác qua VITE_ALLOWED_HOSTS.
+      allowedHosts: (env.VITE_ALLOWED_HOSTS || '.sbx.sandboxes-cloud.docker.com')
+        .split(',')
+        .map((h) => h.trim())
+        .filter(Boolean),
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',

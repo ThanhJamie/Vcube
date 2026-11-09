@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { CartItem, Order, OrderPaymentStatus, SiteContentConfig } from '../../types';
@@ -6,10 +6,13 @@ import { useAuth } from '../context/AuthContext';
 import { useCartStore } from '@frontend/stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
+import { safeImageUrl } from '../lib/productImage';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
 import { Icon, Button, Card, EmptyState, Field, Input, Money, Select } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
-import { OrderService } from '../../backend/services/orderService';
+import { getOrderGateway } from '../../backend/services/orderGateway';
+import { finalizeOrderDelivery } from '../../backend/services/deliveryService';
+import { useUIStore } from '@frontend/stores/useUIStore';
 import { manualPaymentProvider } from '../../backend/integrations/paymentProvider';
 import type { PaymentInstructions } from '../../backend/integrations/paymentProvider';
 
@@ -44,6 +47,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   onNavigate
 }) => {
   const { user, profile, isLoggedIn } = useAuth();
+  const showToast = useUIStore((s) => s.showToast);
 
   // Q1 (Đợt 8C §0 / data-honesty PC-03): số tài khoản ngân hàng và tên pháp nhân trước
   // đây là HẰNG SỐ trong mã — khách nhìn thấy một số tài khoản BỊA ngay ở bước thanh toán
@@ -105,6 +109,12 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
    */
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [copiedPaymentField, setCopiedPaymentField] = useState<string | null>(null);
+  /**
+   * PR-3 — khoá idempotency của LẦN ĐẶT HÀNG hiện tại. Sinh một lần và GIỮ NGUYÊN
+   * qua các lần bấm lại sau lỗi: nếu RPC đã tạo đơn nhưng response bị mất, retry
+   * với cùng khoá sẽ nhận lại đơn cũ thay vì tạo đơn thứ hai.
+   */
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const physicalItems = cart.filter(i => i.type === 'physical');
   const digitalItems = cart.filter(i => i.type === 'digital');
@@ -137,6 +147,15 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
 
+    // PR-3: khoá idempotency ỔN ĐỊNH cho tới khi đơn được tạo thật. Sinh một lần;
+    // các lần bấm lại sau lỗi dùng lại đúng khoá này.
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `ord_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+    }
+
     // B2 — MỘT mốc thời gian, HAI biểu diễn, không bao giờ trộn:
     //   * `createdAtIso` (ISO-8601) là thứ DUY NHẤT được ghi vào cột `orders.date`
     //     (timestamptz). Trước đây chuỗi hiển thị bị ghi thẳng ⇒ Postgres `22008`.
@@ -167,7 +186,10 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       customerType: isLoggedIn ? 'registered' : 'guest',
       secureAccessToken: !isLoggedIn ? `sec_${Date.now()}_${Math.random().toString(36).substring(2, 10)}` : undefined,
       items: cart.map(item => ({
-        id: item.id,
+        // DELIVERY: `order_items.product_id` được dựng từ `items[].id` khi admin xác nhận tiền.
+        // Dòng SỐ phải mang id SẢN PHẨM thì RPC `finalize_digital_delivery` mới join được
+        // `digital_assets.product_id`; id giỏ hàng (`cart-…`) sẽ không bao giờ khớp.
+        id: item.type === 'digital' ? (item.productId || item.id) : item.id,
         name: item.name,
         designer: item.designer,
         type: item.type,
@@ -218,14 +240,42 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     };
 
     try {
-      // B1 — ĐƠN PHẢI XUỐNG DB TRƯỚC KHI BÁO THÀNH CÔNG. Đường ghi đi qua tầng service
-      // (`src/backend/services/orderService.ts` → `dbService.saveOrder`), KHÔNG gọi
-      // Supabase trong component. `user?.id` là `auth.uid()` thật để RLS
-      // `vcube_orders_owner_read` đọc lại được đơn của chính người đặt.
-      const savedOrder = await OrderService.createOrder(newOrder, {
+      // B1 — ĐƠN PHẢI XUỐNG DB TRƯỚC KHI BÁO THÀNH CÔNG. Đường ghi đi qua RANH GIỚI
+      // DUY NHẤT `orderGateway` (PR-3): flag `VITE_ATOMIC_ORDER=true` ⇒ RPC atomic
+      // `create_order_atomic`; mặc định ⇒ `OrderService.createOrder` (legacy).
+      // `user?.id` là `auth.uid()` thật để RLS `vcube_orders_owner_read` đọc lại được
+      // đơn của chính người đặt. RPC lỗi ⇒ ném lỗi thật, KHÔNG fallback âm thầm
+      // (fallback có thể tạo 2 đơn cho cùng một lần bấm).
+      const savedOrder = await getOrderGateway().createOrder(newOrder, {
         userId: user?.id,
         createdAtIso,
+        idempotencyKey: idempotencyKeyRef.current,
       });
+
+      // DIGITAL DELIVERY (#14) — best-effort, KHÔNG được làm hỏng luồng đặt hàng.
+      // Chỉ gọi khi giỏ có dòng file số. Đơn vừa tạo thường còn `awaiting_payment` ⇒ RPC trả
+      // 0 dòng (đúng trạng thái, không phải lỗi): tệp sẽ được cấp sau khi VCUBE xác nhận tiền.
+      // Lỗi RPC (ví dụ khách vãng lai chưa có quyền `42501`) ⇒ toast trung thực + log, đơn vẫn
+      // coi là đã tạo vì DB đã nhận.
+      if (digitalItems.length > 0) {
+        try {
+          const deliveredFiles = await finalizeOrderDelivery(savedOrder.id, savedOrder.secureAccessToken);
+          if (deliveredFiles.length > 0) {
+            showToast(`Đã cấp ${deliveredFiles.length} tệp CAD vào Thư viện tệp.`, 'success');
+          } else {
+            showToast(
+              'Đơn đã tạo. Tệp CAD sẽ xuất hiện trong Thư viện tệp sau khi VCUBE xác nhận thanh toán.',
+              'info'
+            );
+          }
+        } catch (deliveryErr) {
+          console.warn('[checkout] finalize_digital_delivery thất bại:', deliveryErr);
+          showToast(
+            'Đơn đã tạo, nhưng chưa cấp được tệp ngay — xem Thư viện tệp hoặc liên hệ hỗ trợ.',
+            'warning'
+          );
+        }
+      }
 
       // Chỉ bắn confetti SAU khi DB đã nhận đơn (trước đây bắn trước khi ghi ⇒ chúc mừng
       // nhầm khi tạo đơn thất bại). Tôn trọng `prefers-reduced-motion`.
@@ -873,11 +923,20 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
                 {cart.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 rounded-md border border-line-subtle p-2 text-xs">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="h-12 w-12 shrink-0 rounded-md border border-line-subtle bg-surface-muted object-cover"
-                    />
+                    {safeImageUrl(item.image) ? (
+                      <img
+                        src={safeImageUrl(item.image)}
+                        alt={item.name}
+                        className="h-12 w-12 shrink-0 rounded-md border border-line-subtle bg-surface-muted object-cover"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-line-subtle bg-surface-muted text-fg-subtle"
+                      >
+                        <Icon name="photo_library" size={18} />
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-fg">{item.name}</p>
                       <p className="text-xs text-fg-subtle">

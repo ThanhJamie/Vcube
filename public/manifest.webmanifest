@@ -1,0 +1,32 @@
+{
+  "name": "VCUBE — In 3D công nghiệp & CAD chính xác",
+  "short_name": "VCUBE",
+  "description": "Marketplace in 3D và báo giá CAD chính xác cho cơ khí, vỏ hộp IoT và khuôn mẫu.",
+  "lang": "vi",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F8FAFC",
+  "theme_color": "#F8FAFC",
+  "categories": [
+    "business",
+    "productivity",
+    "shopping"
+  ],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

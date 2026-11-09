@@ -7,15 +7,32 @@
  *   khi RLS cho phép); KHÔNG seed fixture.
  * - `assets` là bản ghi file số suy ra TỪ CHÍNH ĐƠN đã tạo (không bịa trường không có dữ liệu).
  * - `handleUpdateOrderStatus` cập nhật stage/status/progress và đồng bộ `activeOrder`.
+ * - Realtime `orders:me` chỉ MERGE các cột trạng thái vào đơn đã có trong RAM (không thay
+ *   nguyên object từ payload) và sinh `notifications` — state RAM của phiên, không localStorage.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { DigitalAsset, Order } from '@/types';
 import { dbService } from '@backend/supabase/database';
+import { isSupabaseConfigured } from '@backend/supabase/client';
+import { MY_ORDER_STATUS_LABELS } from '@backend/services/workshop/constants';
 import { useAuth } from '@frontend/context/AuthContext';
 import { useCartStore } from '@frontend/stores/useCartStore';
 import { EMPTY_VALUE } from '@frontend/lib/format';
+import { subscribeOrders } from '@frontend/lib/realtimeRegistry';
+
+/** Một cập nhật trạng thái đơn CÓ THẬT — chỉ sinh từ realtime `orders` UPDATE. */
+export interface OrderNotification {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  status: Order['status'];
+  /** Nhãn VI từ `MY_ORDER_STATUS_LABELS`; trạng thái lạ ⇒ giữ mã thô, không bịa nhãn. */
+  label: string;
+  /** ISO timestamp của lúc nhận được cập nhật. */
+  at: string;
+}
 
 export interface OrdersData {
   orders: Order[];
@@ -24,10 +41,23 @@ export interface OrdersData {
   setActiveOrder: Dispatch<SetStateAction<Order | null>>;
   handleOrderCompleted: (newOrder: Order) => void;
   handleUpdateOrderStatus: (orderId: string, newStageIndex: number, newStatus: Order['status'], progress?: number) => void;
+  notifications: OrderNotification[];
+  unreadCount: number;
+  markNotificationsRead: () => void;
 }
 
+/** Số cột số từ payload realtime (có thể là `null`, chuỗi số hoặc thiếu hẳn). */
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Số thông báo tối đa giữ trong RAM (chống phình khi đơn chạy qua nhiều trạng thái). */
+const MAX_NOTIFICATIONS = 20;
+
 export function useOrdersData(): OrdersData {
-  const { role } = useAuth();
+  const { role, isLoggedIn, user } = useAuth();
   const clearCartStore = useCartStore((s) => s.clearCart);
 
   // Đơn hàng KHÔNG được seed từ fixture: chỉ chứa đơn thật do người dùng tạo
@@ -35,24 +65,158 @@ export function useOrdersData(): OrdersData {
   const [orders, setOrders] = useState<Order[]>([]);
   const [assets, setAssets] = useState<DigitalAsset[]>([]);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  /** Thông báo trạng thái của phiên hiện tại — RAM-only, dọn khi đổi người dùng. */
+  const [notifications, setNotifications] = useState<OrderNotification[]>([]);
+  /** Id các thông báo đã đọc (`markNotificationsRead` ghi mốc "đã xem"). */
+  const [readIds, setReadIds] = useState<ReadonlySet<string>>(() => new Set());
 
   /**
-   * Admin cần thấy TOÀN BỘ đơn (RLS `vcube_orders_admin_all` cho phép) để Overview, badge
-   * sidebar và cảnh báo chờ thanh toán có số thật. Trước đây App không nạp `orders` từ DB nên
-   * các chỗ đó luôn rỗng.
+   * Refs đọc GIÁ TRỊ MỚI NHẤT trong callback realtime — handler đăng ký một lần, không
+   * được đóng băng state của lần render đầu tiên.
+   */
+  const ordersRef = useRef<Order[]>([]);
+  const notificationsRef = useRef<OrderNotification[]>([]);
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
+
+  /** Khoá người dùng cho realtime: null khi chưa đăng nhập (channel không được mở). */
+  const userId = isLoggedIn ? user?.id ?? null : null;
+
+  /**
+   * Nạp đơn cho MỌI người dùng đã đăng nhập (không chỉ admin).
+   *
+   * Trước đây effect chỉ chạy khi `role === 'admin'`, nên `/orders` của khách luôn rỗng —
+   * trang "nói sai" rằng khách chưa từng đặt đơn. RLS đã là cổng chặn thật:
+   * `vcube_orders_owner_read` chỉ trả đơn khớp `user_id`/`customer_email` của JWT, còn
+   * `vcube_orders_admin_all` cho admin thấy toàn bộ — nên KHÔNG truyền email/điều kiện
+   * từ client (tránh bỏ sót đơn có email khác lúc đặt).
    */
   useEffect(() => {
-    if (role !== 'admin') return;
+    if (!isLoggedIn) return;
     let alive = true;
     dbService.getOrders()
       .then((list) => {
         if (alive && Array.isArray(list)) setOrders(list);
       })
-      .catch((err) => console.warn('Could not load orders for admin:', err));
+      .catch((err) => console.warn('Could not load orders:', err));
     return () => {
       alive = false;
     };
-  }, [role]);
+  }, [isLoggedIn, role]);
+
+  /**
+   * Đổi người dùng / đăng xuất ⇒ thông báo của phiên trước phải biến mất: chúng chứa mã đơn
+   * thật của tài khoản cũ. Đây chỉ là state UI trong RAM, không đụng dữ liệu DB.
+   */
+  useEffect(() => {
+    setNotifications([]);
+    setReadIds(new Set());
+  }, [userId]);
+
+  /**
+   * Realtime `orders:me` — cập nhật trạng thái đơn của CHÍNH người dùng đang đăng nhập.
+   *
+   * Bảng `orders` đã nằm trong publication `supabase_realtime` (baseline §11) và RLS
+   * (`vcube_orders_owner_read` / `vcube_orders_admin_all`) quyết định dòng nào tới được
+   * client ⇒ client KHÔNG lọc theo email/vai trò ở đây.
+   *
+   * Kênh do `realtimeRegistry` sở hữu: nhiều consumer cùng nghe `orders:me` dùng chung
+   * MỘT channel, effect này chỉ đăng ký/gỡ handler của mình (tránh subscribe trùng khi
+   * hook mount nhiều lần / StrictMode / HMR).
+   *
+   * Payload chỉ dùng để MERGE các cột trạng thái vào đơn đã có trong RAM — KHÔNG thay
+   * nguyên object (payload realtime có thể thiếu cột hoặc kiểu khác mapper). Đơn chưa có
+   * trong RAM thì bỏ qua: không đủ dữ kiện (orderNumber/items…) để dựng một đơn đầy đủ.
+   */
+  useEffect(() => {
+    if (!userId) return;
+
+    return subscribeOrders((payload) => {
+      const row = payload.new;
+      if (!row || typeof row.id !== 'string') return;
+      const orderId = row.id;
+
+      const previous = ordersRef.current.find((o) => o.id === orderId);
+      if (!previous) return;
+
+      // Chỉ nhận cột CÓ trong payload; cột vắng mặt ⇒ giữ giá trị đang có.
+      const nextStatus =
+        typeof row.status === 'string' ? (row.status as Order['status']) : previous.status;
+      const patch: Partial<Order> = {
+        status: nextStatus,
+        statusStageIndex:
+          'status_stage_index' in row
+            ? toNumberOrNull(row.status_stage_index)
+            : previous.statusStageIndex,
+        layerProgress:
+          'layer_progress' in row ? toNumberOrNull(row.layer_progress) : previous.layerProgress,
+        timeRemaining:
+          'time_remaining' in row
+            ? row.time_remaining == null
+              ? null
+              : String(row.time_remaining)
+            : previous.timeRemaining,
+        assignedWorkshopId:
+          'assigned_workshop_id' in row
+            ? row.assigned_workshop_id == null
+              ? null
+              : String(row.assigned_workshop_id)
+            : previous.assignedWorkshopId,
+      };
+
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)));
+      setActiveOrder((prev) => (prev && prev.id === orderId ? { ...prev, ...patch } : prev));
+
+      // Thông báo CHỈ khi trạng thái THẬT SỰ đổi. Khoá dedupe `${orderId}:${status}`:
+      // cùng một đơn không báo lặp cùng một trạng thái (kể cả khi quay lại trạng thái cũ).
+      if (nextStatus !== previous.status) {
+        const id = `${orderId}:${nextStatus}`;
+        const at = new Date().toISOString();
+        setNotifications((prevList) => {
+          if (prevList.some((n) => n.id === id)) return prevList;
+          return [
+            {
+              id,
+              orderId,
+              orderNumber: previous.orderNumber,
+              status: nextStatus,
+              label: MY_ORDER_STATUS_LABELS[nextStatus] ?? nextStatus,
+              at,
+            },
+            ...prevList,
+          ].slice(0, MAX_NOTIFICATIONS);
+        });
+      }
+    });
+  }, [userId]);
+
+  /**
+   * Lưới an toàn khi realtime rớt (tab ngủ, mạng chập chờn): quay lại tab ⇒ đồng bộ lại
+   * danh sách đơn từ DB (RLS tự lọc). Chỉ chạy khi đã đăng nhập.
+   */
+  useEffect(() => {
+    if (!isLoggedIn || !isSupabaseConfigured) return;
+    let alive = true;
+
+    const syncWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      dbService.getOrders()
+        .then((list) => {
+          if (alive && Array.isArray(list)) setOrders(list);
+        })
+        .catch((err) => console.warn('Could not sync orders on focus:', err));
+    };
+
+    document.addEventListener('visibilitychange', syncWhenVisible);
+    return () => {
+      alive = false;
+      document.removeEventListener('visibilitychange', syncWhenVisible);
+    };
+  }, [isLoggedIn]);
 
   /**
    * Đơn VỪA TẠO (chỉ trên RAM) — thêm vào Thư viện file CAD đúng những gì ĐÃ BIẾT từ chính
@@ -123,6 +287,16 @@ export function useOrdersData(): OrdersData {
     );
   };
 
+  /**
+   * Đánh dấu đã đọc toàn bộ thông báo hiện có. Identity ổn định để không tạo lại prop mỗi
+   * lần render; đọc bản mới nhất qua ref.
+   */
+  const markNotificationsRead = useCallback(() => {
+    setReadIds(new Set(notificationsRef.current.map((n) => n.id)));
+  }, []);
+
+  const unreadCount = notifications.reduce((acc, n) => acc + (readIds.has(n.id) ? 0 : 1), 0);
+
   return {
     orders,
     assets,
@@ -130,5 +304,8 @@ export function useOrdersData(): OrdersData {
     setActiveOrder,
     handleOrderCompleted,
     handleUpdateOrderStatus,
+    notifications,
+    unreadCount,
+    markNotificationsRead,
   };
 }

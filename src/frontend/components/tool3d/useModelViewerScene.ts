@@ -98,7 +98,7 @@ export const useModelViewerScene = (params: UseModelViewerSceneParams): void => 
     renderer.setSize(width, height, true);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.localClippingEnabled = true;
     rendererRef.current = renderer;
 

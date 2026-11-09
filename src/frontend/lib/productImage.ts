@@ -12,6 +12,16 @@ export function isFabricatedImage(url?: string | null): boolean {
   return false;
 }
 
+/**
+ * URL ảnh dùng được trong `<img src>` — `undefined` khi URL rỗng hoặc là placeholder bịa.
+ * Dùng cho mọi ảnh sản phẩm/đơn hàng; call-site phải render fallback (icon `photo_library`)
+ * khi nhận `undefined`, KHÔNG render `<img>` với src rỗng/ảnh chết.
+ */
+export function safeImageUrl(url?: string | null): string | undefined {
+  const value = url?.trim();
+  return value && !isFabricatedImage(value) ? value : undefined;
+}
+
 export function realProductImageUrl(
   images?: string[] | null,
   thumbnailUrl?: string | null,

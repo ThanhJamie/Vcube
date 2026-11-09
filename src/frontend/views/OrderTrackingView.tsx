@@ -5,6 +5,7 @@ import { OrderProgress } from '../components/OrderProgress';
 import { dbService } from '../../backend/supabase/database';
 import { Icon, Button, Badge, Card, Field, Input, Skeleton } from '@frontend/ui';
 import { formatCurrency } from '../lib/format';
+import { safeImageUrl } from '../lib/productImage';
 
 interface OrderTrackingViewProps {
   order?: Order;
@@ -474,11 +475,20 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                       <tr key={item.id} className="border-t border-line-subtle hover:bg-surface-muted/60">
                         <td className="px-4 py-2 text-sm text-fg">
                           <div className="flex items-center gap-3 min-w-0">
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-8 h-8 object-cover border border-line rounded-sm bg-surface-muted shrink-0"
-                            />
+                            {safeImageUrl(item.image) ? (
+                              <img
+                                src={safeImageUrl(item.image)}
+                                alt={item.name}
+                                className="w-8 h-8 object-cover border border-line rounded-sm bg-surface-muted shrink-0"
+                              />
+                            ) : (
+                              <span
+                                aria-hidden="true"
+                                className="flex w-8 h-8 shrink-0 items-center justify-center rounded-sm border border-line bg-surface-muted text-fg-subtle"
+                              >
+                                <Icon name="photo_library" size={14} />
+                              </span>
+                            )}
                             <div className="min-w-0">
                               <p className="font-medium text-sm text-fg truncate">{item.name}</p>
                               <p className="text-xs text-fg-subtle font-mono mt-0.5 truncate">

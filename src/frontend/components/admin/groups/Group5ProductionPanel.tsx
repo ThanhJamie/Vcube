@@ -7,8 +7,9 @@ import {
   ProductionStageKey,
   regionFromAddress,
 } from '@frontend/stores/useProductionStore';
-import { Order } from '@/types';
+import { Order, WorkshopProfile } from '@/types';
 import { dbService } from '../../../../backend/supabase/database';
+import { WorkshopService } from '../../../../backend/services/workshopService';
 import { AdminOrderDetailPanel } from '../orders/AdminOrderDetailPanel';
 import { EMPTY_VALUE, formatNumber } from '../../../lib/format';
 import { Badge, Button, EmptyState, Field, Icon, InfoTip, Input, Modal, Select, Skeleton } from '@frontend/ui';
@@ -195,6 +196,29 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
   }, [loadOrders]);
 
   /**
+   * Danh sách trạm in THẬT (workshop_profiles) để admin phân bổ đơn.
+   * Chỉ lấy profile đã có `partnerId` — đó chính là giá trị `orders.assigned_workshop_id`
+   * và là thứ `current_workshop_partner_id()` dùng để RLS cho xưởng đọc đơn.
+   */
+  const [workshopPartners, setWorkshopPartners] = useState<WorkshopProfile[]>([]);
+  useEffect(() => {
+    let alive = true;
+    WorkshopService.getWorkshopProfiles()
+      .then((list) => {
+        if (!alive) return;
+        setWorkshopPartners((Array.isArray(list) ? list : []).filter((p) => Boolean(p.partnerId)));
+      })
+      .catch((err) => {
+        if (!alive) return;
+        console.warn('[Group5] Không tải được danh sách trạm in:', err);
+        setWorkshopPartners([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /**
    * Trường KHÔNG có cột trong `orders` (ghi chú kỹ thuật, kết quả QC): giữ TRONG PHIÊN, không
    * ghi localStorage. Nói thẳng trong toast để không ai tưởng đã lưu xuống DB.
    */
@@ -210,12 +234,26 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
   const jobs = useMemo<ProductionJob[]>(() => {
     // Đơn đã huỷ không còn nằm trong quy trình sản xuất.
     const live = (orders ?? []).filter((o) => o.status !== 'cancelled');
+    const partnerNameById = new Map(
+      workshopPartners.filter((p) => p.partnerId).map((p) => [p.partnerId as string, p.workshopName]),
+    );
     return live.map((order) => {
       const job = orderToProductionJob(order);
+      // `assigned_workshop_id` có thật trong DB (B1b) — trước đây mapping cố định `null`
+      // nên đơn đã phân bổ vẫn hiện "Chưa điều phối". Đọc đúng cột + suy tên xưởng.
+      const assignedId = order.assignedWorkshopId ?? null;
+      const withDispatch: ProductionJob = {
+        ...job,
+        assignedWorkshopId: assignedId,
+        assignedWorkshopName: assignedId
+          ? (partnerNameById.get(assignedId) ?? assignedId)
+          : null,
+        dispatchStatus: assignedId ? 'confirmed' : 'unassigned',
+      };
       const patch = sessionPatches[job.id];
-      return patch ? { ...job, ...patch } : job;
+      return patch ? { ...withDispatch, ...patch } : withDispatch;
     });
-  }, [orders, sessionPatches]);
+  }, [orders, sessionPatches, workshopPartners]);
 
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || null;
 
@@ -284,6 +322,36 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
     const stage = KANBAN_STAGES[stageIndex];
     if (!job || !stage) return;
     void persistStage(job, stage.index, `Đã đặt nấc: ${stage.shortVi}`);
+  };
+
+  // Phân bổ đơn → trạm in (admin). Ghi thật xuống `orders.assigned_workshop_id`; RLS +
+  // trigger cho phép admin đổi cột này, còn xưởng chỉ đổi được tiến độ của đơn đã giao.
+  const [assignSelection, setAssignSelection] = useState<Record<string, string>>({});
+  const [assigningJobId, setAssigningJobId] = useState<string | null>(null);
+
+  const handleAssignWorkshop = async (job: ProductionJob) => {
+    const workshopId = (assignSelection[job.id] ?? job.assignedWorkshopId ?? '').trim();
+    if (!workshopId) {
+      onShowToast?.('Chọn trạm in trước khi phân bổ.');
+      return;
+    }
+    setAssigningJobId(job.id);
+    try {
+      await dbService.assignOrderWorkshop(job.id, workshopId);
+      setOrders((prev) =>
+        prev ? prev.map((o) => (o.id === job.id ? { ...o, assignedWorkshopId: workshopId } : o)) : prev,
+      );
+      setAssignSelection((prev) => {
+        const next = { ...prev };
+        delete next[job.id];
+        return next;
+      });
+      onShowToast?.('Đã phân bổ đơn về trạm in.');
+    } catch (err) {
+      onShowToast?.(err instanceof Error ? err.message : 'Không phân bổ được đơn về trạm in.');
+    } finally {
+      setAssigningJobId(null);
+    }
   };
 
   // Metrics — chưa tải xong thì `—`, KHÔNG hiện 0 như thể đã đo.
@@ -778,7 +846,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                 <span className="flex items-start gap-1.5">
                   <Icon name="info" size={16} className="text-primary shrink-0 mt-0.5" />
                   <span>
-                    Chưa có trạm in nào được khai báo và hệ thống chưa có đường ghi orders.assigned_workshop_id, nên nút xác nhận điều phối đã được gỡ thay vì báo thành công mà không lưu được gì.
+                    Chưa có trạm in nào được khai báo. Khai trạm in (kèm `partner_id`) trước khi phân bổ đơn — hệ thống không hiện nút “thành công giả”.
                   </span>
                 </span>
                 <Button variant="secondary" size="sm" onClick={() => onNavigateSection?.('partners')}>
@@ -928,6 +996,48 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                           </ul>
                         </div>
                       )}
+
+                      {/* Phân bổ trạm in — ghi thật `orders.assigned_workshop_id` (admin) */}
+                      <div className="rounded-md border border-line-subtle bg-surface p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
+                            Phân bổ trạm in
+                          </span>
+                          {job.assignedWorkshopId && (
+                            <span className="text-xs font-medium text-positive">Đã có xưởng nhận</span>
+                          )}
+                        </div>
+                        {workshopPartners.length === 0 ? (
+                          <p className="text-xs text-fg-muted">
+                            Chưa có trạm in nào có <span className="font-mono">partner_id</span>. Khai trạm in trước khi phân bổ.
+                          </p>
+                        ) : (
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <Select
+                              aria-label={`Chọn trạm in cho đơn ${job.orderNumber}`}
+                              className="flex-1"
+                              placeholder="— Chọn trạm in —"
+                              value={assignSelection[job.id] ?? job.assignedWorkshopId ?? ''}
+                              onChange={(e) =>
+                                setAssignSelection((prev) => ({ ...prev, [job.id]: e.target.value }))
+                              }
+                              options={workshopPartners.map((p) => ({
+                                value: p.partnerId as string,
+                                label: p.workshopName,
+                              }))}
+                            />
+                            <Button
+                              size="sm"
+                              loading={assigningJobId === job.id}
+                              loadingLabel="Đang lưu…"
+                              disabled={!assignSelection[job.id] && !job.assignedWorkshopId}
+                              onClick={() => void handleAssignWorkshop(job)}
+                            >
+                              {job.assignedWorkshopId ? 'Cập nhật' : 'Phân bổ'}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
 
                       {/* FL-1 — mở chi tiết đơn: items/tiền/thanh toán/file + xác nhận thủ công */}
                       <div className="flex items-center justify-end gap-2 border-t border-line-subtle pt-3">

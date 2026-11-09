@@ -78,6 +78,9 @@ function MainApp() {
     setActiveOrder,
     handleOrderCompleted,
     handleUpdateOrderStatus,
+    notifications,
+    unreadCount,
+    markNotificationsRead,
   } = useOrdersData();
 
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
@@ -247,6 +250,9 @@ function MainApp() {
           siteContent={siteContent}
           onOpenAuth={handleOpenAuth}
           onOpenCartDrawer={() => setIsCartDrawerOpen(true)}
+          notifications={notifications}
+          unreadCount={unreadCount}
+          onMarkNotificationsRead={markNotificationsRead}
         />
       )}
 

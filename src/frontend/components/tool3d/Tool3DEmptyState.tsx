@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
 import type { AnalysisFile, MaterialProfile, PrinterProfile } from '@/types';
 import { ParseFailurePanel } from './ParseFailurePanel';
+import { SEOHead } from '../SEOHead';
 import type { ParseFailure } from './tool3dAnalysis';
 
 /**
@@ -37,6 +38,10 @@ export const Tool3DEmptyState: React.FC<Tool3DEmptyStateProps> = ({
   currentMaterial
 }) => (
       <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
+        <SEOHead
+          title="Báo giá in 3D & kiểm tra hình học CAD"
+          description="Tải STL/3MF/OBJ/STEP, đo thể tích, phát hiện lỗi lưới và nhận báo giá in 3D tức thì bằng tiếng Việt."
+        />
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="pb-6 border-b border-line">
             <div className="flex items-center gap-2 mb-1.5">

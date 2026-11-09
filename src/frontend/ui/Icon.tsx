@@ -39,7 +39,7 @@ export type IconProps = {
   style?: CSSProperties;
 };
 
-export function Icon({ name, size = 24, strokeWidth = 2, className, label, fill, style }: IconProps) {
+export function Icon({ name, size = 24, strokeWidth = 2, className, label, fill = 'none', style }: IconProps) {
   const Glyph = iconMap[name];
 
   if (!Glyph && IS_DEV) {

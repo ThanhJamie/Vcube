@@ -213,6 +213,17 @@ export const FALLBACK_ICON: LucideIcon = CircleQuestionMark;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
+ * lucide dựng `<svg>` bằng `iconNode.map(([tag, attrs]) => createElement(tag, attrs))`;
+ * node tự ghép mà thiếu `key` sẽ làm React cảnh báo "Each child in a list should have a
+ * unique key" (owner là ForwardRef của lucide) ở MỌI chỗ render glyph đó — lỗi gặp ở
+ * `lock_reset` (trang đăng ký) và `add_shopping_cart` (trang tuỳ biến). Gắn `key` ổn định
+ * theo thứ tự node.
+ */
+function withKeys(nodes: IconNode): IconNode {
+  return nodes.map(([tag, attrs], index) => [tag, { key: `${tag}-${index}`, ...attrs }]);
+}
+
+/**
  * Huy hiệu mũi tên tròn NGƯỢC chiều kim đồng hồ: lấy đúng hình lucide `RefreshCcw`
  * (tâm 12,12 bán kính 9) rồi thu nhỏ quanh tâm `(cx,cy)` về bán kính `r`.
  */
@@ -243,33 +254,45 @@ const CART_NODES: IconNode = [
 ];
 
 /** `add_shopping_cart` = giỏ hàng + dấu `+` ở góc trên phải. */
-const AddShoppingCart: LucideIcon = createLucideIcon('add-shopping-cart', [
-  ...CART_NODES,
-  ['path', { d: 'M16.5 4h5' }],
-  ['path', { d: 'M19 1.5v5' }],
-]);
+const AddShoppingCart: LucideIcon = createLucideIcon(
+  'add-shopping-cart',
+  withKeys([
+    ...CART_NODES,
+    ['path', { d: 'M16.5 4h5' }],
+    ['path', { d: 'M19 1.5v5' }],
+  ]),
+);
 
 /** `remove_shopping_cart` = giỏ hàng + dấu `x` ở góc trên phải (trạng thái giỏ rỗng). */
-const RemoveShoppingCart: LucideIcon = createLucideIcon('remove-shopping-cart', [
-  ...CART_NODES,
-  ['path', { d: 'M16.6 1.6l4.8 4.8' }],
-  ['path', { d: 'M21.4 1.6l-4.8 4.8' }],
-]);
+const RemoveShoppingCart: LucideIcon = createLucideIcon(
+  'remove-shopping-cart',
+  withKeys([
+    ...CART_NODES,
+    ['path', { d: 'M16.6 1.6l4.8 4.8' }],
+    ['path', { d: 'M21.4 1.6l-4.8 4.8' }],
+  ]),
+);
 
 /** `lock_reset` = ổ khoá (thu nhỏ 0.78) + mũi tên tròn ngược chiều (đặt lại mật khẩu). */
-const LockReset: LucideIcon = createLucideIcon('lock-reset', [
-  ['rect', { width: '14', height: '8.6', x: '2.4', y: '8.6', rx: '1.6', ry: '1.6' }],
-  ['path', { d: 'M5.5 8.6V5.5a3.9 3.9 0 0 1 7.8 0v3.1' }],
-  ...ccwBadge(18.5, 18, 3.3),
-]);
+const LockReset: LucideIcon = createLucideIcon(
+  'lock-reset',
+  withKeys([
+    ['rect', { width: '14', height: '8.6', x: '2.4', y: '8.6', rx: '1.6', ry: '1.6' }],
+    ['path', { d: 'M5.5 8.6V5.5a3.9 3.9 0 0 1 7.8 0v3.1' }],
+    ...ccwBadge(18.5, 18, 3.3),
+  ]),
+);
 
 /** `square_foot` = hình vuông + đường chéo + 2 đầu mũi tên kích thước (diện tích/khổ). */
-const SquareFoot: LucideIcon = createLucideIcon('square-foot', [
-  ['rect', { width: '18', height: '18', x: '3', y: '3', rx: '2' }],
-  ['path', { d: 'M20.4 3.6 3.6 20.4' }],
-  ['path', { d: 'M17.2 3.6H20.4v3.2' }],
-  ['path', { d: 'M3.6 16.8v3.6h3.2' }],
-]);
+const SquareFoot: LucideIcon = createLucideIcon(
+  'square-foot',
+  withKeys([
+    ['rect', { width: '18', height: '18', x: '3', y: '3', rx: '2' }],
+    ['path', { d: 'M20.4 3.6 3.6 20.4' }],
+    ['path', { d: 'M17.2 3.6H20.4v3.2' }],
+    ['path', { d: 'M3.6 16.8v3.6h3.2' }],
+  ]),
+);
 
 /* ---------------------------------------------------------------------------
    Bảng map. Khoá = tên glyph Material Symbols (giữ nguyên chuỗi trong data).

@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
-import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, Order } from '../../types';
 import { MATERIALS_CATALOG } from '../../data/mockData';
 import { ThreeModelViewer } from '../components/LazyThreeModelViewer';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { MaterialTechnicalAdvisory } from '../components/material/MaterialTechnicalAdvisory';
 import { SEOHead } from '../components/SEOHead';
-import { EMPTY_VALUE, formatNumber } from '@frontend/lib/format';
-import { Icon, Button, Card, EmptyState, InfoTip, Badge, KeyValue, ProgressBar } from '@frontend/ui';
+import { useAuth } from '../context/AuthContext';
+import { EMPTY_VALUE, formatDate, formatNumber } from '@frontend/lib/format';
+import { isFabricatedImage, realProductImageUrl } from '@frontend/lib/productImage';
+import { Icon, Button, Card, EmptyState, InfoTip, Badge, KeyValue, ProgressBar, Field, Select } from '@frontend/ui';
+import {
+  listProductReviews,
+  listMyEligibleOrders,
+  submitProductReview,
+  type ProductReview,
+} from '@backend/services/reviewService';
 
 interface ProductDetailViewProps {
   product: Product;
@@ -53,6 +62,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   onShowToast
 }) => {
   const locale = 'vi-VN';
+  const { isLoggedIn } = useAuth();
 
   const materialsList = materials && materials.length > 0 ? materials : MATERIALS_CATALOG;
   /**
@@ -73,7 +83,27 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const [isWireframe, setIsWireframe] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
 
-  const imageList = Array.isArray(product.images) ? product.images : [];
+  // ---- Đánh giá sản phẩm (tab "Đánh giá") ----
+  const [publishedReviews, setPublishedReviews] = useState<ProductReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [reviewsReloadKey, setReviewsReloadKey] = useState(0);
+  const [eligibleOrders, setEligibleOrders] = useState<Order[]>([]);
+  const [eligibleLoading, setEligibleLoading] = useState(false);
+  const [eligibleError, setEligibleError] = useState<string | null>(null);
+  const [eligibleReloadKey, setEligibleReloadKey] = useState(0);
+  const [reviewOrderId, setReviewOrderId] = useState('');
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitError, setReviewSubmitError] = useState<string | null>(null);
+  const [reviewSubmittedPending, setReviewSubmittedPending] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // Data-honesty: ảnh placeholder bịa (Unsplash) hoặc URL chết KHÔNG được render.
+  // Trước đây PDP dùng thẳng `product.images` nên hiện ảnh 404 (Home/Explore/Admin đã lọc).
+  const imageList = (Array.isArray(product.images) ? product.images : []).filter(
+    (url) => typeof url === 'string' && !isFabricatedImage(url),
+  );
   const colorOptions = Array.isArray(product.colors) ? product.colors : [];
   const declaredMaterials = Array.isArray(product.supportedMaterials) ? product.supportedMaterials : [];
   const selectedColor = colorOptions.find((c) => c.name === selectedColorName) || null;
@@ -148,6 +178,112 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const relatedProducts = (allProducts || [])
     .filter(p => p.id !== product.id && (p.category === product.category || p.tags?.some(t => product.tags?.includes(t))))
     .slice(0, 3);
+
+  /**
+   * Đổi sản phẩm trong cùng một component (route giữ instance) ⇒ xoá trạng thái đánh giá
+   * của sản phẩm trước, tránh hiện "Đang chờ duyệt"/sao cũ cho sản phẩm khác.
+   */
+  useEffect(() => {
+    setPublishedReviews([]);
+    setReviewsError(null);
+    setReviewSubmittedPending(false);
+    setReviewSubmitError(null);
+    setReviewRating(0);
+    setReviewComment('');
+    setReviewOrderId('');
+  }, [product.id]);
+
+  /**
+   * Chỉ tải khi tab đánh giá được mở — tránh query thừa cho mọi lượt xem PDP.
+   * `cancelled` chặn setState sau khi đổi sản phẩm/đóng tab (race).
+   */
+  useEffect(() => {
+    if (activeTab !== 'reviews') return;
+    let cancelled = false;
+    setReviewsLoading(true);
+    setReviewsError(null);
+    listProductReviews(product.id)
+      .then((rows) => {
+        if (!cancelled) setPublishedReviews(rows);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setPublishedReviews([]);
+        setReviewsError(err instanceof Error ? err.message : 'Không tải được đánh giá sản phẩm.');
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id, activeTab, reviewsReloadKey]);
+
+  useEffect(() => {
+    if (activeTab !== 'reviews' || !isLoggedIn) {
+      setEligibleOrders([]);
+      setEligibleLoading(false);
+      setEligibleError(null);
+      setReviewOrderId('');
+      return;
+    }
+    let cancelled = false;
+    setEligibleLoading(true);
+    setEligibleError(null);
+    listMyEligibleOrders(product.id)
+      .then((orders) => {
+        if (cancelled) return;
+        setEligibleOrders(orders);
+        setReviewOrderId((current) =>
+          current && orders.some((order) => order.id === current) ? current : (orders[0]?.id ?? ''),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setEligibleOrders([]);
+        setEligibleError(err instanceof Error ? err.message : 'Không kiểm tra được đơn hàng đã mua.');
+      })
+      .finally(() => {
+        if (!cancelled) setEligibleLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id, activeTab, isLoggedIn, eligibleReloadKey]);
+
+  const handleSubmitReview = async () => {
+    if (isSubmittingReview) return;
+    setReviewSubmitError(null);
+    if (!reviewOrderId) {
+      setReviewSubmitError('Vui lòng chọn đơn hàng đã mua sản phẩm này.');
+      return;
+    }
+    if (reviewRating < 1 || reviewRating > 5) {
+      setReviewSubmitError('Vui lòng chọn từ 1 đến 5 sao.');
+      return;
+    }
+    setIsSubmittingReview(true);
+    try {
+      await submitProductReview({
+        orderId: reviewOrderId,
+        productId: product.id,
+        rating: reviewRating,
+        comment: reviewComment,
+      });
+      const usedOrderId = reviewOrderId;
+      const remaining = eligibleOrders.filter((order) => order.id !== usedOrderId);
+      setEligibleOrders(remaining);
+      setReviewOrderId(remaining[0]?.id ?? '');
+      setReviewRating(0);
+      setReviewComment('');
+      setReviewSubmittedPending(true);
+      onShowToast('Đã gửi đánh giá — đang chờ duyệt.');
+    } catch (err: unknown) {
+      setReviewSubmitError(err instanceof Error ? err.message : 'Không gửi được đánh giá.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   const handleAddPhysical = () => {
     if (purchaseBlocked) return;
@@ -953,7 +1089,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   <EmptyState
                     size="sm"
                     icon={<Icon name="chat" size={20} />}
-                    title="Chưa có đánh giá"
+                    title="Chưa có đánh giá nào"
                     description="Bản vẽ này chưa có đánh giá nào từ đơn hàng thật."
                     action={
                       <InfoTip label="Vì sao chưa có đánh giá?">
@@ -962,6 +1098,194 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     }
                   />
                 )}
+
+                {/* Đánh giá đã duyệt — nguồn: reviews status='published' (RLS public read). */}
+                {reviewsLoading ? (
+                  <p role="status" className="flex items-center gap-2 font-mono text-xs text-fg-muted">
+                    <Icon name="schedule" size={16} className="shrink-0" aria-hidden="true" />
+                    Đang tải đánh giá…
+                  </p>
+                ) : reviewsError ? (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-line-subtle bg-surface p-3 text-xs leading-relaxed text-danger" role="alert">
+                    <Icon name="error" size={16} className="shrink-0" aria-hidden="true" />
+                    <span className="min-w-0 flex-1">{reviewsError}</span>
+                    <Button size="sm" variant="ghost" onClick={() => setReviewsReloadKey((key) => key + 1)}>
+                      Thử lại
+                    </Button>
+                  </div>
+                ) : publishedReviews.length > 0 ? (
+                  <ul className="space-y-3">
+                    {publishedReviews.map((review) => (
+                      <li key={review.id} className="space-y-2 rounded-lg bg-surface-muted p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-mono text-xs font-bold text-fg">Khách hàng</span>
+                          <span className="font-mono text-xs tabular-nums text-fg-muted">
+                            {review.createdAt ? formatDate(review.createdAt, { locale }) : EMPTY_VALUE}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-0.5" role="img" aria-label={`${review.rating}/5 sao`}>
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <Icon
+                              key={i}
+                              name="star"
+                              size={16}
+                              aria-hidden="true"
+                              className={i <= review.rating ? 'text-warning-strong' : 'text-line-control'}
+                              fill={i <= review.rating ? 'currentColor' : 'none'}
+                            />
+                          ))}
+                        </div>
+                        {review.comment.trim().length > 0 ? (
+                          <p className="whitespace-pre-line text-sm leading-relaxed text-fg">{review.comment}</p>
+                        ) : (
+                          <p className="text-xs text-fg-muted">Không có nhận xét.</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : showRating ? (
+                  <EmptyState
+                    size="sm"
+                    icon={<Icon name="chat" size={20} />}
+                    title="Chưa có đánh giá nào"
+                    description="Điểm tổng hợp hiện có nhưng chưa có đánh giá nào được duyệt công khai."
+                  />
+                ) : null}
+
+                {/* Viết đánh giá — chỉ cho người đã mua sản phẩm bằng tài khoản hiện tại. */}
+                <div className="space-y-3 border-t border-line-subtle pt-4">
+                  <h3 className="text-sm font-semibold text-fg">Viết đánh giá</h3>
+
+                  {reviewSubmittedPending && (
+                    <div role="status" className="flex items-start gap-2 rounded-md border border-line-subtle bg-surface p-3 text-xs leading-relaxed text-fg">
+                      <Icon name="schedule" size={16} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+                      <span>
+                        <strong className="font-semibold">Đang chờ duyệt.</strong> Đánh giá của bạn sẽ hiển thị công khai sau khi quản trị viên duyệt.
+                      </span>
+                    </div>
+                  )}
+
+                  {!isLoggedIn ? (
+                    <p className="text-xs leading-relaxed text-fg-muted">
+                      <Link
+                        to="/auth/login"
+                        className="rounded-sm font-medium text-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        Đăng nhập để đánh giá
+                      </Link>{' '}
+                      sản phẩm sau khi đã mua bằng tài khoản của bạn.
+                    </p>
+                  ) : eligibleLoading ? (
+                    <p role="status" className="flex items-center gap-2 font-mono text-xs text-fg-muted">
+                      <Icon name="schedule" size={16} className="shrink-0" aria-hidden="true" />
+                      Đang kiểm tra đơn hàng đã mua…
+                    </p>
+                  ) : eligibleError ? (
+                    <div className="flex flex-wrap items-center gap-2 rounded-md border border-line-subtle bg-surface p-3 text-xs leading-relaxed text-danger" role="alert">
+                      <Icon name="error" size={16} className="shrink-0" aria-hidden="true" />
+                      <span className="min-w-0 flex-1">{eligibleError}</span>
+                      <Button size="sm" variant="ghost" onClick={() => setEligibleReloadKey((key) => key + 1)}>
+                        Thử lại
+                      </Button>
+                    </div>
+                  ) : eligibleOrders.length === 0 ? (
+                    <p className="text-xs leading-relaxed text-fg-muted">
+                      {reviewSubmittedPending
+                        ? 'Bạn đã gửi đánh giá cho tất cả đơn hàng đủ điều kiện của sản phẩm này.'
+                        : 'Bạn chỉ có thể đánh giá sau khi đã mua sản phẩm này bằng tài khoản đang đăng nhập.'}
+                    </p>
+                  ) : (
+                    <form
+                      className="space-y-3"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void handleSubmitReview();
+                      }}
+                    >
+                      <Field id={`pdp-review-order-${product.id}`} label="Đơn hàng đã mua" required>
+                        {(control) => (
+                          <Select
+                            {...control}
+                            value={reviewOrderId}
+                            onChange={(event) => setReviewOrderId(event.target.value)}
+                            options={eligibleOrders.map((order) => ({
+                              value: order.id,
+                              label: `${order.orderNumber}${
+                                order.date && formatDate(order.date, { locale }) !== EMPTY_VALUE
+                                  ? ` — ${formatDate(order.date, { locale })}`
+                                  : ''
+                              }`,
+                            }))}
+                            placeholder="Chọn đơn hàng"
+                          />
+                        )}
+                      </Field>
+
+                      <div>
+                        <span className="mb-1 block text-sm font-medium text-fg">
+                          Điểm đánh giá <span className="text-danger" aria-hidden="true">*</span>
+                          <span className="sr-only"> (bắt buộc)</span>
+                        </span>
+                        <div role="group" aria-label="Chọn số sao" className="flex flex-wrap items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Button
+                              key={star}
+                              type="button"
+                              iconOnly
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`${star} sao`}
+                              aria-pressed={reviewRating === star}
+                              onClick={() => setReviewRating(star)}
+                              leadingIcon={
+                                <Icon
+                                  name="star"
+                                  size={20}
+                                  aria-hidden="true"
+                                  className={star <= reviewRating ? 'text-warning-strong' : 'text-line-control'}
+                                  fill={star <= reviewRating ? 'currentColor' : 'none'}
+                                />
+                              }
+                            />
+                          ))}
+                          <span className="ml-1 font-mono text-xs text-fg-muted">
+                            {reviewRating > 0 ? `${reviewRating}/5` : 'Chưa chọn'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Field
+                        id={`pdp-review-comment-${product.id}`}
+                        label="Nhận xét"
+                        optionalLabel={null}
+                        hint="Tối đa 1.000 ký tự. Không nhập thông tin cá nhân."
+                      >
+                        {(control) => (
+                          <textarea
+                            {...control}
+                            rows={3}
+                            maxLength={1000}
+                            value={reviewComment}
+                            onChange={(event) => setReviewComment(event.target.value)}
+                            placeholder="Chất lượng in, độ khớp, đóng gói…"
+                            className="min-h-20 w-full rounded-md border border-line-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle transition-colors duration-200 focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-danger"
+                          />
+                        )}
+                      </Field>
+
+                      {reviewSubmitError && (
+                        <p role="alert" className="flex items-start gap-1.5 text-xs leading-relaxed text-danger">
+                          <Icon name="error" size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                          <span>{reviewSubmitError}</span>
+                        </p>
+                      )}
+
+                      <Button type="submit" size="sm" loading={isSubmittingReview} loadingLabel="Đang gửi…">
+                        Gửi đánh giá
+                      </Button>
+                    </form>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1025,39 +1349,51 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </div>
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {relatedProducts.map((rel) => (
-                  <Card
-                    key={rel.id}
-                    as="button"
-                    variant="soft"
-                    interactive
-                    padding="md"
-                    className="flex w-full items-center gap-4 text-left"
-                    onClick={() => onNavigate('product_detail', { product: rel })}
-                  >
-                    <img
-                      src={rel.thumbnailUrl || rel.images?.[0]}
-                      alt={rel.name}
-                      className="size-16 shrink-0 rounded-md border border-line-subtle object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <span className="block truncate font-mono text-xs font-bold uppercase text-primary">
-                        {rel.category}
-                      </span>
-                      <h4 className="truncate text-xs font-bold text-fg">
-                        {rel.name}
-                      </h4>
-                      <div className="mt-1 flex items-center justify-between gap-2 font-mono text-xs">
-                        <span className="tabular-nums text-fg-muted">
-                          CAD: {vnd(rel.priceDigital, locale)}
+                {relatedProducts.map((rel) => {
+                  const relImage = realProductImageUrl(rel.images, rel.thumbnailUrl);
+                  return (
+                    <Card
+                      key={rel.id}
+                      as="button"
+                      variant="soft"
+                      interactive
+                      padding="md"
+                      className="flex w-full items-center gap-4 text-left"
+                      onClick={() => onNavigate('product_detail', { product: rel })}
+                    >
+                      {relImage ? (
+                        <img
+                          src={relImage}
+                          alt={rel.name}
+                          className="size-16 shrink-0 rounded-md border border-line-subtle object-cover"
+                        />
+                      ) : (
+                        <span
+                          className="flex size-16 shrink-0 items-center justify-center rounded-md border border-line-subtle bg-surface-muted text-fg-subtle"
+                          aria-hidden="true"
+                        >
+                          <Icon name="photo_library" size={20} />
                         </span>
-                        <span className="font-bold tabular-nums text-fg">
-                          {vnd(rel.pricePhysical, locale)}
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate font-mono text-xs font-bold uppercase text-primary">
+                          {rel.category}
                         </span>
+                        <h4 className="truncate text-xs font-bold text-fg">
+                          {rel.name}
+                        </h4>
+                        <div className="mt-1 flex items-center justify-between gap-2 font-mono text-xs">
+                          <span className="tabular-nums text-fg-muted">
+                            CAD: {vnd(rel.priceDigital, locale)}
+                          </span>
+                          <span className="font-bold tabular-nums text-fg">
+                            {vnd(rel.pricePhysical, locale)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}

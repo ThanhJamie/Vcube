@@ -4,6 +4,7 @@ import { ThreeModelViewer } from '../LazyThreeModelViewer';
 import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency } from '@frontend/lib/format';
+import { safeImageUrl } from '@frontend/lib/productImage';
 import { settingsAccessors, subscribeSettings } from '../../../backend/services/settingsService';
 import { useAuth } from '@frontend/context/AuthContext';
 import {
@@ -226,8 +227,8 @@ export const DesignerModelsManagerTab: React.FC<DesignerModelsManagerTabProps> =
       value: (p) => p.name,
       render: (prod) => (
         <div className="flex items-center gap-3">
-          {prod.images?.[0] ? (
-            <img src={prod.images[0]} alt={prod.name} className="size-12 shrink-0 rounded-md border border-line bg-surface-muted object-cover" />
+          {safeImageUrl(prod.images?.[0]) ? (
+            <img src={safeImageUrl(prod.images?.[0])} alt={prod.name} className="size-12 shrink-0 rounded-md border border-line bg-surface-muted object-cover" />
           ) : (
             <span className="grid size-12 shrink-0 place-items-center rounded-md border border-line bg-surface-muted text-fg-muted">
               <Icon name="deployed_code" size={20} />

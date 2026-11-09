@@ -344,40 +344,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* §1.1/§0: nền trang là `canvas` phẳng. Lớp "ambient radiance" (3 vệt blur 2 màu)
           đã bỏ — đó là gradient màu trang trí, không nằm trong bảng token. */}
 
-      {/* 1. Dynamic Top Campaign Banner */}
-      {activeContent.announcementActive && (
-        <section className="bg-surface-inverse text-on-inverse py-2.5 sm:py-3 px-4 sm:px-6 md:px-12 border-b border-on-inverse/15 shadow-soft">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 text-center md:text-left">
-            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-              {/* §2.5/§3: không emoji làm icon, không bịa tên chiến dịch ⇒ badge rỗng thì ẩn hẳn. */}
-              {activeContent.announcementBadge && (
-                <span className="bg-on-inverse text-surface-inverse text-xs font-mono font-bold uppercase px-2.5 py-0.5 rounded-sm tracking-wider shrink-0 flex items-center gap-1.5 border border-on-inverse/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-ping motion-reduce:animate-none" />
-                  {activeContent.announcementBadge}
-                </span>
-              )}
-              <p className="text-xs sm:text-sm font-medium text-on-inverse/80 leading-snug">
-                {activeContent.announcementText}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <Button size="sm" variant="secondary"
-                onClick={() => {
-                  if (activeContent.announcementActionTag) {
-                    setSelectedTag(activeContent.announcementActionTag);
-                  }
-                  const el = document.getElementById('browse-cad-catalog');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                trailingIcon={<Icon name="arrow_downward" size={16} />}
-              >
-                <span>{activeContent.announcementActionText || ('Xem Sản Phẩm Tag 2/9')}</span>
-              </Button>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* 1. Announcement: CHỈ render ở Header (global). Bản campaign cũ ở đây lặp lại
+          ĐÚNG cùng `announcementText` ⇒ 2 thanh giống nhau + CTA "Xem Sản Phẩm Tag 2/9"
+          trỏ tag không tồn tại (product review #10), đồng thời đẩy layout lúc settings nạp
+          xong (CLS ~0.13). Header giữ vai trò thông báo toàn cục; campaign CTA nên đưa vào
+          hero badge khi có nội dung thật. */}
 
       {/* 2. Hero Section with Interactive 3D Model Switcher — band sáng có viền (§3.1/§3.7) */}
       <section className="relative px-4 py-6 sm:px-6 sm:py-8 md:px-10 lg:py-10">

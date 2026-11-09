@@ -44,6 +44,7 @@ const CartView = React.lazy(() => import('@frontend/views/CartView').then((m) =>
 const CheckoutView = React.lazy(() => import('@frontend/views/CheckoutView').then((m) => ({ default: m.CheckoutView })));
 const MyOrdersView = React.lazy(() => import('@frontend/views/MyOrdersView').then((m) => ({ default: m.MyOrdersView })));
 const AssetLibraryView = React.lazy(() => import('@frontend/views/AssetLibraryView').then((m) => ({ default: m.AssetLibraryView })));
+const AccountView = React.lazy(() => import('@frontend/views/AccountView').then((m) => ({ default: m.AccountView })));
 const LoginView = React.lazy(() => import('@frontend/views/LoginView').then((m) => ({ default: m.LoginView })));
 const RegisterView = React.lazy(() => import('@frontend/views/RegisterView').then((m) => ({ default: m.RegisterView })));
 
@@ -323,6 +324,17 @@ export function AppRoutes({
             }
           />
           <Route path="/library" element={<Navigate to="/assets" replace />} />
+
+          {/* Account — hồ sơ cơ bản + lối tắt (yêu cầu đăng nhập) */}
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <AccountView />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/profile" element={<Navigate to="/account" replace />} />
 
           {/* Designer Studio / Creator Portal (Secured with RoleGuard for designer & admin) */}
           <Route

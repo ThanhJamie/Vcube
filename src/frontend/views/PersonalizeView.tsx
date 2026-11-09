@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig } from '../../types';
 import { PersonalizeModelViewer3D } from '../components/personalize/PersonalizeModelViewer3D';
+import { SEOHead } from '../components/SEOHead';
 import { CanvasErrorBoundary } from '../components/CanvasErrorBoundary';
 import { Badge, Button, Card, EmptyState, Icon, InfoTip } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency, formatNumber } from '@frontend/lib/format';
@@ -72,6 +73,10 @@ const ENGRAVING_DEPTH_LABEL: Record<'embossed' | 'laser' | 'recessed', string> =
 /** Không có sản phẩm để cá nhân hoá ⇒ nói thật, KHÔNG dựng sản phẩm mẫu để bán. */
 const PersonalizeUnavailable: React.FC<{ onNavigate: (screen: string, payload?: any) => void }> = ({ onNavigate }) => (
   <div className="min-h-dvh bg-canvas px-4 py-10 font-sans text-fg sm:px-6 md:px-12">
+    <SEOHead
+      title="Cá nhân hoá mô hình 3D"
+      description="Chọn một bản vẽ trong kho để tuỳ chỉnh vật liệu, màu sắc, khắc chữ và nhận báo giá in 3D."
+    />
     <div className="mx-auto max-w-3xl">
       <Card variant="soft" padding="lg">
         <EmptyState
@@ -313,6 +318,11 @@ const PersonalizeConfigurator: React.FC<PersonalizeViewProps & { product: Produc
 
   return (
     <div className="min-h-dvh bg-canvas pb-28 font-sans text-fg lg:pb-12">
+      <SEOHead
+        title={`Cá nhân hoá ${product.name}`}
+        description={`Tuỳ chỉnh vật liệu, màu sắc, khắc chữ và xem giá in 3D tức thì cho ${product.name}.`}
+        type="product"
+      />
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="space-y-6 sm:space-y-8">
           {/* Breadcrumbs & quick actions — cùng template với PDP */}

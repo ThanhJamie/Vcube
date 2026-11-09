@@ -22,6 +22,7 @@ import type {
   OrderItemRecord,
   PaymentTransactionRecord,
 } from '../../types/orderRecords';
+import type { OrderWithUserLink, QuoteInsertRow } from './databaseTypes';
 // Hợp đồng ghi canonical (discriminated union) — xem src/backend/lib/result.ts.
 import { ok, fail, type WriteResult } from '../lib/result';
 
@@ -130,7 +131,9 @@ function readSiteContentExtras(settings: unknown): Partial<SiteContentConfig> {
 function writeSiteContentExtras(content: SiteContentConfig): Record<string, unknown> {
   const extras: Record<string, unknown> = {};
   for (const key of SITE_CONTENT_EXTRA_KEYS) {
-    const v = (content as any)[key];
+    // `key` là union literal của chính các khoá khai trong `SiteContentConfig` ⇒
+    // truy cập trực tiếp là đúng kiểu, không cần ép `any`.
+    const v = content[key];
     if (v !== undefined) extras[key] = v;
   }
   return extras;
@@ -154,6 +157,34 @@ function toIsoTimestampOrNull(value: unknown): string | null {
     return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
   }
   return null;
+}
+
+/** Số hữu hạn từ cột `numeric`/`int` của PostgREST; NULL/chuỗi rỗng ⇒ `null` (không đoán). */
+function toFiniteNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Một báo giá đã lưu của CHÍNH người dùng (bảng `quotes`).
+ *
+ * Chỉ map các cột CÓ THẬT trong `20260901_baseline_schema.sql` §quotes. `user_id` không
+ * đưa lên UI vì RLS đã bảo đảm mọi hàng trả về đều thuộc về người đang đăng nhập.
+ */
+export interface SavedQuote {
+  id: string;
+  fileName: string;
+  materialId: string | null;
+  printerId: string | null;
+  volumeCm3: number | null;
+  infillPercent: number | null;
+  layerHeightMm: number | null;
+  quantity: number;
+  unitPrice: number | null;
+  totalPrice: number | null;
+  currency: string;
+  createdAt: string;
 }
 
 /**
@@ -238,7 +269,7 @@ export const dbService = {
         return fail(error);
       }
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       console.warn('DB error on insertProduct:', err);
       return fail(err);
     }
@@ -256,7 +287,7 @@ export const dbService = {
         return fail(error);
       }
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       console.warn('DB error on saveProduct:', err);
       return fail(err);
     }
@@ -270,7 +301,7 @@ export const dbService = {
         return fail(error);
       }
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       console.warn('DB error on deleteProduct:', err);
       return fail(err);
     }
@@ -310,7 +341,10 @@ export const dbService = {
         toIsoTimestampOrNull(options?.createdAtIso) || toIsoTimestampOrNull(order.date) || nowIso;
 
       // Pass full user_id from user account if logged in (ensuring RLS auth.uid() = user_id works)
-      let userId: string | null = explicitUserId || (order as any).userId || (order as any).user_id || null;
+      // `Order` không khai `userId`/`user_id`; caller legacy có thể gắn kèm (xem
+      // `OrderWithUserLink`). Đọc tường minh, không ép kiểu `order` sang `any`.
+      const legacyOrder = order as OrderWithUserLink;
+      let userId: string | null = explicitUserId || legacyOrder.userId || legacyOrder.user_id || null;
       if (!userId) {
         try {
           const { data: authData } = await supabase.auth.getUser();
@@ -361,7 +395,7 @@ export const dbService = {
         return fail(`Không lưu được đơn hàng vào Supabase: ${error.message}`);
       }
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       console.warn('DB error on saveOrder:', err);
       return fail(err);
     }
@@ -374,7 +408,7 @@ export const dbService = {
     notes?: string
   ): Promise<WriteResult> {
     try {
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, unknown> = {
         status,
         status_stage_index: statusStageIndex,
         updated_at: new Date().toISOString(),
@@ -399,7 +433,7 @@ export const dbService = {
         return fail(error);
       }
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       console.warn('DB error on updateOrderStatus:', err);
       return fail(err);
     }
@@ -417,6 +451,31 @@ export const dbService = {
     // Bảng rỗng ⇒ []. KHÔNG rơi về fixture MOCK_ORDERS, KHÔNG đọc localStorage
     // (OT-02/OT-03: đơn của người khác tuyệt đối không được hiển thị).
     return (data ?? []).map(mapOrderRow);
+  },
+
+  /**
+   * Admin phân bổ đơn về trạm in (`orders.assigned_workshop_id`).
+   *
+   * `assigned_workshop_id` là `workshop_profiles.partner_id` (text) — cùng không gian giá trị
+   * với `current_workshop_partner_id()` mà RLS dùng để xưởng đọc/cập nhật tiến độ. Trigger
+   * `fn_protect_order_privileged_columns` bỏ qua với admin nên UPDATE này hợp lệ; xưởng thường
+   * KHÔNG được đổi cột này.
+   *
+   * `null` = bỏ phân bổ. Ném lỗi thật để UI không báo "thành công" khi RLS/DB từ chối.
+   */
+  async assignOrderWorkshop(orderId: string, workshopPartnerId: string | null): Promise<void> {
+    const cleanOrderId = (orderId || '').trim();
+    if (!cleanOrderId) throw new Error('Thiếu mã đơn để phân bổ xưởng.');
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        assigned_workshop_id: workshopPartnerId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', cleanOrderId);
+    if (error) {
+      throw new Error(`Không phân bổ được đơn cho xưởng: ${error.message}`);
+    }
   },
 
   // Guest order lookup via secure access token.
@@ -459,12 +518,62 @@ export const dbService = {
   },
 
   // Quotes
-  async saveQuote(quote: any): Promise<void> {
+  /**
+   * Lưu 1 báo giá vào `quotes` (RLS: `vcube_quotes_owner_insert` yêu cầu
+   * `user_id = auth.uid()`). `user_id` PHẢI được gửi cùng hàng insert; nếu caller không
+   * truyền thì lấy từ phiên đăng nhập hiện tại. Lỗi được NÉM THẬT (trước đây hàm nuốt lỗi
+   * nên UI tưởng đã lưu trong khi DB từ chối) để panel hiện trạng thái thất bại trung thực.
+   */
+  async saveQuote(quote: QuoteInsertRow): Promise<void> {
     try {
-      await supabase.from('quotes').insert([quote]);
+      let userId = quote.user_id ?? null;
+      if (!userId) {
+        const { data: authData } = await supabase.auth.getUser();
+        userId = authData?.user?.id ?? null;
+      }
+      if (!userId) {
+        throw new Error('Cần đăng nhập để lưu báo giá.');
+      }
+
+      const { error } = await supabase.from('quotes').insert([{ ...quote, user_id: userId }]);
+      if (error) {
+        throw new Error(`Không lưu được báo giá: ${error.message}`);
+      }
     } catch (e) {
       console.warn('Save quote error:', e);
+      throw e instanceof Error ? e : new Error(String(e));
     }
+  },
+
+  /**
+   * Báo giá đã lưu của người dùng đang đăng nhập, mới nhất trước.
+   * RLS (`vcube_quotes_owner_read`) giới hạn theo `user_id = auth.uid()` — không cần và
+   * KHÔNG được lọc thêm bằng email/uid ở client. Bảng rỗng ⇒ `[]`; lỗi ⇒ ném lỗi thật.
+   */
+  async getMyQuotes(): Promise<SavedQuote[]> {
+    const { data, error } = await supabase
+      .from('quotes')
+      .select('id, file_name, material_id, printer_id, volume_cm3, infill_percent, layer_height_mm, quantity, unit_price, total_price, currency, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Không tải được báo giá đã lưu: ${error.message}`);
+    }
+
+    return (data ?? []).map((row) => ({
+      id: String(row.id),
+      fileName: typeof row.file_name === 'string' ? row.file_name : '',
+      materialId: row.material_id ? String(row.material_id) : null,
+      printerId: row.printer_id ? String(row.printer_id) : null,
+      volumeCm3: toFiniteNumberOrNull(row.volume_cm3),
+      infillPercent: toFiniteNumberOrNull(row.infill_percent),
+      layerHeightMm: toFiniteNumberOrNull(row.layer_height_mm),
+      quantity: toFiniteNumberOrNull(row.quantity) ?? 1,
+      unitPrice: toFiniteNumberOrNull(row.unit_price),
+      totalPrice: toFiniteNumberOrNull(row.total_price),
+      currency: typeof row.currency === 'string' && row.currency ? row.currency : 'VND',
+      createdAt: typeof row.created_at === 'string' ? row.created_at : '',
+    }));
   },
 
   // Users & Multi-stakeholder Profiles
@@ -493,7 +602,7 @@ export const dbService = {
 
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -534,7 +643,7 @@ export const dbService = {
       });
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -573,7 +682,7 @@ export const dbService = {
       });
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -716,7 +825,7 @@ export const dbService = {
       });
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -766,7 +875,7 @@ export const dbService = {
       });
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -809,7 +918,7 @@ export const dbService = {
       });
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -819,7 +928,7 @@ export const dbService = {
       const { error } = await supabase.from('accessories').delete().eq('id', id);
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -829,7 +938,7 @@ export const dbService = {
       const { error } = await supabase.from('materials').delete().eq('id', id);
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -839,7 +948,7 @@ export const dbService = {
       const { error } = await supabase.from('printer_fleet').delete().eq('id', id);
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -892,7 +1001,7 @@ export const dbService = {
       const { error } = await supabase.from('order_items').insert(rows);
       if (error) return fail(`Không ghi được order_items: ${error.message}`);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -904,7 +1013,7 @@ export const dbService = {
       const { error } = await supabase.from('order_items').delete().in('id', ids);
       if (error) return fail(`Không hoàn tác được order_items: ${error.message}`);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -918,7 +1027,7 @@ export const dbService = {
       const { error } = await supabase.from('payment_transactions').insert(row);
       if (error) return fail(error);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -928,7 +1037,7 @@ export const dbService = {
       const { error } = await supabase.from('payment_transactions').delete().eq('id', id);
       if (error) return fail(`Không hoàn tác được payment_transactions: ${error.message}`);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -940,7 +1049,7 @@ export const dbService = {
       const { error } = await supabase.from('order_files').insert(rows);
       if (error) return fail(`Không ghi được order_files: ${error.message}`);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -951,7 +1060,7 @@ export const dbService = {
       const { error } = await supabase.from('order_files').delete().in('id', ids);
       if (error) return fail(`Không hoàn tác được order_files: ${error.message}`);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
@@ -965,7 +1074,7 @@ export const dbService = {
         .eq('id', orderId);
       if (error) return fail(`Không cập nhật được đơn hàng: ${error.message}`);
       return ok();
-    } catch (err: any) {
+    } catch (err) {
       return fail(err);
     }
   },
