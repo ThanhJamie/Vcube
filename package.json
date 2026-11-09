@@ -11,7 +11,19 @@
     "lint": "tsc --noEmit",
     "check": "node scripts/run-checks.mjs",
     "test:unit": "tsx --test tests/unit/*.test.ts",
-    "skills:sync": "node scripts/sync-mattpocock-skills.mjs"
+    "skills:sync": "node scripts/sync-mattpocock-skills.mjs",
+    "po:audit": "node scripts/po-audit.mjs",
+    "seo:gen": "node scripts/gen-seo-files.mjs",
+    "machine:next": "node scripts/machine-next.mjs",
+    "guard:max-lines": "node scripts/check-max-lines.mjs",
+    "guard:any-budget": "node scripts/check-any-budget.mjs",
+    "guard:import-boundaries": "node scripts/check-import-boundaries.mjs",
+    "guard:import-cycles": "node scripts/check-import-cycles.mjs",
+    "guard:all": "npm run guard:max-lines && npm run guard:any-budget && npm run guard:import-boundaries && npm run guard:import-cycles",
+    "guard:update": "node scripts/check-max-lines.mjs --update && node scripts/check-any-budget.mjs --update && node scripts/check-import-boundaries.mjs --update",
+    "db:check": "node scripts/db-query.mjs --check",
+    "db:query": "node scripts/db-query.mjs",
+    "mcp:supabase": "node scripts/supabase-mcp-proxy.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.114.0",

@@ -65,7 +65,7 @@ Nguyên tắc: snake_case → camelCase, **trường thiếu để `null`/`—`,
 | `useDesignerAdminStore` | `stores/` | ❌ | filter, `loadDesigners`, `updateDesigner`, `loadPayoutInfo`(RPC), `getDesignerStats` | Group2DesignersPanel |
 | `useCustomerAdminStore` | `stores/` | ❌ | filter, `loadCustomers`, `setNdaSigned`, `getCustomerStats` | Group3CustomersPanel |
 
-> Hai thư mục store (`src/stores` vs `src/frontend/stores`) từng là **bất nhất layout**, không trùng lặp chức năng. **Phase 3 (2026-10-21) đã gom về `src/frontend/stores`** — câu này là hiện trạng lịch sử.
+> Hai thư mục store (`stores` cũ vs `src/frontend/stores`) từng là **bất nhất layout**, không trùng lặp chức năng. **Phase 3 (2026-10-21) đã gom về `src/frontend/stores`** — câu này là hiện trạng lịch sử.
 
 ---
 
@@ -109,7 +109,7 @@ Nguyên tắc: snake_case → camelCase, **trường thiếu để `null`/`—`,
 
 Data-honesty: nhiều field khai `| null` (provenance/nguồn) — mapper để null khi thiếu.
 
-**Shim chết**: `src/frontend/types/index.ts`, `src/frontend/data/mockData.ts`, `src/frontend/utils/pricingEngine.ts` — chỉ `export *`, **0 importer**.
+**Shim chết**: `frontend/types/index.ts`, `frontend/data/mockData.ts`, `frontend/utils/pricingEngine.ts` — chỉ `export *`, **0 importer**.
 
 ---
 

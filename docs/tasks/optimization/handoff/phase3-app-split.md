@@ -4,7 +4,7 @@
 > **Work item:** `task-30` · **Agent:** `design-foundation` · **Ngày:** 2026-10-21
 > **Repo:** `/home/thanh/home/thanh/project/Vcube` · **HEAD:** `387e86c` + Phase 3a/3b (task-28) unstaged.
 > **Trạng thái:** DONE — behavior-preserving, lint/build xanh, không commit/push.
-> **Không sửa:** views, components khác, backend, `package.json`, `src/index.css`, `src/stores`.
+> **Không sửa:** views, components khác, backend, `package.json`, `src/index.css`, `src/frontend/stores`.
 > **Build vào `dist-ssr/p3c/`** (gitignored) — **không ghi `dist/`**.
 
 ---
@@ -192,7 +192,7 @@ So với `git show HEAD:src/App.tsx` (9 effect, channel `'public:products'`, rem
 5. **Lazy declaration di chuyển**: nếu sau này ai import trực tiếp `PersonalizeView`/`OrderSuccessView`/
    `OrderTrackingView` từ App.tsx sẽ không còn biến local đó — dùng `@frontend/views/*` như các nơi khác.
 6. **`activeOrder`** không còn lộ ra App (không dùng ở JSX); hook vẫn giữ để `handleUpdateOrderStatus` đồng bộ.
-7. Không có dependency mới; không đổi `src/stores` (agent khác đã move ở 3a/3b — không chạm).
+7. Không có dependency mới; không đổi `src/frontend/stores` (agent khác đã move ở 3a/3b — không chạm).
 
 ---
 

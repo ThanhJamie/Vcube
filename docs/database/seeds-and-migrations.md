@@ -3,8 +3,8 @@
 
 > **Target Platform**: Supabase PostgreSQL 15+  
 > **Active Migration Chain**: **12 files** = 3 core (`20260900`, `20260901`, `20261010`) + 9 forward (`20261011*`–`20261013*`; 8 file nằm trong bundle apply + 1 file **H-gated** `20261013100000_drop_designer_bank_columns.sql`)  
-> **Consolidated Executable**: `supabase/scripts/apply_all_manual.sql`  
-> **Admin Provisioning**: `supabase/scripts/bootstrap_admin.sql`  
+> **Consolidated Executable**: [supabase/scripts/apply_all_manual.sql](supabase/scripts/apply_all_manual.sql)  
+> **Admin Provisioning**: [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql)  
 > **Catalog Testing**: `scripts/test-catalog-sync.ts` (offline mock)  
 > **Demo/Sample Rows**: `scripts/seed-sample-data.mjs` (dry-run · `--apply` · `--remove`)
 
@@ -78,7 +78,7 @@ To ensure transactional atomicity and prevent circular dependency locks between 
 | 11 | `20261013100000_drop_designer_bank_columns.sql` | SEC-01 / T20 phase 2 — **H-GATED, not in the bundle**: apply only after phase 1 + client deploy + verification | `20261013100000_down.sql` |
 | 12 | `20261013110000_storage_scheme.sql` | T25 / D3: owner-scoped `cad/<uid>/<uuid>/<file>` policy for the `cad-files` bucket | `20261013110000_down.sql` |
 
-The consolidated `supabase/scripts/apply_all_manual.sql` is regenerated with `node scripts/gen-apply-all.mjs`; it currently bundles the 3 core files + **8** forward migrations (`20261011*`–`20261013*`, trừ file H-gated) + `bootstrap_admin.sql`. The only migration **not** bundled is the H-gated `20261013100000_drop_designer_bank_columns.sql` — apply it separately under the §1.4 protocol of `docs/tasks/DRIFT-TASKS.md`, and log each apply in `docs/security/rls-runbook.md` §11. Ready-to-paste bundles live in `docs/runbooks/hotfix-2026-09-24.sql` and `docs/runbooks/w2b-2026-09-24.sql`.
+The consolidated [supabase/scripts/apply_all_manual.sql](supabase/scripts/apply_all_manual.sql) is regenerated with `node scripts/gen-apply-all.mjs`; it currently bundles the 3 core files + **8** forward migrations (`20261011*`–`20261013*`, trừ file H-gated) + `bootstrap_admin.sql`. The only migration **not** bundled is the H-gated `20261013100000_drop_designer_bank_columns.sql` — apply it separately under the §1.4 protocol of `docs/tasks/DRIFT-TASKS.md`, and log each apply in `docs/security/rls-runbook.md` §11. Ready-to-paste bundles live in `docs/runbooks/hotfix-2026-09-24.sql` and `docs/runbooks/w2b-2026-09-24.sql`.
 
 ---
 
@@ -163,7 +163,7 @@ After executing `20261010_harden_rls.sql`, **no one has administrative access by
 
 ### Bootstrap Execution Steps
 
-1. Open `supabase/scripts/bootstrap_admin.sql`.
+1. Open [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql).
 2. Update the `v_email` variable to match your authenticated user email:
    ```sql
    do $do$
@@ -194,7 +194,7 @@ After executing `20261010_harden_rls.sql`, **no one has administrative access by
 ## 4. Single-Script Execution (`apply_all_manual.sql`)
 
 For setting up a fresh Supabase environment from scratch, run the consolidated script:
-`supabase/scripts/apply_all_manual.sql`
+[supabase/scripts/apply_all_manual.sql](supabase/scripts/apply_all_manual.sql)
 
 This file is automatically compiled by running:
 ```bash

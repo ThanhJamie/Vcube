@@ -84,7 +84,7 @@ cho khớp. Nếu là ý định sản phẩm → thêm policy (kèm test); nế
 | **Schema** | Sinh `schema.md` từ Postgres: `supabase gen types` + script đọc `information_schema` + `pg_policies` | DB-03/04/05/06/07/08, ARCH-09/10/11, IDX-06, NEW-01/02 |
 | **Route** | Sinh bảng route từ `App.tsx` (hoặc chuyển sang data-router với route là object đọc được bằng script) | IDX-05/07, DS-02, NEW-04 |
 | **Env** | Định nghĩa schema env (ví dụ `zod` + `@t3-oss/env`) → app **fail-fast** khi thiếu khoá; sinh `.env.example` từ schema | NEW-24, NEW-13, IDX-15 |
-| **Gate** | Một lệnh `npm run check` tự tìm `scripts/check-*.mjs` + `scripts/lint-rls-*.mjs`; CI chạy đúng lệnh đó; docs chỉ ghi `npm run check` | IDX-04/14, DS-05, NEW-30 |
+| **Gate** | Một lệnh `npm run check` tự tìm `check-*.mjs` + `lint-rls-*.mjs` trong `scripts/`; CI chạy đúng lệnh đó; docs chỉ ghi `npm run check` | IDX-04/14, DS-05, NEW-30 |
 | **Tham chiếu code** | Bỏ `file:line`, dùng **tên symbol** (`saveOrder`, `KANBAN_STAGES`) hoặc permalink theo commit | DS-07, mọi `file:line` trong toàn bộ docs |
 | **Link/Dep** | `lychee` cho link chết; `knip` cho dependency/file thừa (`vite` trùng, `motion` ma trong `bun.lock`); gate grep tên module/route/env được nhắc trong docs mà không tồn tại | LNK-*, NEW-16, NEW-27 |
 | **Frontmatter** | Mỗi doc có `status: active \| snapshot \| historical`, `verified: <date>`, `owner`; CI cảnh báo doc `active` quá 60 ngày chưa verify | DS-04/18/21, LNK-04 |
@@ -120,7 +120,7 @@ Có thể sinh gần tự động: schema từ DB, service/UI từ `grep`.
 
 ## 4. Nguyên nhân D — UI trung thực: capability registry + sửa hành vi
 
-### D1. `src/config/capabilities.ts`
+### D1. `config/capabilities.ts`
 Khai báo tính năng nào đang thật; UI hiển thị `<ComingSoon />`/ẩn khi cờ tắt. Google OAuth và password reset
 đã dùng cách này (`ENABLE_GOOGLE_OAUTH=false`) — mở rộng ra toàn app (dispatcher, carrier tracking, auto-scan…).
 
@@ -142,7 +142,7 @@ Chuỗi marketing chứa "tự động", "real-time", "carrier" phải đi kèm 
 
 - Xoá/regenerate `bun.lock` **hoặc** khai `packageManager` trong `package.json` để chỉ còn một trình quản lý gói.
 - Xoá `vite` khai trùng ở `dependencies` + `devDependencies` (NEW-27).
-- Xoá `NEXT_PUBLIC_*`, exclude cây Next trong tsconfig, và mọi link `src/app/**` trong docs.
+- Xoá `NEXT_PUBLIC_*`, exclude cây Next trong tsconfig, và mọi link cây Next cũ (`app/`) trong docs.
 - Sau bước này DS-03, NEW-23, NEW-26, NEW-27, IDX-02/08 tự hết.
 
 ---
@@ -189,9 +189,9 @@ Phương án "song ngữ thật" (Lingui/react-i18next + codemod) **bị loại*
    phải có phương án thay thế no-dep hoặc chờ phê duyệt.
 2. **A (RLS) chạm production**: sửa `supabase/migrations/20261010_harden_rls.sql` (hoặc thêm migration mới
    theo quy ước repo — hiện repo yêu cầu *sửa trực tiếp 3 file*, cân nhắc trước khi tạo file mới).
-   Cần chạy `scripts/lint-rls-*.mjs` + `verify-rls.mjs` + pgTAP trước khi áp.
+   Cần chạy `lint-rls-*.mjs` trong `scripts/` + `scripts/verify-rls.mjs` + pgTAP trước khi áp.
 3. **`src` comment cũng sai schema** (NEW-29) — sửa kèm đợt C để tránh nguồn sai mới.
-4. Mỗi đợt phải qua gate: `npm run lint`, `npm run build`, toàn bộ `scripts/check-*.mjs` / `lint-rls-*.mjs`.
+4. Mỗi đợt phải qua gate: `npm run lint`, `npm run build`, toàn bộ `check-*.mjs` / `lint-rls-*.mjs` trong `scripts/`.
 
 ---
 

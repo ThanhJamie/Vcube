@@ -1,0 +1,39 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": ["superpowers@git+https://github.com/obra/superpowers.git#v7.0.2"],
+  "mcp": {
+    "servers": {
+      "playwright": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "@playwright/mcp@0.0.84",
+          "--headless",
+          "--isolated",
+          "--viewport-size",
+          "1440x900",
+          "--output-dir",
+          "/tmp/opencode/pw/out",
+          "--console-level",
+          "info",
+          "--ignore-https-errors"
+        ],
+        "cwd": ".",
+        "timeout": {
+          "startup": 60000
+        }
+      },
+      "supabase": {
+        "type": "remote",
+        "url": "http://127.0.0.1:8788/mcp?project_ref=vcxarjwzbihvurpkcufa&features=database,docs",
+        "oauth": false,
+        "timeout": {
+          "startup": 45000,
+          "catalog": 30000,
+          "execution": 180000
+        }
+      }
+    }
+  }
+}

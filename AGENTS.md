@@ -20,7 +20,7 @@ To keep a dev server alive after the command returns, detach it: `setsid nohup n
 
 ## Stack
 
-React 19, Vite 6, TypeScript 5.8, Tailwind CSS 4, Zustand 5, react-router-dom 7, Supabase, Three.js 0.185, lucide-react. This is a Vite SPA (`vercel.json` framework=vite): there is no Next.js runtime. The `next` dependency was removed and the dead Next tree (`src/app/**`, `middleware.ts`) has been deleted; `tsconfig.json` only excludes `node_modules` and `dist`. Do not add Next.js patterns.
+React 19, Vite 6, TypeScript 5.8, Tailwind CSS 4, Zustand 5, react-router-dom 7, Supabase, Three.js 0.185, lucide-react. This is a Vite SPA (`vercel.json` framework=vite): there is no Next.js runtime. The `next` dependency was removed and the old Next tree (`app/`, `middleware.ts`) has been deleted; `tsconfig.json` only excludes `node_modules` and `dist`. Do not add Next.js patterns.
 
 UI: **light-only** (v3 "Soft Studio", `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE.md`); không có ThemeProvider/dark theme; font Be Vietnam Pro + JetBrains Mono; ngôn ngữ hiển thị **chỉ tiếng Việt**.
 
@@ -30,7 +30,7 @@ UI: **light-only** (v3 "Soft Studio", `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE
 - `src/frontend/routes/` — `AppRoutes.tsx` (toàn bộ `<Routes>`: 30 path + 7 redirect) + `routeWrappers.tsx` (`ProtectedRoute`, `ExploreRoute`, `ProductDetailRoute`, `PersonalizeRoute`, `OrderSuccessRoute`, `OrderTrackingRoute`).
 - `src/frontend/hooks/` — data + realtime: `useCatalogData`, `useSiteSettings`, `useOrdersData`, `useAppNavigation`, `useInViewport`, `useSettings`.
 - `src/frontend/components/shell/` — `AppOverlays`, `DashboardShell`, `DesignerDashboardShell`, `LabDashboardShell`, `LabRoute`, `navConfig`, `screens`.
-- `src/frontend/views` / `components` / `context` / `ui` (29 primitive) / `stores` / `lib` / `types` / `theme` — UI; **`src/stores` đã xoá ở Phase 3** (store chỉ còn ở `src/frontend/stores`).
+- `src/frontend/views` / `components` / `context` / `ui` (29 primitive) / `stores` / `lib` / `types` / `theme` — UI; **thư mục `stores` cũ ở `src/` đã xoá ở Phase 3** (store chỉ còn ở `src/frontend/stores`).
 - `src/frontend/stores` — 6 store Zustand: `useCartStore`, `useUIStore`, `useCustomerAdminStore`, `useDesignerAdminStore`, `useProductionStore`, `useWorkshopAdminStore`.
 - `src/backend/supabase` — client, database service, mappers, seed service.
 - `src/backend/services` — pricingService, orderService, catalogService, customDesignService, settingsService; `workshopService.ts` là **façade 128 dòng** (Phase 4) trên 14 module `workshop/{profiles,machines,materials,accessories,inventory,queue,customers,designers,catalogs,seed,shared,storage,constants,types}.ts`.
@@ -59,7 +59,7 @@ UI: **light-only** (v3 "Soft Studio", `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE
 3. `npm run test:unit` — PASS (Phase 6b).
 4. `npm run check` — không hồi quy baseline (offline gate). Live gate (`verify-rls`/`inspect-db`) có thể bỏ khi Supabase paused/DNS, nhưng phải ghi rõ trong báo cáo.
 5. Verify flow đã đổi trên browser tại http://localhost:3000 (viewport 390 + 1440; 0 tràn ngang, 0 `pageerror`).
-6. **Docs-as-code:** đổi route ⇒ chạy `node scripts/gen-routes-doc.mjs`; đổi schema/RLS ⇒ cập nhật `docs/database/*` + `docs/security/rls-*` theo số đo thực (xem bảng dưới).
+6. **Docs-as-code:** đổi route ⇒ chạy `node scripts/gen-routes-doc.mjs`; đổi schema/RLS ⇒ cập nhật `docs/database/*` + `docs/security/` (`rls-*`) theo số đo thực (xem bảng dưới).
 7. Report rõ từng gate + file đã sửa; **không commit/push** (Lead commit theo phase).
 
 ## Environment and database
@@ -99,7 +99,7 @@ UI: **light-only** (v3 "Soft Studio", `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE
 | Hạng mục | Số thực | Cách đếm / nguồn |
 |---|---:|---|
 | Migration | **13** | `ls supabase/migrations/*.sql \| wc -l` |
-| Bảng | **32** | `20260901_baseline_schema.sql` 31 + `designer_payout_info` (#10). Đếm: `grep -rhoiE 'create table (if not exists )?(public\.)?[a-z0-9_]+' supabase/migrations/*.sql \| sed -E 's/.*[. ]([a-z0-9_]+)$/\1/' \| sort -u \| grep -vx if \| wc -l` |
+| Bảng | **32** | `20260901_baseline_schema.sql` 31 + `designer_payout_info` (#10) — lệnh đếm ở dưới bảng |
 | View | **2** | `pricing_config` (`security_invoker=true` — compatibility view trên `pricing_configs`) + `open_design_requests` (`security_invoker=false`; chỉ designer/admin, cột brief không nhạy cảm) |
 | Hàm thường trực | **19** | 21 `create function` − 2 helper tạm bị `drop` cuối `20261010_harden_rls.sql` (`_vcube_make_policy`, `_vcube_has_columns`). 9 helper/RPC (`current_app_role`, `is_admin`, `is_admin_or_lab`, `current_workshop_partner_id`, `get_order_by_guest_token`, `claim_design_request`, `admin_get_designer_payout`, `get_my_payout_info`, `upsert_my_payout_info`) + 10 hàm trigger (`fn_*` + `orders_broadcast_status`) |
 | Định nghĩa trigger | **9** | 12 câu `create trigger` tĩnh (3 lần tái tạo `trg_create_profile_for_new_user`, 2 lần `trg_protect_profile_…`); **29 instance** runtime = `trg_touch_updated_at` × 21 bảng (vòng lặp baseline) + 8 trigger gắn 1 bảng |
@@ -107,9 +107,16 @@ UI: **light-only** (v3 "Soft Studio", `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE
 | Policy storage | **8** | `v_ok` trong `20261010_harden_rls.sql` + `vcube_cad_files_cad_owner_rw` (#12, **đã áp 2026-10-23**) ⇒ 7+1 |
 | Policy realtime | **1** | `orders_admin_realtime` trên `realtime.messages` (#9) — chỉ admin đọc topic `orders:admin`; có thể SKIP nếu Realtime Authorization chưa bật |
 
+Lệnh đếm bảng (chạy từ gốc repo):
+
+```bash
+grep -rhoiE 'create table (if not exists )?(public\.)?[a-z0-9_]+' supabase/migrations/*.sql \
+  | sed -E 's/.*[. ]([a-z0-9_]+)$/\1/' | sort -u | grep -vx if | wc -l
+```
+
 > Đừng dùng `grep -c 'create policy'` để kết luận: policy bảng được sinh **động** trong `DO` block (`_vcube_make_policy` + `foreach`) nên grep thô chỉ thấy 21 câu literal. Dùng bảng breakdown ở trên hoặc `node scripts/verify-rls.mjs` khi DB sống.
 
-**Quyền là do DB quyết định:** vai trò đọc từ `public.user_profiles.role`. Không dùng `user_metadata`, không hardcode email, không `FOR ALL USING (true)`. Cấp quyền admin bằng `supabase/scripts/bootstrap_admin.sql`.
+**Quyền là do DB quyết định:** vai trò đọc từ `public.user_profiles.role`. Không dùng `user_metadata`, không hardcode email, không `FOR ALL USING (true)`. Cấp quyền admin bằng [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql).
 
 ### Gate bổ sung (ngoài lint/build)
 
@@ -133,6 +140,16 @@ Vòng lặp tự cải tiến: **audit → chọn 1 mục nợ ưu tiên → s�
 - Ràng buộc: mỗi vòng một mục, sao lưu file vào `.loop/backups/` trước khi sửa, hoàn nguyên nếu
   score không giảm hoặc gate/lint fail; không commit/push; không thêm dependency.
 - Smoke browser tùy chọn: `LOOP_BROWSER_CMD="node /tmp/opencode/pwtest/test.mjs" node scripts/loop-audit.mjs`.
+
+## Code Machine (reviewer + agent song song)
+
+Máy tự quyết định hướng tối ưu theo hợp đồng PO, có reviewer và verifier:
+
+- Đo giá trị người dùng: `npm run po:audit` → `.loop/po.json` (score 0–100, backlog P0/P1).
+- Chọn việc: `npm run machine:next -- --pretty` (ánh xạ tiêu chí fail → task, chặn task cần người duyệt).
+- Chạy: `/code-machine <N>` (agent `code-machine` + `machine-reviewer` / `machine-implementer` / `machine-verifier`).
+- Duyệt task cần người: `node scripts/machine-next.mjs --approve <id>`; ghi nhận: `--complete` / `--block`.
+- Chi tiết & quy tắc an toàn: `docs/po/CODE-MACHINE.md`, `docs/po/ACCEPTANCE.md`.
 
 ## Tài liệu — nguồn chuẩn
 
@@ -170,3 +187,17 @@ Shell mặc định của harness là **Windows PowerShell 5.1**. `Get-Content` 
 ```
 
 Ngoài ra công cụ `write`/`edit` của DSH **không ghi được** qua đường dẫn UNC `\\wsl.localhost\...` (`ENOTSUP`); hãy ghi ra đường dẫn Windows thật rồi copy vào WSL, hoặc dùng pwsh với .NET I/O.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- When graphify-out/graph.json exists, run `graphify query "<question>"` before your first grep, search or source-file read for a codebase question, and put this rule in every subagent prompt that explores code. Read raw files only for lines the graph or an earlier read already located. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.

@@ -1,0 +1,135 @@
+name: CI
+
+# PR-1 — cổng CI tối thiểu, tất định, KHÔNG cần `.env` cho job offline.
+# Job offline chạy đúng các gate trong scripts/gate-manifest.json có thể chạy khi không có
+# Supabase sống: lint, unit test, build, 4 guard (dòng/any/ranh giới/vòng import) và các
+# checker tĩnh. Live gate (verify-rls / inspect-db / test-catalog-sync) chỉ chạy khi repo đã
+# cấu hình secret; thiếu secret thì bỏ qua, không làm đỏ PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-gates:
+    name: Offline gates (lint · test · build · guard)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install (npm ci)
+        run: npm ci
+
+      - name: Typecheck (npm run lint)
+        run: npm run lint
+
+      - name: Unit tests (npm run test:unit)
+        run: npm run test:unit
+
+      - name: Build (npm run build)
+        run: npm run build
+
+      - name: Guard — file ≤800 dòng
+        run: node scripts/check-max-lines.mjs
+
+      - name: Guard — ngân sách `any`
+        run: node scripts/check-any-budget.mjs
+
+      - name: Guard — ranh giới frontend/backend
+        run: node scripts/check-import-boundaries.mjs
+
+      - name: Guard — vòng import
+        run: node scripts/check-import-cycles.mjs
+
+      # Các checker tĩnh còn lại trong gate-manifest.json (id có `offline: true` / không `live`).
+      # Dùng --no-baseline: CI chỉ cần gate xanh (RC=0), không so số vi phạm lịch sử.
+      - name: Offline checkers (manifest)
+        run: |
+          node scripts/run-checks.mjs --no-baseline \
+            --only check-contrast-combos \
+            --only check-contrast \
+            --only check-error-handling \
+            --only check-fabricated \
+            --only check-icon-names \
+            --only check-icon-library \
+            --only check-ui-rules \
+            --only check-unitprice-multiplier \
+            --only a8-sql-syntax-check \
+            --only lint-rls-migration \
+            --only lint-rls-sources
+
+  live-gates:
+    name: Live Supabase gates (chỉ khi có secret)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install (npm ci)
+        run: npm ci
+
+      # `secrets` không dùng được trong `if` của GitHub Actions, nên dò bằng step + GITHUB_OUTPUT.
+      - name: Detect Supabase secrets
+        id: detect
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          if [ -n "$VITE_SUPABASE_URL" ] && [ -n "$VITE_SUPABASE_PUBLISHABLE_KEY" ] && [ -n "$SUPABASE_SECRET_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Thiếu secret Supabase — bỏ qua live gate (verify-rls/inspect-db/test-catalog-sync)."
+          fi
+
+      # Các script live đọc `.env` (parseEnv), nên dựng file từ secret chỉ trong job này.
+      - name: Write .env from secrets
+        if: steps.detect.outputs.present == 'true'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SITE_URL: ${{ secrets.VITE_SITE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          {
+            printf 'VITE_SUPABASE_URL=%s\n' "$VITE_SUPABASE_URL"
+            printf 'VITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$VITE_SUPABASE_PUBLISHABLE_KEY"
+            printf 'VITE_SITE_URL=%s\n' "${VITE_SITE_URL:-http://localhost:3000}"
+            printf 'SUPABASE_SECRET_KEY=%s\n' "$SUPABASE_SECRET_KEY"
+          } > .env
+
+      - name: Live RLS gates
+        if: steps.detect.outputs.present == 'true'
+        run: node scripts/run-checks.mjs --only verify-rls --only inspect-db
+
+      - name: Catalog sync integration
+        if: steps.detect.outputs.present == 'true'
+        run: npx tsx scripts/test-catalog-sync.ts
+
+      - name: Skipped (no secrets)
+        if: steps.detect.outputs.present != 'true'
+        run: echo "Live gate bỏ qua — thiếu secret Supabase (verify-rls/inspect-db/test-catalog-sync)."

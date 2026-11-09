@@ -133,7 +133,7 @@
 | IDX-05 | **P1** | CONFIRMED | Route `/workshop/settings` không tồn tại | `docs/README.md:93`; `App.tsx:1854-1855` |
 | IDX-06 | P1 | **ĐÃ SỬA 2026-09-23** | AGENTS/README gán 13 hàm/7 trigger cho riêng baseline (thật: baseline 7 hàm/5 trigger; cộng dồn 13/7) | sửa `AGENTS.md:57`, `README.md:45` |
 | IDX-07 | **P1** | CONFIRMED | Route param drift `:id` vs `:productId`/`:orderId` | `docs/README.md:70,77`; `App.tsx:1580,1677` |
-| IDX-08 | P2 | CONFIRMED | Claim tsconfig exclude `src/app/**`/`server.ts`/`middleware.ts` (không tồn tại) | `AGENTS.md:18`; `tsconfig.json:39-42` |
+| IDX-08 | P2 | CONFIRMED | Claim tsconfig exclude `app/` cũ/`server.ts`/`middleware.ts` (không tồn tại) | `AGENTS.md:18`; `tsconfig.json:39-42` |
 | IDX-09 | P2 | PARTIAL | §3.4 có nhưng thiếu `taste-contract.md` + `ui-audit-2026-09.md` | `docs/README.md:108-111` |
 | IDX-10 | P2 | PARTIAL | `docs/tasks/` nay có trong docs/README nhưng `AGENTS.md` doc map vẫn thiếu | `docs/README.md:110`; `AGENTS.md:96-102` |
 | IDX-11 | P2 | PARTIAL | SETUP overstate mock fixtures (catalog `= []`); citation `README.md:3` là sai | `SETUP_RUNBOOK.md:243`; `mockData.ts:49,60,80` |
@@ -146,7 +146,7 @@
 | LNK-01 | **P1** | CONFIRMED | Trùng IDX-03 (5 link chết) | `docs/README.md:109` |
 | LNK-02 | **P1** | CONFIRMED | Trùng IDX-05 (`/workshop/settings`) | `docs/README.md:93` |
 | LNK-03 | P2 | CONFIRMED | Trùng IDX-16 (banner archive) | `docs/archive/README.md:4` |
-| LNK-04 | P2 | CONFIRMED | Trỏ `src/config/demoMode.ts` + `VITE_VCUBE_DEMO_MODE` không tồn tại | `data-honesty.md:230,260,308` |
+| LNK-04 | P2 | CONFIRMED | Trỏ `config/demoMode.ts` + `VITE_VCUBE_DEMO_MODE` không tồn tại | `data-honesty.md:230,260,308` |
 | LNK-05 | P2 | CONFIRMED | Nhắc `AdminOrdersPanel` đã xoá, mâu thuẫn nội bộ `:543` vs `:546` | `qa-checklist.md:543,546` |
 
 ### 1.6 Design-system (DS)
@@ -203,19 +203,19 @@
 - **NEW-14 [P1] [KONTRA]** docs/README + AGENTS/README cần ghi caveat "2 policy `pricing_config` bị bỏ ⇒ 88 hiệu lực" ở các chỗ còn thiếu (`system-overview.md:45,146`). Evidence: `AGENTS.md:58`.
 - **NEW-15 [P2] [KONTRA]** `rls_audit.sql` khiến a8 gate quét 8 file, nhưng AGENTS/docs/README/SETUP ghi 7. Evidence: `a8-sql-syntax-check.mjs:24-32`; `supabase/diagnostics/rls_audit.sql`. (Trùng IDX-14.)
 - **NEW-16 [LINK]** Danh sách link chết bổ sung (target không tồn tại):
-  `data-honesty.md:45,56,57,97-121` → `src/ai/services/modelAnalysisService.ts`, `src/app/api/ai/analyze/route.ts`, `tool3d/InstantQuoteWidget.tsx`, `quoteVerifier.ts`, `useAdminOverviewStore.ts`, `AdminOverviewPanel.tsx`, `AdminUsersPanel.tsx`, `DesignerSettingsView.tsx`;
-  `icon-map.md:79,334-367` → `src/app/auth/login|register/page.tsx`, `AdminOverviewPanel.tsx`, `AdminPartnersPanel.tsx`, `InstantQuoteWidget.tsx`, `AdminUsersPanel.tsx`;
-  `ui-audit-2026-09.md:63,64` → `src/backend/supabase/admin.ts`, `docs/plans/00–07`;
-  `tasks/UI-CHROME-REFACTOR-PLAN.md:145` → `src/frontend/theme/ThemeProvider.tsx`;
-  `seeds-and-migrations.md:192` → `src/data/mockData` (thiếu `.ts`);
-  `AGENTS.md:18` → `src/backend/supabase/server.ts` (văn xuôi).
+  `data-honesty.md:45,56,57,97-121` → `ai/services/modelAnalysisService.ts`, `app/api/ai/analyze/route.ts`, `tool3d/InstantQuoteWidget.tsx`, `quoteVerifier.ts`, `useAdminOverviewStore.ts`, `AdminOverviewPanel.tsx`, `AdminUsersPanel.tsx`, `DesignerSettingsView.tsx`;
+  `icon-map.md:79,334-367` → `app/auth/login|register/page.tsx`, `AdminOverviewPanel.tsx`, `AdminPartnersPanel.tsx`, `InstantQuoteWidget.tsx`, `AdminUsersPanel.tsx`;
+  `ui-audit-2026-09.md:63,64` → `backend/supabase/admin.ts`, `docs/plans/` (00–07);
+  `tasks/UI-CHROME-REFACTOR-PLAN.md:145` → `frontend/theme/ThemeProvider.tsx` (đã xoá);
+  `seeds-and-migrations.md:192` → `src/data/mockData.ts` (doc cũ ghi thiếu `.ts`);
+  `AGENTS.md:18` → `backend/supabase/server.ts` (văn xuôi).
   **Lưu ý:** hầu hết nằm trong doc đã đánh dấu snapshot/historical; chỉ cần thêm nhãn hoặc sửa path.
 
 ### 2.4 Design
 
 - **NEW-17 [P2]** `icon-map.md:13` câu tự mâu thuẫn: "so only these canonical names work: … `Storefront` are not exported any more" (vế sau liệt kê alias đã bỏ).
 - **NEW-18 [P2]** `icon-map.md:37` map `text-xs` → 14px, nhưng `--text-xs: 12px`. Evidence: `index.css:126`; `tokens.md:132`.
-- **NEW-19 [P2]** `icon-map.md:79` claim "`src/app/**` excluded by `tsconfig.json` (line 46)"; tsconfig chỉ 43 dòng, không có exclude đó. Evidence: `tsconfig.json:39-43`.
+- **NEW-19 [P2]** `icon-map.md:79` claim "`app/` cũ excluded by `tsconfig.json` (line 46)"; tsconfig chỉ 43 dòng, không có exclude đó. Evidence: `tsconfig.json:39-43`.
 - **NEW-20 [P2]** `icon-map.md:57` còn note size 24px gắn với class Material Symbols đã yêu cầu xoá (`:80`).
 - **NEW-21 [P2]** `ui-audit-2026-09.md:53` "24 overlay `backdrop-blur`"; thật 13/8 file. Evidence: `tokens.md:214`.
 - **NEW-22 [P2]** `ui-audit-2026-09.md:55` nói hex `#94A3B8` ở `PersonalizeView.tsx:18`; dòng đó nay là comment, grep hex = 0. Evidence: `PersonalizeView.tsx:19`.
@@ -283,5 +283,5 @@ DB-04/06/07/08/09/13, ARCH-04..16, IDX-08..17, DS-06..21, NEW-01/02/03/12/13/14/
 
 1. ID ổn định: `SEC-*`, `DB-*`, `PAGE-*`, `ARCH-*`, `IDX-*`, `LNK-*`, `DS-*`, `NEW-*`.
 2. Khi xử lý xong: đổi `Trạng thái` sang `✅ <ngày>` (không xoá ID) để giữ truy vết.
-3. Gate bắt buộc sau mỗi đợt: `npm run lint`, `npm run build`, và toàn bộ `scripts/check-*.mjs` + `scripts/lint-rls-*.mjs` (`AGENTS.md §Gate bổ sung`).
+3. Gate bắt buộc sau mỗi đợt: `npm run lint`, `npm run build`, và toàn bộ `check-*.mjs` + `lint-rls-*.mjs` trong `scripts/` (`AGENTS.md §Gate bổ sung`).
 4. Mục P0/P1 phải về 0 trước khi coi tài liệu là "khớp hiện tại"; review lại file này mỗi đợt.

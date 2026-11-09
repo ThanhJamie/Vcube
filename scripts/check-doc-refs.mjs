@@ -38,7 +38,17 @@ const COVERAGE_JSON = join(ROOT, 'docs/tasks/coverage.json');
 // Bề mặt tài liệu: docs/**/*.md + README.md/AGENTS.md ở gốc repo.
 const DOC_DIRS = ['docs'];
 const DOC_FILES = ['README.md', 'AGENTS.md'];
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.loop', '.opencode', '.agents']);
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  '.loop',
+  '.opencode',
+  '.agents',
+  // Archive per AGENTS.md — advisory scan should only reflect live docs.
+  'docs/plans',
+  'docs/archive',
+]);
 
 const DEAD_LINK = [];
 const DEAD_PATH = [];
@@ -49,6 +59,7 @@ function walkMarkdown(dir, out = []) {
   for (const entry of readdirSync(dir)) {
     if (SKIP_DIRS.has(entry)) continue;
     const full = join(dir, entry);
+    if (SKIP_DIRS.has(relative(ROOT, full).split(sep).join('/'))) continue;
     const st = statSync(full);
     if (st.isDirectory()) walkMarkdown(full, out);
     else if (entry.endsWith('.md')) out.push(full);

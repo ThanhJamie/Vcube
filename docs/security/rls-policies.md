@@ -50,7 +50,7 @@ Earlier prototype migrations suffered from classic Supabase security vulnerabili
 
 ### 1.3 Elimination of Hardcoded Administrator Emails
 - **The Vulnerability**: Hardcoding administrative emails (e.g. `auth.jwt() ->> 'email' = 'chithanhso10@gmail.com'`) in 40+ policy strings creates static attack vectors, prevents dynamic role delegation, and violates auditability.
-- **The Remedy**: Administrative privileges are granted exclusively via `public.user_profiles.role = 'admin'`, provisioned through `supabase/scripts/bootstrap_admin.sql`. Zero hardcoded emails remain in any production migration file.
+- **The Remedy**: Administrative privileges are granted exclusively via `public.user_profiles.role = 'admin'`, provisioned through [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql). Zero hardcoded emails remain in any production migration file.
 
 ### 1.4 Fail-Closed Architecture
 `public.current_app_role()` is authored in PL/pgSQL and intercepts `undefined_table` exceptions:

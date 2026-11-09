@@ -48,7 +48,7 @@
   `20261013110000_storage_scheme`.
 - Tooling/docs sinh tự động: `scripts/gen-routes-doc.mjs`, `scripts/check-doc-freshness.mjs`,
   `docs/pages/_routes.generated.md`, `docs/database/schema-notes.md`.
-- `supabase/scripts/apply_all_manual.sql` (+361 dòng), `src/backend/supabase/database.ts`,
+- [supabase/scripts/apply_all_manual.sql](supabase/scripts/apply_all_manual.sql) (+361 dòng), `src/backend/supabase/database.ts`,
   `src/frontend/stores/useDesignerAdminStore.ts`, `supabase/migrations/20261010_harden_rls.sql`.
 
 ---

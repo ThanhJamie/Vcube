@@ -15,7 +15,7 @@
 
 | ID | File / thư mục | Kích thước trước xoá | sha256 (16 ký tự) | Bằng chứng 0-ref trước khi xoá |
 |---|---|---:|---|---|
-| D19 | `test-pricing.ts` | 18.554 B (357 LOC) | `da68c194610525ee` | import `./src/backend/services/pricingEngineService` + `./src/backend/services/quoteVerifier` — **cả hai file không tồn tại** (`ls` → No such file); 0 script/npm task gọi |
+| D19 | `test-pricing.ts` | 18.554 B (357 LOC) | `da68c194610525ee` | import `./backend/services/pricingEngineService` + `./backend/services/quoteVerifier` — **cả hai file không tồn tại** (`ls` → No such file); 0 script/npm task gọi |
 | D20 | `tests/unit/`, `tests/adversarial/` | 0 file | — | `find tests -type f` = **0**; chỉ là thư mục rỗng |
 | D21 | `firebase-applet-config.json` | 560 B | `4d908bb9b2964e14` | 0 import; Firebase không còn trong `package.json` |
 | D22 | `firestore.rules` | 1.453 B | `dca3e363bbb9219a` | 0 import |
@@ -146,7 +146,7 @@ unchanged vs HEAD), lint/build/checks đều **xanh**. Không có lỗi nào do 
 `M src/backend/supabase/{client.ts,database.ts}`, `M src/types/index.ts`, `M src/data/mockData.ts`,
 `D src/frontend/ui/{Section,Toolbar,ToastViewport}.tsx`, `M src/frontend/ui/{iconMap.ts,index.ts}`,
 `M docs/design/icon-map.md`, `M docs/tasks/optimization/04-refactor.md`, `?? docs/tasks/optimization/03-resources.md`,
-`?? docs/tasks/optimization/handoff/phase1-{ui,backend}.md`.
+`?? docs/tasks/optimization/handoff/` (`phase1-{ui,backend}.md`).
 
 **Xác nhận:** 0 file `src/**` bị task-20 sửa; `HEAD` vẫn `aaff7c4` (không commit/push).
 

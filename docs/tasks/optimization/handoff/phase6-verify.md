@@ -46,11 +46,11 @@ $ npm run test:unit          # = tsx --test tests/unit/*.test.ts
 
 | File | Module thật được import | test | describe | assert |
 |---|---|---:|---:|---:|
-| `tests/unit/format.test.ts` | `../../src/frontend/lib/format` | 10 | 1 | 42 |
-| `tests/unit/vat.test.ts` | `../../src/frontend/lib/vat` | 8 | 3 | 23 |
-| `tests/unit/mappers.test.ts` | `../../src/backend/supabase/mappers` + `src/data/mockData` | 22 | 9 | 95 |
-| `tests/unit/pricingEngine.test.ts` | `../../src/utils/pricingEngine` + `src/data/mockData` + `src/types` | 19 | 6 | 64 |
-| `tests/unit/settingsValidators.test.ts` | `../../src/backend/services/settingsService` | 12 | 5 | 53 |
+| `tests/unit/format.test.ts` | `../../src/frontend/lib/format.ts` | 10 | 1 | 42 |
+| `tests/unit/vat.test.ts` | `../../src/frontend/lib/vat.ts` | 8 | 3 | 23 |
+| `tests/unit/mappers.test.ts` | `../../src/backend/supabase/mappers.ts` + `src/data/mockData.ts` | 22 | 9 | 95 |
+| `tests/unit/pricingEngine.test.ts` | `../../src/utils/pricingEngine.ts` + `src/data/mockData.ts` + `src/types` | 19 | 6 | 64 |
+| `tests/unit/settingsValidators.test.ts` | `../../src/backend/services/settingsService.ts` | 12 | 5 | 53 |
 | **Tổng** | — | **71** | **24** | **277** |
 
 - Mọi file dùng `import { describe, test } from 'node:test'` + `assert from 'node:assert/strict'`; **không** mock/mạng/DB,
@@ -202,13 +202,13 @@ AGENTS.md, `docs/database/schema.md` header, `docs/security/rls-policies.md` hea
 
 Phân loại 32 cặp `(doc, dead-ref)` mới so HEAD:
 - **Canonical/live docs (nên sửa):** `docs/SETUP_RUNBOOK.md:436`, `docs/architecture/pricing-engine.md:13`
-  vẫn gọi `src/frontend/utils/pricingEngine.ts` là “re-export” (đã xoá 6c) — 2 ref;
-  `docs/tasks/optimization/README.md` nhắc `src/stores` (đã xoá) — token lịch sử, 1 ref.
+  vẫn gọi shim `frontend/utils/pricingEngine.ts` là “re-export” (đã xoá 6c) — 2 ref;
+  `docs/tasks/optimization/README.md` nhắc `stores` cũ (đã xoá) — token lịch sử, 1 ref.
 - **Trạng thái lỗi thời (nên sửa):** `DEAD-CODE.md` D05–D07 còn “⛔ HOÃN”, `04-refactor.md` D05–D07 còn “shim”,
   `optimization/README` còn “Hoãn có lý do: D05–D07” — dù Phase 6c đã xoá.
 - **Historical/snapshot (chấp nhận advisory):** `docs/tasks/as-is/*` (6), `DEAD-CODE.md`/`03-resources.md`/
   `04-refactor.md` thân bài (7), `handoff/phase1-ui.md` (4), `handoff/phase6-*.md` (8), `AGENTS.md` (3 – trong đó
-  1 “dead link” `[a-z0-9_]+` là **false positive** của regex trong command đếm, 1 token `docs/security/rls-` bị cắt, 1 `src/stores`).
+  1 “dead link” `[a-z0-9_]+` là **false positive** của regex trong command đếm, 1 token trong `docs/security/` bị cắt, 1 `stores` cũ).
 
 ⇒ Không có **link markdown chết thật** mới; toàn bộ là path-token advisory/historical (đúng bản chất advisory).
 Risk ghi ở §10-a/b.
@@ -303,7 +303,7 @@ Live gates (`verify-rls`, `inspect-db`, integration `test-catalog-sync`) **khôn
 
 | # | Mức | Vấn đề | Đề nghị |
 |---|---|---|---|
-| a | **Thấp (docs)** | 2 canonical docs còn nhắc shim đã xoá: `docs/SETUP_RUNBOOK.md:436`, `docs/architecture/pricing-engine.md:13` (“re-exported via `src/frontend/utils/pricingEngine.ts`”) | Sửa thành “shim đã xoá ở Phase 6c; dùng trực tiếp `src/utils/pricingEngine.ts`” (2 dòng) trước/sau commit |
+| a | **Thấp (docs)** | 2 canonical docs còn nhắc shim đã xoá: `docs/SETUP_RUNBOOK.md:436`, `docs/architecture/pricing-engine.md:13` (“re-exported via shim `frontend/utils/pricingEngine.ts` đã xoá”) | Sửa thành “shim đã xoá ở Phase 6c; dùng trực tiếp `src/utils/pricingEngine.ts`” (2 dòng) trước/sau commit |
 | b | **Thấp (docs)** | `DEAD-CODE.md` D05–D07 “⛔ HOÃN”, `04-refactor.md` D05–D07 “shim”, `optimization/README` “Hoãn có lý do: D05–D07” — trái thực tế đã xoá ở 6c | Cập nhật D05–D07 = ✅ DONE Phase 6c (3 chỗ) |
 | c | **Thấp (gate)** | `test:unit` chưa trong `scripts/gate-manifest.json` ⇒ `npm run check` không chạy unit test; `tests/**` ngoài tsconfig nên lint không typecheck test | Thêm gate `test-unit` (+ entry baseline) và `tsconfig.test.json` (follow-up 6b đã đề xuất) |
 | d | Trung bình | Supabase paused ⇒ chưa chạy live `verify-rls`/`inspect-db`/integration (`test-catalog-sync`), chưa test role admin/lab đã đăng nhập | Chạy lại khi Resume; đối chiếu 92+7+1 và smoke role thật |

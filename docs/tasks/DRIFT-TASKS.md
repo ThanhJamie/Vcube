@@ -146,7 +146,7 @@ Thứ tự bắt buộc trong W2:
 ### T00 — Baseline + hạ tầng worktree
 - B · P2 · S · SA · Depends: —
 - **OWNED:** `scripts/dev/new-worktree.sh` (mới), `.env.worktree.example` (mới), `docs/tasks/baseline.json` (mới)
-- **Steps:** (1) viết script theo §1.2; (2) chạy `npm run lint`, `npm run build`, mọi `scripts/check-*.mjs`, `scripts/lint-rls-*.mjs`, `scripts/a8-sql-syntax-check.mjs`, `npx tsx scripts/test-catalog-sync.ts`; (3) ghi RC + số vi phạm từng gate vào `baseline.json`.
+- **Steps:** (1) viết script theo §1.2; (2) chạy `npm run lint`, `npm run build`, mọi `check-*.mjs`, `lint-rls-*.mjs` trong `scripts/`, `scripts/a8-sql-syntax-check.mjs`, `npx tsx scripts/test-catalog-sync.ts`; (3) ghi RC + số vi phạm từng gate vào `baseline.json`.
 - **Acceptance:** `scripts/dev/new-worktree.sh T00-smoke` tạo được worktree chạy `npm run build`; script thoát ≠ 0 khi `.env.worktree` chứa `$VCUBE_PROD_REF`; `baseline.json` có mọi gate.
 - **Rollback:** `git worktree remove`, xoá 3 file.
 
@@ -233,7 +233,7 @@ Thứ tự bắt buộc trong W2:
   commit;
   ```
   `_down.sql`: `grant select on public.designer_profiles to anon, authenticated;` + drop 2 hàm.
-  **Chạy `node scripts/lint-rls-*.mjs` trên migration mới trước khi giao H**; nếu lint chặn `grant … to anon` → ghi ngoại lệ có lý do vào chính lint (không tắt lint).
+  **Chạy `lint-rls-*.mjs` (trong `scripts/`) trên migration mới trước khi giao H**; nếu lint chặn `grant … to anon` → ghi ngoại lệ có lý do vào chính lint (không tắt lint).
 - **Acceptance (chạy trên local/staging):**
   ```sql
   select has_column_privilege('anon','public.designer_profiles','bank_account','select');          -- false
@@ -302,7 +302,7 @@ Thứ tự bắt buộc trong W2:
 - B · **P1** · S · SA · Issues: IDX-04, IDX-14, DS-05, NEW-15, NEW-30 (phần script)
 - **OWNED:** `scripts/run-checks.mjs` (mới), `scripts/gate-manifest.json` (mới), `package.json` (**chủ duy nhất ở W1**)
 - **Steps:** manifest liệt kê tường minh mọi gate (`a8-sql-syntax-check.mjs`, `test-catalog-sync.ts`, mọi `check-*`, mọi `lint-rls-*`) và **sẵn slot** `{"id":"doc-refs","cmd":"node scripts/check-doc-refs.mjs --warn","advisory":true,"optional":true}` (bỏ qua nếu file chưa có → hết vòng phụ thuộc với T30); `--baseline docs/tasks/baseline.json` chỉ đỏ khi tệ hơn; `--list-unregistered` in file khớp `check-*`/`lint-*` chưa có trong manifest.
-- **Acceptance:** `npm run check` chạy hết manifest; `--baseline` xanh ở trạng thái hiện tại; thêm file `scripts/check-x.mjs` rỗng → `--list-unregistered` nêu tên nó.
+- **Acceptance:** `npm run check` chạy hết manifest; `--baseline` xanh ở trạng thái hiện tại; thêm file `check-x.mjs` rỗng trong `scripts/` → `--list-unregistered` nêu tên nó.
 
 ### T06 — Comment `src` sai schema
 - C · P2 · S · SA · Issues: NEW-29
@@ -325,7 +325,7 @@ Thứ tự bắt buộc trong W2:
 ### T08 — `AGENTS.md` + `README.md`
 - B/E · **P1** · S · SA · Issues: IDX-01, IDX-02, IDX-04, IDX-08, IDX-10, IDX-14, IDX-17, NEW-14, NEW-15, NEW-16 (phần `AGENTS.md:18`)
 - **OWNED:** `AGENTS.md`, `README.md`
-- **Steps:** bỏ đường dẫn tuyệt đối (dùng `$(git rev-parse --show-toplevel)`); bỏ `motion` khỏi stack; sửa claim tsconfig exclude cây Next và tham chiếu `src/backend/supabase/server.ts`; thêm `docs/tasks/` vào doc map; thay danh sách gate bằng "chạy `npm run check`"; thêm caveat "88 policy hiệu lực" (2 policy `pricing_config` bị bỏ); nói lockfile theo D1 (trung tính nếu D1 chưa chốt). Không dùng YAML frontmatter (marker HTML comment).
+- **Steps:** bỏ đường dẫn tuyệt đối (dùng `$(git rev-parse --show-toplevel)`); bỏ `motion` khỏi stack; sửa claim tsconfig exclude cây Next và tham chiếu `backend/supabase/server.ts`; thêm `docs/tasks/` vào doc map; thay danh sách gate bằng "chạy `npm run check`"; thêm caveat "88 policy hiệu lực" (2 policy `pricing_config` bị bỏ); nói lockfile theo D1 (trung tính nếu D1 chưa chốt). Không dùng YAML frontmatter (marker HTML comment).
 - **Acceptance:** `grep -c "/home/thanh" AGENTS.md README.md` = `0`; `grep -nE '(^|[ \x60,(])motion([ \x60,)]|$)' AGENTS.md` = rỗng; `grep -c "docs/tasks" AGENTS.md` ≥ `1`; `grep -c "server.ts" AGENTS.md` = `0`.
 
 ### T09 — `docs/README.md`
@@ -337,13 +337,13 @@ Thứ tự bắt buộc trong W2:
 ### T18a — `tokens.md` + `icon-map.md`
 - B · P1/P2 · M · SA · Issues: DS-05, DS-06, DS-11, DS-12, DS-13, DS-14, DS-15, DS-16, DS-19, NEW-16 (icon-map), NEW-17, NEW-18, NEW-19, NEW-20 · Depends: T05
 - **OWNED:** `docs/design/tokens.md`, `docs/design/icon-map.md`
-- **Steps:** §10 gate list → `npm run check`; DS-06: sửa doc cho khớp thực tế (13 `backdrop-blur`/8 file, chưa có `prefers-contrast`/`forced-colors`) và ghi vào backlog UI (không sửa code ở đây); `.font-mono` (`src/index.css:291`) chỉ set family; thêm token `--color-surface-raised` (`src/index.css:44`), `--color-on-inverse` (`:48`); số liệu "83 lần/31 file", "~1648 rounded" → bỏ số tuyệt đối hoặc ghi "snapshot <ngày>"; `360` trùng; `strokeWidth` mặc định 2 (`Icon.tsx:42`); `text-xs` = 12px (`src/index.css:126`); câu icon-map tự mâu thuẫn (`Storefront`); bỏ link `src/app/**`, tsconfig "line 46"; ghi "rule sửa cả 2 nơi **không** được gate enforce" (DS-19).
-- **Acceptance:** `grep -cE "\.\./|src/app/" docs/design/icon-map.md docs/design/tokens.md` = `0`; `grep -c "line 46" docs/design/icon-map.md` = `0`.
+- **Steps:** §10 gate list → `npm run check`; DS-06: sửa doc cho khớp thực tế (13 `backdrop-blur`/8 file, chưa có `prefers-contrast`/`forced-colors`) và ghi vào backlog UI (không sửa code ở đây); `.font-mono` (`src/index.css:291`) chỉ set family; thêm token `--color-surface-raised` (`src/index.css:44`), `--color-on-inverse` (`:48`); số liệu "83 lần/31 file", "~1648 rounded" → bỏ số tuyệt đối hoặc ghi "snapshot <ngày>"; `360` trùng; `strokeWidth` mặc định 2 (`Icon.tsx:42`); `text-xs` = 12px (`src/index.css:126`); câu icon-map tự mâu thuẫn (`Storefront`); bỏ link cây Next cũ (`app/`), tsconfig "line 46"; ghi "rule sửa cả 2 nơi **không** được gate enforce" (DS-19).
+- **Acceptance:** `grep -cE "\.\./|src\/app\/" docs/design/icon-map.md docs/design/tokens.md` = `0`; `grep -c "line 46" docs/design/icon-map.md` = `0`.
 
 ### T18b — `data-honesty.md` + `ui-audit-2026-09.md`
 - B · P2 · M · SA · Issues: DS-04, DS-17, DS-18, DS-21, LNK-04, NEW-16, NEW-21, NEW-22
 - **OWNED:** `docs/design/data-honesty.md`, `docs/design/ui-audit-2026-09.md`
-- **Steps:** đánh dấu `status=snapshot` + cột trạng thái cho hàng PC-01/MP-01 đã fix; §Demo proposal/§Verification ghi rõ "đề xuất, module `demoMode.ts`/`VITE_VCUBE_DEMO_MODE` chưa tồn tại"; sửa link chết (`modelAnalysisService.ts`, `route.ts`, `InstantQuoteWidget.tsx`, `quoteVerifier.ts`, `useAdminOverviewStore.ts`, `AdminOverviewPanel.tsx`, `AdminUsersPanel.tsx`, `DesignerSettingsView.tsx`, `src/backend/supabase/admin.ts`, `docs/plans/00–07`) bằng nhãn "đã xoá/historical"; "24 overlay" → 13/8 file; `#94A3B8` ở `PersonalizeView.tsx` nay là comment.
+- **Steps:** đánh dấu `status=snapshot` + cột trạng thái cho hàng PC-01/MP-01 đã fix; §Demo proposal/§Verification ghi rõ "đề xuất, module `demoMode.ts`/`VITE_VCUBE_DEMO_MODE` chưa tồn tại"; sửa link chết (`modelAnalysisService.ts`, `route.ts`, `InstantQuoteWidget.tsx`, `quoteVerifier.ts`, `useAdminOverviewStore.ts`, `AdminOverviewPanel.tsx`, `AdminUsersPanel.tsx`, `DesignerSettingsView.tsx`, `backend/supabase/admin.ts`, `docs/plans/` (00–07)) bằng nhãn "đã xoá/historical"; "24 overlay" → 13/8 file; `#94A3B8` ở `PersonalizeView.tsx` nay là comment.
 - **Acceptance:** `node scripts/check-doc-refs.mjs --warn` (nếu đã có T30) không còn link chết trong 2 file này; nếu chưa: `grep -c "demoMode" docs/design/data-honesty.md` chỉ trong ngữ cảnh "đề xuất".
 
 ### T18c — `taste-contract.md`
@@ -355,7 +355,7 @@ Thứ tự bắt buộc trong W2:
 ### T19 — Portal & docs phụ
 - B · P2 · M · SA · Issues: DB-08, DB-09, IDX-11, IDX-12 (placeholder), IDX-13, IDX-14 (SETUP), IDX-15, IDX-16, NEW-15 (SETUP), NEW-16 (tasks + seeds), NEW-28 · Depends: T0C, T05
 - **OWNED:** `docs/SETUP_RUNBOOK.md` (phần còn lại), `docs/archive/README.md`, `docs/tasks/README.md`, `docs/tasks/DOCS-REVIEW-BACKLOG.md`, `docs/tasks/UI-CHROME-REFACTOR-PLAN.md`, `docs/database/seeds-and-migrations.md`
-- **Steps:** placeholder hoá project ref/JWT; sửa "mock fixtures" (catalog `= []`); thêm `APP_URL` vào template `.env`; bỏ số "7 SQL files" (dùng `npm run check`); banner archive thêm `docs/design/` + `docs/tasks/`; `ThemeProvider.tsx` không tồn tại; `src/data/mockData` → `mockData.ts`; thêm `default_workshop_commission_percent` vào danh sách cột NULL; đánh dấu `seedService.syncFromSupabase()` **unwired** (0 call site); ghi `isVi ?` ≈ 1186.
+- **Steps:** placeholder hoá project ref/JWT; sửa "mock fixtures" (catalog `= []`); thêm `APP_URL` vào template `.env`; bỏ số "7 SQL files" (dùng `npm run check`); banner archive thêm `docs/design/` + `docs/tasks/`; `ThemeProvider.tsx` không tồn tại; `src/data/mockData.ts` → giữ nguyên tên file; thêm `default_workshop_commission_percent` vào danh sách cột NULL; đánh dấu `seedService.syncFromSupabase()` **unwired** (0 call site); ghi `isVi ?` ≈ 1186.
 - **Acceptance:** `grep -cE "eyJ[A-Za-z0-9_-]{20,}" docs/SETUP_RUNBOOK.md` = `0`; `grep -c "syncFromSupabase" docs/database/seeds-and-migrations.md` ≥ `1` kèm nhãn "unwired"; `grep -c "docs/design" docs/archive/README.md` ≥ `1`.
 
 ### T22a — Audit cột COGS (chỉ đọc)
@@ -406,7 +406,7 @@ Thứ tự bắt buộc trong W2:
 
 ### T24 — SEC-03 + SEC-06: bootstrap không hardcode + generator
 - A · **P1** · S · SA · Issues: SEC-03, SEC-06 (header) · Depends: T22b
-- **OWNED:** `supabase/scripts/bootstrap_admin.sql`, `scripts/gen-apply-all.mjs`, `scripts/lint-rls-sources.mjs`, `supabase/scripts/apply_all_manual.sql` (chỉ regenerate)
+- **OWNED:** [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql), `scripts/gen-apply-all.mjs`, `scripts/lint-rls-sources.mjs`, [supabase/scripts/apply_all_manual.sql](supabase/scripts/apply_all_manual.sql) (chỉ regenerate)
 - **Steps:** dùng khối chạy được trong SQL Editor:
   ```sql
   do $$
@@ -419,7 +419,7 @@ Thứ tự bắt buộc trong W2:
   end $$;
   ```
   Generator giữ placeholder, đếm bảng/view **từ nguồn** để viết header; kiểm tra generator **có gom** các migration `20261011…` (nếu không → sửa); `lint-rls-sources.mjs` quét thêm `supabase/scripts/`; regenerate.
-- **Acceptance:** `grep -c "chithanhso10" supabase/scripts/*.sql` = `0`; `node scripts/lint-rls-sources.mjs` xanh; `grep -c "20261011" supabase/scripts/apply_all_manual.sql` ≥ số migration mới.
+- **Acceptance:** `grep -c "chithanhso10" supabase/scripts/*.sql` = `0`; `node scripts/lint-rls-sources.mjs` xanh; `grep -c "20261011" supabase\/scripts\/apply_all_manual.sql` ≥ số migration mới.
 
 ### T25a — Kiểm thời điểm upload (chốt D3)
 - A · P2 · S · SA · Issues: SEC-10, NEW-03 · Depends: T24
@@ -458,7 +458,7 @@ Thứ tự bắt buộc trong W2:
 
 ### T23 — Green test + lint guard chống hồi quy
 - A · **P1** · M · SA · Issues: SEC-05 · Depends: T35-mig
-- **OWNED:** `scripts/verify-rls.mjs`; file `scripts/lint-rls-*.mjs` hiện có dùng để quét migration (tra bằng `ls scripts/lint-rls-*.mjs`, ghi tên vào báo cáo)
+- **OWNED:** `scripts/verify-rls.mjs`; file `lint-rls-*.mjs` hiện có trong `scripts/` dùng để quét migration (tra bằng cách `ls` mẫu `lint-rls-*.mjs` trong `scripts/`, ghi tên vào báo cáo)
 - **Steps:** mọi test `EXPECT-RED` → xanh; thêm lint: fail nếu migration có `grant select on public.designer_profiles` (không có danh sách cột) hoặc `grant select … to anon` trên bảng có cột trong danh sách nhạy cảm (đọc từ 1 file cấu hình); không false-pass khi count null.
 - **Acceptance:** cố ý thêm dòng `grant select on public.designer_profiles to anon;` vào migration thử → lint đỏ; bỏ dòng → xanh. Sau đó O gỡ **FREEZE** (§1.4-5).
 
@@ -474,7 +474,7 @@ Thứ tự bắt buộc trong W2:
 
 ### T26 — Generator schema → **chính `docs/database/schema.md`**
 - B · **P1** · L · SA · Issues: DB-05, DB-06, DB-07, ARCH-09/10/11 (số liệu) · Depends: T11, D7
-- **OWNED:** `scripts/gen-schema-doc.mjs` (mới), `docs/database/schema.md`
+- **OWNED:** script sinh schema `gen-schema-doc.mjs` trong `scripts/` (mới, đề xuất), `docs/database/schema.md`
 - **Steps:** `psql "$DATABASE_URL" -At -F'|'` từ DB local; truy vấn `information_schema` + `pg_policies` + `pg_indexes` + `pg_proc` (có **language**) + `pg_trigger` + CHECK; mọi truy vấn `ORDER BY` cố định; header `AUTO-GENERATED — đừng sửa tay — migrations-hash: <sha256 các file migration đã sort>` (**không có ngày**); trỏ tới `schema-notes.md`.
 - **Acceptance:** chạy 2 lần → `diff` rỗng; số policy trong file = `select count(*) from pg_policies where schemaname='public'`; `grep -c "plpgsql" docs/database/schema.md` chỉ ở hàm thật sự `plpgsql`.
 
@@ -506,9 +506,9 @@ Thứ tự bắt buộc trong W2:
 
 ## 8. W4 — Code đổi hành vi
 
-### T32a — `src/config/capabilities.ts` + `<ComingSoon />`
+### T32a — `config/capabilities.ts` + `<ComingSoon />`
 - D · **P1** · S · SA · Issues: PAGE-05, PAGE-09, PAGE-12, PAGE-13, PAGE-14, NEW-08 (nền tảng)
-- **OWNED:** `src/config/capabilities.ts` (mới), `src/frontend/ui/ComingSoon.tsx` (mới — UI primitives nằm ở `src/frontend/ui/`, đã xác minh; export qua `src/frontend/ui/index.ts`)
+- **OWNED:** `config/capabilities.ts` (mới, đề xuất), `ComingSoon.tsx` trong `src/frontend/ui/` (mới — UI primitives nằm ở `src/frontend/ui/`, đã xác minh; export qua `src/frontend/ui/index.ts`)
 - **Steps:** `export const CAPABILITIES = { dispatcher:false, carrierTracking:false, autoMeshScan:false, payouts:false, … } as const`; type an toàn; mặc định `false` cho mọi thứ chưa có backend thật; `<ComingSoon feature="…" />`.
 - **Acceptance:** `npm run lint`, `npm run build` không tệ hơn baseline; mọi key có chú thích lý do.
 
@@ -579,7 +579,7 @@ Thứ tự bắt buộc trong W2:
 
 ### T31 — Ma trận trạng thái tính năng
 - C · **P1** · M · SA · Issues: PAGE-01, PAGE-02, PAGE-03, DB-09 · Depends: W3, T34c
-- **OWNED:** `docs/architecture/feature-status.md` (mới)
+- **OWNED:** `docs/tasks/as-is/04-workflows-feature-status.md` (mới)
 - **Steps:** bảng Schema | Service | UI | Prod-ready cho `order_items`, `warranty_claims`, `order_files`, `reviews`, `digital_assets`, `cart_items`, `/orders`, payouts; Schema đọc từ `schema.md` (sinh), Service/UI từ grep `from('<bảng>')` trong `src`. Sau mỗi task W6, **O** cập nhật dòng tương ứng.
 - **Acceptance:** mỗi dòng đủ 4 cột; không còn câu "không có bảng X" ở bất kỳ docs nào (`grep -rnE "no \`?(order_items|warranty_claims|order_files)\`? table" docs` = 0).
 
@@ -602,7 +602,7 @@ Thứ tự bắt buộc trong W2:
 ### T47 — `docs/architecture/system-overview.md`
 - B/D · **P1** · M · SA · Issues: ARCH-04, ARCH-09, ARCH-10, ARCH-11, ARCH-13, ARCH-14, ARCH-15, ARCH-16, NEW-09, NEW-11, NEW-12, NEW-13, NEW-14, NEW-30 · Depends: T26, T35, T39
 - **Steps:** realtime: `products`, `custom_design_requests`, và `orders` qua broadcast private (D6); trigger hardening + trigger broadcast (con số lấy từ `schema.md` sinh); caveat 88 policy; "Shared Buffers" là main↔worker; `cad-files` private scoped; thêm `unhandledrejection` (`src/main.tsx:28`); RPC guest token + idempotency `payment_transactions`; locale VI-only; client đọc `VITE_*` (theo T39); thêm mapper `rowToOrderForSync`, `rowToCustomDesignRequest`; gate list → `npm run check`; bỏ claim tsconfig Next.
-- **Acceptance:** `grep -cE "\(.vi. \| .en.\)|NEXT_PUBLIC|exclude.*src/app" docs/architecture/system-overview.md` = `0`.
+- **Acceptance:** `grep -cE "\(.vi. \| .en.\)|NEXT_PUBLIC|exclude.*src\/app" docs/architecture/system-overview.md` = `0`.
 
 ### T48 — `pricing-engine.md` + `3d-cad-pipeline.md`
 - B/D · **P1** · M · SA · Issues: ARCH-01, ARCH-02, ARCH-05, ARCH-06, ARCH-07, ARCH-08, ARCH-12, NEW-10 · Depends: D5
@@ -612,7 +612,7 @@ Thứ tự bắt buộc trong W2:
 ### T55 — Link file sinh ra vào README/AGENTS
 - B · P2 · S · SA · Depends: T26, T27, T31, T11, T30
 - **OWNED:** `docs/README.md`, `AGENTS.md`
-- **Steps:** thêm link `docs/database/schema.md` (sinh), `schema-notes.md`, `docs/pages/_routes.generated.md`, `docs/architecture/feature-status.md`, `docs/tasks/coverage.json`.
+- **Steps:** thêm link `docs/database/schema.md` (sinh), `schema-notes.md`, `docs/pages/_routes.generated.md`, `docs/tasks/as-is/04-workflows-feature-status.md`, `docs/tasks/coverage.json`.
 - **Acceptance:** `node scripts/check-doc-refs.mjs --warn` không báo link chết mới.
 
 ---

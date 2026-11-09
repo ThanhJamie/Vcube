@@ -32,7 +32,7 @@
 | 13 | `docs/tasks/ui-redesign-v3/handoff/tool3d.md` | File này |
 
 **Không đụng:** `src/index.css`, `src/frontend/ui/**`, `src/App.tsx`, `Header.tsx`,
-`ThreeModelViewer.tsx` (pdp-owned), `src/backend/**`, `supabase/**`, `src/stores/**`,
+`ThreeModelViewer.tsx` (pdp-owned), `src/backend/**`, `supabase/**`, `src/frontend/stores/**`,
 `src/utils/**`, `src/workers/**`, `package.json`, `.env`, file agent khác. Không thêm
 dependency/font; không đổi route/slug/nhãn nav.
 
@@ -185,7 +185,7 @@ Không có section mới.
    viewport trong ~vài giây — cùng lớp lỗi UI-016/UI-025 thuộc shell; **SHELL-REQUEST** cho
    integrator nếu muốn dời/ẩn toast khi mở `/quote`.
 7. **`fileSize` hiển thị `0.0 MB`** cho tệp test 284 byte (chuỗi từ parser, pre-existing) —
-   không sửa vì `src/utils/meshParser` ngoài write-scope; ghi nhận cho đợt data/format.
+   không sửa vì `src/utils/meshParser.ts` ngoài write-scope; ghi nhận cho đợt data/format.
 8. **Diff vs HEAD cộng dồn v2** (working tree đã dirty trước W3); không revert v2, không
    commit. Chỉ 12 file write-scope + handoff này được tôi sửa trong lượt này.
 9. **Không chạy `npm run check` đầy đủ** (live gate Supabase) — theo đúng cho phép của task.

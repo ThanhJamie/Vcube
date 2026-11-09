@@ -5,7 +5,7 @@
 > contrast, combos, icon-names). Ảnh 390/768/1024/1440 đã chụp bằng Chromium headless với fixture
 > **chỉ tiêm ở tầng network** (Supabase đang paused) — không có file mock/fixture nào vào `src/`.
 > Không commit/push. Không sửa `src/index.css`, `src/frontend/ui/**`, `src/App.tsx`,
-> `src/backend/**`, `src/stores/**`, `src/utils/**`, `supabase/**`.
+> `src/backend/**`, `src/frontend/stores/**`, `src/utils/**`, `supabase/**`.
 >
 > Đọc kèm: `DESIGN-LANGUAGE.md` (v3), `TOKEN-PREVIEW.md`, `UI-DEFECTS.md`, `COPY-GLOSSARY.md`.
 

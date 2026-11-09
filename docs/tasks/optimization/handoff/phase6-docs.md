@@ -26,7 +26,7 @@
 | Policy realtime | (không có trong docs) | **1** | `orders_admin_realtime` trên `realtime.messages`, tạo có điều kiện ở `20261012130000_orders_broadcast.sql` — chỉ admin đọc topic `orders:admin` |
 | `pricing_config` | "compatibility view" (đúng) | **VIEW**, `security_invoker=true` | `20260901_baseline_schema.sql:479` — docs phải nói rõ là view để giải thích 2 policy bị skip |
 | App.tsx | ~2.153 dòng / "root router + realtime" | **343 dòng**, không còn `<Routes>`/realtime | `wc -l src/App.tsx` = 343; route table ở `src/frontend/routes/AppRoutes.tsx` (Phase 4d); realtime ở `src/frontend/hooks/useCatalogData.ts` + `settingsService` |
-| Store | thư mục `src/stores` (đã xoá) (4 store) | **thư mục `src/stores` (đã xoá) đã xoá**; **6 store** ở `src/frontend/stores` | `ls -d src/stores` → không tồn tại; `ls src/frontend/stores` → cart, UI, customerAdmin, designerAdmin, production, workshopAdmin |
+| Store | thư mục `stores` cũ (đã xoá) (4 store) | **thư mục `stores` cũ (đã xoá)**; **6 store** ở `src/frontend/stores` | `ls -d src\/stores` → không tồn tại; `ls src/frontend/stores` → cart, UI, customerAdmin, designerAdmin, production, workshopAdmin |
 | i18n | "bilingual dict retained", 1.201 `isVi ?` | **VI-only**: 0 `isVi`, 0 `en:` dictionary | `grep -rl 'isVi' src --include=*.tsx \| wc -l` = 0; `grep -c 'en:' src/frontend/context/LanguageContext.tsx` = 0; API còn `{ t }` |
 | Data cache | 4 nguồn, localStorage cache | **0 cache DB-backed** | `grep -rn "vcube_products\|vcube_materials\|vcube_printers\|vcube_site_content" src` = 0 hit |
 | workshopService | god-file 2.243 dòng | **façade 128 dòng** trên 14 module `workshop/*` | `wc -l src/backend/services/workshopService.ts` = 128; `ls src/backend/services/workshop` = 14 file |
@@ -123,12 +123,12 @@ glob/lịch sử như nhóm migration 20261011…, thư mục đã xoá — cố
 
 | Vị trí | Vấn đề | Đề nghị |
 |---|---|---|
-| thư mục `docs/plans` (39 file) | Số liệu rất cũ (30 bảng/84 policy), có ref tới `src/stores (đã xoá)/`, `src/app/`… | Đã archive; giữ nguyên (historical), không sửa |
+| thư mục `docs/plans` (39 file) | Số liệu rất cũ (30 bảng/84 policy), có ref tới `stores` cũ (đã xoá), `app/` cũ… | Đã archive; giữ nguyên (historical), không sửa |
 | `docs/tasks/DOCS-REVIEW-BACKLOG.md` | Claim cũ 31 bảng/13 hàm/7 trigger/90 policy (đúng thời điểm viết) | Thêm banner "historical — số hiện tại xem AGENTS.md" hoặc hạ `status=historical` |
 | `docs/tasks/as-is/*` | Snapshot 2026-10-19 (32+2 đúng nhưng một số chỗ 31 bảng) | Giữ snapshot; nếu tái dùng phải đối chiếu |
 | `docs/tasks/DRIFT-TASKS.md` | Nhắc "88 policy hiệu lực" (đúng cho file hardening, thiếu delta 4 payout) | Ghi chú thêm "toàn chuỗi 92" khi có dịp |
 | `docs/pages/*.md` | Một số mô tả page/route có thể chưa cập nhật Phase 4–5 (route file, lazy) | Soát ở phase docs sau; route chuẩn là `_routes.generated.md` |
-| `docs/04-refactor.md` thân bài | Số LOC/“god file” cũ | **Cố ý** — audit trước tách; đã có banner + §1.0.1 số hiện tại |
+| `docs/tasks/optimization/04-refactor.md` thân bài | Số LOC/“god file” cũ | **Cố ý** — audit trước tách; đã có banner + §1.0.1 số hiện tại |
 | `README.md` gốc repo | Chưa soát trong task này | Kiểm tra ở phase docs nếu cần |
 
 ---

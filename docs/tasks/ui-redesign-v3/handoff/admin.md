@@ -15,7 +15,7 @@
   không có UI token lệch).
 - **Giữ density/layout/IA**: không đổi padding dọc, chiều cao bảng, thứ tự section, nav, route,
   nhãn nav (D6). Không "airy hoá" console, không dùng `Card variant="soft"`/`shadow-soft` cho console.
-- Không đụng `src/index.css`, `src/frontend/ui/**`, `src/App.tsx`, `src/backend/**`, `src/stores/**`,
+- Không đụng `src/index.css`, `src/frontend/ui/**`, `src/App.tsx`, `src/backend/**`, `src/frontend/stores/**`,
   `src/utils/**`, `supabase/**`, `package.json`. Không xoá/đảo thay đổi đang dirty của wave trước.
 
 ---
@@ -143,7 +143,7 @@ responsive kanban <md, và 3 control filter**. Đo trên working tree:
    chip xoá — không map 1-1 sang `Button` variant (sẽ đổi kích thước/density). Action chuẩn đã dùng `Button`.
 4. **`Group5ProductionPanel` stage role**: `useProductionStore.KANBAN_STAGES[*].role` (ngoài scope) còn
    `'Sale Hub'`, `'Kỹ sư Slicing CAM'`, `'Kỹ thuật viên Farm'`. Đã **normalize hiển thị** trong panel
-   (`.replace(...)`) để UI VI; **nợ integrator**: sửa gốc tại `src/stores/useProductionStore.ts`.
+   (`.replace(...)`) để UI VI; **nợ integrator**: sửa gốc tại `src/frontend/stores/useProductionStore.ts`.
 5. **`Group2DesignersPanel` badgeTier lạ**: tier không nằm trong 4 tier chuẩn vẫn render raw giá trị DB
    (fallback có chủ đích — không bịa nhãn cho giá trị chưa biết).
 6. **Nhánh EN chết** (`isVi ? … : …`) còn trong code theo PLAN §5.4 (không mass-codemod); không render.

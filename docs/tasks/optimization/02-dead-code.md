@@ -10,7 +10,7 @@
 
 > **CẬP NHẬT TRIỂN KHAI (2026-10-21, sau audit):** nhóm **safe** đã được xoá — **R01–R04** (4 type mồ côi,
 > −44 LOC), **R07** `lastLoadedAt`, **R10** `DEMO_ROLE_SWITCHER_ENABLED`, **R11** `CardFooter`, **R12**
-> `getBodyScrollLockCount`; thư mục rỗng `src/frontend/services/` đã xoá; `dist-ssr/` dọn. Tổng **−59 LOC**.
+> `getBodyScrollLockCount`; thư mục rỗng `frontend/services/` đã xoá; `dist-ssr/` dọn. Tổng **−59 LOC**.
 > **R05/R06/R08/R09 giữ lại có chủ ý** (R05/R06 là API logout/audit chưa nối UI — ưu tiên *wire* ở Phase 7;
 > R08/R09 là JSDoc giữ tri thức schema/data-honesty, nếu xoá phải chuyển ghi chú sang
 > `docs/database/schema-notes.md` trước). Bảng dưới là **ảnh chụp lúc audit**, giữ nguyên làm bằng chứng.
@@ -38,16 +38,16 @@ Mọi dòng "UNREACHABLE / DEAD" trong scan đó phải đối chiếu lại v�
 
 | ID | file:line | symbol | LOC | evidence | safe-delete? | dependency | recommended phase |
 |---|---|---|---:|---|---|---|---|
-| V01 | `src/backend/index.ts` (đã xoá) | barrel 3 service | 8 | 0 importer; `git show --stat 6e3247d` xoá file | yes (đã xoá) | — | 1 — DONE |
-| V02 | `src/backend/services/catalogService.ts` (đã xoá) | `catalogService` | 34 | 0 importer; chỉ được V01 re-export | yes (đã xoá) | V01 | 1 — DONE |
-| V03 | `src/backend/services/pricingService.ts` (đã xoá) | `pricingService` | 46 | 0 importer; chỉ được V01 re-export | yes (đã xoá) | V01 | 1 — DONE |
-| V04 | `src/backend/supabase/seedService.ts` (đã xoá) | `seedService` / `syncFromSupabase` | 134 | 0 importer; chỉ còn 1 comment ở `src/backend/supabase/mappers.ts:7` | yes (đã xoá) | — | 1 — DONE |
-| V05 | `src/frontend/data/mockData.ts` (đã xoá) | shim `export *` 1 dòng | 1 | **Không phải dead code**: 3 importer thật (`views/{Home,Explore,Tool3D}View.tsx`); xoá sau codemod 53 dòng import/46 file ở `9c5d99c` | yes (đã xoá, sau codemod) | codemod alias `@/data/mockData` | 6c — DONE |
-| V06 | `src/frontend/types/index.ts` (đã xoá) | shim `export *` 1 dòng | 1 | **Không phải dead code**: 11 importer (`components/{AuthModal,Header,InvoiceModal,RoleGuard}.tsx` + 7 view) | yes (đã xoá, sau codemod) | codemod alias `@/types` | 6c — DONE |
-| V07 | `src/frontend/utils/pricingEngine.ts` (đã xoá) | shim `export *` 1 dòng | 1 | **Không phải dead code**: 2 importer (`admin/WorkshopEstimatorBOM.tsx`, `tool3d/QuoteSummaryPanel.tsx`) | yes (đã xoá, sau codemod) | codemod alias `@/utils/pricingEngine` | 6c — DONE |
-| V08 | `src/frontend/ui/Section.tsx` (đã xoá) | `Section` | 117 | 0 importer ngoài `ui/index.ts`; xoá 3 dòng re-export | yes (đã xoá) | — | 1 — DONE |
-| V09 | `src/frontend/ui/Toolbar.tsx` (đã xoá) | `Toolbar` | 87 | 0 importer ngoài barrel | yes (đã xoá) | — | 1 — DONE |
-| V10 | `src/frontend/ui/ToastViewport.tsx` (đã xoá) | `ToastViewport` | 297 | 0 importer; toast thật nằm ở `AppOverlays`/`useUIStore` | yes (đã xoá) | — | 1 — DONE |
+| V01 | `backend/index.ts` (đã xoá) | barrel 3 service | 8 | 0 importer; `git show --stat 6e3247d` xoá file | yes (đã xoá) | — | 1 — DONE |
+| V02 | `backend/services/catalogService.ts` (đã xoá) | `catalogService` | 34 | 0 importer; chỉ được V01 re-export | yes (đã xoá) | V01 | 1 — DONE |
+| V03 | `backend/services/pricingService.ts` (đã xoá) | `pricingService` | 46 | 0 importer; chỉ được V01 re-export | yes (đã xoá) | V01 | 1 — DONE |
+| V04 | `backend/supabase/seedService.ts` (đã xoá) | `seedService` / `syncFromSupabase` | 134 | 0 importer; chỉ còn 1 comment ở `src/backend/supabase/mappers.ts:7` | yes (đã xoá) | — | 1 — DONE |
+| V05 | `frontend/data/mockData.ts` (đã xoá) | shim `export *` 1 dòng | 1 | **Không phải dead code**: 3 importer thật (`views/{Home,Explore,Tool3D}View.tsx`); xoá sau codemod 53 dòng import/46 file ở `9c5d99c` | yes (đã xoá, sau codemod) | codemod alias `@/data/mockData` | 6c — DONE |
+| V06 | `frontend/types/index.ts` (đã xoá) | shim `export *` 1 dòng | 1 | **Không phải dead code**: 11 importer (`components/{AuthModal,Header,InvoiceModal,RoleGuard}.tsx` + 7 view) | yes (đã xoá, sau codemod) | codemod alias `@/types` | 6c — DONE |
+| V07 | `frontend/utils/pricingEngine.ts` (đã xoá) | shim `export *` 1 dòng | 1 | **Không phải dead code**: 2 importer (`admin/WorkshopEstimatorBOM.tsx`, `tool3d/QuoteSummaryPanel.tsx`) | yes (đã xoá, sau codemod) | codemod alias `@/utils/pricingEngine` | 6c — DONE |
+| V08 | `frontend/ui/Section.tsx` (đã xoá) | `Section` | 117 | 0 importer ngoài `ui/index.ts`; xoá 3 dòng re-export | yes (đã xoá) | — | 1 — DONE |
+| V09 | `frontend/ui/Toolbar.tsx` (đã xoá) | `Toolbar` | 87 | 0 importer ngoài barrel | yes (đã xoá) | — | 1 — DONE |
+| V10 | `frontend/ui/ToastViewport.tsx` (đã xoá) | `ToastViewport` | 297 | 0 importer; toast thật nằm ở `AppOverlays`/`useUIStore` | yes (đã xoá) | — | 1 — DONE |
 | V11 | `src/data/mockData.ts` (dòng cũ) | 6 mock constant: `CUSTOM_REQUESTS`, `MODERATION_PRODUCTS`, `DESIGNER_APPLICATIONS`, `DISPUTES_LIST`, `DMCA_REPORTS`, `MOCK_FINANCIAL_SPLITS` | 6 | `git show 6e3247d -- src/data/mockData.ts` xoá đúng 6 khai báo `= []` (347→311 dòng ở Phase 1; nay 270) | yes (đã xoá) | V12 (type đi kèm) | 1 — DONE |
 | V12 | `src/types/index.ts` (dòng cũ) | 8 type: `QuoteTierType`, `QuoteSnapshot`, `ProductLicensingConfig`, `DispatchAssignment`, `QualityControlRecord`, `AdminTab`, `InkiriCalculationInput`, `InkiriCalculationResult` | 108 | `git show 6e3247d -- src/types/index.ts` −108 dòng; `grep` tại HEAD = 0 hit | yes (đã xoá) | — | 1 — DONE |
 | V13 | `src/backend/supabase/database.ts` (dòng cũ) | 6 method `dbService`: `seedInitialProductsIfEmpty`, `uploadProductImage`, `uploadCadFile`, `saveUser`, `savePricingConfig`, `recordPaymentTransaction` | 217 (1017→800, kèm helper CAD) | `git show 6e3247d -- src/backend/supabase/database.ts` xoá đúng 6 method; HEAD 800 dòng, `grep` 6 tên = 0 hit | yes (đã xoá) | — | 1 — DONE |
@@ -75,7 +75,7 @@ Mọi dòng "UNREACHABLE / DEAD" trong scan đó phải đối chiếu lại v�
 | R10 | `src/frontend/context/AuthContext.tsx:78` | `DEMO_ROLE_SWITCHER_ENABLED` | 1 | 0 ref; UI demo switcher không còn. `IS_DEV` vẫn dùng thật ở :373/:408 nên **không** xoá `IS_DEV` | **yes** | giữ `IS_DEV` | 1b |
 | R11 | `src/frontend/ui/Card.tsx:158` | `CardFooter` | 7 | 0 ref (chỉ `CardHeader/CardTitle/CardDescription/CardContent` được dùng) | **yes** | `CardSectionProps` vẫn dùng bởi 4 component còn lại | 1b |
 | R12 | `src/frontend/ui/Modal.tsx:65` | `getBodyScrollLockCount()` | 3 | 0 ref (helper "cho test thủ công", không test nào gọi) | **yes** | `bodyLockCount` vẫn dùng bởi acquire/release | 1b |
-| R13 | `src/frontend/services/` | thư mục rỗng | 0 | `find src -type d -empty` → đúng 1 kết quả; **không được git track** (git không track dir rỗng) | **yes** | — | hygiene (local) |
+| R13 | `frontend/services/` | thư mục rỗng | 0 | `find src -type d -empty` → đúng 1 kết quả; **không được git track** (git không track dir rỗng) | **yes** | — | hygiene (local) |
 | R14 | `.playwright-mcp/` | artifact Playwright MCP | 0 (3.9 MB) | untracked + đã nằm trong `.gitignore:73`; ảnh/log cũ 2026-09-22 | **yes** (local) | không ảnh hưởng repo | hygiene (local) |
 | R15 | `dist/`, `dist-ssr/` | build artifact | 0 (11 MB + 131 MB) | untracked + gitignore `.gitignore:8-9`; `dist-ssr` là tàn dư build SSR cũ | **yes** (local) | build lại bằng `npm run build` | hygiene (local) |
 
@@ -118,7 +118,7 @@ Mọi dòng "UNREACHABLE / DEAD" trong scan đó phải đối chiếu lại v�
 | Dead export service/mapper (R05–R09) | **55** | trong đó 25 là cascade R08; 4 mục "careful" cần quyết định |
 | Dead export UI/context (R10–R12) | **11** | xoá ngay |
 | **Tổng code xoá được** | **110 LOC** | + ~45 dòng comment/JSDoc nếu dọn kèm |
-| Thư mục rỗng (R13) | 0 | `rmdir src/frontend/services` |
+| Thư mục rỗng (R13) | 0 | `rmdir frontend/services` (chạy trong `src/`) |
 | Artifact local (R14–R15) | 0 | **145.9 MB** đĩa (3.9 + 11 + 131), không nằm trong git |
 | **Dead code đã xoá trước đó (Phase 1/6c)** | **~1.500 LOC** | −552 backend, −~700 UI, −357 test; thêm 970 dòng `bun.lock` (không phải code) |
 
@@ -131,7 +131,7 @@ Mọi dòng "UNREACHABLE / DEAD" trong scan đó phải đối chiếu lại v�
 
 **Vệ sinh kèm (không phải dead code):** 2 comment còn nhắc đường dẫn đã xoá —
 `src/backend/supabase/mappers.ts:7` (nhắc `seedService.ts:512-553`) và
-`scripts/check-unitprice-multiplier.mjs:31` (nhắc shim `src/frontend/utils/pricingEngine.ts`).
+`scripts/check-unitprice-multiplier.mjs:31` (nhắc shim `frontend/utils/pricingEngine.ts`).
 Sửa comment khi làm R09/R01 để tài liệu không trỏ vào file không tồn tại.
 
 **Không xoá:** toàn bộ FP01–FP13, `CATEGORIES`, `POPULAR_TAGS`, `INKIRI_REFERENCE_VALUES`,

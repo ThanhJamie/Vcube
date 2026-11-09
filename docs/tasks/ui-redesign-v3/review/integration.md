@@ -7,7 +7,7 @@
 > **`review/a11y-responsive.md` KHÔNG tồn tại** trong cây này ⇒ **a11y review vẫn PENDING**;
 > các điểm a11y dưới đây chỉ là kiểm **tĩnh** trên code, không thay thế R2.
 >
-> **Không commit.** Không sửa `src/backend/**`, `src/stores/**`, `src/utils/**`, `src/workers/**`,
+> **Không commit.** Không sửa `src/backend/**`, `src/frontend/stores/**`, `src/utils/**`, `src/workers/**`,
 > `supabase/**`, `package.json`, `vite.config.*`, `.env`. Không thêm dependency, không đổi route/IA,
 > không thêm feature/data.
 

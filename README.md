@@ -40,13 +40,13 @@ SUPABASE_SECRET_KEY=sb_secret_...
 ```
 
 ### 4. Thiết lập Cơ sở dữ liệu Supabase (Migration):
-Chạy **3 file migration theo thứ tự tên** trong `supabase/migrations/` (SQL Editor hoặc `supabase/scripts/apply_all_manual.sql`):
+Chạy **3 file migration theo thứ tự tên** trong `supabase/migrations/` (SQL Editor hoặc [supabase/scripts/apply_all_manual.sql](supabase/scripts/apply_all_manual.sql)):
 
 1. `20260900_rls_helpers.sql` — helper `current_app_role()` + `is_admin()`
 2. `20260901_baseline_schema.sql` — 31 bảng + 1 view (`pricing_config`), 49 index (48 + 1 partial unique KYC; 2 GIN), 7 hàm + 5 định nghĩa trigger (25 instance), 2 storage bucket, realtime, seed 3 bản ghi cấu hình mặc định (cộng dồn 3 file: 13 hàm, 7 định nghĩa trigger/27 instance)
 3. `20261010_harden_rls.sql` — 90 policy bảng trong allowlist (**88 policy hiệu lực** vì 2 policy `pricing_config` bị bỏ qua khi `pricing_config` là view) + 6 policy storage + trigger chống leo quyền
 
-> `supabase/legacy/` chứa 6 migration cũ — **không chạy**. Cấp quyền admin bằng `supabase/scripts/bootstrap_admin.sql`.
+> `supabase/legacy/` chứa 6 migration cũ — **không chạy**. Cấp quyền admin bằng [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql).
 
 ### 5. Khởi động môi trường phát triển (Local Development):
 ```bash

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-06",
+  "features": {
+    "orderHistory": {
+      "done": true,
+      "label": "Khách xem lại đơn ở /orders"
+    },
+    "digitalDelivery": {
+      "done": true,
+      "label": "Mua file CAD (đã đăng nhập) → tải từ /assets; guest cần claim"
+    },
+    "reviewsWrite": {
+      "done": true,
+      "label": "Khách viết đánh giá (text, chờ duyệt)"
+    },
+    "dispatchWorkshop": {
+      "done": true,
+      "label": "Admin phân bổ đơn → xưởng; xưởng thấy đơn trong queue"
+    },
+    "accountPage": {
+      "done": true,
+      "label": "Trang /account: hồ sơ, lối tắt, đăng xuất"
+    },
+    "quoteVault": {
+      "done": true,
+      "label": "Lưu báo giá 3D + xem trong /account"
+    },
+    "notifications": {
+      "done": true,
+      "label": "Chuông realtime cập nhật trạng thái đơn"
+    },
+    "accountSecurity": {
+      "done": true,
+      "label": "Địa chỉ/hoá đơn + đổi mật khẩu trong /account"
+    },
+    "reviewPhotos": {
+      "done": false,
+      "label": "Ảnh thực tế trong đánh giá"
+    }
+  }
+}

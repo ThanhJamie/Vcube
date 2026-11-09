@@ -92,7 +92,7 @@ read + admin all, `order_files` = người mua read + staff insert. Ghi từ cli
 **Quyết định đã ghi trong code:**
 - Phí nền tảng tính trên **tiền hàng trước thuế, KHÔNG gồm ship/VAT** (đúng §3b).
 - Một đơn TRỘN in + file số ⇒ tính **cấp dòng** rồi cộng (tránh xưởng ăn phí trên tiền file & designer
-  ăn royalty trên tiền in — cảnh báo `docs/plans/25b` mục A).
+  ăn royalty trên tiền in — cảnh báo `docs/plans/` (25b) mục A).
 - Làm tròn về đồng (`Math.round`) ở **từng dòng**; order = tổng dòng đã tròn.
 - **`null` ≠ `0`**: thiếu cấu hình ⇒ NULL + `missingConfig[]` hiển thị "chưa cấu hình" (không bịa 0).
 - `order_items` snapshot: `seller_type` lấy từ `products.seller_type` (thiếu ⇒ in=`platform`,

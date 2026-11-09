@@ -51,7 +51,7 @@
 ### Core Architecture Invariants
 
 1. **Vite SPA (No Next.js Runtime)**:
-   The application is strictly a Client-Side Rendered (CSR) Single-Page Application managed by Vite 6. There is no Node.js/Next.js server runtime during runtime (`vercel.json` framework configuration: `vite`). Dead Next.js trees (`src/app/**`, `middleware.ts`, `server.ts`) are intentionally removed or excluded in `tsconfig.json`.
+   The application is strictly a Client-Side Rendered (CSR) Single-Page Application managed by Vite 6. There is no Node.js/Next.js server runtime during runtime (`vercel.json` framework configuration: `vite`). Dead Next.js trees (thư mục `app/` của Next, `middleware.ts`, `server.ts`) are intentionally removed or excluded in `tsconfig.json`.
 2. **Data Honesty Invariant (`docs/design/data-honesty.md`)**:
    Under no circumstances may client-side components fabricate metrics, tolerance numbers, manufacturing lead times, certifications, or coupon discounts. If a parameter is unconfigured or a geometry measurement fails, the system renders a transparent empty or unmeasured state (`null` / informative notice) rather than displaying simulated data.
 3. **Database-Driven Role-Based Access Control (RBAC)**:

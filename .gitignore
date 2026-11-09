@@ -73,3 +73,6 @@ pwtest/
 .playwright-mcp/
 # Nguyên trạng seed (dữ liệu vận hành) — KHÔNG commit
 supabase/backups/
+
+# graphify output (generated; rebuild bằng `graphify update .`)
+graphify-out/

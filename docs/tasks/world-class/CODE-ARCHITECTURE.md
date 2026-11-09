@@ -139,7 +139,7 @@ src/
 └─ data/                         # CHỈ seed/default content tĩnh (không phải “mock runtime”)
 ```
 
-**Nguyên tắc chuyển:** dùng **strangler** — tạo `src/features` & `src/shared` **song song** `src/frontend` cũ; chuyển domain theo feature, xoá dần thư mục cũ khi không còn import (không big-bang rename 212 file).
+**Nguyên tắc chuyển:** dùng **strangler** — tạo `features/` & `shared/` (đề xuất) **song song** `src/frontend` cũ; chuyển domain theo feature, xoá dần thư mục cũ khi không còn import (không big-bang rename 212 file).
 
 ### 3.2 Mapping hiện trạng → đích (chuyển dần, theo domain)
 
@@ -161,7 +161,7 @@ src/
 | `types/index.ts` (988) + `types/orderRecords.ts` | `shared/types` (primitives) + `features/*/model/types` + `backend/repositories/*Rows` | **CA-1** |
 | `backend/supabase/database.ts` (1.042) + `mappers.ts` | `backend/repositories/<aggregate>.ts` (`orders`, `catalog`, `workshop`, `customers`, `designers`, `settings`) | tách theo aggregate, giữ `dbService` façade tạm thời |
 | `supabase/functions/calculate-quote` | quyết định: **xoá** (nếu giá vẫn client + RPC mới) hoặc nối vào `backend/rpc/quote` | ADR-003 |
-| `src/data/mockData.ts` | `shared/config/defaults` (site content defaults) + `supabase/scripts/seed*` | không import mock trong runtime path |
+| `src/data/mockData.ts` | `shared/config/defaults` (site content defaults) + `supabase/scripts/` (`seed*`) | không import mock trong runtime path |
 
 ### 3.3 Luật phụ thuộc (dependency rules) — **bắt buộc, có gate**
 
@@ -188,7 +188,7 @@ src/
 7. `barrel policy`: cross-feature/cross-layer chỉ import qua `index.ts` public; cấm deep import vào `ui/`/`model/` của feature khác.
 8. `backend-no-react`: `backend/**` không import React/JSX/DOM.
 
-**Gate thực thi (không cần dependency mới):** `scripts/check-import-boundaries.mjs` + `check-max-lines.mjs` + `check-any-budget.mjs` + `check-no-supabase-in-ui.mjs` dùng TypeScript compiler API (đã có devDep `typescript`), khai báo vào `scripts/gate-manifest.json` + baseline list. CI chạy các gate này trên **diff** (fail khi file mới/cạnh mới vi phạm; giảm nợ cũ không bị chặn).
+**Gate thực thi (không cần dependency mới):** `check-import-boundaries.mjs` + `check-max-lines.mjs` + `check-any-budget.mjs` + `check-no-supabase-in-ui.mjs` (trong `scripts/`, đề xuất) dùng TypeScript compiler API (đã có devDep `typescript`), khai báo vào `scripts/gate-manifest.json` + baseline list. CI chạy các gate này trên **diff** (fail khi file mới/cạnh mới vi phạm; giảm nợ cũ không bị chặn).
 
 ### 3.4 State ownership (quy ước)
 
@@ -289,7 +289,7 @@ Template: Context → Decision → Alternatives → Consequences → Enforcement
 
 | Bước | Mục tiêu | Phạm vi chính | Effort | Phụ thuộc | Metric before → after | DoD | Rủi ro chính |
 |---|---|---|---:|---|---|---|---|
-| **CA-0** | Guardrails + CI skeleton | `.github/workflows/ci.yml`; `scripts/check-import-boundaries.mjs`, `check-max-lines.mjs`, `check-any-budget.mjs`, `check-no-supabase-in-ui.mjs`; baseline grandfather (21 file >800; 20 file UI→supabase; 41 dbService; 142 any; 60 as-any); cập nhật `gate-manifest.json` + baseline | **3 d** | — | CI **0→1**; gate tự động 19→23; PR check thời gian **n/a→≤3 phút**; nợ mới **=0** (baseline chặn) | PR đỏ khi thêm file >500/any mới/UI→supabase/cycle; `npm run check` offline xanh; docs gate | Baseline dễ bị “vá” tuỳ tiện — bắt buộc entry có `why/owner/expiry`; CI secrets cho e2e để sau |
+| **CA-0** | Guardrails + CI skeleton | `.github/workflows/ci.yml`; `check-import-boundaries.mjs`, `check-max-lines.mjs`, `check-any-budget.mjs`, `check-no-supabase-in-ui.mjs` (trong `scripts/`, đề xuất); baseline grandfather (21 file >800; 20 file UI→supabase; 41 dbService; 142 any; 60 as-any); cập nhật `gate-manifest.json` + baseline | **3 d** | — | CI **0→1**; gate tự động 19→23; PR check thời gian **n/a→≤3 phút**; nợ mới **=0** (baseline chặn) | PR đỏ khi thêm file >500/any mới/UI→supabase/cycle; `npm run check` offline xanh; docs gate | Baseline dễ bị “vá” tuỳ tiện — bắt buộc entry có `why/owner/expiry`; CI secrets cho e2e để sau |
 | **CA-1** | Tách types + contract single-source | `types/index.ts` → `shared/types` (primitives) + `features/{orders,quote,catalog,workshop,designer,admin}/model/types.ts`; `backend/repositories/*Rows`; mappers test per aggregate; bắt đầu `unknown`+guard ở boundary; `orderRecords.ts` gộp đúng chỗ | **5 d** | CA-0 | `types/index.ts` **988→≤300**; export/file **41→≤20**; `: any` **142→≤110**; mapper tests 1→6+; top god-type file giảm | Không feature import `types/index` cho entity riêng; `tsc` xanh; contract test chạy CI | Conflict khi nhiều workstream; cần freeze `types/index.ts` trong 1–2 ngày; tránh đổi field/API |
 | **CA-2** | Feature folders pilot 3 domain nhỏ (strangler) | (a) `features/orders` (Checkout/MyOrders/Tracking/Invoice + order hooks/api); (b) `features/designer` (upload/models/requests/payouts + asset service); (c) `features/workshop` (settings 17 file + onboarding + Group1 admin); mỗi feature có `ui/model/api/lib` + `index.ts`; migration `dbService` → feature api | **7 d** | CA-0, CA-1 | File trong feature ≤500 (mới); UI→supabase **20→≤8 file**; dbService frontend **41→≤15**; cycle **0 giữ**; view god: Checkout 981→≤600 | 3 feature chạy độc lập, public API rõ; route import qua feature index; e2e cũ xanh; lint/build/test xanh | Di chuyển file gây conflict; giữ re-export tạm ở path cũ 1 sprint; **không** đổi UI |
 | **CA-3** | Server boundary atomic + adapter | Migration RPC `create_order_atomic`, `confirm_payment_atomic` (+ tests SQL/RLS); `backend/rpc/orderGateway.ts`; `checkout/api` interface `OrderGateway`; feature flag chọn legacy/rpc; mở rộng e2e guest-order; cutover staging → prod; xoá compensation + legacy sau ổn định | **6 d** | CA-2 (orders) + migration approval | Multi-write client flow **1→0**; compensation branches **3→0**; e2e atomic assert **0→2 case**; đơn “mồ côi” **=0**; roundtrip write **4→1 RPC** | RPC idempotent + rollback test; e2e live xanh 2 lần; feature flag off ⇒ legacy vẫn chạy; rollback plan có migration down/không phá dữ liệu | RPC `SECURITY DEFINER` sai RLS = lỗ hổng; phải review SQL + test role; dual-path lâu dài ⇒ hạn cutover 2 sprint |

@@ -46,7 +46,7 @@
 
 ### Ngoài phạm vi (tuyệt đối)
 - `src/backend/**`, `supabase/**`, migrations, RLS.
-- `src/stores/**`, `src/utils/**`, `src/workers/**`, pricing/mesh parser.
+- `src/frontend/stores/**`, `src/utils/**`, `src/workers/**`, pricing/mesh parser.
 - Thêm/xoá feature, route, field DB, realtime, payment.
 - Thêm dependency/font/animation library.
 - Fake data/ảnh/số liệu để "cho đẹp".
@@ -177,7 +177,7 @@ Auditor tạo; page agent đóng; QA xác minh lại.
 | Agent | Wave | Write scope (files/globs) | Nhiệm vụ chính | Depends |
 |---|---|---|---|---|
 | `ui-auditor` | W0 | `docs/tasks/ui-redesign-v3/**` only | Route matrix 30 route; UI defect register; copy/English inventory; screenshot baseline | — |
-| `design-foundation` | W1 | `src/index.css`, `src/frontend/ui/**`, `src/frontend/components/Header.tsx`, `src/frontend/components/{NotFoundView,RouteErrorBoundary,PageSkeleton,CanvasErrorBoundary,SEOHead,ScrollToTop,RoleGuard}.tsx`, `src/App.tsx` (shell/toast/FAB/footer only), `src/frontend/context/LanguageContext.tsx`, `scripts/check-contrast*.mjs`, `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE.md`, `docs/design/tokens.md`, `docs/design/taste-contract.md` | Token v3; primitive variants; shell; language lock; contrast ledger; design spike 2 trang (worktree tạm, không merge markup) | `ui-auditor` |
+| `design-foundation` | W1 | `src/index.css`, `src/frontend/ui/**`, `src/frontend/components/Header.tsx`, `src/frontend/components/{NotFoundView,RouteErrorBoundary,PageSkeleton,CanvasErrorBoundary,SEOHead,ScrollToTop,RoleGuard}.tsx`, `src/App.tsx` (shell/toast/FAB/footer only), `src/frontend/context/LanguageContext.tsx`, `check-contrast*.mjs` trong `scripts/`, `docs/tasks/ui-redesign-v3/DESIGN-LANGUAGE.md`, `docs/design/tokens.md`, `docs/design/taste-contract.md` | Token v3; primitive variants; shell; language lock; contrast ledger; design spike 2 trang (worktree tạm, không merge markup) | `ui-auditor` |
 | `storefront` | W2 | `views/HomeView.tsx`, `views/ExploreView.tsx`, `components/HorizontalScrollFilter.tsx`, `components/services/ServiceShowcaseSection.tsx`, `components/custom/CustomIdeaRequestModal.tsx`, `components/ChatSupportModal.tsx` | Home/Explore v3; card/category/hero; states; copy | `design-foundation` |
 | `pdp-viewer` | W2 | `views/ProductDetailView.tsx`, `views/PersonalizeView.tsx`, `components/personalize/PersonalizeModelViewer3D.tsx`, `components/ThreeModelViewer.tsx`, `components/CadQuickViewModal.tsx`, `components/material/MaterialTechnicalAdvisory.tsx` | PDP/Personalize v3; 3D frame; sticky buy card; responsive | `design-foundation` |
 | `commerce-auth` | W2 | `views/{CartView,CheckoutView,OrderSuccessView,OrderTrackingView,MyOrdersView,AssetLibraryView,LoginView,RegisterView}.tsx`, `components/{CartDrawer,InvoiceModal,OrderProgress,AuthModal}.tsx`, `components/auth/UserAvatarMenu.tsx` | Transaction + auth v3; form/label/contrast; states; copy | `design-foundation` |

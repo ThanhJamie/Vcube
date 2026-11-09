@@ -36,7 +36,7 @@
 ## TL;DR
 
 - Repo baseline (Phase 0): **139 file / 65.772 LOC / 30 route (23 màn + 7 redirect)**; UI v3 đã xong, P0/P1 = 0.
-- Sau Phase 1–4: **i18n VI-only (0 nhánh `isVi`, 0 dictionary `en:`)**, `src/stores` đã xoá (6 store ở
+- Sau Phase 1–4: **i18n VI-only (0 nhánh `isVi`, 0 dictionary `en:`)**, thư mục `stores` cũ ở `src/` đã xoá (6 store ở
   `src/frontend/stores`), **0 cache DB-backed trong localStorage**, 7 god-file đã tách (App **343** dòng,
   `workshopService` **façade 128** dòng trên 14 module `workshop/*`).
 - Sau Phase 5: `three-vendor` rời initial; 9 route lazy; initial JS+CSS **~464 → ~278KB gzip (−40%)**.

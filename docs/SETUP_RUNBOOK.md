@@ -433,7 +433,7 @@ VCUBE utilizes an automated suite of standalone Node.js and TypeScript quality g
 #### 5. `node scripts/check-unitprice-multiplier.mjs`
 - **Objective:** Prevents catastrophic financial calculation regressions.
 - **Background:** `unit_price_multiplier` is a **cost-per-gram derivation factor** (đ/g) used in `src/utils/pricingEngine.ts:70-88` (`resolveMaterialCostPerGram`, `costPerKg / 1000 * unitPriceMultiplier`). It must **never** be multiplied directly against base retail selling prices.
-- **Allowlist:** Only `src/utils/pricingEngine.ts` and admin forms under `src/frontend/components/admin/` may reference this property. (Shim `src/frontend/utils/pricingEngine.ts` đã bị xoá ở Phase 6c — import canonical qua alias `@/utils/pricingEngine`.)
+- **Allowlist:** Only `src/utils/pricingEngine.ts` and admin forms under `src/frontend/components/admin/` may reference this property. (Shim ở `frontend/utils/pricingEngine` đã bị xoá ở Phase 6c — import canonical qua alias `@/utils/pricingEngine`.)
 
 #### 6. `node scripts/a8-sql-syntax-check.mjs`
 - **Objective:** Performs static parsing on the default SQL file set resolved by the script (`supabase/migrations/`, `supabase/scripts/`, `supabase/diagnostics/`) without requiring a running Postgres server. The authoritative gate entry point is `npm run check`.
@@ -564,7 +564,7 @@ For convenience, you can apply the entire migration stack in one step using the 
 # Regenerate bundle if migrations were edited
 node scripts/gen-apply-all.mjs
 ```
-Copy and execute `supabase/scripts/apply_all_manual.sql` directly into the Supabase SQL Editor.
+Copy and execute [supabase/scripts/apply_all_manual.sql](supabase/scripts/apply_all_manual.sql) directly into the Supabase SQL Editor.
 
 ### 6.3 Admin User Bootstrapping
 
@@ -573,7 +573,7 @@ In VCUBE 3.0, **user roles are strictly managed in the database** (`public.user_
 To promote your account to `admin`:
 
 1. Sign up a user account through the web UI (`/register`) or Supabase Auth dashboard.
-2. Open `supabase/scripts/bootstrap_admin.sql`.
+2. Open [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql).
 3. Update line 21 with your registered email:
    ```sql
    v_email text := 'your_registered_email@example.com';
@@ -743,7 +743,7 @@ API queries return HTTP 403 or Postgres error code `42501`:
 2. **Missing User Profile:** If an authenticated user receives `42501`, their corresponding record in `public.user_profiles` is missing. The trigger `on_auth_user_created` may have failed.
    *Fix:* Check if `public.user_profiles` has an entry with `id = auth.uid()`.
 3. **Privilege Escalation Blocked:** Non-admin users attempting to update `orders.status` or `user_profiles.role` will be rejected by defensive triggers (`trg_protect_profile_privileged_columns`).
-4. **Un-bootstrapped Admin:** The user account has not been promoted via `supabase/scripts/bootstrap_admin.sql`.
+4. **Un-bootstrapped Admin:** The user account has not been promoted via [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql).
 
 ---
 

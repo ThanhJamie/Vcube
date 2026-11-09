@@ -73,7 +73,7 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
   `vcube_printers`, `vcube_site_content` — 4 read + 10 write + dead `vcube_pricing_config`); DB là nguồn duy nhất.
   Thay 5 mock rỗng D11l bằng `[]`; xoá 7 hằng rỗng mồ côi khỏi `src/data/mockData.ts` (311→270 LOC).
 - ✅ Gom 2 thư mục store về **`src/frontend/stores`**: `git mv` 4 file admin/MES store, 13 importer → `@frontend/stores/*`,
-  `src/stores` bị xoá; nội dung store byte-identical (chỉ sửa depth `../`→`../../`).
+  thư mục `stores` cũ ở `src/` bị xoá; nội dung store byte-identical (chỉ sửa depth `../`→`../../`).
 - ✅ Tách `App.tsx` **2.153 → 1.100 dòng**: `src/frontend/routes/routeWrappers.tsx`,
   `src/frontend/components/shell/{navConfig,3 shell,LabRoute,index}.tsx`, `src/frontend/hooks/{useCatalogData,useSiteSettings,useOrdersData}.ts`
   (10 file / 1.207 dòng). JSX return **byte-identical** (sha256), `<Routes>` byte-identical 30 path,
@@ -139,7 +139,7 @@ Theo `DEAD-CODE.md` cụm A→E (3 agent song song, write scope rời):
   `tests/**` ngoài tsconfig (cân nhắc tsconfig.test.json); 42 call `dbService.*` inline → service layer;
   dead-store review; 20 file >800 dòng; `supabase-vendor` eager; Phase 7 feature/data wiring. — 🔄 IN PROGRESS 2026-10-21
 - Cập nhật `AGENTS.md` (12 migration, 32 bảng/2 view, 19 hàm/9 trigger, 92/7 policy).
-- Sửa `docs/README.md`, `docs/database/schema.md`, `docs/security/rls-*` theo số mới; regenerate `docs/pages/_routes.generated.md`.
+- Sửa `docs/README.md`, `docs/database/schema.md`, `docs/security/` (`rls-*`) theo số mới; regenerate `docs/pages/_routes.generated.md`.
 - Archive `docs/plans/**` + `docs/tasks/ui-redesign/**` v2; canonical docs: `docs/tasks/optimization/AUDIT.md`, `PLAN.md`, `docs/database/schema-notes.md`.
 - Thay `test-pricing.ts` chết bằng test thật: `mappers`, `pricingEngine` (pure), validators, `format`; thêm script `npm run test:unit` (no new dep, dùng `node:test`/tsx).
 - **Gate:** `check-doc-freshness`, `check-doc-refs` không xấu hơn baseline; test unit pass.

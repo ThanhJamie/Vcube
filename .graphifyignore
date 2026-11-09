@@ -1,0 +1,17 @@
+# graphify — loại khỏi graph những gì KHÔNG phải nguồn sự thật hiện tại.
+# Cú pháp giống .gitignore; .gitignore vẫn được áp dụng song song.
+
+# Output của chính graphify (sinh lại mỗi lần build)
+graphify-out/
+dist/
+.loop/
+
+# Bản gộp tự sinh của 13 migration → trùng toàn bộ schema (xem đầu file SQL)
+supabase/scripts/apply_all_manual.sql
+
+# Lịch sử/khôi phục, không phải trạng thái schema đang chạy (xem AGENTS.md)
+supabase/legacy/
+supabase/rollback/
+
+# SQL nằm trong docs là runbook/lịch sử, không phải schema đang chạy
+docs/**/*.sql

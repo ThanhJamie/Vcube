@@ -16,7 +16,7 @@
 
 Thứ tự tổng: **A (khoá/env) → B (deploy client) → C (backup) → D (áp migration) → E (post-check) → F (tạo/kiểm designer) → G (thông báo/pháp lý)**.
 
-> ⚠️ **KHÔNG** chạy `supabase/scripts/apply_all_manual.sql` hay `20261010_harden_rls.sql` lại trên prod cho tới khi xong E — chúng có thể `grant select` toàn bảng và **hoàn tác hotfix**. (`apply_all_manual.sql` cũng chưa chứa 3 migration mới.)
+> ⚠️ **KHÔNG** chạy [supabase/scripts/apply_all_manual.sql](supabase/scripts/apply_all_manual.sql) hay `20261010_harden_rls.sql` lại trên prod cho tới khi xong E — chúng có thể `grant select` toàn bảng và **hoàn tác hotfix**. (`apply_all_manual.sql` cũng chưa chứa 3 migration mới.)
 
 ---
 
@@ -136,7 +136,7 @@ Nếu bước nào lỗi: chạy file rollback tương ứng trong `supabase/rol
 ## F. Tạo / kiểm designer
 
 **Cách 1 — Admin promote (không cần migration nào thêm):**
-1. Đảm bảo account của bạn có `user_profiles.role='admin'` (nếu chưa: `supabase/scripts/bootstrap_admin.sql`).
+1. Đảm bảo account của bạn có `user_profiles.role='admin'` (nếu chưa: [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql)).
 2. Vào `/admin` → **Group3 (Khách hàng)** → nút **“Cấp quyền Designer”** cho account mong muốn.
 3. Người đó mở `/designer` được.
 

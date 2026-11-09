@@ -12,10 +12,10 @@
 
 | ID | File | LOC | SHA-256 trước khi xoá | Bằng chứng 0 importer |
 |---|---|---:|---|---|
-| D01 | `src/backend/index.ts` | 8 | `9a69f7a9…a99c0` | grep 0 `from '@backend'` / `from '../backend'` / `backend/index` trong `src/` + `scripts/` |
-| D02 | `src/backend/services/catalogService.ts` | 34 | `881e9713…d576` | chỉ được `backend/index.ts:7` re-export (đã xoá cùng cụm) |
-| D03 | `src/backend/services/pricingService.ts` | 46 | `792d4111…23c8` | chỉ được `backend/index.ts:6` re-export |
-| D04 | `src/backend/supabase/seedService.ts` | 134 | `5266633d…3160` | chỉ được `backend/index.ts:4`; `mappers.ts:377` còn 1 comment lịch sử (giữ nguyên theo `DEAD-CODE.md` §8) |
+| D01 | `backend/index.ts` | 8 | `9a69f7a9…a99c0` | grep 0 `from '@backend'` / `from '../backend'` / `backend/index` trong `src/` + `scripts/` |
+| D02 | `backend/services/catalogService.ts` | 34 | `881e9713…d576` | chỉ được `backend/index.ts:7` re-export (đã xoá cùng cụm) |
+| D03 | `backend/services/pricingService.ts` | 46 | `792d4111…23c8` | chỉ được `backend/index.ts:6` re-export |
+| D04 | `backend/supabase/seedService.ts` | 134 | `5266633d…3160` | chỉ được `backend/index.ts:4`; `mappers.ts:377` còn 1 comment lịch sử (giữ nguyên theo `DEAD-CODE.md` §8) |
 
 **Xoá cụm theo đúng thứ tự DEAD-CODE §9:** D02–D04 → D01. Sau khi xoá, `@backend/*` vẫn hoạt động
 (vite/tsconfig alias trỏ `src/backend`, mọi import là deep path, không import barrel).

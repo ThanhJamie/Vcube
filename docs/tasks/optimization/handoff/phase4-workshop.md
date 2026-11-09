@@ -79,7 +79,7 @@
 | `InventoryLogModal.tsx` | 115 | modal Phiếu nhập/xuất kho |
 | `AccessoryModal.tsx` | 65 | modal Khai báo/Chỉnh sửa phụ kiện |
 
-**Không tạo hook** `src/frontend/hooks/useWorkshopSettingsData.ts` (optional trong task): view cha giữ nguyên **state + handler + composition** đúng luật; component chỉ nhận `ctl` (controller object) + tự `useMemo` cột bảng. Controller gom 133 field (state/handler/derived) — view cha tạo 1 object, truyền xuống 11 component.
+**Không tạo hook** `useWorkshopSettingsData.ts` trong `src/frontend/hooks/` (optional trong task): view cha giữ nguyên **state + handler + composition** đúng luật; component chỉ nhận `ctl` (controller object) + tự `useMemo` cột bảng. Controller gom 133 field (state/handler/derived) — view cha tạo 1 object, truyền xuống 11 component.
 
 ---
 

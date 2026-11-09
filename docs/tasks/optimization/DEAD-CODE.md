@@ -20,18 +20,18 @@
 
 | ID | File | LOC | Bằng chứng | Xoá an toàn? |
 |---|---|---:|---|---|
-| D01 | `src/backend/index.ts` | 8 | 0 importer; barrel export 3 service chết | ✅ cùng D02–D04 |
-| D02 | `src/backend/services/catalogService.ts` | 34 | 0 importer; mọi method trả `[]` | ✅ |
-| D03 | `src/backend/services/pricingService.ts` | 46 | 0 importer; chỉ dùng bởi D01 | ✅ |
-| D04 | `src/backend/supabase/seedService.ts` | 134 | 0 importer; chỉ còn comment trong `mappers.ts` | ✅ |
-| D05 | `src/frontend/data/mockData.ts` | 1 | **~~0 importer~~ SAI — 3 importer** | ✅ DONE Phase 6c |
-| D06 | `src/frontend/types/index.ts` | 1 | **~~0 importer~~ SAI — 11 importer** | ✅ DONE Phase 6c |
-| D07 | `src/frontend/utils/pricingEngine.ts` | 1 | **~~0 importer~~ SAI — 2 importer** | ✅ DONE Phase 6c |
+| D01 | `backend/index.ts` | 8 | 0 importer; barrel export 3 service chết | ✅ cùng D02–D04 |
+| D02 | `backend/services/catalogService.ts` | 34 | 0 importer; mọi method trả `[]` | ✅ |
+| D03 | `backend/services/pricingService.ts` | 46 | 0 importer; chỉ dùng bởi D01 | ✅ |
+| D04 | `backend/supabase/seedService.ts` | 134 | 0 importer; chỉ còn comment trong `mappers.ts` | ✅ |
+| D05 | `frontend/data/mockData.ts` | 1 | **~~0 importer~~ SAI — 3 importer** | ✅ DONE Phase 6c |
+| D06 | `frontend/types/index.ts` | 1 | **~~0 importer~~ SAI — 11 importer** | ✅ DONE Phase 6c |
+| D07 | `frontend/utils/pricingEngine.ts` | 1 | **~~0 importer~~ SAI — 2 importer** | ✅ DONE Phase 6c |
 
 > **⚠️ ĐÍNH CHÍNH (Phase 1, 2026-10-21).** D05–D07 **không phải dead code** — audit ban đầu sai vì
 > grep mặc định của công cụ resolve alias/thư mục không thấy import tương đối. Đây là các file **shim
 > `export *`** nhưng vẫn là **đường import sống** (`../../utils/pricingEngine` từ file ở độ sâu 3 trỏ
-> `src/frontend/utils/`, không phải `src/utils/`):
+> `frontend/utils/`, không phải `src/utils/`):
 >
 > | Shim | Importer thật | Ví dụ |
 > |---|---:|---|
@@ -52,9 +52,9 @@
 
 | ID | File | LOC | Bằng chứng | Xoá an toàn? |
 |---|---|---:|---|---|
-| D08 | `src/frontend/ui/Section.tsx` | 117 | 0 importer ngoài `ui/index.ts` | ✅ |
-| D09 | `src/frontend/ui/Toolbar.tsx` | 87 | 0 importer ngoài `ui/index.ts` | ✅ |
-| D10 | `src/frontend/ui/ToastViewport.tsx` | 297 | 0 importer; toast thật nằm ở `App.tsx` | ✅ |
+| D08 | `frontend/ui/Section.tsx` | 117 | 0 importer ngoài `ui/index.ts` | ✅ |
+| D09 | `frontend/ui/Toolbar.tsx` | 87 | 0 importer ngoài `ui/index.ts` | ✅ |
+| D10 | `frontend/ui/ToastViewport.tsx` | 297 | 0 importer; toast thật nằm ở `App.tsx` | ✅ |
 
 Xoá 3 file + 3 dòng `export *` trong `src/frontend/ui/index.ts`. Giữ `ProgressBar` (1 use) và
 `KeyValue` (1 use).
@@ -139,7 +139,7 @@ Tổng **~168 LOC** + import/type đi kèm. Xoá sau khi grep 0 call-site (đã 
 
 | ID | Mục | Kích thước | Bằng chứng | Hành động |
 |---|---|---:|---|---|
-| D19 | `test-pricing.ts` | 357 LOC | import `./src/backend/services/pricingEngineService` và `quoteVerifier` **không tồn tại**; 0 script gọi | xoá hoặc viết lại thành test thật |
+| D19 | `test-pricing.ts` | 357 LOC | import `./backend/services/pricingEngineService` và `quoteVerifier` **không tồn tại**; 0 script gọi | xoá hoặc viết lại thành test thật |
 | D20 | `tests/unit`, `tests/adversarial` | 0 file | thư mục rỗng | xoá hoặc thêm test |
 | D21 | `firebase-applet-config.json` | 560 B | 0 import; Firebase không còn trong `package.json` | xoá |
 | D22 | `firestore.rules` | 1.4 KB | 0 import | xoá |
@@ -160,7 +160,7 @@ Tổng **~168 LOC** + import/type đi kèm. Xoá sau khi grep 0 call-site (đã 
 |---|---|
 | `src/backend/services/workshopService.ts` `SEED_*` + legacy `getWorkshop*`/`saveWorkshop*` | vẫn được admin panel dùng; seed là fixture thật (data-honesty risk) — chỉ xoá **sau** khi admin chuyển sang `getMy*`/DB-only. Ước tính ~390 LOC seed + ~1.000 LOC legacy method |
 | `src/data/mockData.ts` `DEFAULT_SITE_CONTENT`, `CATEGORIES`, `POPULAR_TAGS`, `INKIRI_REFERENCE_VALUES`, `DEFAULT_INKIRI_FORMULA_CONFIG` | còn dùng thật (fallback/cấu hình) |
-| `src/backend/supabase/seedService.ts` (D04) | xoá file nhưng giữ comment/history docs |
+| `backend/supabase/seedService.ts` (D04) | xoá file nhưng giữ comment/history docs |
 | DB tables/columns không có client | feature gap, **không drop** — xem `AUDIT.md` §6 |
 | `.opencode/skills/**` | tooling, không thuộc app; giữ nếu còn dùng |
 

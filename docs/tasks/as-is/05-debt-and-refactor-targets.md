@@ -33,7 +33,7 @@
 | **R6** | **Error handling không tập trung** | 99 điểm log tay vs 1 `reportError`; 27 `catch{}` nuốt lỗi | Nuốt lỗi, khó debug |
 | **R7** | **UI primitive adoption thấp** | 429 vs 214 button; 341 vs 89 input/select; `PricingConfigPanel`/`AuthModal` 0 `<Button>` | Lệch a11y/theme |
 | **R8** | **`three` trong eager graph** | `ThreeModelViewer` import tĩnh ở Home/PDP/AssetLibrary; lazy chỉ 5 module | Bundle đầu phình |
-| **R9** | **Docs drift** | `schema.md` thiếu 9 migration; `docs/README` ghi 90 policy/6 storage; `docs/pages` nói "không có bảng X" | Docs nhiễm |
+| **R9** | **Docs drift** | `schema.md` thiếu 9 migration; `docs/README.md` ghi 90 policy/6 storage; `docs/pages` nói "không có bảng X" | Docs nhiễm |
 
 ## 3. Sai lệch docs ↔ code (đã xác minh bằng SQL/code)
 
@@ -57,7 +57,7 @@
 | `catalogService.ts` | 0 importer, mọi method trả `[]` |
 | `pricingService.ts` | 0 importer (nhưng có logic thật bọc `pricingEngine`) |
 | `seedService.ts` + `syncFromSupabase()` | 0 caller |
-| `src/frontend/types/index.ts`, `src/frontend/data/mockData.ts`, `src/frontend/utils/pricingEngine.ts` | 3 shim `export *`, 0 importer |
+| `frontend/types/index.ts`, `frontend/data/mockData.ts`, `frontend/utils/pricingEngine.ts` | 3 shim `export *`, 0 importer |
 | `AdminProductsPanel` import `dbService` | dead import |
 | `ui/ToastViewport.tsx` (+`useUIStoreToasts`) | 0 consumer (App tự render toast) |
 | `ui/Section.tsx`, `ui/Toolbar.tsx` | 0 import / 0 render |
@@ -102,7 +102,7 @@
 | D-A | Có được thêm dependency (TanStack Query / zod-env / data-router)? | **Không** — hook tự viết + script Node no-dep |
 | D-B | Refactor có được chạm migration/SQL? | **Chỉ frontend + service**; thay đổi DB để lại cho W6/T54 |
 | D-C | Scope ưu tiên đợt tới? | **Toàn bộ 8 phase** theo thứ tự khuyến nghị |
-| D-D | Ghi plan ở đâu? | **`docs/tasks/REFACTOR-PLAN.md`** + task board nhỏ theo phase |
+| D-D | Ghi plan ở đâu? | **`docs/tasks/optimization/PLAN.md`** + task board nhỏ theo phase |
 
 > Khi UI/UX mới về, cập nhật `03-routes-views-components.md` (màn/component nào đổi) và
 > `04-workflows-feature-status.md` (feature nào thêm/bỏ) trước, rồi mới chỉnh §5 ở file này.

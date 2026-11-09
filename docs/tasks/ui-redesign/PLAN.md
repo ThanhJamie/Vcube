@@ -28,7 +28,7 @@
 
 ## 2. Bất biến thi công (mọi subagent)
 
-1. **Presentation-only.** Không sửa: `src/backend/**`, `src/stores/**`, `src/utils/**`,
+1. **Presentation-only.** Không sửa: `src/backend/**`, `src/frontend/stores/**`, `src/utils/**`,
    `src/workers/**`, `supabase/**`, `src/frontend/context/**`, `scripts/**`.
 2. **Không đổi hành vi.** Props, state, event handler, service call, điều kiện render,
    chuỗi hiển thị (`isVi ? 'A' : 'B'`) giữ nguyên. Chỉ đổi `className` + bọc primitive.
@@ -107,7 +107,7 @@ cùng wave làm chi phí review và rủi ro merge tăng nhanh, trong khi mỗi 
 ### File cấm chạm (orchestrator giữ)
 
 `src/index.css`, `src/frontend/ui/**`, `src/App.tsx`, `package.json`, `vite.config.ts`,
-`src/backend/**`, `src/stores/**`, `src/types/**`, `src/utils/**`, `src/workers/**`,
+`src/backend/**`, `src/frontend/stores/**`, `src/types/**`, `src/utils/**`, `src/workers/**`,
 `supabase/**`, `scripts/**`, `docs/tasks/ui-redesign/{DESIGN-LANGUAGE,PLAN,REVIEW,PROGRESS}.md`.
 
 ---

@@ -136,12 +136,12 @@ Sau 3 file lõi, áp tiếp các **migration W2** (`20261011*`/`20261012*`/`2026
 * **Project trống**: chạy **3 file lõi theo thứ tự trên**, rồi các migration W2 (4→11).
 * **Project đã có schema cũ**: chạy **file 3** để siết lại (nó tự dọn policy cũ và policy lạ), rồi các migration W2.
 * **Project đã áp W2**: chỉ còn `20261013100000` chờ cổng H — ghi kết quả vào §11.
-* Bản gộp `supabase/scripts/apply_all_manual.sql` (do `node scripts/gen-apply-all.mjs` sinh) hiện gồm 3 file lõi + các migration W2/W2b (`20261011*`–`20261013*`, **trừ** file drop H-gated) + `bootstrap_admin.sql`; `20261013100000_drop_designer_bank_columns.sql` **không** được gom — áp riêng theo §1.4 của `docs/tasks/DRIFT-TASKS.md` sau cổng H.
+* Bản gộp [supabase/scripts/apply_all_manual.sql](supabase/scripts/apply_all_manual.sql) (do `node scripts/gen-apply-all.mjs` sinh) hiện gồm 3 file lõi + các migration W2/W2b (`20261011*`–`20261013*`, **trừ** file drop H-gated) + `bootstrap_admin.sql`; `20261013100000_drop_designer_bank_columns.sql` **không** được gom — áp riêng theo §1.4 của `docs/tasks/DRIFT-TASKS.md` sau cổng H.
 
 Chạy trên **staging trước** nếu có. Nếu Supabase SQL Editor báo lỗi ở file 2, gửi nguyên văn thông báo lỗi — không sửa tay giữa chừng.
 
 ### Bước 3 — Cấp quyền admin (BẮT BUỘC, nếu không sẽ không ai quản trị được)
-Mở `supabase/scripts/bootstrap_admin.sql`, **sửa `v_email`** thành email đăng nhập thật của bạn, rồi chạy. Script sẽ tạo/ cập nhật dòng `user_profiles` với `id = auth.uid()` và `role = 'admin'`.
+Mở [supabase/scripts/bootstrap_admin.sql](supabase/scripts/bootstrap_admin.sql), **sửa `v_email`** thành email đăng nhập thật của bạn, rồi chạy. Script sẽ tạo/ cập nhật dòng `user_profiles` với `id = auth.uid()` và `role = 'admin'`.
 
 > Lưu ý: nút "Chuyển vai trò" trong app (`AuthContext.switchDemoRole`) chỉ ghi metadata ở môi trường DEV và **không cấp quyền DB** — quyền thật do `public.user_profiles.role` quyết định. Đây là điều mong muốn.
 

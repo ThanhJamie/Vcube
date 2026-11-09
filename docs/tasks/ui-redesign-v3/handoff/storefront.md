@@ -26,7 +26,7 @@
 | 6 | `src/frontend/components/ChatSupportModal.tsx` | Brand mark `bg-brand` + `text-fg` (5.23), bubble không viền, chip → pill ≥44px, header chống tràn ở 390 (`min-w-0`/`truncate`), **luôn-mount** Modal (xem §5), giữ nguyên data-honesty AT-09 (trợ lý tự động, không bịa tiến độ/dung sai) |
 
 **Không đụng:** `src/index.css`, `src/frontend/ui/**`, `src/App.tsx`, `Header.tsx`,
-`LanguageContext.tsx`, `src/backend/**`, `supabase/**`, `src/stores/**`, `src/utils/**`,
+`LanguageContext.tsx`, `src/backend/**`, `supabase/**`, `src/frontend/stores/**`, `src/utils/**`,
 `src/workers/**`, `package.json`, `.env`, file của agent khác. Không thêm dependency/font/
 dark theme. Không đổi route/slug/nhãn nav.
 

@@ -85,7 +85,7 @@ Luật bất di: **nền tint + chữ màu đặc**. Không dùng `bg-emerald-50
 `--color-chrome-border`, `--color-chrome-active`, `--color-chrome-active-fg`,
 `--color-chrome-ring` → **XOÁ**. Cam `#FF9736` không còn tồn tại trong hệ thống.
 
-Kéo theo: `src/frontend/ui/tone.ts` xoá; prop `tone` gỡ khỏi `Button`, `Field`, `Input`,
+Kéo theo: `tone.ts` trong `src/frontend/ui/` xoá; prop `tone` gỡ khỏi `Button`, `Field`, `Input`,
 `Select`, `Modal`, `Sheet`, `SideNav`; prop `chrome` gỡ khỏi `AppShell`.
 
 ---

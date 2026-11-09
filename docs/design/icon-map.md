@@ -419,7 +419,7 @@ Top 24 by render-site count - migrate in this order. (Site #25 cũ thuộc cây 
 | 6 | `src/frontend/views/DesignerDashboardView.tsx` | 25 |
 | 7 | `src/frontend/views/PersonalizeView.tsx` | 21 |
 | 8 | `src/frontend/components/admin/groups/Group3CustomersPanel.tsx` | 20 |
-| 9 | `src/frontend/components/admin/AdminOverviewPanel.tsx` | 18 |
+| 9 | `src/frontend/components/admin/groups/Group0OverviewPanel.tsx` | 18 |
 | 10 | `src/frontend/components/admin/AdminSeoPanel.tsx` | 18 |
 | 11 | `src/frontend/components/admin/groups/Group1WorkshopsPanel.tsx` | 17 |
 | 12 | `src/frontend/components/auth/UserAvatarMenu.tsx` | 17 |
@@ -427,17 +427,17 @@ Top 24 by render-site count - migrate in this order. (Site #25 cũ thuộc cây 
 | 14 | `src/frontend/components/tool3d/ModelViewer3D.tsx` | 15 |
 | 15 | `src/frontend/views/ProductDetailView.tsx` | 15 |
 | 16 | `src/frontend/views/CartView.tsx` | 14 |
-| 17 | `src/frontend/components/admin/AdminPartnersPanel.tsx` | 13 |
+| 17 | `src/frontend/components/admin/groups/Group1WorkshopsPanel.tsx` | 13 |
 | 18 | `src/frontend/components/admin/AdminStorefrontPanel.tsx` | 13 |
 | 19 | `src/frontend/views/RegisterView.tsx` | 13 |
 | 20 | `src/frontend/views/Tool3DView.tsx` | 13 |
 | 21 | `src/frontend/views/MyOrdersView.tsx` | 12 |
 | 22 | `src/frontend/components/admin/AccessoriesManager.tsx` | 11 |
 | 23 | `src/frontend/components/Header.tsx` | 11 |
-| 24 | `src/frontend/components/tool3d/InstantQuoteWidget.tsx` | 11 |
+| 24 | `src/frontend/components/tool3d/QuoteSummaryPanel.tsx` | 11 |
 
-> **Đã xoá từ sau migration (đừng grep theo các path này):** `src/frontend/components/admin/AdminOverviewPanel.tsx`,
-> `src/frontend/components/admin/AdminUsersPanel.tsx`, `src/frontend/components/tool3d/InstantQuoteWidget.tsx` — đã gỡ.
+> **Đã xoá từ sau migration (đừng grep theo các tên này):** `AdminOverviewPanel.tsx`,
+> `AdminUsersPanel.tsx`, `InstantQuoteWidget.tsx` — đã gỡ.
 > Cây Next.js cũ cũng đã xoá hẳn khỏi repo. Hai panel admin nay ở
 > `admin/groups/Group0OverviewPanel.tsx` và `admin/groups/Group3CustomersPanel.tsx`.
 
@@ -451,7 +451,7 @@ Files that look light by site count but carry **data-driven icon lists** - these
 | `src/frontend/components/OrderProgress.tsx` | 8 |
 | `src/frontend/stores/useProductionStore.ts` (stage list) | 8 |
 | `src/frontend/components/Header.tsx` (`navItems`) | 5 |
-| `src/frontend/components/admin/AdminUsersPanel.tsx` | 5 |
+| `src/frontend/components/admin/groups/Group3CustomersPanel.tsx` | 5 |
 | `src/frontend/views/DesignerDashboardView.tsx` | 5 |
 | `src/frontend/views/PersonalizeView.tsx` (`modes`) | 3 |
 

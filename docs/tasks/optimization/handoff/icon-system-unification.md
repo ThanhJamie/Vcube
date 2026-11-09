@@ -168,7 +168,7 @@ npm run dev   # :3000
 - **Chạy lại harness độc lập** (dev :3000 + `/tmp/icon-capture2.mjs`, ICON_OUT=`/tmp/icon-verify`): **26/26 capture**
   (6 guest + 7 admin/lab route × 390/1440) → **emoji DOM = 0**, **fallback = 0**, **svg non-lucide = 0**,
   `stroke-width` duy nhất = **2**; admin products 89 svg / designers 61 / customers 53 / seo 59 / workshops 56 / machines 64.
-- **Negative test gate mới**: tạo tạm `src/__gate_probe.tsx` chứa `⚠` ⇒ `check-icon-library` báo FAIL đúng
+- **Negative test gate mới**: tạo tạm `__gate_probe.tsx` ở gốc `src/` chứa `⚠` ⇒ `check-icon-library` báo FAIL đúng
   file:line (`[emoji-icon]`) và PASS lại sau khi xoá ⇒ gate không phải "pass rỗng".
 - **Chuẩn hoá nốt size lệch thang** (Lead, ngoài phần agent): `13→14` (FleetTab), `15→14` ×3
   (MaterialTechnicalAdvisory), `26→28` (HomeView dropzone), `44→36` (HomeView), `40→36` (ExploreView)

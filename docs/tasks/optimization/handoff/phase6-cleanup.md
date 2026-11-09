@@ -16,13 +16,13 @@
 | 3 | EN copy | 2 chuỗi hiển thị | VI | grep chuỗi mới + `HomeView:1377`, `LanguageContext:64` |
 | 3b | `nameEn` taxonomy | có field trong `CATEGORIES`/`POPULAR_TAGS` | **dead field — chỉ báo cáo** | 0 chỗ render `.nameEn` của taxonomy (chỉ accessory model) |
 | 4 | Icon dư | 206 glyph | **205 glyph** | `cloud_sync` 0 refs; `check-icon-names` PASS 205 |
-| 5 | Stale comments/paths | — | không có gì để sửa | grep `src/stores\|vcube_products\|…\|isVi` = **0** |
+| 5 | Stale comments/paths | — | không có gì để sửa | grep `src\/stores\|vcube_products\|…\|isVi` = **0** |
 
 ---
 
 ## 1. D05–D07 — xoá 3 shim `export *`
 
-**Trước:** `src/frontend/data/mockData.ts`, `src/frontend/types/index.ts`, `src/frontend/utils/pricingEngine.ts`
+**Trước:** `frontend/data/mockData.ts`, `frontend/types/index.ts`, `frontend/utils/pricingEngine.ts`
 là shim 1 dòng (`export * from '../../xxx'`) — nguồn: `DEAD-CODE.md` §1.
 
 **Sau:** xoá cả 3; 53 dòng import ở **46 file** đổi sang canonical alias (`@` = `src/`):
@@ -110,7 +110,7 @@ Scanner AST + literal `t('key')`/`t("key")` + `DICTIONARY.member`/`DICTIONARY['m
 
 ## 5. Stale comments/paths — **không có gì để sửa**
 
-`grep -rn "src/stores|vcube_products|vcube_materials|vcube_printers|vcube_site_content|isVi" src/ --include=*.ts --include=*.tsx`
+`grep -rn "src\/stores|vcube_products|vcube_materials|vcube_printers|vcube_site_content|isVi" src/ --include=*.ts --include=*.tsx`
 → **0** (đã được dọn ở Phase 1–4). Item no-op, không có thay đổi.
 
 ---
@@ -169,7 +169,7 @@ Không đụng `dbService`, `App.tsx`, `package.json`, `vite.config.ts`, `src/in
 | Rủi ro | Mức | Ghi chú |
 |---|---|---|
 | 46 importer file ngoài write-scope liệt kê | — | **bắt buộc** để xoá shim; resolve theo path thật, `tsc`+build chứng minh; đã báo Lead |
-| Xoá 57 key dictionary ảnh hưởng consumer ngoài `src/` | Thấp | scanner quét cả `src/tests/scripts`; 18 key còn dùng vẫn đủ; build PASS |
+| Xoá 57 key dictionary ảnh hưởng consumer ngoài `src/` | Thấp | scanner quét cả `tests/` + `scripts/`; 18 key còn dùng vẫn đủ; build PASS |
 | Key `''` chết được giữ (10) | Thấp | đúng yêu cầu "giữ `''` intentional"; nếu Lead muốn dọn nốt thì xoá 10 dòng + note Group A/C |
 | `nameEn` taxonomy dead field | Thấp | chỉ báo cáo, không xoá type (lan sang accessory model); follow-up riêng |
 | `cloud_sync` prune | Rất thấp | 0 refs; `check-icon-names` PASS 205; docs cập nhật theo |

@@ -14,9 +14,9 @@
 
 | File | LOC xoá | Bằng chứng trước khi xoá |
 |---|---:|---|
-| `src/frontend/ui/Section.tsx` | 117 | 0 importer (grep import line + JSX + barrel); chỉ `ui/index.ts` re-export |
-| `src/frontend/ui/Toolbar.tsx` | 87 | 0 importer |
-| `src/frontend/ui/ToastViewport.tsx` | 297 | 0 importer; chỉ còn 1 comment tham chiếu trong `stores/useUIStore.ts:40` |
+| `frontend/ui/Section.tsx` | 117 | 0 importer (grep import line + JSX + barrel); chỉ `ui/index.ts` re-export |
+| `frontend/ui/Toolbar.tsx` | 87 | 0 importer |
+| `frontend/ui/ToastViewport.tsx` | 297 | 0 importer; chỉ còn 1 comment tham chiếu trong `stores/useUIStore.ts:40` |
 | **Tổng** | **501** | |
 
 - `src/frontend/ui/index.ts`: xoá 3 dòng `export * from './Section' | './Toolbar' | './ToastViewport'`
@@ -85,9 +85,9 @@ không tính import tương đối `../types`).
 
 | Shim | Importer thật | Ví dụ |
 |---|---:|---|
-| `src/frontend/utils/pricingEngine.ts` | **2** | `components/admin/WorkshopEstimatorBOM.tsx:3`, `components/tool3d/QuoteSummaryPanel.tsx:9` (`'../../utils/pricingEngine'` từ depth-3 = `src/frontend/utils/`, **không phải** `src/utils/`) |
-| `src/frontend/types/index.ts` | **11** | `components/{AuthModal,Header,InvoiceModal,RoleGuard}.tsx`, `views/{AdminDashboard,AssetLibrary,DesignerDashboard,Explore,Home,MyOrders,OrderTracking,Tool3D}View.tsx` (`'../types'`) |
-| `src/frontend/data/mockData.ts` | **3** | `views/{Home,Explore,Tool3D}View.tsx` (`'../data/mockData'`) |
+| `frontend/utils/pricingEngine.ts` | **2** | `components/admin/WorkshopEstimatorBOM.tsx:3`, `components/tool3d/QuoteSummaryPanel.tsx:9` (`'../../utils/pricingEngine'` từ depth-3 = `frontend/utils/`, **không phải** `src/utils/`) |
+| `frontend/types/index.ts` | **11** | `components/{AuthModal,Header,InvoiceModal,RoleGuard}.tsx`, `views/{AdminDashboard,AssetLibrary,DesignerDashboard,Explore,Home,MyOrders,OrderTracking,Tool3D}View.tsx` (`'../types'`) |
+| `frontend/data/mockData.ts` | **3** | `views/{Home,Explore,Tool3D}View.tsx` (`'../data/mockData'`) |
 
 Xử lý trong task này:
 1. Đã thử xoá → `lint/build` đỏ đúng như cảnh báo của `commerce-auth` (2 lỗi

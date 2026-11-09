@@ -1,0 +1,6 @@
+# graphify — cấu hình chuẩn của dự án VCUBE.
+# Xem docs.graphify.com/reference/configuration. Một key=value mỗi dòng.
+
+# Trả lời query sâu hơn mặc định (2000 token / depth 2).
+query_budget=3500
+query_depth=3

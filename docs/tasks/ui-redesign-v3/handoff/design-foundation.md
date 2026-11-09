@@ -22,7 +22,7 @@
 | 8 | Defect register | Đóng UI-002 (P1), UI-012 (P2); giảm UI-018 (P2); ghi rõ các mục W1 còn mở |
 
 **Không** sửa page view nào (Home/Explore/PDP/Personalize/Cart/Checkout/Tool3D/admin/designer/lab).
-**Không** đụng `src/backend/**`, `src/stores/**`, `src/utils/**`, `src/workers/**`,
+**Không** đụng `src/backend/**`, `src/frontend/stores/**`, `src/utils/**`, `src/workers/**`,
 `supabase/**`, `package.json`, `vite.config.ts`, `.env`. **Không** thêm dependency/font/dark theme.
 **Không** đổi route/slug/nhãn nav.
 
@@ -116,7 +116,7 @@ default**. Console giữ `flat`; storefront mới dùng `soft`.
 | UI rules | `node scripts/check-ui-rules.mjs` | PASS — 139 file, 0 vi phạm mới |
 | Icon names | `node scripts/check-icon-names.mjs` | PASS — 138 file, 224 glyph |
 | Fabricated | `node scripts/check-fabricated.mjs` | SẠCH — 139 file |
-| Doc freshness / refs | `node scripts/check-doc-*.mjs` | advisory: 0 cảnh báo mới từ file v3 (2 marker sai định dạng là nợ cũ của `ui-redesign/handoff/C5,C6.md`) |
+| Doc freshness / refs | các script `check-doc-*.mjs` trong `scripts/` | advisory: 0 cảnh báo mới từ file v3 (2 marker sai định dạng là nợ cũ của `ui-redesign/handoff/C5,C6.md`) |
 
 **Xác minh utility mới có trong CSS build** (chống "token chết"):
 `dist/assets/index-*.css` chứa `.bg-brand`, `.shadow-soft`, `.bg-tile-mint/lilac/rose/amber`,

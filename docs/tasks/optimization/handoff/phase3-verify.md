@@ -12,7 +12,7 @@
 > 1. **Dữ liệu một nguồn:** 0 code đọc/ghi cache DB-backed; localStorage còn đúng 2 key ngoài phạm vi (auth demo),
 >    0 key DB (`vcube_products/materials/printers/site_content/pricing_config`) trong `localStorage` sau khi chạy app.
 >    *Nit:* còn **1 comment** chứa literal `vcube_printers` (grep gate “0” không đạt tuyệt đối — xem §7.1).
-> 2. **Store hợp nhất:** `src/stores` không tồn tại; 0 path cũ trong `src/`; 13 import đều `@frontend/stores/*`;
+> 2. **Store hợp nhất:** `stores` cũ không tồn tại; 0 path cũ trong `src/`; 13 import đều `@frontend/stores/*`;
 >    4 file move chỉ khác **đường dẫn tương đối độ sâu** (`../`→`../../`), không đổi logic/API/state.
 > 3. **App split tương đương hành vi:** `App.tsx` **2.153 → 1.100 dòng** (`git diff +63/−1.116`); 10 file mới 1.207 dòng.
 >    AST độc lập xác nhận: **9→10 effect** (multiset deps khớp, chỉ +1 `[]` do tách bootstrap),
@@ -49,15 +49,15 @@
 
 ---
 
-## 2. Store hợp nhất (`src/stores` → `src/frontend/stores`)
+## 2. Store hợp nhất (`stores` cũ → `src/frontend/stores`)
 
 | Kiểm | Kết quả |
 |---|---|
-| `src/stores` tồn tại? | **Không** (`ls` → No such file) |
-| Path cũ trong `src/` | **0** (`grep "src/stores\|../../../../stores/\|../../stores/\|../stores/"` rc=1) |
+| `stores` cũ tồn tại? | **Không** (`ls` → No such file) |
+| Path cũ trong `src/` | **0** (`grep "src\/stores\|../../../../stores/\|../../stores/\|../stores/"` rc=1) |
 | Import store | **13 dòng** tất cả `@frontend/stores/*` (App 2, hooks 1, reportError 1, admin group 4, views 3, components 2) |
 | Rename detection | `git diff HEAD -M --summary`: customer **99%**, designer **99%**, production **100%**, workshop **99%** |
-| Nội dung 4 file move (so `git show HEAD:src/stores/X`): | chỉ khác **depth import**: customer 1 dòng (`../backend` → `../../backend`); designer 1 dòng; production **0 dòng**; workshop **2 dòng** (`../backend`, `../types`). **Không** đổi logic/API/state/selector |
+| Nội dung 4 file move (so `git show HEAD:src\/stores\/X`): | chỉ khác **depth import**: customer 1 dòng (`../backend` → `../../backend`); designer 1 dòng; production **0 dòng**; workshop **2 dòng** (`../backend`, `../types`). **Không** đổi logic/API/state/selector |
 | Import ngoài alias (`../stores`, `../../stores`) | **0** |
 | Store bị xoá trong phase | **0**; cả 6 store (`cart/ui` + 4 moved) vẫn có ≥1 importer ngoài chính nó (`useCartStore` 20 refs, `useUIStore` 17, `useProductionStore` 4, 3 store còn lại 2) ⇒ không có dead store mới |
 
@@ -221,7 +221,7 @@ Chromium headless 1244 + SwiftShader, Playwright local, `LD_LIBRARY_PATH=~/.loca
 | # | Mức | Vấn đề | Đề xuất |
 |---|---|---|---|
 | 1 | **P3** | Grep gate “DB cache keys = 0” còn **1 hit comment**: `src/frontend/components/admin/groups/Group1WorkshopsPanel.tsx:111` — `// … bỏ hẳn cache localStorage \`vcube_printers\`` (Lead sửa comment nhưng vẫn giữ literal key) | Viết lại comment không chứa key (vd. “cache localStorage cũ đã bỏ”) — 1 dòng, không đổi code |
-| 2 | P3 | `docs/**` còn **87 hit `src/stores`** ở **37 file** (trong đó `docs/design/icon-map.md:380` là doc đang active; còn lại data-honesty/plans archive) | Docs owner cập nhật path → `src/frontend/stores`; archive plans chỉ cần ghi chú |
+| 2 | P3 | `docs/**` còn **87 hit `stores` cũ** ở **37 file** (trong đó `docs/design/icon-map.md:380` là doc đang active; còn lại data-honesty/plans archive) | Docs owner cập nhật path → `src/frontend/stores`; archive plans chỉ cần ghi chú |
 | 3 | P3 | Builder 3c báo gzip **trộn phương pháp** (185.224 CLI vs 184.439 Node z9) ⇒ delta +785 thay vì +1.392 | Chuẩn hoá **Node z9** cho mọi phase; ghi rõ method trong handoff |
 | 4 | P3 | `useOrdersData` trả `activeOrder` nhưng App không destructure (hook dùng nội bộ cho `handleUpdateOrderStatus`) | Giữ (hợp lý) hoặc bỏ khỏi return nếu không cần public |
 | 5 | Thấp | Thứ tự effect đổi do split; bootstrap tách 2 effect `[]` (chấp nhận có chủ đích) | Không cần sửa; nếu muốn đúng 1 effect thì gộp domain (không nên) |

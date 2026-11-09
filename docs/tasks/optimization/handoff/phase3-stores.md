@@ -1,5 +1,5 @@
 <!-- doc-meta: status=active; verified=2026-10-21; owner=admin -->
-# HANDOFF — Phase 3b: gom `src/stores` → `src/frontend/stores` (import alias)
+# HANDOFF — Phase 3b: gom `stores` cũ → `src/frontend/stores` (import alias)
 
 > **Work item:** `task-29` · **Agent:** `admin` · **Ngày:** 2026-10-21
 > **Repo:** `/home/thanh/home/thanh/project/Vcube` · **HEAD:** `387e86c` (Phase 1/5/2 đã push)
@@ -7,7 +7,7 @@
 > `@frontend/stores/*` nên không cần đổi. Không thêm dependency, không đổi route/API/logic store.
 >
 > ## ✅ VERDICT: **DONE** — 0 import cũ, lint/build PASS, 4 store rename 100% similarity.
-> `src/frontend/stores/` là **canonical duy nhất**; `src/stores/` đã không còn tồn tại.
+> `src/frontend/stores/` là **canonical duy nhất**; `stores/` cũ đã không còn tồn tại.
 
 ---
 
@@ -29,10 +29,10 @@
 
 | # | Old path | New path | Nội dung |
 |---|---|---|---|
-| 1 | `src/stores/useCustomerAdminStore.ts` | `src/frontend/stores/useCustomerAdminStore.ts` | chỉ đổi depth import (1 dòng) |
-| 2 | `src/stores/useDesignerAdminStore.ts` | `src/frontend/stores/useDesignerAdminStore.ts` | chỉ đổi depth import (1 dòng) |
-| 3 | `src/stores/useProductionStore.ts` | `src/frontend/stores/useProductionStore.ts` | **pure rename**, không có import tương đối |
-| 4 | `src/stores/useWorkshopAdminStore.ts` | `src/frontend/stores/useWorkshopAdminStore.ts` | chỉ đổi depth import (2 dòng) |
+| 1 | `stores/useCustomerAdminStore.ts` | `src/frontend/stores/useCustomerAdminStore.ts` | chỉ đổi depth import (1 dòng) |
+| 2 | `stores/useDesignerAdminStore.ts` | `src/frontend/stores/useDesignerAdminStore.ts` | chỉ đổi depth import (1 dòng) |
+| 3 | `stores/useProductionStore.ts` | `src/frontend/stores/useProductionStore.ts` | **pure rename**, không có import tương đối |
+| 4 | `stores/useWorkshopAdminStore.ts` | `src/frontend/stores/useWorkshopAdminStore.ts` | chỉ đổi depth import (2 dòng) |
 
 `git diff --cached -M --summary`:
 
@@ -75,7 +75,7 @@ rename src/{ => frontend}/stores/useWorkshopAdminStore.ts (100%)
 
 ### 3.1 Một chỉnh sửa **comment-only** (ngoài danh sách importer, cần cho gate grep = 0)
 
-`src/frontend/ui/iconMap.ts:8` có doc-comment cũ trỏ `src/stores/useProductionStore.ts`.
+`src/frontend/ui/iconMap.ts:8` có doc-comment cũ trỏ `stores/useProductionStore.ts`.
 Đã đổi thành mô tả không chứa path cũ:
 
 ```diff
@@ -83,7 +83,7 @@ rename src/{ => frontend}/stores/useWorkshopAdminStore.ts (100%)
 + *   vậy được: các object trong `src/data/mockData.ts` và store sản xuất (`useProductionStore`)
 ```
 
-Lý do: gate literal `grep -rn "src/stores\|…" src/` = 0; đây **không phải import**, không đổi
+Lý do: gate literal `grep -rn "src\/stores\|…" src/` = 0; đây **không phải import**, không đổi
 hành vi/type — chỉ là path reference đã stale sau khi move. Nếu Lead muốn giữ path đầy đủ thì
 có thể viết `src/frontend/stores/useProductionStore.ts`, nhưng khi đó gate
 `grep "stores/use" | grep -v "@frontend/stores"` sẽ còn 1 hit (comment).
@@ -94,8 +94,8 @@ có thể viết `src/frontend/stores/useProductionStore.ts`, nhưng khi đó ga
 
 | Gate | Lệnh | Kết quả |
 |---|---|---|
-| Thư mục cũ | `ls src/stores` | `No such file or directory` ✓ |
-| Không còn path cũ | `grep -rn "src/stores\|\.\./\.\./\.\./\.\./stores/\|\.\./\.\./stores/" src/ --include=*.ts --include=*.tsx` | **0 hit** (rc=1) ✓ |
+| Thư mục cũ | `ls src\/stores` | `No such file or directory` ✓ |
+| Không còn path cũ | `grep -rn "src\/stores\|\.\./\.\./\.\./\.\./stores/\|\.\./\.\./stores/" src/ --include=*.ts --include=*.tsx` | **0 hit** (rc=1) ✓ |
 | Không còn import tương đối | `grep -rn "stores/use" src/ --include=*.ts --include=*.tsx \| grep -v "@frontend/stores"` | **0 hit** (rc=1) ✓ |
 | Alias hợp lệ | `grep -rn "@frontend/stores/" src/ --include=*.ts --include=*.tsx` | **12 hit** (11 importer + 1 comment-path), tất cả resolve đúng |
 | Typecheck | `npm run lint` | **PASS** (`tsc --noEmit`, 0 lỗi) |
@@ -142,10 +142,10 @@ RM src/stores/useWorkshopAdminStore.ts -> src/frontend/stores/useWorkshopAdminSt
 
 | # | Mức | Nội dung | Đề xuất |
 |---|---|---|---|
-| 1 | Thấp | **Docs còn nhắc path cũ** `src/stores`: `docs/design/icon-map.md:380`, `docs/design/data-honesty.md` (nhiều dòng AD-xx là **bằng chứng audit lịch sử**), `docs/plans/**` (archive). Không phải import, ngoài write-scope task này. | Docs/integrator pass riêng (Phase 3 docs hoặc Phase 6). Không ảnh hưởng build/runtime |
+| 1 | Thấp | **Docs còn nhắc path cũ** `stores` (trước Phase 3): `docs/design/icon-map.md:380`, `docs/design/data-honesty.md` (nhiều dòng AD-xx là **bằng chứng audit lịch sử**), `docs/plans/**` (archive). Không phải import, ngoài write-scope task này. | Docs/integrator pass riêng (Phase 3 docs hoặc Phase 6). Không ảnh hưởng build/runtime |
 | 2 | Thấp | Trạng thái git lai staged/unstaged (§5) | Người commit dùng `git add -A`; không `git reset` mù sẽ mất detect rename |
 | 3 | Thấp | `dist-ssr/p3b/` (≈11 MB, gitignored) còn trên đĩa để QA/verifier đối chiếu | Có thể `rm -rf dist-ssr/p3b` nếu không cần; không ảnh hưởng git |
-| 4 | Rất thấp | Không có barrel `src/frontend/stores/index.ts` — importer vẫn trỏ từng file | Giữ nguyên (không thêm API/abstraction trong task move thuần) |
+| 4 | Rất thấp | Không có barrel `index.ts` trong `src/frontend/stores/` — importer vẫn trỏ từng file | Giữ nguyên (không thêm API/abstraction trong task move thuần) |
 | 5 | Rất thấp | `useCartStore` có `persist` — key localStorage không phụ thuộc đường dẫn file | Không cần migration; đã build+typecheck xác nhận |
 | 6 | Rất thấp | `useProductionStore` vẫn còn dù hiện ít/không dùng (dead-store review Phase 4/6) | Không xoá theo đúng yêu cầu task |
 | 7 | — | **Không đụng `src/App.tsx`** (agent song song); App.tsx đã alias đúng | Không có xung đột write-scope |

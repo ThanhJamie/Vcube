@@ -6,7 +6,7 @@
 > **Build đo:** **xanh lúc 10:53** (Vite **6.4.3**) — `index-CXYaozqd.js` (**714.080 B raw / 194.316 B gzip**),
 > `three-vendor-DxYt6jHo.js` (**async**, không còn preload), `supabase-vendor-Dou1_KsT.js`; 40 file trong
 > `dist/assets`. Baseline trước Phase 1/5a là build 10:13 (`index-C8O2jQ4p.js`, 901.288 / 241.672).
-> Lần 10:33 có fail tạm thời vì `src/frontend/data/mockData.ts` bị xoá giữa chừng; shim 37 B được thêm lúc
+> Lần 10:33 có fail tạm thời vì `frontend/data/mockData.ts` bị xoá giữa chừng; shim 37 B được thêm lúc
 > 10:35 và build 10:41 xanh; Phase 5a (route lazy + `LazyThreeModelViewer`) build 10:53.
 > **Delta (2 mốc, đừng trộn):**
 > - so **baseline phase 0** (10:13, trước Phase 1): initial critical **466.642 → 285.807 B gzip (-38,7%)**;
@@ -23,7 +23,7 @@
 |---|---|---|
 | 10:27 (`4d4a5d1` + working tree) | Xoá `dotenv`, `autoprefixer` khỏi `package.json`; xoá `bun.lock`, `firebase-applet-config.json`, `firestore.rules`, `metadata.json`, `assets/.aistudio`, `test-pricing.ts`, 3 service/shim chết | §2.1/§2.6/§4: các mục tương ứng **đã DONE**, giữ lại làm baseline |
 | 10:27 | `iconMap` xoá **18 key** không có literal (219 → **201** key gốc) | §2.5: số hiện tại 206 key; ước tính prune còn lại ~0 |
-| 10:33 → 10:35 | `src/frontend/data/mockData.ts` bị xoá trong khi `HomeView.tsx:4` còn import `../data/mockData` → build fail; shim 37 B được thêm lại | Build **đã xanh lại 10:41** |
+| 10:33 → 10:35 | `frontend/data/mockData.ts` bị xoá trong khi `HomeView.tsx:4` còn import `../data/mockData` → build fail; shim 37 B được thêm lại | Build **đã xanh lại 10:41** |
 | **10:53** | **Phase 5a**: 9 view chuyển `React.lazy`; thêm `LazyThreeModelViewer` cho Home/PDP/Explore/AssetLibrary/Designer; three rời preload | §1.2/§1.3/§1.5/§1.7: B1+B2 **đã DONE**, đo được **-180.835 B gzip critical (-38,7%)** |
 
 ## 0. TL;DR — số đo chốt
@@ -493,7 +493,7 @@ Icon prune (L5) đã xong trong Phase 1; #3/#6/#7 không đổi initial nhưng g
 
 | Priority | Action | Evidence | Expected impact | Risk | Gate |
 |---|---|---|---|---|---|
-| ✅ **RESOLVED** | `../data/mockData` bị xoá giữa chừng → shim `src/frontend/data/mockData.ts` (37 B) đã khôi phục; build 10:41 xanh | `HomeView.tsx:4`; build 10:33 fail | Không còn blocker; số current ở §1.7 | — | `npm run build` xanh; `npm run lint` |
+| ✅ **RESOLVED** | `../data/mockData` bị xoá giữa chừng → shim `frontend/data/mockData.ts` (37 B) đã khôi phục; build 10:41 xanh | `HomeView.tsx:4`; build 10:33 fail | Không còn blocker; số current ở §1.7 | — | `npm run build` xanh; `npm run lint` |
 | ✅ **DONE 10:53** | Lazy three bằng `LazyThreeModelViewer` (Home/PDP/Explore/AssetLibrary/Designer); three rời preload | `src/frontend/components/LazyThreeModelViewer.tsx`; build 10:53 | **-133,4 KB gzip critical** (thực đo) | Đã verify không preload; CLS fallback dùng đúng khung | Lighthouse 390 + screenshot Home/PDP; network waterfall |
 | ✅ **DONE 10:53** | Lazy 9 route: Cart, Checkout, OrderSuccess, OrderTracking, MyOrders, AssetLibrary, Login, Register, Personalize | `App.tsx:72-85` | **index -187,2 KB raw / -47,4 KB gzip** (gồm icon; route ~45 KB gzip) | Đã build; chunk 404 nếu deploy thiếu asset | `npm run build`; smoke 12 route; bảng §1.7 |
 | **P1** | Tách `WorkshopService` khỏi module scope `App.tsx` (dynamic import trong `LabRoute` hoặc component `LabGate` lazy) | `App.tsx:37`, dùng `:575`; `workshopService` 40.504 B / 2.243 dòng | -40,5 KB raw / -10,9 KB gzip; `/lab` chỉ tải khi role phù hợp | Thấp: chỉ đổi thời điểm import | `npm run lint/build`; `/lab` smoke cho 3 nhánh gate |
@@ -598,5 +598,5 @@ vẫn đúng số đo; `npm run check` xanh (hoặc không hồi quy baseline).
 6. Trong lúc audit, Phase 1 + Phase 5a đã landed: xoá `dotenv`/`autoprefixer`/`bun.lock`/Firebase
    remnant/`metadata.json`/`assets/.aistudio`, prune 18 icon key, xoá dead service, lazy 9 route và
    `LazyThreeModelViewer`. Các mục đó được đánh dấu ✅ và **không** còn là backlog. Build tạm fail lúc
-   10:33 do `src/frontend/data/mockData.ts` bị xoá giữa chừng; shim 37 B đã khôi phục và build 10:53
+   10:33 do `frontend/data/mockData.ts` bị xoá giữa chừng; shim 37 B đã khôi phục và build 10:53
    xanh. Số §1.7 phản ánh trạng thái sau Phase 5a.

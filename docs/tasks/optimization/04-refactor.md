@@ -60,7 +60,7 @@ Tài liệu đó (2026-10-19) đã có §1 số đo nợ và §5 "khung refactor
 | `isVi ?` | 1.193 | **1.201** | +8 |
 | `: any` | 138 | **139** | +1 |
 
-> ⚠️ **Xung đột cần chốt:** as-is/05 §6 **D-D** ghi "plan ở `docs/tasks/REFACTOR-PLAN.md`". Thực tế bộ `docs/tasks/optimization/` đã thay thế vai trò đó. Đề nghị: sửa D-D trỏ về `docs/tasks/optimization/README.md` + `PLAN.md`, và hạ as-is/05 §5 xuống `status=historical` — **không để hai kế hoạch song song** (đúng luật "Không tạo kế hoạch song song chồng lấn" của chính as-is/05).
+> ⚠️ **Xung đột cần chốt:** as-is/05 §6 **D-D** ghi "plan ở `docs/tasks/optimization/PLAN.md`". Thực tế bộ `docs/tasks/optimization/` đã thay thế vai trò đó. Đề nghị: sửa D-D trỏ về `docs/tasks/optimization/README.md` + `PLAN.md`, và hạ as-is/05 §5 xuống `status=historical` — **không để hai kế hoạch song song** (đúng luật "Không tạo kế hoạch song song chồng lấn" của chính as-is/05).
 
 ### 0.4 Nguyên tắc đề xuất
 
@@ -137,14 +137,14 @@ Phase 4 **DONE** (QA verdict **GO-WITH-RISKS**, `handoff/phase4-verify.md`): 7 g
 | Đích | Lấy từ | LOC | Loại |
 |---|---|---|---|
 | `src/frontend/routes/AppRoutes.tsx` | A7 + A9 | ~285 | JSX thuần, không state |
-| `src/frontend/routes/guards/ProtectedRoute.tsx` | 93–107 | ~20 | |
-| `src/frontend/routes/wrappers/{Explore,ProductDetail,Personalize,OrderSuccess,OrderTracking,OrderNotFound}Route.tsx` | 108–369 | ~250 | 6 file, mỗi file ≤ 90 |
-| `src/frontend/shell/{DashboardShell,LabDashboardShell,DesignerDashboardShell,LabRoute}.tsx` | 370–625 | ~270 | |
-| `src/frontend/hooks/useCatalog.ts` | 633–645, 768–810, 822–879 | ~240 | products + realtime + mutation |
+| `src/frontend/routes/routeWrappers.tsx` | 93–107 | ~20 | |
+| `src/frontend/routes/routeWrappers.tsx` (các wrapper) | 108–369 | ~250 | 6 file, mỗi file ≤ 90 |
+| `src/frontend/components/shell/{DashboardShell,LabDashboardShell,DesignerDashboardShell,LabRoute}.tsx` | 370–625 | ~270 | |
+| `src/frontend/hooks/useCatalogData.ts` | 633–645, 768–810, 822–879 | ~240 | products + realtime + mutation |
 | `src/frontend/hooks/useSiteSettings.ts` | 688–757, 758–766, 1.045–1.098 | ~130 | **phụ thuộc §2** |
-| `src/frontend/hooks/useAdminOrders.ts` | 686, 917–928 | ~45 | |
+| `src/frontend/hooks/useOrdersData.ts` | 686, 917–928 | ~45 | |
 | `src/frontend/hooks/useAppNavigation.ts` | 1.099–1.264 | ~140 | |
-| `src/frontend/shell/AppChrome.tsx` | 1.877–2.138 | ~270 | |
+| `src/frontend/components/shell/AppOverlays.tsx` | 1.877–2.138 | ~270 | |
 
 **Kỳ vọng:** `App.tsx` **2.152 → ~165** (provider + `<AppRoutes/>` + chrome). Tổng cây ≈ 2.010 (**−140**).
 
@@ -590,7 +590,7 @@ Phân bố nặng nhất: `Group1WorkshopsPanel` 162, `ExploreView` 113, `Group3
 | `t()` | Giữ (đã dùng 25 chỗ + đọc claim admin), bỏ tham số thứ 3 `_fallbackEn` |
 | `DICTIONARY` | Bỏ `en:`; giữ `vi` (một số khoá `vi:''` là **có chủ ý** — nhóm C, đừng "sửa" thành chữ) |
 | Chuỗi EN | Không thay bằng tiếng Việt máy dịch. Chuỗi EN chết thì **xoá**; chuỗi EN là *nhãn kỹ thuật* (FDM, SLA, STL) thì giữ |
-| Gate chống tái phát | thêm `scripts/check-single-language.mjs` (đếm `isVi ?`, `language === 'en'`, `en:` trong DICTIONARY) vào `gate-manifest.json` với ngưỡng giảm dần |
+| Gate chống tái phát | thêm script `check-single-language.mjs` (trong `scripts/`) (đếm `isVi ?`, `language === 'en'`, `en:` trong DICTIONARY) vào `gate-manifest.json` với ngưỡng giảm dần |
 
 ---
 
@@ -602,23 +602,23 @@ Phân bố nặng nhất: `Group1WorkshopsPanel` 162, `ExploreView` 113, `Group3
 
 | ID | File / khối | LOC | Bằng chứng 0 reference | Ghi chú |
 |---|---|---:|---|---|
-| D01 | `src/backend/index.ts` (barrel) | 8 | **0 file** import `@backend` / `../backend` | barrel chết ⇒ D02–D04 chết theo |
-| D02 | `src/backend/services/catalogService.ts` | 34 | chỉ được `backend/index.ts:7` export | 4 method, **tất cả `return []`** — "service" không có dữ liệu |
-| D03 | `src/backend/services/pricingService.ts` | 46 | chỉ `backend/index.ts:6` | `getMaterials`/`getPrinters` trả `[]`; `getFormulaConfig` trả hằng mẫu mà chính comment (`:16-19`) nói "KHÔNG được dùng làm fallback" |
-| D04 | `src/backend/supabase/seedService.ts` | 134 | chỉ `backend/index.ts:4`; `syncFromSupabase` 0 caller | `mappers.ts:377` còn comment tham chiếu |
-| D05 | `src/frontend/data/mockData.ts` | 1 | ~~0 importer~~ → thực tế nhiều importer; **đã xoá Phase 6c** | shim `export *` |
-| D06 | `src/frontend/types/index.ts` | 1 | ~~0 importer~~ → thực tế 11+ importer; **đã xoá Phase 6c** | shim `export *` |
-| D07 | `src/frontend/utils/pricingEngine.ts` | 1 | ~~0 importer~~ → thực tế 2 importer; **đã xoá Phase 6c** | shim `export *` |
-| D08 | `src/frontend/ui/Section.tsx` | 117 | 0 import | |
-| D09 | `src/frontend/ui/Toolbar.tsx` | 87 | 0 import | |
-| D10 | `src/frontend/ui/ToastViewport.tsx` | 297 | 0 render; `useUIStore.toasts` chỉ phục vụ nó | xoá cùng `toasts` |
-| D19 | `test-pricing.ts` (root) | 357 | **không chạy được**: import `./src/backend/services/pricingEngineService` + `./src/backend/services/quoteVerifier` — cả hai **không tồn tại** (`ERR_MODULE_NOT_FOUND` đã tái hiện) | ngoài `tsconfig include` nên `npm run lint` không bắt |
-| — | `src/frontend/services/` (thư mục) | 0 | **rỗng** | xoá (DEAD-CODE không liệt kê) |
+| D01 | `backend/index.ts` (barrel) | 8 | **0 file** import `@backend` / `../backend` | barrel chết ⇒ D02–D04 chết theo |
+| D02 | `backend/services/catalogService.ts` | 34 | chỉ được `backend/index.ts:7` export | 4 method, **tất cả `return []`** — "service" không có dữ liệu |
+| D03 | `backend/services/pricingService.ts` | 46 | chỉ `backend/index.ts:6` | `getMaterials`/`getPrinters` trả `[]`; `getFormulaConfig` trả hằng mẫu mà chính comment (`:16-19`) nói "KHÔNG được dùng làm fallback" |
+| D04 | `backend/supabase/seedService.ts` | 134 | chỉ `backend/index.ts:4`; `syncFromSupabase` 0 caller | `mappers.ts:377` còn comment tham chiếu |
+| D05 | `frontend/data/mockData.ts` | 1 | ~~0 importer~~ → thực tế nhiều importer; **đã xoá Phase 6c** | shim `export *` |
+| D06 | `frontend/types/index.ts` | 1 | ~~0 importer~~ → thực tế 11+ importer; **đã xoá Phase 6c** | shim `export *` |
+| D07 | `frontend/utils/pricingEngine.ts` | 1 | ~~0 importer~~ → thực tế 2 importer; **đã xoá Phase 6c** | shim `export *` |
+| D08 | `frontend/ui/Section.tsx` | 117 | 0 import | |
+| D09 | `frontend/ui/Toolbar.tsx` | 87 | 0 import | |
+| D10 | `frontend/ui/ToastViewport.tsx` | 297 | 0 render; `useUIStore.toasts` chỉ phục vụ nó | xoá cùng `toasts` |
+| D19 | `test-pricing.ts` (root) | 357 | **không chạy được**: import `./backend/services/pricingEngineService` + `./backend/services/quoteVerifier` — cả hai **không tồn tại** (`ERR_MODULE_NOT_FOUND` đã tái hiện) | ngoài `tsconfig include` nên `npm run lint` không bắt |
+| — | `frontend/services/` (thư mục) | 0 | **rỗng** | xoá (DEAD-CODE không liệt kê) |
 | **#** | **`workshopService` D1+D2 + helper localStorage** | **1.140** | xem §1.4 — **DEAD-CODE §8 đang hoãn mục này với lý do "admin panel còn dùng"; lý do đó SAI** | 26 method (684) + 7 bộ `SEED_*` (382) + helper (42) + comment/header (~31); **2 method onboarding phải viết lại, không xoá** |
 | | **Tổng phần xác minh ở đây** | **≈ 2.223** | | = **1.083** (`D01`–`D10`+`D19`, khớp tuyệt đối với DEAD-CODE) + **1.140** (`workshopService`) |
 | | **Tổng toàn bộ dead (gộp DEAD-CODE)** | **≈ 2.700–2.800** | | thêm `D11` ~120–160, `D12` ~100–150, `D13` ~168, `D21`–`D28` (config/lock/dep) |
 
-> ✅ **Trạng thái thi công (cập nhật cuối ngày 2026-10-21):** `D01`–`D10` + `D19` **đã được xoá** trên working tree bởi Phase 1 (cùng `bun.lock`, `firebase*`, `metadata.json`, `firestore.rules`). `test-pricing.ts` cũng đã xoá; `src/frontend/services/` (thư mục rỗng) **vẫn còn**. **Còn nguyên:** `workshopService` (2.243 dòng, chưa chạm), 1.201 `isVi`, toàn bộ §2/§5/§6. ⇒ các mục §4.1 ở trên nên đọc là **bằng chứng của audit**, không phải việc còn phải làm — trừ dòng `#` (`workshopService`) và `src/frontend/services/`.
+> ✅ **Trạng thái thi công (cập nhật cuối ngày 2026-10-21):** `D01`–`D10` + `D19` **đã được xoá** trên working tree bởi Phase 1 (cùng `bun.lock`, `firebase*`, `metadata.json`, `firestore.rules`). `test-pricing.ts` cũng đã xoá; `frontend/services/` (thư mục rỗng) **vẫn còn**. **Còn nguyên:** `workshopService` (2.243 dòng, chưa chạm), 1.201 `isVi`, toàn bộ §2/§5/§6. ⇒ các mục §4.1 ở trên nên đọc là **bằng chứng của audit**, không phải việc còn phải làm — trừ dòng `#` (`workshopService`) và `frontend/services/`.
 
 ### 4.2 Trùng lặp
 
@@ -746,14 +746,14 @@ Nếu chủ dự án chấp nhận **1 devDependency** thì `vitest` cho DX tố
 | Tầng | File | Cơ chế |
 |---|---|---|
 | Portal | `docs/README.md` | **bỏ mọi con số** (31 bảng, 90 policy, dark theme) → trỏ `_facts.generated.md` |
-| Sự thật sinh tự động | **`docs/database/_schema.generated.md`** (mới) | `scripts/gen-schema-doc.mjs` parse `supabase/migrations/*.sql` (bảng/cột/index/function/trigger/view) — như `gen-routes-doc.mjs` |
+| Sự thật sinh tự động | tài liệu schema sinh tự động (mới, đề xuất) | script `gen-schema-doc.mjs` trong `scripts/` parse `supabase/migrations/*.sql` (bảng/cột/index/function/trigger/view) — như `gen-routes-doc.mjs` |
 | | `docs/pages/_routes.generated.md` (đã có) | thêm vào gate (không advisory) |
-| | **`docs/_facts.generated.md`** (mới) | 1 khối "số hiện tại": bảng/view/index/policy/route/LOC/test — mọi doc khác **link** tới đây thay vì chép |
+| | file số liệu tổng hợp sinh tự động (mới, đề xuất) | 1 khối "số hiện tại": bảng/view/index/policy/route/LOC/test — mọi doc khác **link** tới đây thay vì chép |
 | Kiến trúc | `docs/architecture/{system-overview,3d-cad-pipeline,pricing-engine}.md` | giữ; thêm **`data-flow.md`** mô tả 4 pattern truy cập DB (§2.2) và đường đọc/ghi chuẩn |
 | Database | `docs/database/{schema,_schema.generated,seeds-and-migrations,schema-notes}.md` | `schema.md` → **banner "xem bản generated"** |
 | Security | `docs/security/{rls-policies,rls-runbook}.md` | số policy **chỉ** lấy từ `verify-rls.mjs` output |
-| Tasks | `docs/tasks/optimization/0N-*.md` (bộ mới) | kế hoạch đang hiệu lực; `docs/tasks/as-is/**` = baseline đo |
-| Archive | `docs/archive/README.md` + `docs/plans/**` | **giữ nguyên vị trí** (đã có lý do kỹ thuật) nhưng: (a) thêm `docs/plans/README.md` nói rõ "không phải nguồn"; (b) **cấm trỏ bằng số dòng** vào `docs/plans` trong code mới (gate `lint-doc-refs` mở rộng sang `src/**`) |
+| Tasks | `docs/tasks/optimization/` (bộ `0N-*.md` mới) | kế hoạch đang hiệu lực; `docs/tasks/as-is/**` = baseline đo |
+| Archive | `docs/archive/README.md` + `docs/plans/**` | **giữ nguyên vị trí** (đã có lý do kỹ thuật) nhưng: (a) thêm README cảnh báo trong `docs/plans/` nói rõ "không phải nguồn"; (b) **cấm trỏ bằng số dòng** vào `docs/plans` trong code mới (gate `lint-doc-refs` mở rộng sang `src/**`) |
 
 **Gate mới (P8)**
 - `gen-schema-doc --check` (hash nguồn như routes) → chặn nếu `_schema.generated.md` lệch.
@@ -818,7 +818,7 @@ Nếu chủ dự án chấp nhận **1 devDependency** thì `vitest` cho DX tố
 | **D-1** | UI một ngôn ngữ = **chỉ tiếng Việt**? | **Đúng** — đã thi hành ở code (`LanguageContext.tsx:7-10`), chỉ còn xoá dead branch | P6 |
 | **D-2** | Cho phép **1 devDependency** test (`vitest`)? | **Không** — dùng `node:test` + `tsx` | P7 |
 | **D-3** | Phí nền tảng: chốt **một** field (`pricing_configs.platformCommissionPercent` hay `pricing_global_settings.marketplace_fee_percent`)? | Giữ phép bù hiện tại (`App.tsx:1.045-1.058`) và **không** xoá | P2-S3 (nếu chốt được: −25 + hết 1 lớp lệch số) |
-| **D-4** | Xoá `docs/plans/**` (39 file) hay giữ + thêm README cảnh báo? | **Giữ** (đã có lý do: 31 ref trong `src/`) + thêm `docs/plans/README.md` | P8 |
+| **D-4** | Xoá `docs/plans/**` (39 file) hay giữ + thêm README cảnh báo? | **Giữ** (đã có lý do: 31 ref trong `src/`) + thêm README cảnh báo trong `docs/plans/` | P8 |
 
 ### 7.3 Gate kiểm chứng (định nghĩa chính xác)
 
