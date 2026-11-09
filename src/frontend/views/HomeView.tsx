@@ -395,24 +395,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <span>{siteCopy(activeContent.heroCtaQuoteText, 'Báo giá tệp 3D tức thì')}</span>
                 </Button>
 
-                <Button size="lg" variant="secondary"
-                  onClick={() => {
-                    // Kho rỗng thật ⇒ không mời "khám phá kho"; chuyển thẳng sang báo giá tệp.
-                    if (catalogEmpty) {
-                      onNavigate('quote');
-                      return;
-                    }
-                    const el = document.getElementById('browse-cad-catalog');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  leadingIcon={<Icon name={catalogEmpty ? 'upload_file' : 'view_in_ar'} size={20} className="text-primary" />}
-                >
-                  <span>
-                    {catalogEmpty
-                      ? 'Gửi tệp 3D để báo giá'
-                      : (activeContent.heroCtaCatalogText || ('Khám Phá Kho Mẫu CAD'))}
-                  </span>
-                </Button>
+                {/* P2-C: kho rỗng ⇒ CHỈ giữ CTA primary báo giá. Trước đây secondary trỏ
+                    cùng đích `/quote` với nhãn khác ⇒ 2 CTA trùng intent trong 1 viewport. */}
+                {!catalogEmpty && (
+                  <Button size="lg" variant="secondary"
+                    onClick={() => {
+                      const el = document.getElementById('browse-cad-catalog');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    leadingIcon={<Icon name="view_in_ar" size={20} className="text-primary" />}
+                  >
+                    <span>{activeContent.heroCtaCatalogText || ('Khám Phá Kho Mẫu CAD')}</span>
+                  </Button>
+                )}
               </div>
 
               {/* 3 Technical Quality Spec Metrics Cards */}

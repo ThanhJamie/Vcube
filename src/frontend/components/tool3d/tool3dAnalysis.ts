@@ -141,11 +141,16 @@ export async function computeSha256(file: File): Promise<string | undefined> {
   }
 }
 
-/** Nhãn dung lượng dùng chung cho panel lỗi (không làm tròn thành "0.0 MB"). */
+/**
+ * Nhãn dung lượng dùng chung cho panel lỗi.
+ *
+ * Giữ đúng ĐỘ LỚN đo được: tệp < 1 KB hiện nguyên byte (512 B, không bị làm tròn thành "1 KB");
+ * 1 KB–1 MB hiện KB với 1 chữ số thập phân (1.331 B ⇒ "1.3 KB"); từ 1 MB hiện MB 1 chữ số.
+ */
 export function formatFileSize(bytes: number): string {
-  return bytes >= 1024 * 1024
-    ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /**
