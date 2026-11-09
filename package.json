@@ -23,7 +23,8 @@
     "guard:update": "node scripts/check-max-lines.mjs --update && node scripts/check-any-budget.mjs --update && node scripts/check-import-boundaries.mjs --update",
     "db:check": "node scripts/db-query.mjs --check",
     "db:query": "node scripts/db-query.mjs",
-    "mcp:supabase": "node scripts/supabase-mcp-proxy.mjs"
+    "mcp:supabase": "node scripts/supabase-mcp-proxy.mjs",
+    "catalog:import": "node scripts/import-catalog.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.114.0",
