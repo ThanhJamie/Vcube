@@ -16,17 +16,27 @@
  *   - `--live`: ghi DB thật (staging). Đây mới là bằng chứng API/DB.
  *   - Browser smoke (QA-BROWSER-01) là gate RIÊNG, không thay thế được script này.
  *
- * An toàn dữ liệu:
+ * An toàn dữ liệu — FAIL-CLOSED:
  * - Mặc định DRY-RUN (không ghi DB).
- * - Ghi thật (`--live`) yêu cầu thêm `E2E_ALLOW_LIVE=1` (cổng chống chạy nhầm production).
- *   Nếu `E2E_TARGET=production` phải có `E2E_ALLOW_PRODUCTION=1`; khuyến nghị `E2E_TARGET=staging`.
+ * - Ghi thật (`--live`) yêu cầu ĐỒNG THỜI:
+ *     · `E2E_TARGET=staging` (sau trim/lowercase). Mọi giá trị khác — kể cả trống/`unknown`/
+ *       `production` — đều BLOCKED exit 2. KHÔNG có bypass production.
+ *     · `E2E_ALLOW_LIVE=1` (cổng xác nhận thêm).
  * - Đơn test có prefix `E2E-`; dọn bằng `--cleanup` (dùng `SUPABASE_SECRET_KEY` **server-only**,
  *   chạy trong Node, KHÔNG bao giờ đưa vào bundle). `--cleanup` xoá đơn của lần chạy này rồi
- *   ĐỌC LẠI để xác nhận đã sạch. `--cleanup-stale` dọn mọi đơn `E2E-%` còn sót.
+ *   ĐỌC LẠI để xác nhận đã sạch. `--cleanup-stale` dọn mọi đơn `E2E-%` còn sót + admin tạm
+ *   (`e2e-admin-*@vcube.test` cũ hơn 1 giờ) do lần chạy lỗi để lại.
+ * - `try/finally`: nếu crash sau khi đã insert đơn hoặc tạo admin tạm, cleanup vẫn chạy.
  * - Không in khoá bí mật ra stdout. Payload in ra đã che `secure_access_token`.
  *
+ * Kết quả (`result`) là một trong `PASS` / `PARTIAL` / `FAIL`:
+ *   - `FAIL`: có check FAIL/BLOCKED.
+ *   - `PARTIAL`: check được YÊU CẦU (--admin-session/--cleanup/--cleanup-stale…) bị SKIP hoặc
+ *     không chạy. Không được coi là PASS, exit 1.
+ *   - `PASS`: mọi check bắt buộc của mode hiện tại đều PASS. Dry-run không bị đánh giá như live.
+ *
  * Output:
- * - Người đọc: các dòng `[PASS|FAIL|SKIP|BLOCKED] tên — chi tiết` + SUMMARY.
+ * - Người đọc: các dòng `[PASS|FAIL|SKIP|BLOCKED] tên — chi tiết` + SUMMARY + RESULT.
  * - Máy đọc: `--json` in MỘT object JSON ra stdout; `--report <path>` ghi cùng object ra file
  *   (dùng cho CI artifact / evidence QA-API-01).
  *
@@ -46,6 +56,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 type Env = Record<string, string>;
 type Status = 'PASS' | 'FAIL' | 'SKIP' | 'BLOCKED';
+type Outcome = 'PASS' | 'PARTIAL' | 'FAIL';
 type Result = { name: string; status: Status; detail: string };
 
 /** Đọc `.env` thủ công (repo KHÔNG dùng dotenv — không thêm dependency). */
@@ -101,8 +112,10 @@ const env = loadEnv();
 const SUPABASE_URL = env.VITE_SUPABASE_URL;
 const ANON_KEY = env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const SECRET_KEY = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TARGET = env.E2E_TARGET || 'unknown';
+const TARGET_RAW = env.E2E_TARGET ?? '';
+const TARGET = TARGET_RAW.trim().toLowerCase() || 'unknown';
 const ALLOW_LIVE = env.E2E_ALLOW_LIVE === '1';
+const ADMIN_REQUESTED = ADMIN_SESSION || PROVISION_ADMIN;
 
 const startedAt = new Date().toISOString();
 const results: Result[] = [];
@@ -237,17 +250,179 @@ function printDryRunPayload(row: Record<string, unknown>) {
   console.log(JSON.stringify(redacted, null, 2).slice(0, 1200));
 }
 
+/* ------------------------------------------------------------------ cleanup state */
+// Trạng thái dùng chung để `finally` có thể dọn dù `main` throw giữa đường.
+const state = {
+  id: '',
+  liveStarted: false,
+  inserted: false,
+  cleanupDone: false,
+  staleDone: false,
+  provisionedUserId: null as string | null,
+  provisionCleanupDone: false,
+  secretAdmin: null as SupabaseClient | null,
+};
+
+async function cleanupOrder(reason: string): Promise<void> {
+  if (state.cleanupDone) return;
+  try {
+    if (!SECRET_KEY) {
+      record('cleanup', 'FAIL', `thiếu SUPABASE_SECRET_KEY — không dọn được đơn test (${reason})`);
+      return;
+    }
+    const admin = makeAdmin();
+    const del = await admin.from('orders').delete().eq('id', state.id);
+    if (del.error) {
+      record('cleanup', 'FAIL', `không xoá được đơn test: ${del.error.message} (${reason})`);
+      return;
+    }
+    const verify = await admin.from('orders').select('id').eq('id', state.id).maybeSingle();
+    record(
+      'cleanup',
+      verify.error ? 'FAIL' : verify.data ? 'FAIL' : 'PASS',
+      verify.error
+        ? `không đọc lại được để xác nhận: ${verify.error.message} (${reason})`
+        : verify.data
+          ? `đơn test VẪN CÒN trong DB: ${state.id} (${reason})`
+          : `đã xoá đơn test ${state.id} và đọc lại xác nhận sạch (cascade items/payment/files)`
+    );
+  } catch (err) {
+    record('cleanup', 'FAIL', `cleanup đơn ném lỗi: ${(err as Error).message} (${reason})`);
+  } finally {
+    state.cleanupDone = true;
+  }
+}
+
+async function cleanupProvisionedAdmin(reason: string): Promise<void> {
+  if (state.provisionCleanupDone || !state.provisionedUserId || !state.secretAdmin) return;
+  try {
+    const delUser = await state.secretAdmin.auth.admin.deleteUser(state.provisionedUserId);
+    record(
+      'admin.provision_cleanup',
+      delUser.error ? 'FAIL' : 'PASS',
+      delUser.error ? `không xoá được admin tạm: ${delUser.error.message} (${reason})` : 'đã xoá admin tạm'
+    );
+  } catch (err) {
+    record('admin.provision_cleanup', 'FAIL', `cleanup admin tạm ném lỗi: ${(err as Error).message} (${reason})`);
+  } finally {
+    state.provisionCleanupDone = true;
+  }
+}
+
+/**
+ * Dọn đơn `E2E-%` còn sót và admin tạm `e2e-admin-*@vcube.test` cũ hơn 1 giờ.
+ * Ngưỡng 1 giờ tránh xoá nhầm admin của một lượt chạy song song đang hoạt động.
+ */
+async function cleanupStale(reason: string): Promise<void> {
+  if (state.staleDone) return;
+  state.staleDone = true;
+  if (!SECRET_KEY) {
+    record('cleanup.stale', 'FAIL', `thiếu SUPABASE_SECRET_KEY — không dọn được dữ liệu E2E cũ (${reason})`);
+    return;
+  }
+  const admin = makeAdmin();
+
+  const stale = await admin.from('orders').select('id').like('id', 'E2E-%');
+  if (stale.error) {
+    record('cleanup.stale', 'FAIL', `không liệt kê được đơn E2E cũ: ${stale.error.message}`);
+  } else {
+    const ids = (stale.data ?? []).map((r) => (r as { id: string }).id);
+    if (ids.length === 0) {
+      record('cleanup.stale', 'PASS', 'không còn đơn E2E-% nào');
+    } else {
+      const del = await admin.from('orders').delete().in('id', ids);
+      record('cleanup.stale', del.error ? 'FAIL' : 'PASS', del.error ? `xoá thất bại: ${del.error.message}` : `đã xoá ${ids.length} đơn E2E cũ`);
+    }
+  }
+
+  // Admin tạm do lần chạy crash để lại (email fixture), chỉ xoá bản ghi cũ hơn 1 giờ.
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  const staleAdmins: { id: string; email?: string }[] = [];
+  let listError: string | null = null;
+  try {
+    for (let page = 1; page <= 10; page++) {
+      const list = await admin.auth.admin.listUsers({ page, perPage: 200 });
+      if (list.error) {
+        listError = list.error.message;
+        break;
+      }
+      const users = list.data.users ?? [];
+      for (const u of users) {
+        const email = (u.email ?? '').toLowerCase();
+        const createdAt = u.created_at ? new Date(u.created_at).getTime() : 0;
+        if (
+          email.startsWith('e2e-admin-') &&
+          email.endsWith('@vcube.test') &&
+          u.id !== state.provisionedUserId &&
+          createdAt > 0 &&
+          createdAt < cutoff
+        ) {
+          staleAdmins.push({ id: u.id, email });
+        }
+      }
+      if (users.length < 200) break;
+    }
+  } catch (err) {
+    listError = (err as Error).message;
+  }
+
+  if (listError) {
+    record('cleanup.stale_admin', 'FAIL', `không liệt kê được admin tạm: ${listError}`);
+    return;
+  }
+  if (staleAdmins.length === 0) {
+    record('cleanup.stale_admin', 'PASS', 'không còn admin tạm E2E cũ (>1 giờ)');
+    return;
+  }
+  let deleted = 0;
+  let failed = 0;
+  for (const u of staleAdmins) {
+    const del = await admin.auth.admin.deleteUser(u.id);
+    if (del.error) failed++;
+    else deleted++;
+  }
+  record(
+    'cleanup.stale_admin',
+    failed === 0 ? 'PASS' : 'FAIL',
+    `admin tạm: đã xoá ${deleted}, lỗi ${failed}${failed ? ` — kiểm tay ${staleAdmins.map((u) => u.email ?? u.id).join(', ')}` : ''}`
+  );
+}
+
+/** Các check BẮT BUỘC theo mode/cờ đã yêu cầu. */
+function requiredChecks(): string[] {
+  const required = ['fixture.valid'];
+  if (LIVE) {
+    required.push('env', 'guard.live', 'guest.insert', 'guest.read_by_token', 'guest.rls_order_items_blocked', 'guest.rls_payment_blocked');
+  }
+  if (ADMIN_REQUESTED) required.push('admin.signin', 'admin.confirm');
+  if (PROVISION_ADMIN) required.push('admin.provision', 'admin.provision_cleanup');
+  if (LIVE && CLEANUP) required.push('cleanup');
+  if (CLEANUP_STALE) required.push('cleanup.stale');
+  return required;
+}
+
+function evaluateOutcome(): Outcome {
+  if (results.some((r) => r.status === 'FAIL' || r.status === 'BLOCKED')) return 'FAIL';
+  const byName = new Map(results.map((r) => [r.name, r.status]));
+  for (const name of requiredChecks()) {
+    // `admin.signin` chỉ tồn tại khi thực sự thử đăng nhập; nếu thiếu credential ⇒ PARTIAL.
+    if (byName.get(name) !== 'PASS') return 'PARTIAL';
+  }
+  return 'PASS';
+}
+
 async function main() {
   if (HELP) {
     console.log(
       'Flags: --live --cleanup --cleanup-stale --admin-session --provision-admin --json --report <path>\n' +
-        'Live yêu cầu E2E_ALLOW_LIVE=1; E2E_TARGET=production cần thêm E2E_ALLOW_PRODUCTION=1.'
+        'Live yêu cầu E2E_ALLOW_LIVE=1 VÀ E2E_TARGET=staging (fail-closed; không có bypass production).'
     );
     return 0;
   }
 
   const payload = buildPayload();
   const { id, orderNumber, token, row } = payload;
+  state.id = id;
 
   const fixtureIssues = validateFixture(payload);
   record(
@@ -261,295 +436,288 @@ async function main() {
     console.log(`\nE2E guest order: id=${id} number=${orderNumber} mode=${LIVE ? 'LIVE' : 'DRY-RUN'} target=${TARGET}\n`);
   }
 
-  const missingEnv = !SUPABASE_URL || !ANON_KEY;
-  if (missingEnv) {
-    record(
-      'env',
-      LIVE ? 'FAIL' : 'SKIP',
-      LIVE
-        ? 'thiếu VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY — không thể --live'
-        : 'thiếu credential Supabase — dry-run chỉ kiểm fixture (không gọi mạng)'
-    );
-    if (LIVE) return 1;
-    printDryRunPayload(row);
-    record('guest.insert', 'SKIP', 'dry-run — bật --live (kèm E2E_ALLOW_LIVE=1) để ghi đơn thật');
-    record('guest.rls_order_items_blocked', 'SKIP', 'dry-run');
-    record('guest.rls_payment_blocked', 'SKIP', 'dry-run');
-    record('admin.confirm', 'SKIP', 'dry-run');
-    record('cleanup', 'SKIP', 'dry-run — không có gì để dọn');
-    return 0;
-  }
-  record('env', 'PASS', 'credentials Supabase hiện diện (không in giá trị)');
+  try {
+    const missingEnv = !SUPABASE_URL || !ANON_KEY;
+    if (missingEnv) {
+      record(
+        'env',
+        LIVE ? 'FAIL' : 'SKIP',
+        LIVE
+          ? 'thiếu VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY — không thể --live'
+          : 'thiếu credential Supabase — dry-run chỉ kiểm fixture (không gọi mạng)'
+      );
+      if (LIVE) return 1;
+      printDryRunPayload(row);
+      record('guest.insert', 'SKIP', 'dry-run — bật --live (kèm E2E_TARGET=staging + E2E_ALLOW_LIVE=1) để ghi đơn thật');
+      record('guest.rls_order_items_blocked', 'SKIP', 'dry-run');
+      record('guest.rls_payment_blocked', 'SKIP', 'dry-run');
+      record('admin.confirm', 'SKIP', 'dry-run');
+      record('cleanup', 'SKIP', 'dry-run — không có gì để dọn');
+      return 0;
+    }
+    record('env', 'PASS', 'credentials Supabase hiện diện (không in giá trị)');
 
-  // Cổng an toàn: không cho ghi DB nếu chưa xác nhận đây là staging.
-  if (LIVE && !ALLOW_LIVE) {
-    record('guard.live', 'BLOCKED', 'cần E2E_ALLOW_LIVE=1 để ghi DB (chống chạy nhầm production)');
-    return 2;
-  }
-  if (LIVE && TARGET === 'production' && env.E2E_ALLOW_PRODUCTION !== '1') {
-    record('guard.target', 'BLOCKED', 'E2E_TARGET=production — cần E2E_ALLOW_PRODUCTION=1 nếu thật sự được duyệt');
-    return 2;
-  }
-  record('guard.live', LIVE ? 'PASS' : 'SKIP', LIVE ? `đã xác nhận ghi DB (target=${TARGET})` : 'dry-run — không ghi DB');
+    // FAIL-CLOSED: chỉ đúng staging mới được ghi DB. Không có ngoại lệ production.
+    if (LIVE && TARGET !== 'staging') {
+      record(
+        'guard.target',
+        'BLOCKED',
+        `E2E_TARGET="${TARGET_RAW}" (chuẩn hoá: "${TARGET}") — --live chỉ cho phép E2E_TARGET=staging`
+      );
+      return 2;
+    }
+    if (LIVE && !ALLOW_LIVE) {
+      record('guard.live', 'BLOCKED', 'cần E2E_ALLOW_LIVE=1 để ghi DB (chống chạy nhầm production)');
+      return 2;
+    }
+    record('guard.live', LIVE ? 'PASS' : 'SKIP', LIVE ? `đã xác nhận ghi DB (target=${TARGET})` : 'dry-run — không ghi DB');
 
-  const anon = makeAnon();
+    const anon = makeAnon();
 
-  // 0) DB reachable? (products là bảng public read)
-  const probe = await anon.from('products').select('id').limit(1);
-  if (probe.error) {
-    record('db.reachable', LIVE ? 'FAIL' : 'SKIP', `Không kết nối được Supabase (${probe.error.message})`);
-    if (LIVE) return 1;
-    printDryRunPayload(row);
-    return 0;
-  }
-  record('db.reachable', 'PASS', `Supabase phản hồi (${(probe.data ?? []).length} product mẫu)`);
+    // 0) DB reachable? (products là bảng public read). Có env thì lỗi probe là FAIL,
+    //    không được SKIP/PASS — tránh "xanh giả" khi staging sai URL/mất mạng.
+    const probe = await anon.from('products').select('id').limit(1);
+    if (probe.error) {
+      record('db.reachable', 'FAIL', `Không kết nối được Supabase (${probe.error.message})`);
+      return 1;
+    }
+    record('db.reachable', 'PASS', `Supabase phản hồi (${(probe.data ?? []).length} product mẫu)`);
 
-  if (!LIVE) {
-    printDryRunPayload(row);
-    record('guest.insert', 'SKIP', 'dry-run — bật --live để ghi đơn thật');
-    record('guest.rls_order_items_blocked', 'SKIP', 'dry-run');
-    record('guest.rls_payment_blocked', 'SKIP', 'dry-run');
-    record('admin.confirm', 'SKIP', 'dry-run');
-    record('cleanup', 'SKIP', 'dry-run — không có gì để dọn');
-    return 0;
-  }
+    if (!LIVE) {
+      printDryRunPayload(row);
+      record('guest.insert', 'SKIP', 'dry-run — bật --live để ghi đơn thật');
+      record('guest.rls_order_items_blocked', 'SKIP', 'dry-run');
+      record('guest.rls_payment_blocked', 'SKIP', 'dry-run');
+      record('admin.confirm', 'SKIP', 'dry-run');
+      record('cleanup', 'SKIP', 'dry-run — không có gì để dọn');
+      return 0;
+    }
 
-  // 1) Khách (anon) tạo đơn
-  const insert = await anon.from('orders').insert(row);
-  if (insert.error) {
-    record('guest.insert', 'FAIL', `RLS/DB từ chối: ${insert.error.code ?? ''} ${insert.error.message}`);
-    return 1;
-  }
-  record('guest.insert', 'PASS', `orders row ghi bằng anon key: ${id}`);
+    state.liveStarted = true;
 
-  // 2) Đọc lại đúng đơn bằng token (RPC SECURITY DEFINER)
-  const rpc = await anon.rpc('get_order_by_guest_token', { p_order_number: orderNumber, p_token: token });
-  if (rpc.error || !Array.isArray(rpc.data) || rpc.data.length === 0) {
-    record('guest.read_by_token', 'FAIL', `RPC không trả đơn: ${rpc.error?.message ?? 'rỗng'}`);
-  } else {
-    const got = rpc.data[0] as Record<string, unknown>;
-    const ok =
-      got.id === id &&
-      Number(got.total_amount) === FIXTURE.total &&
-      got.payment_status === 'awaiting_payment' &&
-      Array.isArray(got.items) &&
-      (got.items as unknown[]).length === 1;
-    record(
-      'guest.read_by_token',
-      ok ? 'PASS' : 'FAIL',
-      ok
-        ? `đọc đúng đơn qua token: total=${got.total_amount} status=${got.payment_status} items=1`
-        : `dữ liệu không khớp: ${JSON.stringify({ id: got.id, total: got.total_amount, status: got.payment_status })}`
-    );
-  }
+    // 1) Khách (anon) tạo đơn
+    const insert = await anon.from('orders').insert(row);
+    if (insert.error) {
+      record('guest.insert', 'FAIL', `RLS/DB từ chối: ${insert.error.code ?? ''} ${insert.error.message}`);
+      return 1;
+    }
+    state.inserted = true;
+    record('guest.insert', 'PASS', `orders row ghi bằng anon key: ${id}`);
 
-  // 3) RLS: khách KHÔNG được ghi order_items / payment_transactions
-  const itemInsert = await anon.from('order_items').insert({
-    order_id: id,
-    product_id: 'E2E-P1',
-    seller_type: 'platform',
-    fulfillment: 'print',
-    quantity: 1,
-    unit_price: FIXTURE.itemUnitPrice,
-    line_total: FIXTURE.itemUnitPrice,
-  });
-  record(
-    'guest.rls_order_items_blocked',
-    isRlsDenied(itemInsert.error) ? 'PASS' : 'FAIL',
-    itemInsert.error
-      ? isRlsDenied(itemInsert.error)
-        ? `RLS chặn đúng (${itemInsert.error.code ?? ''} ${itemInsert.error.message})`
-        : `lỗi KHÔNG phải RLS — không kết luận được: ${itemInsert.error.code ?? ''} ${itemInsert.error.message}`
-      : 'NGUY HIỂM: anon ghi được order_items — kiểm lại policy!'
-  );
-
-  const txInsert = await anon.from('payment_transactions').insert({
-    id: `e2e_tx_${Date.now()}`,
-    order_id: id,
-    transaction_id: `e2e_${Date.now()}`,
-    amount: FIXTURE.total,
-    payment_gateway: 'manual',
-    payload: {},
-    status: 'paid',
-  });
-  record(
-    'guest.rls_payment_blocked',
-    isRlsDenied(txInsert.error) ? 'PASS' : 'FAIL',
-    txInsert.error
-      ? isRlsDenied(txInsert.error)
-        ? `RLS chặn đúng (${txInsert.error.code ?? ''} ${txInsert.error.message})`
-        : `lỗi KHÔNG phải RLS — không kết luận được: ${txInsert.error.code ?? ''} ${txInsert.error.message}`
-      : 'NGUY HIỂM: anon ghi được payment_transactions — kiểm lại policy!'
-  );
-
-  // 4) Admin session (nếu có) — xác nhận thanh toán thật qua OrderService
-  let adminEmail = env.E2E_ADMIN_EMAIL;
-  let adminPassword = env.E2E_ADMIN_PASSWORD;
-  let provisionedUserId: string | null = null;
-  let secretAdmin: SupabaseClient | null = null;
-
-  if (PROVISION_ADMIN) {
-    if (!SECRET_KEY) {
-      record('admin.confirm', 'SKIP', '--provision-admin cần SUPABASE_SECRET_KEY (server-only) — không có trong .env');
+    // 2) Đọc lại đúng đơn bằng token (RPC SECURITY DEFINER)
+    const rpc = await anon.rpc('get_order_by_guest_token', { p_order_number: orderNumber, p_token: token });
+    if (rpc.error || !Array.isArray(rpc.data) || rpc.data.length === 0) {
+      record('guest.read_by_token', 'FAIL', `RPC không trả đơn: ${rpc.error?.message ?? 'rỗng'}`);
     } else {
-      secretAdmin = makeAdmin();
-      adminEmail = `e2e-admin-${Date.now()}@vcube.test`;
-      adminPassword = `E2E-${randomUUID()}`;
-      const created = await secretAdmin.auth.admin.createUser({
-        email: adminEmail,
-        password: adminPassword,
-        email_confirm: true,
-      });
-      if (created.error || !created.data.user) {
-        record('admin.provision', 'FAIL', `không tạo được admin tạm: ${created.error?.message ?? 'không rõ'}`);
-        adminEmail = undefined;
+      const got = rpc.data[0] as Record<string, unknown>;
+      const ok =
+        got.id === id &&
+        Number(got.total_amount) === FIXTURE.total &&
+        got.payment_status === 'awaiting_payment' &&
+        Array.isArray(got.items) &&
+        (got.items as unknown[]).length === 1;
+      record(
+        'guest.read_by_token',
+        ok ? 'PASS' : 'FAIL',
+        ok
+          ? `đọc đúng đơn qua token: total=${got.total_amount} status=${got.payment_status} items=1`
+          : `dữ liệu không khớp: ${JSON.stringify({ id: got.id, total: got.total_amount, status: got.payment_status })}`
+      );
+    }
+
+    // 3) RLS: khách KHÔNG được ghi order_items / payment_transactions
+    const itemInsert = await anon.from('order_items').insert({
+      order_id: id,
+      product_id: 'E2E-P1',
+      seller_type: 'platform',
+      fulfillment: 'print',
+      quantity: 1,
+      unit_price: FIXTURE.itemUnitPrice,
+      line_total: FIXTURE.itemUnitPrice,
+    });
+    record(
+      'guest.rls_order_items_blocked',
+      isRlsDenied(itemInsert.error) ? 'PASS' : 'FAIL',
+      itemInsert.error
+        ? isRlsDenied(itemInsert.error)
+          ? `RLS chặn đúng (${itemInsert.error.code ?? ''} ${itemInsert.error.message})`
+          : `lỗi KHÔNG phải RLS — không kết luận được: ${itemInsert.error.code ?? ''} ${itemInsert.error.message}`
+        : 'NGUY HIỂM: anon ghi được order_items — kiểm lại policy!'
+    );
+
+    const txInsert = await anon.from('payment_transactions').insert({
+      id: `e2e_tx_${Date.now()}`,
+      order_id: id,
+      transaction_id: `e2e_${Date.now()}`,
+      amount: FIXTURE.total,
+      payment_gateway: 'manual',
+      payload: {},
+      status: 'paid',
+    });
+    record(
+      'guest.rls_payment_blocked',
+      isRlsDenied(txInsert.error) ? 'PASS' : 'FAIL',
+      txInsert.error
+        ? isRlsDenied(txInsert.error)
+          ? `RLS chặn đúng (${txInsert.error.code ?? ''} ${txInsert.error.message})`
+          : `lỗi KHÔNG phải RLS — không kết luận được: ${txInsert.error.code ?? ''} ${txInsert.error.message}`
+        : 'NGUY HIỂM: anon ghi được payment_transactions — kiểm lại policy!'
+    );
+
+    // 4) Admin session (nếu có) — xác nhận thanh toán thật qua OrderService
+    let adminEmail = env.E2E_ADMIN_EMAIL;
+    let adminPassword = env.E2E_ADMIN_PASSWORD;
+
+    if (PROVISION_ADMIN) {
+      if (!SECRET_KEY) {
+        record('admin.provision', 'FAIL', '--provision-admin cần SUPABASE_SECRET_KEY (server-only) — không có trong .env');
       } else {
-        provisionedUserId = created.data.user.id;
-        // Trigger `fn_protect_profile_privileged_columns` chặn UPDATE role (kể cả service role) ⇒
-        // tạo profile ADMIN bằng INSERT sau khi xoá profile mặc định do trigger auth tạo.
-        await secretAdmin.from('user_profiles').delete().eq('id', provisionedUserId);
-        const promote = await secretAdmin.from('user_profiles').insert({
-          id: provisionedUserId,
+        state.secretAdmin = makeAdmin();
+        adminEmail = `e2e-admin-${Date.now()}@vcube.test`;
+        adminPassword = `E2E-${randomUUID()}`;
+        const created = await state.secretAdmin.auth.admin.createUser({
           email: adminEmail,
-          display_name: 'E2E Admin tạm',
-          role: 'admin',
+          password: adminPassword,
+          email_confirm: true,
         });
-        record(
-          'admin.provision',
-          promote.error ? 'FAIL' : 'PASS',
-          promote.error ? `không tạo được profile admin: ${promote.error.message}` : 'đã tạo admin TẠM (sẽ xoá ở bước cleanup)'
-        );
-        if (promote.error) adminEmail = undefined;
-      }
-    }
-  }
-
-  if (!ADMIN_SESSION && !PROVISION_ADMIN) {
-    record('admin.confirm', 'SKIP', 'chưa bật --admin-session/--provision-admin (cần phiên admin thật để ghi bảng tiền)');
-  } else if (!adminEmail || !adminPassword) {
-    record(
-      'admin.confirm',
-      'SKIP',
-      'thiếu E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD và không provision được admin tạm'
-    );
-  } else {
-    // Ép client app (đọc process.env lúc import) dùng đúng Supabase của .env.
-    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ANON_KEY;
-    const { supabase } = await import('../../src/backend/supabase/client');
-    const { OrderService } = await import('../../src/backend/services/orderService');
-    const signIn = await supabase.auth.signInWithPassword({ email: adminEmail, password: adminPassword });
-    if (signIn.error) {
-      record('admin.signin', 'FAIL', signIn.error.message);
-    } else {
-      const profile = await supabase.from('user_profiles').select('role').eq('id', signIn.data.user!.id).maybeSingle();
-      const role = (profile.data as { role?: string } | null)?.role;
-      if (role !== 'admin') {
-        record('admin.signin', 'BLOCKED', `tài khoản không phải admin (role=${role ?? 'không đọc được'})`);
-      } else {
-        record('admin.signin', 'PASS', 'đăng nhập admin thật');
-        const confirm = await OrderService.confirmManualPayment(id, {
-          amount: FIXTURE.total,
-          method: 'e2e_manual',
-          note: 'E2E guest-order-flow',
-          actorId: signIn.data.user!.id,
-        });
-        if (confirm.status === 'confirmed' || confirm.status === 'already_confirmed') {
-          const checks: string[] = [];
-          const orderRow = await supabase.from('orders').select('payment_status,subtotal_amount,platform_fee_amount').eq('id', id).maybeSingle();
-          const items = await supabase.from('order_items').select('id', { count: 'exact' }).eq('order_id', id);
-          const txs = await supabase.from('payment_transactions').select('status').eq('order_id', id);
-          checks.push(`payment_status=${String((orderRow.data as { payment_status?: string } | null)?.payment_status)}`);
-          checks.push(`order_items=${items.data?.length ?? 0}`);
-          checks.push(`tx_status=${(txs.data ?? []).map((t) => (t as { status?: string }).status).join(',') || 'none'}`);
-          const ok =
-            (orderRow.data as { payment_status?: string } | null)?.payment_status === 'paid' &&
-            (items.data?.length ?? 0) > 0 &&
-            (txs.data ?? []).some((t) => (t as { status?: string }).status === 'paid');
-          record('admin.confirm', ok ? 'PASS' : 'FAIL', `${confirm.status}: ${checks.join(' · ')}`);
+        if (created.error || !created.data.user) {
+          record('admin.provision', 'FAIL', `không tạo được admin tạm: ${created.error?.message ?? 'không rõ'}`);
+          adminEmail = undefined;
         } else {
-          record('admin.confirm', 'FAIL', `confirm thất bại: ${confirm.error ?? 'không rõ'}`);
+          state.provisionedUserId = created.data.user.id;
+          // Trigger `fn_protect_profile_privileged_columns` chặn UPDATE role (kể cả service role) ⇒
+          // tạo profile ADMIN bằng INSERT sau khi xoá profile mặc định do trigger auth tạo.
+          await state.secretAdmin.from('user_profiles').delete().eq('id', state.provisionedUserId);
+          const promote = await state.secretAdmin.from('user_profiles').insert({
+            id: state.provisionedUserId,
+            email: adminEmail,
+            display_name: 'E2E Admin tạm',
+            role: 'admin',
+          });
+          record(
+            'admin.provision',
+            promote.error ? 'FAIL' : 'PASS',
+            promote.error ? `không tạo được profile admin: ${promote.error.message}` : 'đã tạo admin TẠM (sẽ xoá ở bước cleanup)'
+          );
+          if (promote.error) adminEmail = undefined;
         }
-        await supabase.auth.signOut();
       }
     }
-  }
 
-  // 4b) Xoá admin tạm (nếu có tạo) — luôn chạy, kể cả khi các bước trước lỗi.
-  if (provisionedUserId && secretAdmin) {
-    const delUser = await secretAdmin.auth.admin.deleteUser(provisionedUserId);
-    record(
-      'admin.provision_cleanup',
-      delUser.error ? 'FAIL' : 'PASS',
-      delUser.error ? `không xoá được admin tạm: ${delUser.error.message}` : 'đã xoá admin tạm'
-    );
-  }
-
-  // 5) Cleanup (tuỳ chọn) — dùng secret key ở Node (server-side), KHÔNG lên bundle.
-  if (CLEANUP) {
-    if (!SECRET_KEY) {
-      record('cleanup', 'FAIL', 'thiếu SUPABASE_SECRET_KEY — không dọn được đơn test, hãy xoá tay trong Supabase Studio');
+    if (!ADMIN_REQUESTED) {
+      record('admin.confirm', 'SKIP', 'chưa bật --admin-session/--provision-admin (cần phiên admin thật để ghi bảng tiền)');
+    } else if (!adminEmail || !adminPassword) {
+      record(
+        'admin.signin',
+        'SKIP',
+        'thiếu E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD và không provision được admin tạm'
+      );
+      record('admin.confirm', 'SKIP', 'không có phiên admin — không xác nhận được thanh toán');
     } else {
-      const admin = makeAdmin();
-      const del = await admin.from('orders').delete().eq('id', id);
-      if (del.error) {
-        record('cleanup', 'FAIL', `không xoá được đơn test: ${del.error.message}`);
+      // Ép client app (đọc process.env lúc import) dùng đúng Supabase của .env.
+      process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = ANON_KEY;
+      const { supabase } = await import('../../src/backend/supabase/client');
+      const { OrderService } = await import('../../src/backend/services/orderService');
+      const signIn = await supabase.auth.signInWithPassword({ email: adminEmail, password: adminPassword });
+      if (signIn.error) {
+        record('admin.signin', 'FAIL', signIn.error.message);
       } else {
-        const verify = await admin.from('orders').select('id').eq('id', id).maybeSingle();
-        record(
-          'cleanup',
-          verify.error ? 'FAIL' : verify.data ? 'FAIL' : 'PASS',
-          verify.error
-            ? `không đọc lại được để xác nhận: ${verify.error.message}`
-            : verify.data
-              ? `đơn test VẪN CÒN trong DB: ${id}`
-              : `đã xoá đơn test ${id} và đọc lại xác nhận sạch (cascade items/payment/files)`
-        );
+        const profile = await supabase.from('user_profiles').select('role').eq('id', signIn.data.user!.id).maybeSingle();
+        const role = (profile.data as { role?: string } | null)?.role;
+        if (role !== 'admin') {
+          record('admin.signin', 'BLOCKED', `tài khoản không phải admin (role=${role ?? 'không đọc được'})`);
+        } else {
+          record('admin.signin', 'PASS', 'đăng nhập admin thật');
+          const confirm = await OrderService.confirmManualPayment(id, {
+            amount: FIXTURE.total,
+            method: 'e2e_manual',
+            note: 'E2E guest-order-flow',
+            actorId: signIn.data.user!.id,
+          });
+          if (confirm.status === 'confirmed' || confirm.status === 'already_confirmed') {
+            const checks: string[] = [];
+            const orderRow = await supabase.from('orders').select('payment_status,subtotal_amount,platform_fee_amount').eq('id', id).maybeSingle();
+            const items = await supabase.from('order_items').select('id', { count: 'exact' }).eq('order_id', id);
+            const txs = await supabase.from('payment_transactions').select('status').eq('order_id', id);
+            checks.push(`payment_status=${String((orderRow.data as { payment_status?: string } | null)?.payment_status)}`);
+            checks.push(`order_items=${items.data?.length ?? 0}`);
+            checks.push(`tx_status=${(txs.data ?? []).map((t) => (t as { status?: string }).status).join(',') || 'none'}`);
+            const ok =
+              (orderRow.data as { payment_status?: string } | null)?.payment_status === 'paid' &&
+              (items.data?.length ?? 0) > 0 &&
+              (txs.data ?? []).some((t) => (t as { status?: string }).status === 'paid');
+            record('admin.confirm', ok ? 'PASS' : 'FAIL', `${confirm.status}: ${checks.join(' · ')}`);
+          } else {
+            record('admin.confirm', 'FAIL', `confirm thất bại: ${confirm.error ?? 'không rõ'}`);
+          }
+          await supabase.auth.signOut();
+        }
       }
     }
-  } else {
-    record('cleanup', 'SKIP', `đơn test còn lại trong DB: ${id} — chạy --cleanup hoặc xoá tay`);
-  }
 
-  // 5b) Dọn đơn `E2E-%` còn sót từ lần chạy trước (tuỳ chọn, cần secret).
-  if (CLEANUP_STALE) {
-    if (!SECRET_KEY) {
-      record('cleanup.stale', 'FAIL', 'thiếu SUPABASE_SECRET_KEY — không dọn được đơn E2E cũ');
+    // 4b) Xoá admin tạm (nếu có tạo) — luôn chạy ở finally nếu bước này bị bỏ qua do lỗi.
+    await cleanupProvisionedAdmin('sau bước admin');
+
+    // 5) Cleanup (tuỳ chọn) — dùng secret key ở Node (server-side), KHÔNG lên bundle.
+    if (CLEANUP) {
+      await cleanupOrder('--cleanup');
     } else {
+      state.cleanupDone = true;
+      record('cleanup', 'SKIP', `đơn test còn lại trong DB: ${id} — chạy --cleanup hoặc xoá tay`);
+    }
+
+    // 5b) Dọn đơn/admin tạm còn sót từ lần chạy trước (tuỳ chọn, cần secret).
+    if (CLEANUP_STALE) {
+      await cleanupStale('--cleanup-stale');
+    } else if (SECRET_KEY) {
       const admin = makeAdmin();
       const stale = await admin.from('orders').select('id').like('id', 'E2E-%');
-      if (stale.error) {
-        record('cleanup.stale', 'FAIL', `không liệt kê được đơn E2E cũ: ${stale.error.message}`);
-      } else {
-        const ids = (stale.data ?? []).map((r) => (r as { id: string }).id);
-        if (ids.length === 0) {
-          record('cleanup.stale', 'PASS', 'không còn đơn E2E-% nào');
-        } else {
-          const del = await admin.from('orders').delete().in('id', ids);
-          record('cleanup.stale', del.error ? 'FAIL' : 'PASS', del.error ? `xoá thất bại: ${del.error.message}` : `đã xoá ${ids.length} đơn E2E cũ`);
+      if (!stale.error) {
+        const count = (stale.data ?? []).length;
+        record('cleanup.stale', count === 0 ? 'PASS' : 'SKIP', count === 0 ? 'không còn đơn E2E-% nào' : `còn ${count} đơn E2E-% (chạy --cleanup-stale để dọn)`);
+      }
+    }
+
+    return 0;
+  } finally {
+    // P2-1: dọn dù main throw sau khi insert/tạo admin tạm. Không dọn khi live chưa bắt đầu
+    // (guard chặn) để tránh đụng dữ liệu chỉ vì gõ sai biến môi trường.
+    if (state.liveStarted) {
+      try {
+        await cleanupProvisionedAdmin('finally');
+      } catch (err) {
+        record('admin.provision_cleanup', 'FAIL', `cleanup admin tạm lỗi: ${(err as Error).message}`);
+      }
+      if (state.inserted && !state.cleanupDone) {
+        try {
+          await cleanupOrder('finally sau lỗi');
+        } catch (err) {
+          record('cleanup', 'FAIL', `cleanup đơn lỗi: ${(err as Error).message}`);
+        }
+      }
+      if (CLEANUP_STALE && !state.staleDone) {
+        try {
+          await cleanupStale('finally sau lỗi');
+        } catch (err) {
+          record('cleanup.stale', 'FAIL', `cleanup stale lỗi: ${(err as Error).message}`);
         }
       }
     }
-  } else if (SECRET_KEY) {
-    const admin = makeAdmin();
-    const stale = await admin.from('orders').select('id').like('id', 'E2E-%');
-    if (!stale.error) {
-      const count = (stale.data ?? []).length;
-      record('cleanup.stale', count === 0 ? 'PASS' : 'SKIP', count === 0 ? 'không còn đơn E2E-% nào' : `còn ${count} đơn E2E-% (chạy --cleanup-stale để dọn)`);
-    }
   }
-
-  return 0;
 }
 
-function buildReport(code: number) {
+function buildReport(outcome: Outcome) {
   return {
     harness: 'qa-api-01/guest-order-flow',
     mode: LIVE ? 'live' : 'dry-run',
+    live: LIVE,
     target: TARGET,
+    targetRaw: TARGET_RAW,
     startedAt,
     finishedAt: new Date().toISOString(),
-    result: code === 0 && !results.some((r) => r.status === 'FAIL') ? 'PASS' : 'FAIL',
+    result: outcome,
+    requested: requiredChecks(),
     summary: {
       total: results.length,
       pass: results.filter((r) => r.status === 'PASS').length,
@@ -561,30 +729,35 @@ function buildReport(code: number) {
   };
 }
 
+function finalize(mainCode: number) {
+  const outcome = evaluateOutcome();
+  const exitCode = outcome === 'PASS' ? 0 : mainCode === 2 ? 2 : 1;
+  const report = buildReport(outcome);
+
+  if (REPORT_PATH) {
+    try {
+      const abs = resolve(process.cwd(), REPORT_PATH);
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+      if (!JSON_MODE) console.log(`\nReport JSON: ${REPORT_PATH}`);
+    } catch (err) {
+      console.error(`Không ghi được report ${REPORT_PATH}: ${(err as Error).message}`);
+    }
+  }
+  if (JSON_MODE) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(
+      `\nSUMMARY ${LIVE ? 'LIVE' : 'DRY-RUN'} target=${TARGET}: ${report.summary.total} check · PASS=${report.summary.pass} · FAIL=${report.summary.fail} · SKIP=${report.summary.skip} · BLOCKED=${report.summary.blocked}`
+    );
+    console.log(`RESULT: ${outcome}`);
+  }
+  process.exit(exitCode);
+}
+
 main()
-  .then((code) => {
-    const report = buildReport(code);
-    if (REPORT_PATH) {
-      try {
-        const abs = resolve(process.cwd(), REPORT_PATH);
-        mkdirSync(dirname(abs), { recursive: true });
-        writeFileSync(abs, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-        if (!JSON_MODE) console.log(`\nReport JSON: ${REPORT_PATH}`);
-      } catch (err) {
-        console.error(`Không ghi được report ${REPORT_PATH}: ${(err as Error).message}`);
-      }
-    }
-    if (JSON_MODE) {
-      console.log(JSON.stringify(report, null, 2));
-    } else {
-      console.log(
-        `\nSUMMARY ${LIVE ? 'LIVE' : 'DRY-RUN'}: ${report.summary.total} check · PASS=${report.summary.pass} · FAIL=${report.summary.fail} · SKIP=${report.summary.skip} · BLOCKED=${report.summary.blocked}`
-      );
-    }
-    const fails = report.summary.fail;
-    process.exit(fails > 0 ? 1 : code);
-  })
+  .then((code) => finalize(code))
   .catch((err) => {
-    console.error('CRASH', err);
-    process.exit(1);
+    record('harness.crash', 'FAIL', (err as Error)?.message ?? String(err));
+    finalize(1);
   });

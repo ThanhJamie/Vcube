@@ -6,6 +6,21 @@
 > token thật). **Không** phải bằng chứng giao dịch.
 >
 > Checklist & cách chạy: `docs/design/browser-smoke-qa.md`.
+>
+> **Phạm vi bằng chứng (đọc kỹ):** chỉ **public routes**, chạy với **mock data**, **không có
+> `.env`/DB**, **không đăng nhập**, **không submit form**, **không ghi DB**. Đây **không** phải
+> staging, **không** phải production, **không** đại diện cho console admin/designer/lab.
+> Các thay đổi harness/CI/docs ở commit sau **không đổi UI**, nên số đo UI vẫn dùng được.
+
+## 0. Tính tái lập
+
+- Commit đo: `004dfc8` (branch `wave1/qa`); UI không đổi ở commit evidence.
+- Máy: worktree WSL2; `npm run dev` từ worktree, Vite báo cổng **3001** do 3000 đã bận.
+- Browser context **riêng** (`w1-qa-browser`) để không lẫn phiên agent khác.
+- Route list: 30 path (public + guard/redirect + negative case), mỗi viewport 1 lượt.
+- Chờ ~1,6 s sau `domcontentloaded` cho lazy chunk/3D settle; bật listener `pageerror` +
+  `console` **trước** mỗi `goto`.
+- Không dùng secret, không kết nối Supabase thật.
 
 ## 1. Phiên chạy
 
@@ -105,3 +120,10 @@ Không chụp/lưu dữ liệu DB; không submit form.
 
 **Follow-up nhỏ (ngoài scope sửa):** bổ sung `h1` cho empty state `/order-success` và not-found
 `/products/:id` (B4). Ghi nhận `ProtectedRoute` mất `redirectTo` (UX-02).
+
+## 8. Đối chiếu review
+
+| Mã | Trạng thái | Ghi chú |
+|---|---|---|
+| P2-3 evidence đúng môi trường | ✅ | §0 nêu commit/cổng/context/mock; §5 liệt kê BLOCKED thay vì suy diễn |
+| P2-4 độ tái lập + giới hạn | ✅ | §0/§6: route count, wait, listener, pattern tách nhiễu; đầu file ghi rõ **chỉ public/mock** |
