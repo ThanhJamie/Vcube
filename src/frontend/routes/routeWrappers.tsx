@@ -207,6 +207,7 @@ export const PersonalizeRoute: React.FC<{
     return (
       <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
         <div className="w-full max-w-md">
+          <h1 className="sr-only">Tuỳ biến mẫu 3D</h1>
           <EmptyState
             icon={<Icon name="error" size={20} />}
             title="Không tải được kho mẫu"
@@ -233,6 +234,7 @@ export const PersonalizeRoute: React.FC<{
     return (
       <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
         <div className="w-full max-w-md">
+          <h1 className="sr-only">Tuỳ biến mẫu 3D</h1>
           <EmptyState
             icon={<Icon name="view_in_ar" size={20} />}
             title="Chưa có mẫu nào để tuỳ biến"

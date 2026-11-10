@@ -5,16 +5,30 @@ import { Button, Icon, Input, Modal } from '@frontend/ui';
 interface ChatSupportModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** P1: kênh liên hệ THẬT từ `site_content`; rỗng ⇒ không bịa số/email. */
+  contactHotline?: string;
+  contactEmail?: string;
 }
 
-export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onClose }) => {
+export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onClose, contactHotline, contactEmail }) => {
   const { t } = useLanguage();
-  // AT-09: đây là TRỢ LÝ TỰ ĐỘNG, không phải kỹ sư trực ca. Không nêu tên người, không
-  // cam kết SLA và không nêu thông số kỹ thuật nào khi chưa đọc từ dữ liệu thật của đơn.
+  // P1: kênh liên hệ chỉ dùng khi có cấu hình hợp lệ. Không có ⇒ nói rõ chưa cấu hình.
+  const hotline = (contactHotline ?? '').trim();
+  const hotlineDigits = hotline.replace(/[^\d+]/g, '');
+  const email = (contactEmail ?? '').trim();
+  const hasHotline = /^\+?\d{8,15}$/.test(hotlineDigits);
+  const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const contactHint = hasHotline
+    ? `Nếu cần người thật xử lý, vui lòng gọi hotline ${hotline}.`
+    : hasEmail
+      ? `Nếu cần người thật xử lý, vui lòng gửi email tới ${email}.`
+      : 'Kênh liên hệ trực tiếp chưa được cấu hình trên trang này.';
+  // AT-09: TRỢ LÝ TỰ ĐỘNG — không tạo ticket, không gửi yêu cầu, không cam kết SLA.
+  // Không nêu tên người và không nêu thông số kỹ thuật nào khi chưa đọc từ dữ liệu thật.
   const [messages, setMessages] = useState<Array<{ sender: 'agent' | 'user'; text: string; time: string }>>([
     {
       sender: 'agent',
-      text: 'Chào bạn! Đây là trợ lý tự động của VCUBE. Bạn cần hỗ trợ gì về đơn hàng, vật liệu hay tệp CAD?',
+      text: `Chào bạn! Đây là trợ lý tự động của VCUBE — trợ lý không tạo ticket và không gửi yêu cầu thay bạn. ${contactHint}`,
       time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -34,9 +48,9 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
     setInputMessage('');
 
     // Trợ lý tự động: KHÔNG bịa tiến độ, định mức, dung sai hay thời điểm giao.
-    // Câu trả lời chỉ xác nhận đã ghi nhận và nói rõ bước tiếp theo do người phụ trách.
+    // P1: KHÔNG hứa đã lưu/đã gửi — hệ thống không có ticket/service nào lưu câu hỏi.
     setTimeout(() => {
-      const reply = 'VCUBE đã ghi nhận câu hỏi của bạn. Đây là trợ lý tự động: tiến độ, vật liệu và dung sai của đơn sẽ do bộ phận phụ trách kiểm tra trên dữ liệu thật rồi phản hồi lại cho bạn.';
+      const reply = `Đây là trợ lý tự động: câu hỏi của bạn không được lưu thành ticket và không được gửi tới bộ phận phụ trách. ${contactHint}`;
 
       setMessages(prev => [...prev, { sender: 'agent', text: reply, time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) }]);
     }, 1000);
@@ -61,7 +75,7 @@ export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onCl
               <h3 className="truncate text-sm font-semibold text-fg">
                 {t('supportAssistant', 'Trợ lý tự động')}
               </h3>
-              <p className="truncate font-sans text-xs text-fg-muted">Phản hồi tự động • Không phải kỹ sư trực ca</p>
+              <p className="truncate font-sans text-xs text-fg-muted">Phản hồi tự động • Không tạo ticket</p>
             </div>
           </div>
           <Button
