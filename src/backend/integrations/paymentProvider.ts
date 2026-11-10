@@ -89,6 +89,9 @@ export class ManualPaymentProvider implements PaymentProvider {
     const bankName = trimmed(bank.bankName);
     const bankAccount = trimmed(bank.bankAccount);
     const accountHolder = trimmed(bank.accountHolder);
+    // P2-3: định nghĩa DUY NHẤT của "đã cấu hình nhận tiền" = ngân hàng + số tài khoản (2/3),
+    // khớp `getTransferInfoReadiness()` ở `src/frontend/lib/paymentMethods.ts`. Tên pháp nhân
+    // là thông tin bổ sung, không chặn chuyển khoản.
     const configured = Boolean(bankName && bankAccount);
     const amount = typeof order.payment?.total === 'number' && Number.isFinite(order.payment.total)
       ? order.payment.total

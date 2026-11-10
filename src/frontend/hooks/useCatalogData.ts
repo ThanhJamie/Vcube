@@ -303,7 +303,13 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
       return next;
     });
 
-    const res = await dbService.saveProduct(updated);
+    // P1-1: transition-aware — chỉ chặn khi lần lưu này BIẾN sản phẩm thành published.
+    // Không tìm thấy bản cũ ⇒ để service tự đọc status (không đoán).
+    const previousProduct = previous.find((p) => p.id === updated.id);
+    const res = await dbService.saveProduct(
+      updated,
+      previousProduct ? { previousStatus: previousProduct.status } : undefined
+    );
     if (!res.success) {
       // Rollback on DB error
       console.warn('Rollback updating product due to DB error:', res.error);
