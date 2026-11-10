@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button, Card, Field, Icon, Input } from '@frontend/ui';
 import { ENABLE_GOOGLE_OAUTH, ENABLE_PASSWORD_RESET } from '@frontend/lib/authFlags';
-import { sanitizeRedirectPath } from '@frontend/lib/authRedirect';
+import { sanitizeRedirectPath, buildAuthSwitchHref } from '@frontend/lib/authRedirect';
 
 export const LoginView: React.FC = () => {
   const navigate = useNavigate();
@@ -35,7 +35,8 @@ export const LoginView: React.FC = () => {
       // UX-02: quay lại đúng chỗ vừa bị chặn (`?redirectTo=` do ProtectedRoute/RoleGuard gắn).
       // Trước đây giá trị này đi qua adapter chuỗi "screen" nên path lạ (`/orders`) rơi về
       // trang chủ; nay navigate thẳng bằng router, sau khi lọc open-redirect.
-      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')));
+      // `replace` để nút Back không quay lại form đăng nhập vừa hoàn tất.
+      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')), { replace: true });
     } catch (err: any) {
       setErrorMessage(
         err?.message ||
@@ -52,7 +53,7 @@ export const LoginView: React.FC = () => {
       setErrorMessage(null);
       setNotice(null);
       await signInWithGoogle();
-      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')));
+      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')), { replace: true });
     } catch (err: any) {
       setErrorMessage(err?.message || ('Không thể kết nối Google OAuth.'));
     } finally {
@@ -235,7 +236,7 @@ export const LoginView: React.FC = () => {
             <p className="text-sm text-fg-muted">
               Chưa có tài khoản VCUBE?{' '}
               <Link
-                to="/auth/register"
+                to={buildAuthSwitchHref('/auth/register', searchParams.get('redirectTo'))}
                 className="ml-1 -my-3 inline-flex min-h-11 items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
               >
                 <span>Đăng Ký</span>
