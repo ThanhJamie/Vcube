@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Order } from '@/types';
 import { OrderProgress } from '../components/OrderProgress';
-import { Icon, Button, Badge, Card, Modal, Field, Input, Select, EmptyState, type BadgeVariant } from '@frontend/ui';
+import { Icon, Button, Badge, Card, Modal, Field, Input, Select, EmptyState, Skeleton, type BadgeVariant } from '@frontend/ui';
 import { formatCurrency, formatDateTime } from '../lib/format';
 import { isFabricatedImage } from '../lib/productImage';
 import { useWarrantyClaimSubmit } from '@frontend/hooks/useOrdersData';
@@ -10,6 +10,12 @@ interface MyOrdersViewProps {
   orders: Order[];
   onNavigate: (screen: string, payload?: any) => void;
   onOpenInvoice: (order: Order) => void;
+  /** OPS-35 — đang nạp đơn từ DB. */
+  loading?: boolean;
+  /** OPS-35 — lần nạp gần nhất thất bại (mạng/RLS). */
+  error?: boolean;
+  /** OPS-35 — thử nạp lại danh sách. */
+  onRetry?: () => void;
 }
 
 interface WarrantyClaimState {
@@ -25,10 +31,35 @@ interface WarrantyClaimState {
   claimId: string | null;
 }
 
+/**
+ * Snapshot hướng dẫn chuyển khoản đã lưu trên ĐƠN (OPS-07). `Order['payment']` hiện chưa
+ * khai trường này (types nằm ngoài phạm vi task) nên đọc bằng kiểu cấu trúc: thiếu
+ * snapshot ⇒ `null`. TUYỆT ĐỐI không đọc `app_settings` hiện tại và không bịa số tài khoản;
+ * thiếu snapshot thì CTA chỉ hứa "xem chi tiết đơn".
+ */
+interface TransferInstructionSnapshot {
+  configured?: boolean;
+  bankName?: string | null;
+  bankAccount?: string | null;
+  accountHolder?: string | null;
+  amount?: number | null;
+  transferContent?: string | null;
+}
+
+function readTransferSnapshot(order: Order): TransferInstructionSnapshot | null {
+  const raw = (order.payment as Order['payment'] & { transferInstructions?: unknown })
+    .transferInstructions;
+  if (!raw || typeof raw !== 'object') return null;
+  return raw as TransferInstructionSnapshot;
+}
+
 export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
   orders,
   onNavigate,
-  onOpenInvoice
+  onOpenInvoice,
+  loading = false,
+  error = false,
+  onRetry
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -46,6 +77,17 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
     claimId: null
   });
   const [reorderSuccessId, setReorderSuccessId] = useState<string | null>(null);
+
+  /**
+   * OPS-35 — phân biệt "đang tải" / "lỗi tải" / "rỗng thật". Lỗi + còn danh sách cũ thì
+   * KHÔNG thay danh sách, chỉ cảnh báo; "Bạn chưa có đơn hàng" chỉ hiện khi đã nạp xong
+   * và không lỗi.
+   */
+  const showLoading = loading && orders.length === 0;
+  const showError = error && orders.length === 0;
+  const showWarning = error && orders.length > 0;
+  /** Ẩn ô tìm kiếm/tab lọc khi chưa có dữ liệu để lọc (tránh tab "0 đơn" gây hiểu sai). */
+  const showDataChrome = !showLoading && !showError;
 
   const filterTabs = [
     { id: 'all', label: 'Tất cả đơn', count: orders.length },
@@ -181,6 +223,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
             </p>
           </div>
 
+          {showDataChrome && (
           <Field
             hideLabel
             label="Tìm đơn hàng theo mã đơn, mã vận đơn hoặc tên chi tiết"
@@ -195,9 +238,11 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
               </>
             )}
           </Field>
+          )}
         </div>
 
-        {/* 7 Status Filter Tabs */}
+        {/* 7 Status Filter Tabs — ẩn khi chưa có dữ liệu để lọc (OPS-35). */}
+        {showDataChrome && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 font-sans no-scrollbar">
           {filterTabs.map((tab) => {
             const isActive = activeFilter === tab.id;
@@ -224,9 +269,72 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
             );
           })}
         </div>
+        )}
 
-        {/* Orders Listing */}
-        {orders.length === 0 ? (
+        {/* OPS-35 — lỗi tải khi ĐÃ có danh sách cũ: cảnh báo + giữ nguyên list. */}
+        {showWarning && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/30 bg-warning-tint px-3 py-2 text-xs text-warning"
+          >
+            <span className="flex items-center gap-2">
+              <Icon name="warning" size={16} className="shrink-0" />
+              Không tải được đơn mới; danh sách bên dưới có thể cũ.
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={loading}
+              loadingLabel="Đang tải…"
+              onClick={() => onRetry?.()}
+              leadingIcon={<Icon name="refresh" size={14} />}
+            >
+              Thử lại
+            </Button>
+          </div>
+        )}
+
+        {/* Orders Listing — OPS-35: loading/error/rỗng là ba trạng thái loại trừ nhau. */}
+        {showLoading ? (
+          <div className="space-y-5 sm:space-y-6" aria-busy="true">
+            <p role="status" className="sr-only">Đang tải danh sách đơn hàng…</p>
+            {[0, 1].map((cardIndex) => (
+              <Card key={cardIndex} variant="soft" padding="md" className="sm:p-6 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <Skeleton variant="text" width="12rem" />
+                  <Skeleton variant="text" width="7rem" />
+                </div>
+                <Skeleton variant="rect" height="4.5rem" rounded="lg" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[0, 1, 2].map((tileIndex) => (
+                    <Skeleton key={tileIndex} variant="rect" height="3.25rem" rounded="lg" />
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : showError ? (
+          <div role="alert">
+            <EmptyState
+              bordered
+              icon={<Icon name="error" size={20} />}
+              title="Không tải được đơn hàng"
+              description="Không kết nối được tới máy chủ dữ liệu, hoặc tài khoản không có quyền đọc đơn. Danh sách trống KHÔNG có nghĩa là bạn chưa có đơn — hãy kiểm tra mạng rồi thử lại."
+              action={(
+                <Button
+                  variant="primary"
+                  size="md"
+                  loading={loading}
+                  loadingLabel="Đang tải…"
+                  onClick={() => onRetry?.()}
+                  leadingIcon={<Icon name="refresh" size={18} />}
+                >
+                  Thử lại
+                </Button>
+              )}
+            />
+          </div>
+        ) : orders.length === 0 ? (
           <EmptyState
             live
             icon={<Icon name="receipt_long" size={20} />}
@@ -267,12 +375,34 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
               const statusBadge = getStatusBadge(ord.status);
               // Nấc đến từ DB; nếu DB không có thì suy từ trạng thái đã lưu (không bịa tiến độ).
               const stageIdx = ord.statusStageIndex ?? (ord.status === 'completed' ? 7 : ord.status === 'shipping' ? 7 : ord.status === 'post_processing' ? 5 : ord.status === 'printing' ? 4 : 0);
-              // CTA chính theo trạng thái — thao tác phụ gom vào menu "…".
+              // OPS-34/OPS-07 — nhãn thanh toán & CTA phải phản ánh đúng dữ liệu của ĐƠN.
+              const isCancelled = ord.status === 'cancelled' || ord.payment.status === 'cancelled';
+              const isCod = !isCancelled && ord.payment.status === 'cod';
               const isPendingPayment = ord.status === 'pending_payment';
               const isShipping = ord.status === 'shipping';
               const isCompleted = ord.status === 'completed';
-              const primary: { label: string; icon: string; variant: 'primary' | 'secondary'; onClick: () => void } = isPendingPayment
+              // Chỉ đơn chờ chuyển khoản mới cần hướng dẫn. Snapshot thiếu/không configured
+              // ⇒ CTA chỉ hứa "xem chi tiết đơn" (OPS-07: không hứa nội dung không tồn tại).
+              const needsTransferGuide = isPendingPayment && !ord.payment.isPaid && !isCod;
+              const transferSnapshot = needsTransferGuide ? readTransferSnapshot(ord) : null;
+              const hasTransferGuide = transferSnapshot?.configured === true;
+              const paymentStatusLabel = isCancelled
+                ? 'Đơn đã hủy — không cần thanh toán'
+                : ord.payment.isPaid
+                ? 'Đã thanh toán'
+                : isCod
+                ? 'Thanh toán khi nhận hàng'
+                : 'Chờ thanh toán';
+
+              // CTA chính theo trạng thái — thao tác phụ gom vào menu "…".
+              const primary: { label: string; icon: string; variant: 'primary' | 'secondary'; onClick: () => void } = isCancelled
+                ? { label: 'Xem chi tiết đơn', icon: 'receipt_long', variant: 'primary', onClick: () => onNavigate('order_tracking', { order: ord }) }
+                : isCod
+                ? { label: 'Xem chi tiết đơn', icon: 'receipt_long', variant: 'primary', onClick: () => onNavigate('order_tracking', { order: ord }) }
+                : needsTransferGuide && hasTransferGuide
                 ? { label: 'Xem hướng dẫn thanh toán', icon: 'payments', variant: 'primary', onClick: () => onNavigate('order_tracking', { order: ord }) }
+                : needsTransferGuide
+                ? { label: 'Xem chi tiết đơn', icon: 'receipt_long', variant: 'primary', onClick: () => onNavigate('order_tracking', { order: ord }) }
                 : isShipping
                 ? { label: 'Theo dõi hành trình', icon: 'local_shipping', variant: 'primary', onClick: () => onNavigate('order_tracking', { order: ord }) }
                 : isCompleted
@@ -302,13 +432,27 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
 
                     <div className="text-left sm:text-right shrink-0">
                       <span className="text-xs text-fg-subtle uppercase tracking-wider block">
-                        {ord.payment.isPaid ? 'Đã thanh toán' : ord.payment.status === 'cod' ? 'Thanh toán khi nhận hàng' : 'Chờ thanh toán'}
+                        {paymentStatusLabel}
                       </span>
                       <span className="font-mono font-semibold text-base text-fg tabular-nums text-right">
                         {formatCurrency(ord.payment.total)}
                       </span>
                     </div>
                   </div>
+
+                  {/* OPS-07 — dòng hướng dẫn ngắn chỉ khi ĐƠN có snapshot đã cấu hình; không
+                      đọc `app_settings` hiện tại và không bịa ngân hàng/số tài khoản. */}
+                  {needsTransferGuide && hasTransferGuide && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-info/20 bg-info-tint px-3 py-2 text-xs text-fg-muted font-mono">
+                      <Icon name="account_balance" size={16} className="shrink-0 text-info" />
+                      <span className="font-semibold text-fg">{transferSnapshot?.bankName || '—'}</span>
+                      <span>STK: {transferSnapshot?.bankAccount || '—'}</span>
+                      <span>ND: {ord.orderNumber}</span>
+                      <span className="font-semibold text-fg tabular-nums">
+                        {formatCurrency(transferSnapshot?.amount ?? ord.payment.total)}
+                      </span>
+                    </div>
+                  )}
 
                   {/* 8-Stage Pipeline Progress Strip (Compact) */}
                   <div className="rounded-lg border border-line-subtle bg-surface-muted p-4">

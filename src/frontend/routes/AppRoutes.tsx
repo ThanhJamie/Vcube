@@ -83,7 +83,7 @@ export interface AppRoutesProps
       | 'handleUpdateAccessories'
     >,
     Pick<SiteSettings, 'siteContent' | 'pricingConfig' | 'effectivePricingConfig' | 'handleUpdateSiteContent' | 'handleUpdatePricingConfig'>,
-    Pick<OrdersData, 'orders' | 'assets' | 'handleOrderCompleted' | 'handleUpdateOrderStatus'> {
+    Pick<OrdersData, 'orders' | 'assets' | 'handleOrderCompleted' | 'handleUpdateOrderStatus' | 'ordersLoading' | 'ordersError' | 'reloadOrders'> {
   cart: CartItem[];
   appliedDiscount: number;
   setInvoiceOrder: (order: Order | null) => void;
@@ -109,6 +109,9 @@ export function AppRoutes({
   effectivePricingConfig,
   orders,
   assets,
+  ordersLoading,
+  ordersError,
+  reloadOrders,
   cart,
   appliedDiscount,
   setInvoiceOrder,
@@ -322,6 +325,9 @@ export function AppRoutes({
               <ProtectedRoute>
                 <MyOrdersView
                   orders={orders}
+                  loading={ordersLoading}
+                  error={ordersError}
+                  onRetry={reloadOrders}
                   onNavigate={handleNavigate}
                   onOpenInvoice={(ord) => setInvoiceOrder(ord)}
                 />

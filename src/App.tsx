@@ -74,6 +74,9 @@ function MainApp() {
   const {
     orders,
     assets,
+    ordersLoading,
+    ordersError,
+    reloadOrders,
     setActiveOrder,
     handleOrderCompleted,
     handleUpdateOrderStatus,
@@ -286,6 +289,9 @@ function MainApp() {
             effectivePricingConfig={effectivePricingConfig}
             orders={orders}
             assets={assets}
+            ordersLoading={ordersLoading}
+            ordersError={ordersError}
+            reloadOrders={reloadOrders}
             cart={cart}
             appliedDiscount={appliedDiscount}
             setInvoiceOrder={setInvoiceOrder}
