@@ -15,7 +15,7 @@
 
 Bốn khu vực **có đủ khung UI để điều hành cơ bản**, nhưng chuỗi bàn giao giữa các vai trò bị đứt ở dữ liệu và trạng thái:
 
-1. **Đơn hàng:** **source có luồng tạo đơn** (chưa submit DB nên chưa chứng minh giao dịch hoàn tất), nhưng **rời `/checkout` là mất hướng dẫn chuyển khoản**; không có màn “thanh toán lại”. Admin có danh sách/Kanban nhưng **modal chi tiết không mở trên dev** (chưa xác minh production), không có hủy/hoàn tiền, không thông báo bền.
+1. **Đơn hàng:** **source có luồng tạo đơn** (chưa submit DB nên chưa chứng minh giao dịch hoàn tất), nhưng **rời `/checkout` là mất hướng dẫn chuyển khoản**; không có màn “thanh toán lại”. Admin có danh sách/Kanban; modal chi tiết **không mở trên dev do StrictMode**, nhưng **production build đã mở được với mock** (dev-only); không có hủy/hoàn tiền, không thông báo bền.
 2. **Xưởng in:** hàng đợi chỉ là `orders` đã gán xưởng; **DB có `items` jsonb nhưng mapper/UI bỏ màu, không snapshot tệp/kích thước/thông số/hạn/liên hệ**; hai bộ nhãn 8 nấc + hai bộ mapping status + một bộ 6 cột lab khác nghĩa; trừ kho tự động sai khóa và thiếu khối lượng.
 3. **Xưởng thiết kế:** có quản lý ấn phẩm/upload private/claim atomic, nhưng **vòng yêu cầu CAD chỉ nửa vòng**: khách gửi brief (guest bị RLS chặn), designer chat/báo giá, **khách không có UI xem/duyệt**, không có upload bản cuối, không có bàn giao sang in/catalog.
 4. **Quản trị:** navigation rộng và có phân quyền route, nhưng **dashboard không phải “việc cần làm”**, doanh thu cộng cả đơn huỷ, storefront có lost-update/không rollback/audit mù, và **admin không thêm được ảnh/mô tả sản phẩm** để cứu hàng designer.
@@ -299,7 +299,7 @@ Quy ước: **ĐÃ CÓ** = có UI + handler + nguồn dữ liệu; **MỘT PHẦ
 | 1 | Khách | Checkout → tạo đơn | cart → đơn `pending_payment`/`cod` | PII, item snapshot, tiền | Admin không realtime; phải reload | **MỘT PHẦN / CHƯA KIỂM CHỨNG giao dịch DB** |
 | 2 | Khách | Rời `/checkout` | — | Hướng dẫn CK **mất** | — | **ĐỨT P0**: không có STK/nội dung CK ở `/orders`/`/tracking` |
 | 3 | Admin | `/admin/orders` reload | thấy đơn | danh sách | — | ĐÃ CÓ (không realtime) |
-| 4 | Admin | “Chi tiết & thanh toán” | modal không mở trên dev | — | — | **KHÔNG KIỂM CHỨNG ĐƯỢC TRÊN DEV**; production chưa kết luận, không gọi là “đứt production” |
+| 4 | Admin | “Chi tiết & thanh toán” | dev: modal không mở; production build: modal mở | — | — | **DEV-ONLY**: StrictMode; production đã mở với mock, không phải đứt production |
 | 5 | Admin | Phân bổ trạm | `assigned_workshop_id` | trạm seed/DB | Lab phải reload | **MỘT PHẦN**: có thể gán trạm ma |
 | 6 | Lab | `/lab/queue` nhận việc | nấc 2, `processing` | không file/kích thước/màu/ghi chú | Khách thấy sai nấc | **ĐỨT P0**: không đủ dữ liệu để in |
 | 7 | Lab | Cập nhật nấc/QC/giao | stage/status | 3 cột | Khách realtime; admin reload | **MỘT PHẦN**: nhãn nấc/status lệch |
@@ -356,7 +356,6 @@ Quy ước: **ĐÃ CÓ** = có UI + handler + nguồn dữ liệu; **MỘT PHẦ
 | OPS-04 | Đơn hàng | `/tracking` nhập SĐT 10 số | `OrderTrackingView.tsx:186-193`; `database.ts:503-509`; 0 RPC call | Khách mất token không tra cứu được | Both | PO chốt SĐT/OTP |
 | OPS-05 | Đơn hàng | Guest success → “THEO DÕI TIẾN ĐỘ” | `OrderSuccessView.tsx:206` chỉ truyền `{orderId}`; `routeWrappers.tsx:402-419`; browser → portal “không ứng với đơn nào” (chỉ guest; buyer không bị) | Mất ngữ cảnh ngay sau đặt | Both | — |
 | OPS-03 | Đơn/In/Admin | Cùng `status_stage_index=4`: xem lab, admin, khách | Hai bộ nhãn 8 nấc (`OrderProgress.tsx:13-22` dùng chung khách+lab; `useProductionStore.ts:26-124` cho admin) + hai mapping status (`workshop/settings/constants.ts:20-29`, `Group5:35-56`) + bộ 6 cột lab (`settings/helpers.ts:20-28`). Tại index 4 khách/lab = “Đang in 3D”, admin = “Hậu kỳ”; “Hậu kỳ & QC” là tab theo `status`, không phải nhãn nấc. Ảnh `worker-b-lab-queue-1440.png` vs `worker-b-admin-queue-1440.png` | Ba bên hiểu khác nhau; admin/lab ghi sai status; khách thấy sai bước | Both | Cần chốt một state machine 8 nấc; có thể P0 nếu nấc là cam kết hợp đồng |
-| OPS-06 | Đơn/Admin | `/admin/orders` → “Chi tiết & thanh toán” | Browser ≥3 lần qua 2 phiên mock: `dialog[open]=0`, body không đổi; `<Modal>` mount có điều kiện + StrictMode cleanup (`main.tsx:61`, cùng bẫy `InvoiceModal.tsx:104-108`); ≥11 modal conditional tương tự; **production chưa test** | Không xác nhận thanh toán/QC được **trên dev**; production chưa kết luận | Both (dev) | P1-dev / P2-production; cần test build production |
 | OPS-11 | In/Kho | Hoàn tất đơn | `workshop/inventory.ts:241-245` query `workshop_id = partnerId` (uuid vs slug); caller `queue.ts:65-72`; **nguyên nhân 2:** `weightGrams` catalog thường null (chỉ `QuoteSummaryPanel.tsx:392` set) | Không trừ kho; toast đổ lỗi sai; sửa khóa chưa đủ | Source | Sửa khóa **+** có khối lượng; log lý do skip thật |
 | OPS-12 | In/Admin | `/admin/queue` xem trạm/bộ lọc | **Hai nguồn:** banner/tab đếm từ `useProductionStore.workshops = []` (`:278,320`); select phân bổ từ `getWorkshopProfiles()` fallback seed (`profiles.ts:28-60`, `Group5:203-219`). `profiles.ts:54` ghi DB vào localStorage; `partner_id` không UNIQUE; `orders.assigned_workshop_id` là text không FK (`20260901:694,924`) | Gán đơn cho trạm không tồn tại; đơn mồ côi; filter rỗng khó hiểu | Both (conditional: DB rỗng/lỗi) | Bỏ seed fallback, unique/FK, bỏ localStorage |
 | OPS-15 | Designer | Khách guest gửi brief | `CustomIdeaRequestModal` submit enabled; `baseline:1387-1389` grant chỉ authenticated; `harden_rls:741-749` policy `customer_id=auth.uid()`; submit gửi `user?.uid` | Mất lead; lỗi API thô | Source + UI | Auth/RLS; **P0 nếu traffic chủ yếu là guest** |
@@ -434,6 +433,7 @@ Quy ước: **ĐÃ CÓ** = có UI + handler + nguồn dữ liệu; **MỘT PHẦ
 | OPS-65 | Admin | `/admin/khong-ton-tai` vẫn render overview | `AdminDashboardView:148-166` |
 | OPS-66 | Admin | Sản phẩm giá 0 copy “miễn phí” nhưng 0 = kênh không bán | `AdminProductsPanel:693-696` |
 | OPS-67 | In/Lab | Stage ≥5 tự ghi 100% lớp | `WorkshopSettingsView:221,236` |
+| OPS-06 | Đơn/Admin | Modal chi tiết không mở **trên dev** | Dev: `dialog[open]=0` do StrictMode + modal conditional; **production build mock: `dialog[open]=1`, nội dung đơn hiện đúng**. Ảnh `g0-ops06-production-modal.png` | Chỉ ảnh hưởng dev/DX; không phải blocker production | **P3 (dev DX)**; không sửa hàng loạt 11 modal |
 | OPS-75 | Designer | Nút xoá sản phẩm published vẫn bật dù policy chặn | `DesignerModelsManagerTab:318-326`; `designer_publish:41-44` |
 | OPS-76 | Admin/Products | `designerId` nhập UUID tay, không picker/validate | `AdminProductsPanel:565-579` |
 | OPS-77 | Admin/Quyền | `app_settings` anon select toàn bộ, gồm `bank_account`/`tax_code` | `20261010:535-543`; schema `:354-368`; **Source, chưa kiểm DB đang chạy; bank/tax có thể là chủ đích công khai — cần kiểm quyền đọc thực tế trước khi gọi là lộ dữ liệu** |
@@ -500,7 +500,25 @@ Quy ước: **ĐÃ CÓ** = có UI + handler + nguồn dữ liệu; **MỘT PHẦ
 
 ## 10. Phụ lục — bằng chứng & giới hạn
 
-**Reviewer độc lập:** đã kiểm 32 issue P0/P1 + §7. Các điểm được sửa sau review: OPS-01 (bank có cả trước tạo đơn), OPS-02 (items jsonb bị mapper/UI bỏ, dimensions không snapshot), OPS-03 (hạ P0→P1, sửa số bộ nhãn/ví dụ stage 4), OPS-06 (P1-dev/P2-production + blast radius modal), OPS-11 (thêm nguyên nhân `weightGrams` null), OPS-12 (tách 2 nguồn + localStorage/no-FK), OPS-15 (điều kiện P0 nếu guest là chính), OPS-28 (cold deep-link). Các issue OPS-68…77 bổ sung sau review.
+**Reviewer độc lập:** đã kiểm 32 issue P0/P1 + §7. Các điểm được sửa sau review: OPS-01 (bank có cả trước tạo đơn), OPS-02 (items jsonb bị mapper/UI bỏ, dimensions không snapshot), OPS-03 (hạ P0→P1, sửa số bộ nhãn/ví dụ stage 4), OPS-06 (**production build đã mở modal; chuyển sang P3 dev-only**), OPS-11 (thêm nguyên nhân `weightGrams` null), OPS-12 (tách 2 nguồn + localStorage/no-FK), OPS-15 (điều kiện P0 nếu guest là chính), OPS-28 (cold deep-link, nâng P0 có điều kiện). Các issue OPS-68…77 bổ sung sau review.
+
+## 11. Cập nhật sau PO review + Nhóm 0 (2026-11-10)
+
+PO đã review và chốt thứ tự ưu tiên “ghi dữ liệu đáng tin” trước. Nhóm 0 đã triển khai trên nhánh `group0/data-integrity` (base `f8c5310`), **không push**:
+
+| Item | Trạng thái | Thay đổi chính | Bằng chứng |
+|---|---|---|---|
+| OPS-28 | **FIXED** | Bỏ `useMemo([])` giữ handler cũ; thêm cờ “đã tải xong” cho materials/accessories; chặn ghi trước lần đọc đầu; vẫn cho xoá danh sách sau khi đã tải | Cold deep-link: 0 DELETE; bấm +1 sau khi rows hiện → POST đúng; 390/1440 |
+| OPS-32 | **FIXED** | Ghi kho lỗi ⇒ rollback state + toast lỗi; success chỉ sau khi DB trả | Mock 500: toast lỗi, giá trị về cũ, không toast thành công |
+| OPS-19 | **FIXED** | `handleAddNewProduct` throw sau rollback; wrapper designer await, chỉ đổi tab khi thành công | Mock product 500: vẫn ở wizard, phase error, không success |
+| OPS-23 | **FIXED** | Bỏ toàn bộ localStorage `vcube_custom_design_requests`; DB là nguồn duy nhất | Key không còn được tạo/đọc; cache cũ không hiện trong board |
+| OPS-24 | **FIXED (semantic)** | Panel gửi patch key đã sửa; hook merge với state mới nhất; không ghi đè field panel kia | Storefront/SEO race: body thứ hai giữ hero mới, không overwrite; body vẫn full object vì `dbService` yêu cầu |
+| OPS-25 | **FIXED** | Save fail ⇒ rollback `siteContent` global; panel giữ dirty + báo lỗi | Mock 500: home không giữ giá trị lỗi; panel “Chưa lưu” |
+| OPS-06 | **VERIFIED dev-only** | Production build + mock: modal chi tiết mở (`dialog[open]=1`) | `g0-ops06-production-modal.png`; không sửa 11 modal |
+
+**Gate trên nhánh:** tsc PASS; 203/203 unit; `npm run check` 24/24; browser 390/1440 0 tràn/0 pageerror.
+
+**Chưa làm trong Nhóm 0:** purge key localStorage cũ trên máy người dùng (cần quyết định); thông điệp lỗi insert product còn generic do `result.ts`; body site_content vẫn full object (chỉ semantic patch); các luồng Nhóm 1–3 chưa bắt đầu.
 
 - Báo cáo nháp đầy đủ: `/tmp/opencode/ops-analysis/worker-A.md`, `worker-B.md`, `worker-C.md`, `worker-D.md`.
 - Ảnh: `/tmp/opencode/ops-analysis/worker-a-*.png`, `worker-b-*.png`, `worker-c-*.png`, `worker-d-*.png`.
