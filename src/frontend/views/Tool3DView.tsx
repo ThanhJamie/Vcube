@@ -13,6 +13,7 @@ import { PresetPalettePanel } from '../components/tool3d/PresetPalettePanel';
 import { QuoteSummaryPanel } from '../components/tool3d/QuoteSummaryPanel';
 import type { QuoteSaveDraft } from '../components/tool3d/QuoteSummaryPanel';
 import { useAuth } from '../context/AuthContext';
+import { useUIStore } from '@frontend/stores/useUIStore';
 import { dbService } from '@backend/supabase/database';
 import { parse3DFile, autoRepairGeometry, analyzeMeshDefects } from '../../utils/meshParser';
 import { Button, Icon, PanelErrorBoundary } from '@frontend/ui';
@@ -652,11 +653,13 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 
   const handleDirectOrder = (item: CartItem) => {
     onAddToCart(item);
+    // W2-Q1: App.handleAddToCart mở drawer giỏ — đóng ngay để /checkout không bị lớp phủ.
+    useUIStore.getState().setIsCartDrawerOpen(false);
     onNavigate('checkout');
   };
 
   return (
-    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
+    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 max-md:pb-28 px-4 sm:px-6 md:px-12 font-sans">
       <SEOHead
         title="Báo giá in 3D & kiểm tra hình học CAD"
         description="Tải STL/3MF/OBJ/STEP, đo thể tích, phát hiện lỗi lưới và nhận báo giá in 3D tức thì bằng tiếng Việt."
@@ -971,11 +974,8 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
           </div>
 
           {/* Right Column: Slicer Parameters & Instant Quoting Panel.
-              P0-C: sticky trên desktop (xl) để "Tổng phải trả" + CTA đặt in luôn trong tầm mắt
-              khi cuộn cột giữa; `self-start` giữ chiều cao tự nhiên (item grid mặc định stretch
-              sẽ làm sticky không có khoảng để dính). Panel cao hơn viewport nên phần chi tiết
-              (chọn gói, cấu hình in) cuộn trong panel trên desktop — nếu không, một khi đã dính
-              thì đáy panel không bao giờ tới được. Mobile (< xl) giữ nguyên luồng thường. */}
+              P0-C: desktop (xl) sticky để "Tổng phải trả" + CTA luôn trong tầm mắt; mobile có
+              thanh CTA cố định đáy (W2-Q2) nên cột này giữ luồng thường. */}
           <div className="order-2 min-w-0 space-y-6 lg:col-span-4 xl:order-3 xl:col-span-3 xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto self-start">
             {/* Lưới an toàn cấp panel: một throw khi tính/format giá KHÔNG được thay cả trang
                 (sẽ làm mất luôn nút chọn tệp). `resetKey` = tệp đang chọn ⇒ nạp tệp khác tự reset. */}
