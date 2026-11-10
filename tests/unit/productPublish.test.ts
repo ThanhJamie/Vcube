@@ -106,6 +106,30 @@ describe('buildProductRowPayload — conditional designer_id + status lowercase'
       assert.equal(Object.prototype.hasOwnProperty.call(payload, 'designer_id'), false, String(designerId));
     }
   });
+
+  test('UI-01: license_type/seller_type CHỈ gửi khi Product khai', () => {
+    const payload = buildProductRowPayload(
+      baseProduct({ licenseType: 'Commercial', sellerType: 'platform' })
+    );
+    assert.equal(payload.license_type, 'Commercial');
+    assert.equal(payload.seller_type, 'platform');
+
+    const bare = buildProductRowPayload(baseProduct());
+    assert.equal(Object.prototype.hasOwnProperty.call(bare, 'license_type'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(bare, 'seller_type'), false);
+  });
+});
+
+describe('dbService — UI-01 chặn publish khi thiếu điều kiện', () => {
+  test('saveProduct published thiếu ảnh/giấy phép ⇒ fail có issues, KHÔNG gọi mạng', async () => {
+    const res = await dbService.saveProduct(
+      baseProduct({ status: 'Published', images: [], licenseType: undefined })
+    );
+    if (res.success) assert.fail('published thiếu điều kiện phải bị chặn');
+    assert.equal(res.success, false);
+    assert.ok((res.issues?.length ?? 0) > 0);
+    assert.ok(res.error.includes('ảnh'));
+  });
 });
 
 describe('dbService — insertProduct tách khỏi saveProduct (upsert)', () => {

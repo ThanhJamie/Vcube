@@ -1,12 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { Product, ProductStatus } from '@/types';
+import { Product } from '@/types';
 import { CATEGORIES } from '@/data/mockData';
 import { dbService } from '../../../backend/supabase/database';
 import { Button, ConfirmDialog, DataTable, EmptyState, Field, Icon, Input, Modal, Select } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
-import { formatCurrency } from '@frontend/lib/format';
-import { realProductImageUrl } from '@frontend/lib/productImage';
-import { ADMIN_STATUS_OPTIONS, isUnderReviewStatus, normalizeProductStatus, toAdminSelectStatus } from '@frontend/lib/productStatus';
+import { buildAdminProductColumns } from './adminProductColumns';
+import {
+  ADMIN_STATUS_OPTIONS,
+  formatPublishIssues,
+  normalizeProductStatus,
+  toAdminSelectStatus,
+  validateProductForPublish,
+} from '@frontend/lib/productStatus';
 
 interface AdminProductsPanelProps {
   products: Product[];
@@ -33,6 +38,12 @@ const EMPTY_NEW_PRODUCT_FORM: Partial<Product> = {
   pricePhysical: undefined,
   priceDigital: undefined,
   images: [],
+  // UI-01: sản phẩm mới KHÔNG tự đăng bán — tạo ở dạng nháp để admin tự kiểm điều kiện
+  // (ảnh/giá/giấy phép) rồi mới publish. Trước đây form không chọn trạng thái nhưng luôn
+  // ghi 'Published' (giá trị DB default) dù thiếu giấy phép.
+  status: 'draft',
+  // Sản phẩm admin tạo do nền tảng bán ⇒ không đòi designer_id (khác 'designer').
+  sellerType: 'platform',
   // Độ sẵn sàng in là lựa chọn HIỆN trên form (select "Sẵn sàng in" là mặc định hiển thị).
   productionReadiness: 'ready_to_print',
 };
@@ -171,11 +182,22 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
       reviewsCount: 0,
       printsCount: 0,
       printTime: '',
-      // `products.status` là NOT NULL default 'published' trong schema; modal không thu thập
-      // trạng thái nên giá trị này là của DB, không phải một lựa chọn admin đã nhập.
-      status: 'Published',
+      // UI-01: trạng thái do admin chọn trên form mới (mặc định 'draft'); giấy phép chỉ ghi
+      // khi admin đã khai — không tự gán 'Standard' thay admin.
+      status: (newProductForm.status || 'draft') as Product['status'],
+      licenseType: newProductForm.licenseType,
+      sellerType: newProductForm.sellerType || 'platform',
       productionReadiness: newProductForm.productionReadiness || 'ready_to_print'
     };
+
+    // UI-01: chỉ đăng bán khi sản phẩm đã đủ điều kiện; nêu rõ lý do còn thiếu.
+    if (normalizeProductStatus(created.status) === 'published') {
+      const readiness = validateProductForPublish(created);
+      if (!readiness.ready) {
+        onShowToast(`Không thể đăng bán: ${formatPublishIssues(readiness)}`);
+        return;
+      }
+    }
 
     onAddProduct(created);
     setIsNewProductModalOpen(false);
@@ -213,7 +235,16 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
     }
 
     // Chỉ tới đây mới ghi xuống DB: hai giá là số admin ĐÃ nhập (0 cũng là số thật).
-    onUpdateProduct({ ...editingProduct, pricePhysical, priceDigital });
+    const updatedProduct: Product = { ...editingProduct, pricePhysical, priceDigital };
+    // UI-01: đổi sang 'published' (hoặc đang published) mà thiếu điều kiện ⇒ CHẶN + nêu lý do.
+    if (normalizeProductStatus(updatedProduct.status) === 'published') {
+      const readiness = validateProductForPublish(updatedProduct);
+      if (!readiness.ready) {
+        onShowToast(`Không thể đăng bán: ${formatPublishIssues(readiness)}`);
+        return;
+      }
+    }
+    onUpdateProduct(updatedProduct);
     setEditingProduct(null);
     onShowToast(`Đã cập nhật sản phẩm "${editingProduct.name}"`);
   };
@@ -233,158 +264,31 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
     return matchSearch && matchCat && matchReadiness;
   });
 
-  /** Bảng sản phẩm dùng primitive `DataTable` (sort + phân trang + empty state ngoài bảng). */
-  const productColumns = useMemo<DataTableColumn<Product>[]>(() => [
-    {
-      key: 'name',
-      header: 'Ảnh & Sản Phẩm',
-      value: (p) => p.name,
-      render: (prod) => {
-        const imageUrl = realProductImageUrl(prod.images);
-        return (
-          <div className="flex items-center gap-3">
-            {imageUrl ? (
-              <img src={imageUrl} alt={prod.name} className="w-11 h-11 rounded-md object-cover border border-line shrink-0" />
-            ) : (
-              <div
-                className="w-11 h-11 rounded-md border border-line-subtle bg-surface-muted text-fg-muted flex items-center justify-center shrink-0"
-                title="Chưa có ảnh"
-              >
-                <Icon name="image" size={16} />
-              </div>
-            )}
-            <div>
-              <p className="font-semibold text-fg max-w-[200px] truncate">{prod.name}</p>
-              <p className="text-xs text-fg-subtle">{prod.designer || '—'}</p>
-              {prod.badge && (
-                <span className="mt-0.5 inline-block rounded-sm border border-line bg-primary-tint px-2 py-0.5 font-mono text-xs font-medium text-fg">
-                  {prod.badge}
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: 'sku',
-      header: 'Mã SKU',
-      render: (prod) =>
-        prod.sku || <span className="text-fg-subtle" title="Chưa có mã SKU">Chưa có mã</span>,
-    },
-    {
-      key: 'category',
-      header: 'Danh Mục',
-      value: (p) => p.category,
-      render: (prod) => <span className="capitalize">{prod.category}</span>,
-    },
-    {
-      key: 'pricePhysical',
-      header: 'Giá Bản In (Vật Lý)',
-      numeric: true,
-      value: (p) => p.pricePhysical,
-      render: (prod) => formatCurrency(prod.pricePhysical),
-    },
-    {
-      key: 'priceDigital',
-      header: 'Giá Tệp (STL)',
-      numeric: true,
-      value: (p) => p.priceDigital,
-      render: (prod) => formatCurrency(prod.priceDigital),
-    },
-    {
-      key: 'readiness',
-      header: 'Chuẩn Sẵn Sàng In',
-      value: (p) => p.productionReadiness || 'ready_to_print',
-      render: (prod) => {
-        const readiness = prod.productionReadiness || 'ready_to_print';
-        if (readiness === 'ready_to_print') {
-          return (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-positive/20 bg-positive-tint px-2.5 py-1 text-xs font-medium text-positive">
-              <Icon name="check" size={12} aria-hidden="true" /> Sẵn Sàng In
-            </span>
-          );
-        }
-        if (readiness === 'missing_profile') {
-          return (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/20 bg-warning-tint px-2.5 py-1 text-xs font-medium text-warning">
-              <Icon name="warning" size={12} aria-hidden="true" /> Thiếu hồ sơ cắt lớp
-            </span>
-          );
-        }
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info-tint px-2.5 py-1 text-xs font-medium text-info">
-            Cần duyệt CAD
-          </span>
-        );
-      },
-    },
-    {
-      key: 'status',
-      header: 'Trạng Thái',
-      value: (p) => normalizeProductStatus(p.status),
-      render: (prod) => {
-        // FL-2a-fix: DB lưu lowercase; hiển thị select theo canonical để sản phẩm
-        // "under review"/"pending" không rơi về option đầu và mất nhãn "Chờ duyệt".
-        const status = toAdminSelectStatus(prod.status);
-        const pending = isUnderReviewStatus(prod.status);
-        return (
-          <select
-            value={status} aria-label={`Trạng thái ${prod.name}`}
-            onChange={(e) => {
-              // Admin-all policy: chọn "Đang bán" là publish sản phẩm pending.
-              // Lưu đúng giá trị DB ('under review', lowercase) — KHÔNG 'under_review'
-              // (policy so `lower(status) in ('under review','pending','draft')`).
-              onUpdateProduct({ ...prod, status: e.target.value as ProductStatus });
-            }}
-            className={`h-10 cursor-pointer rounded-md border px-2.5 font-mono text-xs font-medium transition-colors duration-200 motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              status === 'published'
-                ? 'bg-positive-tint text-positive border-positive/30'
-                : pending
-                  ? 'bg-warning-tint text-warning border-warning/30'
-                  : status === 'draft'
-                    ? 'bg-warning-tint text-warning border-warning/30'
-                    : 'bg-surface-muted text-fg-muted border-line-control'
-            }`}
-          >
-            {ADMIN_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        );
-      },
-    },
-    {
-      key: 'actions',
-      header: 'Thao Tác',
-      align: 'right',
-      render: (prod) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <Button
-            iconOnly
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditingProduct({ ...prod })}
-            aria-label={`Sửa ${prod.name}`}
-            title="Sửa sản phẩm"
-          >
-            <Icon name="edit" size={16} />
-          </Button>
-          <Button
-            iconOnly
-            variant="danger-ghost"
-            size="sm"
-            onClick={() => handleDeleteProductConfirm(prod)}
-            aria-label={`Xoá ${prod.name}`}
-            title="Xóa sản phẩm"
-          >
-            <Icon name="delete" size={16} />
-          </Button>
-        </div>
-      ),
-    },
+  /** Cột bảng tách ở `adminProductColumns.tsx` (UI-01: chặn publish thiếu điều kiện). */
+  const productColumns = useMemo<DataTableColumn<Product>[]>(
+    () =>
+      buildAdminProductColumns({
+        onEditProduct: (product) => setEditingProduct({ ...product }),
+        onDeleteRequest: handleDeleteProductConfirm,
+        onUpdateProduct,
+        onShowToast,
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], []);
+    []
+  );
+
+  /**
+   * UI-01: lý do CHƯA đăng bán được của sản phẩm đang sửa — hiển thị ngay dưới select trạng
+   * thái để admin biết cần bổ sung gì (toast chỉ là thông báo tức thời).
+   */
+  const editingPublishIssues =
+    editingProduct && normalizeProductStatus(editingProduct.status) === 'published'
+      ? validateProductForPublish({
+          ...editingProduct,
+          pricePhysical: editingProduct.pricePhysical ?? 0,
+          priceDigital: editingProduct.priceDigital ?? 0,
+        } as Product).issues
+      : [];
 
   return (
     <div className="space-y-6">
@@ -590,20 +494,68 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     </Select>
                   )}
                 </Field>
-                <Field label="Trạng thái hiển thị" optionalLabel={null}>
+                <Field label="Trạng thái hiển thị" hint="Đăng bán chỉ khi đủ điều kiện bên dưới." optionalLabel={null}>
                   {(control) => (
                     <Select
                       {...control}
-                      value={editingProduct.status}
+                      value={toAdminSelectStatus(editingProduct.status)}
                       onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value as any })}
                     >
-                      <option value="Published">Đang mở bán</option>
-                      <option value="Out of Stock">Tạm hết hàng</option>
-                      <option value="Under Review">Chờ duyệt</option>
+                      {ADMIN_STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+                <Field label="Giấy phép sử dụng" hint="Bắt buộc để đăng bán." optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={editingProduct.licenseType || ''}
+                      onChange={(e) =>
+                        setEditingProduct({
+                          ...editingProduct,
+                          licenseType: (e.target.value || undefined) as Product['licenseType'],
+                        })
+                      }
+                    >
+                      <option value="">Chưa khai</option>
+                      <option value="Standard">Tiêu chuẩn (Standard)</option>
+                      <option value="Commercial">Thương mại (Commercial)</option>
+                      <option value="Exclusive">Độc quyền (Exclusive)</option>
+                    </Select>
+                  )}
+                </Field>
+                <Field label="Bên bán" hint="'Tác giả 3D' cần designer_id liên kết." optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={editingProduct.sellerType || ''}
+                      onChange={(e) =>
+                        setEditingProduct({
+                          ...editingProduct,
+                          sellerType: (e.target.value || undefined) as Product['sellerType'],
+                        })
+                      }
+                    >
+                      <option value="">Chưa khai</option>
+                      <option value="platform">Nền tảng VCUBE</option>
+                      <option value="designer">Tác giả 3D</option>
                     </Select>
                   )}
                 </Field>
               </div>
+
+              {editingPublishIssues.length > 0 && (
+                <div className="rounded-md border border-warning/20 bg-warning-tint p-3 text-xs text-fg-muted">
+                  <p className="font-semibold text-warning">Chưa đủ điều kiện đăng bán</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                    {editingPublishIssues.map((issue) => (
+                      <li key={`${issue.code}-${issue.field}`}>{issue.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
                 <Button
@@ -752,6 +704,38 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                       value={newProductForm.images?.[0] || ''}
                       onChange={(e) => setNewProductForm({ ...newProductForm, images: [e.target.value] })}
                     />
+                  )}
+                </Field>
+                <Field label="Trạng thái" hint="Mặc định Nháp; chỉ Đang bán khi đủ điều kiện." optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={toAdminSelectStatus(newProductForm.status)}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, status: e.target.value as Product['status'] })}
+                    >
+                      {ADMIN_STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+                <Field label="Giấy phép sử dụng" hint="Bắt buộc để đăng bán." optionalLabel={null}>
+                  {(control) => (
+                    <Select
+                      {...control}
+                      value={newProductForm.licenseType || ''}
+                      onChange={(e) =>
+                        setNewProductForm({
+                          ...newProductForm,
+                          licenseType: (e.target.value || undefined) as Product['licenseType'],
+                        })
+                      }
+                    >
+                      <option value="">Chưa khai</option>
+                      <option value="Standard">Tiêu chuẩn (Standard)</option>
+                      <option value="Commercial">Thương mại (Commercial)</option>
+                      <option value="Exclusive">Độc quyền (Exclusive)</option>
+                    </Select>
                   )}
                 </Field>
               </div>

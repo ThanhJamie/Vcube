@@ -15,6 +15,7 @@ import { finalizeOrderDelivery } from '../../backend/services/deliveryService';
 import { useUIStore } from '@frontend/stores/useUIStore';
 import { manualPaymentProvider } from '../../backend/integrations/paymentProvider';
 import type { PaymentInstructions } from '../../backend/integrations/paymentProvider';
+import { getTransferInfoReadiness, resolveSelectablePaymentMethod, TRANSFER_FIELD_LABELS, VNPAY_NOT_CONNECTED_REASON, type CheckoutPaymentMethod } from '../lib/paymentMethods';
 
 /** Nhãn vai trò hiển thị VI (giá trị `role` trong DB là enum tiếng Anh — không render thô). */
 const ROLE_LABEL: Record<string, string> = {
@@ -76,6 +77,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const bankName = transferSettings?.bankName?.trim() || '';
   const bankAccount = transferSettings?.bankAccount?.trim() || '';
   const accountHolder = transferSettings?.legalName?.trim() || '';
+  // UX-05: thiếu cấu hình thì UI nêu ĐÚNG trường còn thiếu; không tạo kỳ vọng chuyển khoản được.
+  const transferReadiness = getTransferInfoReadiness({
+    bankName: transferSettings?.bankName,
+    bankAccount: transferSettings?.bankAccount,
+    accountHolder: transferSettings?.legalName,
+  });
+  // Có BẤT KỲ trường nào ⇒ hiện đúng phần đã khai (không giấu dữ liệu thật); cả ba mới "đủ".
   const hasTransferInfo = Boolean(bankName || bankAccount || accountHolder);
   // CTA tới /admin chỉ hiện với người xem là admin (role lấy từ DB — AuthContext).
   const canConfigureTransferInfo = profile?.role === 'admin';
@@ -91,7 +99,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
   const [note, setNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'vietqr' | 'vnpay' | 'cod'>('vietqr');
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('vietqr');
   const [needsVatInvoice, setNeedsVatInvoice] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [taxId, setTaxId] = useState('');
@@ -170,8 +178,12 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     // P0 (PC-03 / data-honesty §5): đơn mới KHÔNG bao giờ tự nhận đã thanh toán.
     // VietQR/VNPAY chỉ được chuyển sang `paid` bởi webhook cổng thanh toán đã
     // kiểm chứng hoặc bởi người vận hành. COD là `cod` — thu tiền khi giao.
+    // UX-05: VNPAY/COD không khả dụng thì quy về VietQR (đơn vẫn CHỜ THANH TOÁN), không bịa cổng.
+    const payableMethod = resolveSelectablePaymentMethod(paymentMethod, {
+      hasPhysicalItems: physicalItems.length > 0,
+    });
     const paymentStatus: OrderPaymentStatus =
-      paymentMethod === 'cod' ? 'cod' : 'awaiting_payment';
+      payableMethod === 'cod' ? 'cod' : 'awaiting_payment';
 
     const newOrder: Order = {
       id: `ord-${Date.now()}`,
@@ -222,7 +234,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         trackingCode: ''
       },
       payment: {
-        method: paymentMethod === 'vietqr' ? 'VietQR Chuyển Khoản' : paymentMethod === 'vnpay' ? 'VNPAY QR' : 'Thanh toán khi nhận hàng (COD)',
+        method: payableMethod === 'vietqr' ? 'VietQR Chuyển Khoản' : payableMethod === 'vnpay' ? 'VNPAY QR' : 'Thanh toán khi nhận hàng (COD)',
         // '' = chưa nhận được tiền, chưa có thời điểm thanh toán.
         paidDate: '',
         subtotalPhysical,
@@ -735,15 +747,12 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                   </div>
                 </label>
 
-                {/* Method 2: VNPAY */}
+                {/* Method 2: VNPAY — UX-05: CHƯA kết nối cổng nên KHÔNG cho chọn/xác nhận. */}
                 <label
                   htmlFor="checkout-payment-vnpay"
-                  onClick={() => setPaymentMethod('vnpay')}
-                  className={`flex cursor-pointer flex-col justify-between gap-2 rounded-md border p-3 transition-colors duration-200 ${
-                    paymentMethod === 'vnpay'
-                      ? 'border-primary bg-surface ring-2 ring-ring/20'
-                      : 'border-line bg-surface-muted hover:border-fg-subtle'
-                  }`}
+                  aria-disabled="true"
+                  title={VNPAY_NOT_CONNECTED_REASON}
+                  className="flex cursor-not-allowed flex-col justify-between gap-2 rounded-md border border-line bg-surface-muted p-3 opacity-60"
                 >
                   <div className="flex items-center justify-between">
                     <Icon name="account_balance_wallet" size={20} className="text-fg-muted" />
@@ -751,14 +760,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                       id="checkout-payment-vnpay"
                       type="radio"
                       name="payment"
-                      checked={paymentMethod === 'vnpay'}
-                      onChange={() => setPaymentMethod('vnpay')}
+                      disabled
                       className="accent-primary"
                     />
                   </div>
                   <div>
-                    <strong className="block text-sm font-semibold text-fg">Cổng VNPAY QR</strong>
-                    <span className="text-xs text-fg-muted">Chưa kết nối cổng — xác nhận thủ công</span>
+                    <strong className="block text-sm font-semibold text-fg-muted">Cổng VNPAY QR</strong>
+                    <span className="text-xs text-fg-muted">Chưa kết nối cổng — không thể chọn</span>
                   </div>
                 </label>
 
@@ -822,6 +830,11 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                       <div className="sm:col-span-2">
                         Nội dung chuyển khoản: <strong className="font-mono font-semibold text-warning">VCUBE {phone.replace(/\s/g, '') || '<SĐT>'}</strong>
                       </div>
+                      {!transferReadiness.configured && (
+                        <p className="sm:col-span-2 font-medium text-warning">
+                          Còn thiếu: {transferReadiness.missing.map((field) => TRANSFER_FIELD_LABELS[field]).join(', ')} — liên hệ VCUBE trước khi chuyển khoản.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2 rounded-md border border-warning/20 bg-warning-tint p-3 text-xs text-fg-muted">
