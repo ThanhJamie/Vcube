@@ -25,8 +25,9 @@ import type {
 import type { OrderWithUserLink, QuoteInsertRow } from './databaseTypes';
 // Hợp đồng ghi canonical (discriminated union) — xem src/backend/lib/result.ts.
 import { ok, fail, type WriteResult } from '../lib/result';
-// UI-01: cổng chặn publish chưa đủ điều kiện (logic thuần ở backend/lib).
-import { publishGuardFailure } from '../lib/publishGuard';
+// UI-01: cổng chặn publish chưa đủ điều kiện (transition-aware) + status chuẩn hoá dùng chung.
+import { publishGuardFailure, publishGuardForSave } from '../lib/publishGuard';
+import { resolveStoredProductStatus } from '../../lib/productPublish';
 
 /**
  * Quy tắc bán hàng mặc định (một nguồn duy nhất cho phí ship / ngưỡng freeship).
@@ -230,7 +231,7 @@ export function buildProductRowPayload(product: Product): Record<string, unknown
     prints_count: product.printsCount,
     print_time: product.printTime,
     is_customizable: product.isCustomizable,
-    status: product.status ? product.status.toLowerCase() : 'published',
+    status: resolveStoredProductStatus(product.status),
     production_readiness: product.productionReadiness || 'ready_to_print',
     updated_at: new Date().toISOString(),
   };
@@ -269,7 +270,7 @@ export const dbService = {
   },
 
   async insertProduct(product: Product): Promise<WriteResult> {
-    const blocked = publishGuardFailure(product);
+    const blocked = publishGuardFailure(product, { isCreate: true });
     if (blocked) return blocked;
     try {
       // INSERT thật (không upsert): sản phẩm mới phải tạo mới; trùng id ⇒ lỗi thật (không ghi đè
@@ -288,10 +289,11 @@ export const dbService = {
 
   /**
    * Upsert dùng cho UPDATE (admin sửa/publish, designer sửa sản phẩm của mình khi policy cho phép).
-   * Tạo mới phải dùng `insertProduct` — upsert cần UPDATE policy nên designer sẽ bị 42501.
+   * P1-1: guard TRANSITION-AWARE — UI truyền `previousStatus`; không truyền ⇒ guard tự đọc
+   * status cũ. Direct API gap: client gọi thẳng PostgREST vẫn bypass (cần DB trigger về sau).
    */
-  async saveProduct(product: Product): Promise<WriteResult> {
-    const blocked = publishGuardFailure(product);
+  async saveProduct(product: Product, options?: { previousStatus?: unknown }): Promise<WriteResult> {
+    const blocked = await publishGuardForSave(product, options);
     if (blocked) return blocked;
     try {
       const { error } = await supabase.from('products').upsert(buildProductRowPayload(product));

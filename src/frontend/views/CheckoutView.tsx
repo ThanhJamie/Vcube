@@ -50,11 +50,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const { user, profile, isLoggedIn } = useAuth();
   const showToast = useUIStore((s) => s.showToast);
 
-  // Q1 (Đợt 8C §0 / data-honesty PC-03): số tài khoản ngân hàng và tên pháp nhân trước
-  // đây là HẰNG SỐ trong mã — khách nhìn thấy một số tài khoản BỊA ngay ở bước thanh toán
-  // (giá trị cũ ghi trong báo cáo Q1). Nay đọc từ `app_settings` qua settingsService.
-  // Giá trị rỗng ⇒ ẨN DÒNG đó (KHÔNG in "Số tài khoản: —"). Hook đặt TRƯỚC mọi early
-  // return của component (luật hook của React).
+  // Q1/PC-03: thông tin nhận tiền đọc từ `app_settings` (KHÔNG hằng số bịa). Hook đặt TRƯỚC
+  // mọi early return; giá trị rỗng ⇒ ẩn dòng đó (KHÔNG in "Số tài khoản: —").
   const [transferSettings, setTransferSettings] = useState<TransferSettings | null>(
     () => settingsAccessors.appSettings()
   );
@@ -83,15 +80,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     bankAccount: transferSettings?.bankAccount,
     accountHolder: transferSettings?.legalName,
   });
-  // Có BẤT KỲ trường nào ⇒ hiện đúng phần đã khai (không giấu dữ liệu thật); cả ba mới "đủ".
+  // Có BẤT KỲ trường nào ⇒ hiện đúng phần đã khai; "đủ để chuyển tiền" = ngân hàng + số TK (2/3).
   const hasTransferInfo = Boolean(bankName || bankAccount || accountHolder);
   // CTA tới /admin chỉ hiện với người xem là admin (role lấy từ DB — AuthContext).
   const canConfigureTransferInfo = profile?.role === 'admin';
 
-  // P0 (data-honesty #2): KHÔNG prefill PII của người khác. Chỉ điền sẵn thông tin
-  // của CHÍNH người dùng đang đăng nhập và đã tự lưu trong hồ sơ; khách vãng lai
-  // bắt đầu với form trống. Trước đây mọi khách đều thấy tên/SĐT/địa chỉ của một
-  // "Kỹ Sư Trần Tuấn Anh" bịa sẵn làm giá trị mặc định.
+  // P0: KHÔNG prefill PII của người khác — chỉ điền thông tin CHÍNH người dùng đã lưu;
+  // khách vãng lai bắt đầu với form trống.
   const [fullName, setFullName] = useState(profile?.displayName || '');
   const [phone, setPhone] = useState(profile?.phone || '');
   const [email, setEmail] = useState(profile?.email || '');
@@ -105,23 +100,15 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const [taxId, setTaxId] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  /**
-   * B1 — lỗi THẬT từ tầng ghi DB. Có giá trị ⇒ đơn CHƯA tồn tại và UI phải nói đúng
-   * điều đó; màn hình thành công chỉ được mở khi DB đã nhận đơn (data-honesty OT-03).
-   */
+  /** B1 — lỗi THẬT từ tầng ghi DB: có giá trị ⇒ đơn CHƯA tồn tại (data-honesty OT-03). */
   const [orderError, setOrderError] = useState<string | null>(null);
   /**
-   * FL-1: đơn VỪA TẠO (đã xuống DB). Có giá trị ⇒ màn hình chuyển sang khối thanh toán thủ công
-   * (số tiền + nội dung chuyển khoản + thông tin nhận tiền từ `app_settings`) thay vì rời trang
-   * ngay. KHÔNG bịa thông tin ngân hàng: thiếu cấu hình ⇒ hiện "Chưa cấu hình thông tin nhận tiền".
+   * FL-1: đơn VỪA TẠO (đã xuống DB) ⇒ hiện khối thanh toán thủ công thay vì rời trang.
+   * Thiếu cấu hình ⇒ hiện "Chưa cấu hình thông tin nhận tiền" (KHÔNG bịa số tài khoản).
    */
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [copiedPaymentField, setCopiedPaymentField] = useState<string | null>(null);
-  /**
-   * PR-3 — khoá idempotency của LẦN ĐẶT HÀNG hiện tại. Sinh một lần và GIỮ NGUYÊN
-   * qua các lần bấm lại sau lỗi: nếu RPC đã tạo đơn nhưng response bị mất, retry
-   * với cùng khoá sẽ nhận lại đơn cũ thay vì tạo đơn thứ hai.
-   */
+  /** PR-3 — khoá idempotency: giữ nguyên qua retry để không tạo đơn thứ hai. */
   const idempotencyKeyRef = useRef<string | null>(null);
 
   const physicalItems = cart.filter(i => i.type === 'physical');
@@ -132,13 +119,11 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const subtotal = subtotalPhysical + subtotalDigital;
 
   // Phí vận chuyển: MỘT nguồn duy nhất (`computeShippingFee` ← site_content).
-  // Trước đây ba nơi hardcode ba giá trị khác nhau (25.000 / 30.000 / inline 30.000).
   const shippingFee = computeShippingFee(subtotalPhysical, physicalItems.length > 0, siteContent);
   const freeThreshold = siteContent?.freeShippingThreshold ?? DEFAULT_SALES_RULES.freeShippingThreshold;
 
-  // VAT: giá niêm yết CHƯA gồm VAT; VAT là một dòng riêng, cùng con số với /quote, /cart
-  // và hoá đơn (trước đây checkout set `tax: 0` còn InvoiceModal tự cộng 8%). Tỉ lệ đọc từ
-  // `pricing_global_settings.vat_percent`; NULL ⇒ `vat === null` ⇒ ẩn dòng VAT (KHÔNG 0%/8%).
+  // VAT: giá niêm yết CHƯA gồm VAT; tỉ lệ đọc từ `pricing_global_settings.vat_percent`.
+  // NULL ⇒ `vat === null` ⇒ ẩn dòng VAT (KHÔNG 0%/8%).
   const afterDiscount = Math.max(0, subtotal + shippingFee - appliedDiscount);
   const vat = computeVat(afterDiscount, vatRate);
   const totalAmount = vat ? vat.total : afterDiscount;
@@ -328,6 +313,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       accountHolder: transferSettings?.legalName ?? null,
     });
     const payment = createdOrder.payment;
+    // P2-2: đơn COD không có hướng dẫn chuyển khoản — hiển thị đúng cách thanh toán khi nhận hàng.
+    const isCodOrder = payment?.status === 'cod';
     const copyText = async (field: string, value: string | null) => {
       if (!value) return;
       try {
@@ -350,20 +337,33 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               <h1 className="text-2xl font-bold tracking-tight text-fg">Đã tạo đơn hàng</h1>
               <p className="text-sm text-fg-muted">
                 Mã đơn{' '}
-                <strong className="font-mono text-fg tabular-nums">{createdOrder.orderNumber}</strong>. Đơn đang ở
-                trạng thái <strong className="text-warning">CHỜ THANH TOÁN</strong> — VCUBE xác nhận khoản chuyển
-                thủ công trước khi xưởng bắt đầu.
+                <strong className="font-mono text-fg tabular-nums">{createdOrder.orderNumber}</strong>.{' '}
+                {isCodOrder ? (
+                  <>Thanh toán khi nhận hàng (COD) — VCUBE xác nhận đơn trước khi xưởng bắt đầu.</>
+                ) : (
+                  <>Đơn đang ở trạng thái <strong className="text-warning">CHỜ THANH TOÁN</strong> — VCUBE xác nhận khoản chuyển thủ công trước khi xưởng bắt đầu.</>
+                )}
               </p>
             </div>
 
             {/* Số tiền + hướng dẫn chuyển khoản */}
             <div className="rounded-lg border border-line bg-surface-muted p-4 space-y-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm font-semibold text-fg">Số tiền cần chuyển</span>
+                <span className="text-sm font-semibold text-fg">
+                  {isCodOrder ? 'Số tiền thanh toán khi nhận hàng' : 'Số tiền cần chuyển'}
+                </span>
                 <Money value={instructions.amount} size="heading" className="text-fg" />
               </div>
 
-              {instructions.configured ? (
+              {isCodOrder ? (
+                <div className="rounded-md border border-info/20 bg-info-tint p-3 text-sm text-fg-muted">
+                  <p className="font-semibold text-info">Thanh toán khi nhận hàng (COD)</p>
+                  <p className="mt-1 leading-relaxed">
+                    Bạn thanh toán cho đơn vị giao hàng khi nhận. Không cần chuyển khoản trước; VCUBE xác nhận
+                    đơn và xưởng bắt đầu in sau đó.
+                  </p>
+                </div>
+              ) : instructions.configured ? (
                 <div className="space-y-2 text-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-fg-muted">Ngân hàng</span>
@@ -415,7 +415,9 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               )}
 
               <p className="text-xs leading-relaxed text-fg-muted">
-                Đơn chỉ chuyển sang trạng thái <strong>ĐÃ THANH TOÁN</strong> sau khi VCUBE đối soát được khoản chuyển.
+                {isCodOrder
+                  ? 'Đơn COD chỉ chuyển sang ĐÃ THANH TOÁN sau khi đơn vị giao hàng thu tiền.'
+                  : 'Đơn chỉ chuyển sang trạng thái ĐÃ THANH TOÁN sau khi VCUBE đối soát được khoản chuyển.'}{' '}
                 Bạn có thể tra cứu đơn bằng mã đơn {createdOrder.secureAccessToken ? 'kèm mã truy cập bên dưới' : 'trong mục Đơn hàng của tôi'}.
               </p>
             </div>

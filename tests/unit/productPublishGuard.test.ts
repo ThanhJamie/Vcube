@@ -9,10 +9,12 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  evaluatePublishTransition,
   formatPublishIssues,
   productSellableChannels,
+  resolveStoredProductStatus,
   validateProductForPublish,
-} from '../../src/frontend/lib/productStatus';
+} from '../../src/lib/productPublish';
 import type { Product } from '../../src/types';
 
 const validProduct = (overrides: Partial<Product> = {}): Product => ({
@@ -127,5 +129,38 @@ describe('productSellableChannels + formatPublishIssues', () => {
     assert.ok(text.includes('Cần ít nhất 1 ảnh sản phẩm thật'));
     assert.ok(text.includes('Chưa khai giấy phép sử dụng'));
     assert.equal(text.split(' · ').length, readiness.issues.length);
+  });
+});
+
+describe('P1-1/P2-1 — transition-aware + storedStatus dùng chung', () => {
+  test('status rỗng/không khai ⇒ storedStatus = published (khớp payload DB)', () => {
+    assert.equal(resolveStoredProductStatus(undefined), 'published');
+    assert.equal(resolveStoredProductStatus(''), 'published');
+    assert.equal(resolveStoredProductStatus('  Under Review '), 'under review');
+  });
+
+  test('tạo mới published ⇒ enteringPublish', () => {
+    const transition = evaluatePublishTransition(validProduct(), { isCreate: true });
+    assert.equal(transition.enteringPublish, true);
+    assert.equal(transition.alreadyPublished, false);
+  });
+
+  test('draft → published ⇒ entering; published → published ⇒ already (chỉ cảnh báo)', () => {
+    const entering = evaluatePublishTransition(validProduct(), { previousStatus: 'draft' });
+    assert.equal(entering.enteringPublish, true);
+    assert.equal(entering.alreadyPublished, false);
+
+    const already = evaluatePublishTransition(validProduct(), { previousStatus: 'published' });
+    assert.equal(already.enteringPublish, false);
+    assert.equal(already.alreadyPublished, true);
+  });
+
+  test('lưu draft/archived không bị xét publish', () => {
+    const transition = evaluatePublishTransition(validProduct({ status: 'draft' }), {
+      previousStatus: 'draft',
+    });
+    assert.equal(transition.targetPublished, false);
+    assert.equal(transition.enteringPublish, false);
+    assert.equal(transition.alreadyPublished, false);
   });
 });

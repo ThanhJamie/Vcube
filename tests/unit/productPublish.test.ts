@@ -19,6 +19,7 @@ import type { Product } from '../../src/types';
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://fl2a-fix-test.supabase.co';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'sb_publishable_fl2a_fix_test';
 const { buildProductRowPayload, dbService } = await import('../../src/backend/supabase/database');
+const { publishGuardFailure } = await import('../../src/backend/lib/publishGuard');
 
 const baseProduct = (overrides: Partial<Product> = {}): Product => ({
   id: 'prod-test-1',
@@ -120,15 +121,54 @@ describe('buildProductRowPayload — conditional designer_id + status lowercase'
   });
 });
 
-describe('dbService — UI-01 chặn publish khi thiếu điều kiện', () => {
-  test('saveProduct published thiếu ảnh/giấy phép ⇒ fail có issues, KHÔNG gọi mạng', async () => {
-    const res = await dbService.saveProduct(
+describe('dbService — UI-01 transition guard', () => {
+  test('insertProduct published thiếu ảnh/giấy phép ⇒ fail có issues, KHÔNG gọi mạng', async () => {
+    const res = await dbService.insertProduct(
       baseProduct({ status: 'Published', images: [], licenseType: undefined })
     );
-    if (res.success) assert.fail('published thiếu điều kiện phải bị chặn');
+    if (res.success) assert.fail('tạo mới published thiếu điều kiện phải bị chặn');
     assert.equal(res.success, false);
     assert.ok((res.issues?.length ?? 0) > 0);
     assert.ok(res.error.includes('ảnh'));
+  });
+
+  test('saveProduct: draft → published thiếu điều kiện ⇒ fail (previousStatus từ UI)', async () => {
+    const res = await dbService.saveProduct(
+      baseProduct({ status: 'Published', images: [], licenseType: undefined }),
+      { previousStatus: 'draft' }
+    );
+    if (res.success) assert.fail('transition sang published thiếu điều kiện phải bị chặn');
+    assert.equal(res.success, false);
+    assert.ok((res.issues?.length ?? 0) > 0);
+  });
+});
+
+describe('P2-7 — publishGuardFailure: nhánh chặn và nhánh cho qua', () => {
+  const valid = () =>
+    baseProduct({
+      status: 'Published',
+      images: ['https://cdn.vcube.vn/products/real.webp'],
+      licenseType: 'Commercial',
+      sellerType: 'platform',
+    });
+  const invalid = () =>
+    baseProduct({ status: 'Published', images: [], licenseType: undefined, sellerType: 'platform' });
+
+  test('tạo mới đủ điều kiện ⇒ null (pass)', () => {
+    assert.equal(publishGuardFailure(valid(), { isCreate: true }), null);
+  });
+
+  test('draft → published đủ điều kiện ⇒ null (pass)', () => {
+    assert.equal(publishGuardFailure(valid(), { previousStatus: 'draft' }), null);
+  });
+
+  test('draft → published thiếu điều kiện ⇒ fail', () => {
+    const res = publishGuardFailure(invalid(), { previousStatus: 'draft' });
+    assert.ok(res && res.success === false);
+  });
+
+  test('P1-1: đã published legacy thiếu license/ảnh ⇒ KHÔNG chặn (chỉ cảnh báo)', () => {
+    assert.equal(publishGuardFailure(invalid(), { previousStatus: 'published' }), null);
   });
 });
 

@@ -5,12 +5,14 @@ import { formatCurrency } from '@frontend/lib/format';
 import { realProductImageUrl } from '@frontend/lib/productImage';
 import {
   ADMIN_STATUS_OPTIONS,
-  formatPublishIssues,
   isUnderReviewStatus,
   normalizeProductStatus,
   toAdminSelectStatus,
-  validateProductForPublish,
 } from '@frontend/lib/productStatus';
+import {
+  formatPublishIssues,
+  validateProductForPublish,
+} from '@frontend/lib/productPublish';
 
 interface AdminProductColumnActions {
   onEditProduct: (product: Product) => void;
@@ -126,13 +128,15 @@ export function buildAdminProductColumns({
         // "under review"/"pending" không rơi về option đầu và mất nhãn "Chờ duyệt".
         const status = toAdminSelectStatus(prod.status);
         const pending = isUnderReviewStatus(prod.status);
-        // UI-01: điều kiện publish của CHÍNH sản phẩm này (dùng cho title + chặn chọn).
+        // P1-1: chỉ CHẶN khi đang chuyển từ trạng thái khác SANG published. Hàng ĐÃ published
+        // (kể cả legacy thiếu license/ảnh) vẫn đổi trạng thái/lưu bình thường.
+        const currentPublished = normalizeProductStatus(prod.status) === 'published';
         const publishReadiness = validateProductForPublish({ ...prod, status: 'published' });
         return (
           <select
             value={status} aria-label={`Trạng thái ${prod.name}`}
             title={
-              publishReadiness.ready
+              currentPublished || publishReadiness.ready
                 ? undefined
                 : `Chưa đủ điều kiện đăng bán: ${formatPublishIssues(publishReadiness)}`
             }
@@ -143,7 +147,8 @@ export function buildAdminProductColumns({
               const nextStatus = e.target.value as ProductStatus;
               const nextProduct = { ...prod, status: nextStatus };
               // UI-01: KHÔNG ghi 'published' khi thiếu ảnh/giá/giấy phép/designer — nêu lý do.
-              if (normalizeProductStatus(nextStatus) === 'published' && !publishReadiness.ready) {
+              const nextPublished = normalizeProductStatus(nextStatus) === 'published';
+              if (nextPublished && !currentPublished && !publishReadiness.ready) {
                 onShowToast(
                   `Không thể đăng bán "${prod.name}": ${formatPublishIssues(publishReadiness)}`
                 );

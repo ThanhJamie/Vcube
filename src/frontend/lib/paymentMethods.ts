@@ -74,7 +74,11 @@ export const TRANSFER_FIELD_LABELS: Record<TransferInfoField, string> = {
 };
 
 export interface TransferInfoReadiness {
-  /** Chỉ `true` khi CẢ BA trường đều có giá trị THẬT từ `app_settings`. */
+  /**
+   * `true` khi đủ thông tin để CHUYỂN TIỀN: ngân hàng + số tài khoản (2/3), khớp với
+   * `ManualPaymentProvider.buildInstructions().configured` (P2-3 — một định nghĩa duy nhất).
+   * Tên pháp nhân vẫn được nêu trong `missing` để nhắc bổ sung nhưng không chặn chuyển khoản.
+   */
   configured: boolean;
   missing: TransferInfoField[];
 }
@@ -92,5 +96,5 @@ export function getTransferInfoReadiness(info: {
   if (!info.bankName?.trim()) missing.push('bankName');
   if (!info.bankAccount?.trim()) missing.push('bankAccount');
   if (!info.accountHolder?.trim()) missing.push('accountHolder');
-  return { configured: missing.length === 0, missing };
+  return { configured: Boolean(info.bankName?.trim() && info.bankAccount?.trim()), missing };
 }

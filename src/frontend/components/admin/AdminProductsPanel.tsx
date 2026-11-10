@@ -7,11 +7,13 @@ import type { DataTableColumn } from '@frontend/ui';
 import { buildAdminProductColumns } from './adminProductColumns';
 import {
   ADMIN_STATUS_OPTIONS,
-  formatPublishIssues,
   normalizeProductStatus,
   toAdminSelectStatus,
-  validateProductForPublish,
 } from '@frontend/lib/productStatus';
+import {
+  formatPublishIssues,
+  validateProductForPublish,
+} from '@frontend/lib/productPublish';
 
 interface AdminProductsPanelProps {
   products: Product[];
@@ -109,6 +111,16 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
   const [readinessFilter, setReadinessFilter] = useState('all');
   const [editingProduct, setEditingProduct] = useState<EditableProduct | null>(null);
+  /**
+   * P1-1: trạng thái LÚC MỞ modal — quyết định lần lưu này có phải TRANSITION sang published
+   * hay chỉ sửa hàng đã published (legacy thiếu license/ảnh vẫn lưu được).
+   */
+  const [editingOriginalStatus, setEditingOriginalStatus] = useState<string | null>(null);
+  /** Đóng modal sửa + quên trạng thái gốc (P1-1) — một chỗ duy nhất. */
+  const closeEditModal = () => {
+    setEditingProduct(null);
+    setEditingOriginalStatus(null);
+  };
   const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
   /** Q2 (data-honesty): tính năng là dữ liệu THẬT do admin nhập (mỗi dòng một tính năng).
    *  Form trước đây không có ô nhập nên mọi sản phẩm mới luôn có `features: []`. */
@@ -236,8 +248,10 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
 
     // Chỉ tới đây mới ghi xuống DB: hai giá là số admin ĐÃ nhập (0 cũng là số thật).
     const updatedProduct: Product = { ...editingProduct, pricePhysical, priceDigital };
-    // UI-01: đổi sang 'published' (hoặc đang published) mà thiếu điều kiện ⇒ CHẶN + nêu lý do.
-    if (normalizeProductStatus(updatedProduct.status) === 'published') {
+    // P1-1: chỉ CHẶN khi lần lưu này BIẾN sản phẩm thành published. Hàng đã published từ trước
+    // (kể cả legacy thiếu license/ảnh/designer) vẫn sửa giá/mô tả/tồn bình thường.
+    const wasPublished = normalizeProductStatus(editingOriginalStatus) === 'published';
+    if (normalizeProductStatus(updatedProduct.status) === 'published' && !wasPublished) {
       const readiness = validateProductForPublish(updatedProduct);
       if (!readiness.ready) {
         onShowToast(`Không thể đăng bán: ${formatPublishIssues(readiness)}`);
@@ -245,7 +259,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
       }
     }
     onUpdateProduct(updatedProduct);
-    setEditingProduct(null);
+    closeEditModal();
     onShowToast(`Đã cập nhật sản phẩm "${editingProduct.name}"`);
   };
 
@@ -268,7 +282,10 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
   const productColumns = useMemo<DataTableColumn<Product>[]>(
     () =>
       buildAdminProductColumns({
-        onEditProduct: (product) => setEditingProduct({ ...product }),
+        onEditProduct: (product) => {
+          setEditingProduct({ ...product });
+          setEditingOriginalStatus(product.status == null ? '' : String(product.status));
+        },
         onDeleteRequest: handleDeleteProductConfirm,
         onUpdateProduct,
         onShowToast,
@@ -278,16 +295,17 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
   );
 
   /**
-   * UI-01: lý do CHƯA đăng bán được của sản phẩm đang sửa — hiển thị ngay dưới select trạng
-   * thái để admin biết cần bổ sung gì (toast chỉ là thông báo tức thời).
+   * P1-1: lý do CHƯA đủ điều kiện của sản phẩm đang sửa.
+   *  - `blocks=true`  ⇒ lần lưu này BIẾN sản phẩm thành published (chặn + báo lỗi).
+   *  - `blocks=false` ⇒ hàng ĐÃ published legacy: chỉ CẢNH BÁO, vẫn lưu được.
    */
+  const editingTargetPublished =
+    editingProduct !== null && normalizeProductStatus(editingProduct.status) === 'published';
+  const editingPublishBlocks =
+    editingTargetPublished && normalizeProductStatus(editingOriginalStatus) !== 'published';
   const editingPublishIssues =
-    editingProduct && normalizeProductStatus(editingProduct.status) === 'published'
-      ? validateProductForPublish({
-          ...editingProduct,
-          pricePhysical: editingProduct.pricePhysical ?? 0,
-          priceDigital: editingProduct.priceDigital ?? 0,
-        } as Product).issues
+    editingTargetPublished && editingProduct
+      ? validateProductForPublish({ ...editingProduct, pricePhysical: editingProduct.pricePhysical ?? 0, priceDigital: editingProduct.priceDigital ?? 0 } as Product).issues
       : [];
 
   return (
@@ -403,7 +421,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
       {editingProduct && (
         <Modal
           open
-          onClose={() => setEditingProduct(null)}
+          onClose={closeEditModal}
           size="lg"
           title="Chỉnh Sửa Thông Tin Sản Phẩm"
         >
@@ -526,7 +544,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     </Select>
                   )}
                 </Field>
-                <Field label="Bên bán" hint="'Tác giả 3D' cần designer_id liên kết." optionalLabel={null}>
+                <Field label="Bên bán" hint="'Tác giả 3D' cần liên kết designer_id bên dưới." optionalLabel={null}>
                   {(control) => (
                     <Select
                       {...control}
@@ -544,11 +562,30 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                     </Select>
                   )}
                 </Field>
+                <Field
+                  label="Designer ID (UUID của tác giả)"
+                  hint="Chỉ bắt buộc khi Bên bán = Tác giả 3D và đang chuyển sang Đăng bán. Để trống với hàng nền tảng."
+                  optionalLabel={null}
+                >
+                  {(control) => (
+                    <Input
+                      {...control}
+                      type="text"
+                      className="font-mono"
+                      value={editingProduct.designerId || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, designerId: e.target.value.trim() || undefined })}
+                    />
+                  )}
+                </Field>
               </div>
 
               {editingPublishIssues.length > 0 && (
                 <div className="rounded-md border border-warning/20 bg-warning-tint p-3 text-xs text-fg-muted">
-                  <p className="font-semibold text-warning">Chưa đủ điều kiện đăng bán</p>
+                  <p className="font-semibold text-warning">
+                    {editingPublishBlocks
+                      ? 'Chưa đủ điều kiện đăng bán'
+                      : 'Sản phẩm đã đăng bán nhưng còn thiếu (vẫn lưu được)'}
+                  </p>
                   <ul className="mt-1 list-disc space-y-0.5 pl-4">
                     {editingPublishIssues.map((issue) => (
                       <li key={`${issue.code}-${issue.field}`}>{issue.message}</li>
@@ -561,7 +598,7 @@ export const AdminProductsPanel: React.FC<AdminProductsPanelProps> = ({
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => setEditingProduct(null)}
+                  onClick={closeEditModal}
                 >
                   Hủy
                 </Button>

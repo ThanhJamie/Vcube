@@ -54,14 +54,24 @@ describe('paymentMethods — readiness thông tin nhận tiền', () => {
     assert.deepEqual(readiness.missing, ['bankName', 'bankAccount', 'accountHolder']);
   });
 
-  test('thiếu một trường ⇒ nêu đúng trường đó, không tuyên bố đã cấu hình', () => {
+  test('P2-3: thiếu tên pháp nhân nhưng có ngân hàng + số TK ⇒ VẪN configured (2/3)', () => {
     const readiness = getTransferInfoReadiness({
       bankName: 'Vietcombank',
       bankAccount: '0123456789',
       accountHolder: '',
     });
-    assert.equal(readiness.configured, false);
+    assert.equal(readiness.configured, true);
     assert.deepEqual(readiness.missing, ['accountHolder']);
+  });
+
+  test('chỉ có ngân hàng, thiếu số TK ⇒ chưa configured (không chuyển được)', () => {
+    const readiness = getTransferInfoReadiness({
+      bankName: 'Vietcombank',
+      bankAccount: '   ',
+      accountHolder: 'CÔNG TY VCUBE',
+    });
+    assert.equal(readiness.configured, false);
+    assert.deepEqual(readiness.missing, ['bankAccount']);
   });
 
   test('đủ cả ba ⇒ configured', () => {
