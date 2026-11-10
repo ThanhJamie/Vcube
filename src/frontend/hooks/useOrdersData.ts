@@ -17,6 +17,15 @@ import type { DigitalAsset, Order } from '@/types';
 import { dbService } from '@backend/supabase/database';
 import { isSupabaseConfigured } from '@backend/supabase/client';
 import { MY_ORDER_STATUS_LABELS } from '@backend/services/workshop/constants';
+import {
+  createWarrantyClaim,
+  listWorkshopWarrantyClaims,
+  updateWarrantyClaim,
+  type CreateWarrantyClaimInput,
+  type WarrantyClaim,
+  type WarrantyClaimStatus,
+} from '@backend/services/warrantyService';
+import type { WriteResult } from '@backend/lib/result';
 import { useAuth } from '@frontend/context/AuthContext';
 import { useCartStore } from '@frontend/stores/useCartStore';
 import { EMPTY_VALUE } from '@frontend/lib/format';
@@ -308,4 +317,99 @@ export function useOrdersData(): OrdersData {
     unreadCount,
     markNotificationsRead,
   };
+}
+
+/* ============================================================================
+ * WARRANTY BRIDGE — component KHÔNG import thẳng `backend/services`
+ * (gate `check-import-boundaries`). Hook này là cầu nối đã nằm trong baseline,
+ * component chỉ nhận state/action từ đây.
+ * ========================================================================== */
+export type { CreateWarrantyClaimInput, WarrantyClaim, WarrantyClaimStatus };
+
+export interface WarrantyClaimSubmitState {
+  submitting: boolean;
+  submit: (input: CreateWarrantyClaimInput) => Promise<WriteResult<WarrantyClaim>>;
+}
+
+/** Gửi yêu cầu bảo hành cho đơn của chính khách đang đăng nhập. */
+export function useWarrantyClaimSubmit(): WarrantyClaimSubmitState {
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = useCallback(async (input: CreateWarrantyClaimInput) => {
+    setSubmitting(true);
+    try {
+      return await createWarrantyClaim(input);
+    } finally {
+      setSubmitting(false);
+    }
+  }, []);
+
+  return { submitting, submit };
+}
+
+export interface WorkshopWarrantyClaimsState {
+  claims: WarrantyClaim[];
+  loading: boolean;
+  error: string | null;
+  reload: () => Promise<void>;
+}
+
+/** Claim thuộc các đơn đã giao cho xưởng `partnerId` (lọc ở service, không lộ xưởng khác). */
+export function useWorkshopWarrantyClaims(partnerId: string | null): WorkshopWarrantyClaimsState {
+  const [claims, setClaims] = useState<WarrantyClaim[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    if (!partnerId) {
+      setClaims([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      setClaims(await listWorkshopWarrantyClaims(partnerId));
+    } catch (err) {
+      setClaims([]);
+      setError(err instanceof Error ? err.message : 'Không tải được yêu cầu bảo hành.');
+    } finally {
+      setLoading(false);
+    }
+  }, [partnerId]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return { claims, loading, error, reload };
+}
+
+export interface WarrantyClaimUpdateState {
+  saving: boolean;
+  save: (input: {
+    id: string;
+    status: WarrantyClaimStatus;
+    resolution: string;
+  }) => Promise<WriteResult>;
+}
+
+/** Cập nhật trạng thái/kết quả xử lý claim (RLS chỉ cho admin/lab). */
+export function useWarrantyClaimUpdate(): WarrantyClaimUpdateState {
+  const [saving, setSaving] = useState(false);
+
+  const save = useCallback(
+    async (input: { id: string; status: WarrantyClaimStatus; resolution: string }) => {
+      setSaving(true);
+      try {
+        return await updateWarrantyClaim(input);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [],
+  );
+
+  return { saving, save };
 }

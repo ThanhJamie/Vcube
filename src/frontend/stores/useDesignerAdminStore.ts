@@ -118,6 +118,19 @@ export interface DesignerAdminState {
    */
   loadPayoutInfo: (designerId: string) => Promise<DesignerPayoutInfo | null>;
 
+  /* ------------------------------------------------------------------ */
+  /* Tự phục vụ: designer đang đăng nhập tự đọc/ghi thông tin nhận tiền  */
+  /* ------------------------------------------------------------------ */
+  myPayoutInfo: DesignerPayoutInfo | null;
+  myPayoutLoading: boolean;
+  myPayoutError: string | null;
+  loadMyPayoutInfo: () => Promise<void>;
+  saveMyPayoutInfo: (input: {
+    bankName: string;
+    bankAccount: string;
+    taxId: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+
   getDesignerStats: () => DesignerAdminStats;
 }
 
@@ -131,6 +144,18 @@ const strOrNull = (v: unknown): string | null => {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
   return s === '' ? null : s;
+};
+
+/** Lỗi PostgREST khi RPC/bảng payout chưa được áp migration #10 — nói rõ việc cần làm. */
+const friendlyPayoutError = (message: string): string => {
+  if (
+    /could not find the function|schema cache|does not exist|relation .* does not exist/i.test(
+      message
+    )
+  ) {
+    return 'Môi trường này chưa áp migration thông tin nhận tiền (#10). Vui lòng báo quản trị viên trước khi khai báo.';
+  }
+  return message;
 };
 
 /** Dòng `designer_profiles` (cột nào có thì đọc cột đó) → `DesignerRow`. Không bịa mặc định. */
@@ -165,6 +190,9 @@ export const useDesignerAdminStore = create<DesignerAdminState>((set, get) => ({
     verifiedStatus: 'all',
     searchQuery: ''
   },
+  myPayoutInfo: null,
+  myPayoutLoading: false,
+  myPayoutError: null,
 
   setFilterBadgeTier: (badgeTier) =>
     set((state) => ({ filters: { ...state.filters, badgeTier } })),
@@ -268,6 +296,73 @@ export const useDesignerAdminStore = create<DesignerAdminState>((set, get) => ({
     } catch {
       // RPC bị chặn (không phải admin) / lỗi mạng ⇒ coi như chưa có dữ liệu, KHÔNG bịa.
       return null;
+    }
+  },
+
+  loadMyPayoutInfo: async () => {
+    set({ myPayoutLoading: true, myPayoutError: null });
+    try {
+      const { data, error } = await supabase.rpc('get_my_payout_info');
+      if (error) {
+        set({
+          myPayoutLoading: false,
+          myPayoutInfo: null,
+          myPayoutError: friendlyPayoutError(error.message)
+        });
+        return;
+      }
+      const row = Array.isArray(data) ? (data[0] as Record<string, unknown> | undefined) : undefined;
+      if (!row) {
+        set({
+          myPayoutLoading: false,
+          myPayoutInfo: null,
+          myPayoutError: 'Tài khoản chưa có hồ sơ nhà thiết kế.'
+        });
+        return;
+      }
+      set({
+        myPayoutLoading: false,
+        myPayoutError: null,
+        myPayoutInfo: {
+          bankName: strOrNull(row.bank_name),
+          bankAccount: strOrNull(row.bank_account),
+          taxId: strOrNull(row.tax_id)
+        }
+      });
+    } catch (e: unknown) {
+      set({
+        myPayoutLoading: false,
+        myPayoutInfo: null,
+        myPayoutError: friendlyPayoutError(
+          e instanceof Error ? e.message : 'Không tải được thông tin nhận tiền.'
+        )
+      });
+    }
+  },
+
+  saveMyPayoutInfo: async (input) => {
+    const bankName = (input.bankName || '').trim();
+    const bankAccount = (input.bankAccount || '').trim();
+    const taxId = (input.taxId || '').trim();
+    if (!bankName) return { success: false, error: 'Vui lòng nhập tên ngân hàng.' };
+    if (!bankAccount) return { success: false, error: 'Vui lòng nhập số tài khoản.' };
+
+    try {
+      const { error } = await supabase.rpc('upsert_my_payout_info', {
+        p_bank_name: bankName,
+        p_bank_account: bankAccount,
+        p_tax_id: taxId
+      });
+      if (error) return { success: false, error: friendlyPayoutError(error.message) };
+      await get().loadMyPayoutInfo();
+      return { success: true };
+    } catch (e: unknown) {
+      return {
+        success: false,
+        error: friendlyPayoutError(
+          e instanceof Error ? e.message : 'Không lưu được thông tin nhận tiền.'
+        )
+      };
     }
   },
 

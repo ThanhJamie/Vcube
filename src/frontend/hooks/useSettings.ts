@@ -18,7 +18,7 @@
  *   * Lỗi đọc DB trả nguyên trong `error`, KHÔNG nuốt im lặng.
  *   * Không gọi DB trong lúc render: đọc cache trước, chỉ nạp khi cache rỗng.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   getStore,
   peekSettings,
@@ -27,8 +27,16 @@ import {
   type PricingGlobalSettings,
   type SettingsStore,
 } from '@backend/services/settingsService';
+import {
+  AUDIT_LOG_LIMIT,
+  listAuditLog,
+  type AuditLogEntry,
+} from '@backend/services/auditLogService';
 import type { AppSettings } from '@backend/supabase/mappers';
 import type { SiteContentConfig } from '../../types';
+
+export { AUDIT_LOG_LIMIT };
+export type { AuditLogEntry };
 
 export interface UseSettingsResult<T> {
   /** `null` = CHƯA CẤU HÌNH (khác hẳn lỗi). Không có giá trị mặc định nào được bịa. */
@@ -102,4 +110,58 @@ export function usePricingGlobalSettings(): UseSettingsResult<PricingGlobalSetti
 /** `site_content` — nội dung storefront. `null` ⇒ hàng chưa tồn tại. */
 export function useSiteContent(): UseSettingsResult<SiteContentConfig> {
   return useSettingsStore<SiteContentConfig>('site_content', settingsAccessors.siteContent);
+}
+
+export interface UseAuditLogOptions {
+  /** Mã `setting_audit.store`; rỗng/undefined = tất cả. */
+  store?: string;
+  /** Tìm theo `setting_key` (ILIKE). */
+  search?: string;
+  limit?: number;
+}
+
+export interface UseAuditLogResult {
+  entries: AuditLogEntry[];
+  loading: boolean;
+  error: string | null;
+  reload: () => Promise<void>;
+}
+
+/**
+ * Đọc `setting_audit` cho màn admin. Hook này nằm trong file đã có baseline
+ * `backend/services` nên panel không phải import thẳng tầng backend
+ * (`check-import-boundaries`).
+ */
+export function useAuditLog(options: UseAuditLogOptions = {}): UseAuditLogResult {
+  const store = options.store ?? '';
+  const search = options.search ?? '';
+  const limit = options.limit ?? AUDIT_LOG_LIMIT;
+
+  const [entries, setEntries] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const rows = await listAuditLog({
+        store: store || undefined,
+        search: search || undefined,
+        limit,
+      });
+      setEntries(rows);
+    } catch (err) {
+      setEntries([]);
+      setError(err instanceof Error ? err.message : 'Không tải được nhật ký thay đổi.');
+    } finally {
+      setLoading(false);
+    }
+  }, [store, search, limit]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return { entries, loading, error, reload };
 }

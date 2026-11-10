@@ -176,6 +176,12 @@ export function buildAdminNavGroups(
           label: 'Cài Đặt Xưởng & Hệ Thống',
           icon: 'settings',
           badge: null
+        },
+        {
+          id: 'audit-log' as AdminNavSection,
+          label: 'Nhật Ký Thay Đổi',
+          icon: 'history',
+          badge: null
         }
       ]
     }];

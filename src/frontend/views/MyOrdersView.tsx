@@ -4,6 +4,7 @@ import { OrderProgress } from '../components/OrderProgress';
 import { Icon, Button, Badge, Card, Modal, Field, Input, Select, EmptyState, type BadgeVariant } from '@frontend/ui';
 import { formatCurrency, formatDateTime } from '../lib/format';
 import { isFabricatedImage } from '../lib/productImage';
+import { useWarrantyClaimSubmit } from '@frontend/hooks/useOrdersData';
 
 interface MyOrdersViewProps {
   orders: Order[];
@@ -18,6 +19,10 @@ interface WarrantyClaimState {
   measuredDeviation: string;
   notes: string;
   submitted: boolean;
+  submitting: boolean;
+  error: string | null;
+  /** `warranty_claims.id` THẬT do DB sinh sau khi gửi thành công. */
+  claimId: string | null;
 }
 
 export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
@@ -27,6 +32,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const { submit: submitWarrantyClaim } = useWarrantyClaimSubmit();
   const [warrantyModal, setWarrantyModal] = useState<WarrantyClaimState>({
     isOpen: false,
     order: null,
@@ -34,7 +40,10 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
     // OT-10: KHÔNG prefill một số đo khách chưa từng đo. Trường này bắt buộc và trống.
     measuredDeviation: '',
     notes: '',
-    submitted: false
+    submitted: false,
+    submitting: false,
+    error: null,
+    claimId: null
   });
   const [reorderSuccessId, setReorderSuccessId] = useState<string | null>(null);
 
@@ -81,29 +90,55 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
       issueType: 'tolerance',
       measuredDeviation: '',
       notes: '',
-      submitted: false
+      submitted: false,
+      submitting: false,
+      error: null,
+      claimId: null
     });
   };
 
   /**
-   * OT-10: bảng `warranty_claims` CÓ trong schema (baseline) nhưng biểu mẫu bảo
-   * hành CHƯA được nối vào backend (unwired) — không có luồng ghi nào. Vì vậy
-   * không được bịa mã hồ sơ `QC-CLAIM-…` hay hứa "phản hồi trong 2 giờ". Trạng
-   * thái gửi ở đây nói rõ sự thật.
+   * Ghi yêu cầu bảo hành THẬT vào `warranty_claims` qua service. Không dựng mã hồ sơ
+   * giả: chỉ hiển thị id do DB trả về, kèm trạng thái chờ xưởng tiếp nhận (không hứa SLA).
    */
-  const handleSubmitWarranty = (e: React.FormEvent) => {
+  const handleSubmitWarranty = async (e: React.FormEvent) => {
     e.preventDefault();
-    setWarrantyModal(prev => ({ ...prev, submitted: true }));
-    setTimeout(() => {
-      setWarrantyModal({
-        isOpen: false,
-        order: null,
-        issueType: 'tolerance',
-        measuredDeviation: '',
-        notes: '',
-        submitted: false
-      });
-    }, 4000);
+    const { order, issueType, measuredDeviation, notes, submitting } = warrantyModal;
+    if (!order || submitting) return;
+
+    setWarrantyModal(prev => ({ ...prev, submitting: true, error: null }));
+    const res = await submitWarrantyClaim({
+      orderId: order.id,
+      issueType,
+      measuredDeviation,
+      notes
+    });
+
+    if (res.success) {
+      setWarrantyModal(prev => ({
+        ...prev,
+        submitting: false,
+        submitted: true,
+        claimId: res.data.id
+      }));
+      return;
+    }
+
+    setWarrantyModal(prev => ({ ...prev, submitting: false, error: res.error }));
+  };
+
+  const closeWarrantyModal = () => {
+    setWarrantyModal({
+      isOpen: false,
+      order: null,
+      issueType: 'tolerance',
+      measuredDeviation: '',
+      notes: '',
+      submitted: false,
+      submitting: false,
+      error: null,
+      claimId: null
+    });
   };
 
   const getStatusBadge = (status: Order['status']): { label: string; variant: BadgeVariant } => {
@@ -395,28 +430,42 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
         )}
       </div>
 
-      {/* Tolerance Claim Interactive Modal */}
-      {warrantyModal.isOpen && (
-        <Modal
-          open
-          onClose={() => setWarrantyModal(prev => ({ ...prev, isOpen: false }))}
-          size="lg"
-          title="YÊU CẦU BẢO HÀNH DUNG SAI KỸ THUẬT"
-          description="Ghi nhận sai lệch kích thước / bề mặt để xưởng kiểm tra"
-        >
+      {/* Tolerance Claim Interactive Modal — LUÔN mount, chỉ đổi prop `open`.
+          Mount có điều kiện làm effect của `Modal` chạy mount→cleanup→mount dưới StrictMode;
+          `dialog.close()` trong cleanup gọi `onClose` và đóng modal vừa mở (xem ChatSupportModal). */}
+      <Modal
+        open={warrantyModal.isOpen}
+        onClose={closeWarrantyModal}
+        size="lg"
+        title="YÊU CẦU BẢO HÀNH DUNG SAI KỸ THUẬT"
+        description="Ghi nhận sai lệch kích thước / bề mặt để xưởng kiểm tra"
+      >
             {warrantyModal.submitted ? (
-              <div role="alert" className="p-4 text-center space-y-3">
-                <div className="mx-auto grid size-12 place-items-center rounded-full bg-warning-tint text-warning">
-                  <Icon name="error" size={24} />
+              <div role="status" className="p-4 text-center space-y-3">
+                <div className="mx-auto grid size-12 place-items-center rounded-full bg-positive-tint text-positive">
+                  <Icon name="check_circle" size={24} />
                 </div>
-                <h4 className="font-bold text-base text-fg">Chưa gửi được yêu cầu</h4>
+                <h4 className="font-bold text-base text-fg">Đã gửi — chờ xưởng tiếp nhận</h4>
                 <p className="text-xs text-fg-muted">
-                  Hệ thống tiếp nhận bảo hành trực tuyến chưa được nối vào cơ sở dữ liệu, nên yêu cầu của bạn
-                  <strong className="text-fg"> chưa được ghi nhận</strong> và không có mã hồ sơ nào được tạo.
+                  Yêu cầu bảo hành đã được ghi vào hệ thống cho đơn{' '}
+                  <span className="font-mono text-fg">{warrantyModal.order?.orderNumber ?? '—'}</span>.
                 </p>
+                {warrantyModal.claimId && (
+                  <p className="text-xs text-fg-subtle font-mono">
+                    Mã hồ sơ:{' '}
+                    <span className="text-fg" title={warrantyModal.claimId}>
+                      {warrantyModal.claimId.slice(0, 8)}
+                    </span>
+                  </p>
+                )}
                 <p className="text-xs text-fg-subtle font-mono">
-                  Vui lòng liên hệ trực tiếp xưởng để được xử lý ngay.
+                  Xưởng sẽ kiểm tra số đo thực tế trước khi kết luận.
                 </p>
+                <div className="pt-2">
+                  <Button type="button" variant="primary" size="md" onClick={closeWarrantyModal}>
+                    Đóng
+                  </Button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSubmitWarranty} className="space-y-4 text-xs">
@@ -478,12 +527,20 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                   </span>
                 </div>
 
+                {warrantyModal.error && (
+                  <div role="alert" className="bg-danger-tint p-3 rounded-lg border border-danger/20 text-danger text-xs flex items-start gap-2">
+                    <Icon name="error" size={18} className="shrink-0 mt-0.5" />
+                    <span>{warrantyModal.error}</span>
+                  </div>
+                )}
+
                 <div className="pt-2 flex items-center justify-end gap-3 font-mono">
                   <Button
                     type="button"
                     variant="secondary"
                     size="md"
-                    onClick={() => setWarrantyModal(prev => ({ ...prev, isOpen: false }))}
+                    onClick={closeWarrantyModal}
+                    disabled={warrantyModal.submitting}
                   >
                     Đóng
                   </Button>
@@ -491,14 +548,15 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                     type="submit"
                     variant="primary"
                     size="md"
+                    loading={warrantyModal.submitting}
+                    loadingLabel="Đang gửi…"
                   >
                     Gửi Hồ Sơ Khiếu Nại
                   </Button>
                 </div>
               </form>
             )}
-        </Modal>
-      )}
+      </Modal>
     </div>
   );
 };

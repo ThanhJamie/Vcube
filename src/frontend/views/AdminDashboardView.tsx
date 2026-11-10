@@ -44,6 +44,10 @@ const AdminSettingsPanel = React.lazy(() =>
 const WarehouseInventoryPanel = React.lazy(() =>
   import('../components/admin/WarehouseInventoryPanel').then((m) => ({ default: m.WarehouseInventoryPanel }))
 );
+// Nhật ký thay đổi cấu hình (`setting_audit`) — chỉ admin đọc được (RLS).
+const AdminAuditLogPanel = React.lazy(() =>
+  import('../components/admin/AdminAuditLogPanel').then((m) => ({ default: m.AdminAuditLogPanel }))
+);
 
 // URL alias của nhóm "Danh mục & định giá": cùng `Group4PricingEnginePanel`, chỉ khác sub-tab mở đầu.
 type PricingSection =
@@ -148,7 +152,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     'users', 'customers',
     'pricing', 'pricing-engine', 'pricing-setup', 'cost-rules', 'materials', 'hardware', 'quote-calc',
     'queue', 'orders', 'inventory',
-    'products', 'storefront', 'seo', 'settings'
+    'products', 'storefront', 'seo', 'settings', 'audit-log'
   ];
 
   /**
@@ -294,6 +298,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       group: 'CỬA HÀNG & HỆ THỐNG',
       title: 'Cài Đặt Xưởng In & Pháp Nhân',
       icon: 'settings'
+    },
+    'audit-log': {
+      group: 'CỬA HÀNG & HỆ THỐNG',
+      title: 'Nhật Ký Thay Đổi Cấu Hình',
+      icon: 'history'
     }
   };
 
@@ -543,6 +552,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       icon: 'settings',
       boundaryLabel: 'Cài đặt xưởng in',
       element: <AdminSettingsPanel onShowToast={onShowToast} />,
+    },
+    {
+      id: 'audit-log',
+      label: 'Nhật ký thay đổi',
+      icon: 'history',
+      boundaryLabel: 'Nhật ký thay đổi cấu hình',
+      element: <AdminAuditLogPanel />,
     },
   ];
 

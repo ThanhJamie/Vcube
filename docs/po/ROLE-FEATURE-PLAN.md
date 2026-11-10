@@ -1,6 +1,9 @@
 <!-- doc-meta: status=proposal; verified=2026-11-09; owner=po -->
 # Plan phát triển theo vai trò — VCUBE (2026-11-09)
 
+> **Plan thực thi:** [`docs/po/IMPLEMENTATION-PLAN-2026-11.md`](./IMPLEMENTATION-PLAN-2026-11.md) —
+> task spec, phase, gate và self-review. Tài liệu dưới đây giữ vai trò **phân tích hiện trạng**.
+
 > Phân tích hiện trạng + lộ trình tính năng cho **Khách hàng · Designer · Xưởng in · Admin**.
 > Nguyên tắc: chỉ làm tính năng có **người dùng thật + dữ liệu thật + đo được**; ưu tiên đóng
 > vòng giao dịch (đặt → trả tiền → nhận hàng → hậu mãi) trước khi mở rộng.

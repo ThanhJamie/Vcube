@@ -17,6 +17,7 @@ export const LAB_NAV: DashboardNavGroup[] = [
       { id: 'machines', label: 'Máy in', icon: 'printer' },
       { id: 'materials', label: 'Vật liệu & kho', icon: 'layers' },
       { id: 'accessories', label: 'Phụ kiện', icon: 'package' },
+      { id: 'warranty', label: 'Bảo hành', icon: 'shield' },
     ],
   },
   {

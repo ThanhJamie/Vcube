@@ -859,7 +859,8 @@ export type AdminNavSection =
   // Content & System
   | 'storefront'
   | 'seo'
-  | 'settings';
+  | 'settings'
+  | 'audit-log';
 
 
 // ==============================================================================

@@ -12,6 +12,7 @@ import { QueueTab } from '../components/workshop/settings/QueueTab';
 import { MachinesTab } from '../components/workshop/settings/MachinesTab';
 import { MaterialsTab } from '../components/workshop/settings/MaterialsTab';
 import { AccessoriesTab } from '../components/workshop/settings/AccessoriesTab';
+import { WarrantyTab } from '../components/workshop/settings/WarrantyTab';
 import { AuditTrailTab } from '../components/workshop/settings/AuditTrailTab';
 import { PreferencesTab } from '../components/workshop/settings/PreferencesTab';
 import { MachineModal } from '../components/workshop/settings/MachineModal';
@@ -839,13 +840,14 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
   /* ------------------------------------------------------------------ */
   /* Tabs — hạ tầng dùng chung (keep-alive + error boundary mỗi tab)     */
   /* ------------------------------------------------------------------ */
-  // Cả 6 tab giữ `keepAlive` mặc định (true) ⇒ đổi tab không mất filter/form/scroll và
+  // Cả 7 tab giữ `keepAlive` mặc định (true) ⇒ đổi tab không mất filter/form/scroll và
   // không fetch lại; không panel nào có id DOM tĩnh trùng nhau (`Field`/`DataTable` dùng useId).
   const tabElements: Record<TabId, React.ReactNode> = {
     queue: <QueueTab ctl={controller} />,
     machines: <MachinesTab ctl={controller} />,
     materials: <MaterialsTab ctl={controller} />,
     accessories: <AccessoriesTab ctl={controller} />,
+    warranty: <WarrantyTab ctl={controller} />,
     audit_trail: <AuditTrailTab ctl={controller} />,
     preferences: <PreferencesTab ctl={controller} />,
   };
@@ -870,7 +872,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
         <WorkshopStatsCards ctl={controller} />
 
         {/* Chỉ phần NỘI DUNG tab vào host; header/banners/stats/modal/gate giữ ngoài. */}
-        <DashboardPanelHost tabs={tabs} activeId={activeTab} maxKept={6} />
+        <DashboardPanelHost tabs={tabs} activeId={activeTab} maxKept={7} />
       </div>
       <MachineModal ctl={controller} />
       <MaterialModal ctl={controller} />
