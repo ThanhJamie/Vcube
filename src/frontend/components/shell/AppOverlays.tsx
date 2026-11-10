@@ -170,6 +170,8 @@ export function AppOverlays({
       <ChatSupportModal
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
+        contactHotline={siteContent.hotline}
+        contactEmail={siteContent.contactEmail}
       />
 
       {/* Invoice Generator Modal */}
