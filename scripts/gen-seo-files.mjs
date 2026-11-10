@@ -4,13 +4,17 @@
  *
  * SEO-01 (2026-11-10): domain production là **input bắt buộc**.
  *   - Không có fallback `http://localhost:3000`. Thiếu domain ⇒ exit 1, **không ghi file nào**.
- *   - Từ chối host dev/placeholder (localhost, 127.0.0.1, *.local, example.com…) ở mode production.
+ *   - Nguồn domain theo thứ tự: `--site` > `process.env.SEO_SITE_URL` > `process.env.VITE_SITE_URL`
+ *     > `.env` `SEO_SITE_URL` > `.env` `VITE_SITE_URL`. Không có biến nào ⇒ fail.
+ *   - Từ chối host dev/placeholder (localhost, 127.0.0.1, *.local, example.com…) ở mode production;
+ *     production phải là `https://`.
  *   - Muốn xem trước ở máy: `--dev` (bắt buộc ghi ra ngoài `public/`, mặc định `dist/.seo-preview/`).
  *   - Sitemap chỉ chứa route public được index (bỏ `/personalize`, `/order-success`, `/cart`,
  *     `/checkout`, `/tracking`, `/auth`, các trang tài khoản/console) + product `status=published`
  *     (bỏ id demo `DEMO-*` và tên `[MẪU]`).
- *   - `--check`: kiểm tra offline `public/robots.txt` + `public/sitemap.xml` + màu manifest,
- *     cấm host dev/DEMO URL. Không đọc DB, không gọi mạng.
+ *   - `--check`: kiểm tra offline `public/robots.txt` + `public/sitemap.xml` + màu manifest.
+ *     Parse XML well-formed, cấm host dev/DEMO URL, bắt robots khai báo `Sitemap` cùng origin.
+ *     `--allow-empty` chỉ dùng cho placeholder repo/CI khi chưa có domain production.
  *
  * Nguồn route: `src/frontend/routes/AppRoutes.tsx`. Nguồn sản phẩm: Supabase
  * (`products` với `status=eq.published`) nếu `.env` có URL + publishable key.
@@ -18,14 +22,17 @@
  * Dùng:
  *   node scripts/gen-seo-files.mjs --site https://vcube.vn
  *   VITE_SITE_URL=https://vcube.vn node scripts/gen-seo-files.mjs
- *   node scripts/gen-seo-files.mjs --check                    # CI/offline
+ *   node scripts/gen-seo-files.mjs --check --allow-empty      # CI/offline khi chưa có domain
+ *   node scripts/gen-seo-files.mjs --check                    # production: cần sitemap có URL
  *   node scripts/gen-seo-files.mjs --dev --site http://localhost:3000   # preview, không đụng public/
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = process.cwd();
+// ROOT theo vị trí script (`scripts/..`) — không phụ thuộc cwd khi CI gọi từ thư mục khác.
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 
 function hasFlag(name) {
@@ -142,17 +149,140 @@ function isIndexableProductId(id) {
 }
 
 // ---------------------------------------------------------------------------
+// XML well-formed (tối thiểu, không thêm dependency)
+
+const NAME_RE = /^[A-Za-z_][\w.-]*(?::[\w.-]+)?$/;
+const ATTR_RE = /^([A-Za-z_][\w.:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')\s*/;
+const ENTITY_RE = /&(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);/;
+
+/** Thuộc tính: `name="value"` hoặc `name='value'`, value không chứa `<`. */
+function attributesWellFormed(rest) {
+  let remaining = (rest || '').trim();
+  while (remaining) {
+    const m = remaining.match(ATTR_RE);
+    if (!m) return false;
+    const value = m[2] !== undefined ? m[2] : m[3];
+    if (value.includes('<')) return false;
+    remaining = remaining.slice(m[0].length).trim();
+  }
+  return true;
+}
+
+/**
+ * Kiểm tra XML well-formed tối thiểu: 1 root, thẻ cân bằng, comment không chứa `--`,
+ * text ngoài root bị cấm, entity `&` hợp lệ. Đủ cho sitemap; KHÔNG phải XML parser đầy đủ.
+ * @returns {{ ok: boolean, error: string | null }}
+ */
+function checkXmlWellFormed(xml) {
+  let i = xml.charCodeAt(0) === 0xfeff ? 1 : 0;
+  const n = xml.length;
+  const stack = [];
+  let sawRoot = false;
+  let rootClosed = false;
+
+  const err = (msg) => ({ ok: false, error: `${msg} (vị trí ${i})` });
+
+  while (i < n) {
+    if (xml.startsWith('<!--', i)) {
+      const end = xml.indexOf('-->', i + 4);
+      if (end < 0) return err('comment không đóng');
+      if (xml.slice(i + 4, end).includes('--')) return err('comment chứa "--" (XML cấm)');
+      i = end + 3;
+      continue;
+    }
+    if (xml.startsWith('<![CDATA[', i)) {
+      const end = xml.indexOf(']]>', i + 9);
+      if (end < 0) return err('CDATA không đóng');
+      if (!stack.length) return err('CDATA ngoài root');
+      i = end + 3;
+      continue;
+    }
+    if (xml.startsWith('<?', i)) {
+      const end = xml.indexOf('?>', i + 2);
+      if (end < 0) return err('processing instruction không đóng');
+      i = end + 2;
+      continue;
+    }
+    if (xml.startsWith('<!DOCTYPE', i)) {
+      const end = xml.indexOf('>', i);
+      if (end < 0) return err('DOCTYPE không đóng');
+      if (sawRoot) return err('DOCTYPE sau root');
+      i = end + 1;
+      continue;
+    }
+    if (xml[i] === '<') {
+      const end = xml.indexOf('>', i + 1);
+      if (end < 0) return err('thẻ không đóng');
+      const raw = xml.slice(i + 1, end).trim();
+      if (!raw) return err('thẻ rỗng <>');
+      if (raw.startsWith('/')) {
+        const name = raw.slice(1).trim();
+        if (!stack.length) return err(`thẻ đóng </${name}> không có mở`);
+        const open = stack.pop();
+        if (open !== name) return err(`đóng </${name}> không khớp <${open}>`);
+        if (!stack.length) rootClosed = true;
+      } else {
+        const selfClosing = raw.endsWith('/');
+        const body = selfClosing ? raw.slice(0, -1).trim() : raw;
+        const name = body.split(/[\s/]/)[0];
+        if (!NAME_RE.test(name)) return err(`tên thẻ không hợp lệ: ${name || '(rỗng)'}`);
+        if (!attributesWellFormed(body.slice(name.length))) {
+          return err(`thuộc tính không hợp lệ trong <${name}>`);
+        }
+        if (!stack.length) {
+          if (sawRoot) return err('có nhiều root element');
+          sawRoot = true;
+          if (selfClosing) rootClosed = true;
+        }
+        if (!selfClosing) stack.push(name);
+      }
+      i = end + 1;
+      continue;
+    }
+    // text node
+    const nextLt = xml.indexOf('<', i);
+    const text = xml.slice(i, nextLt < 0 ? n : nextLt);
+    if (text.trim()) {
+      if (!stack.length) return err('text ngoài root element');
+      if (text.replace(ENTITY_RE, '').includes('&')) return err('entity "&" không hợp lệ');
+    }
+    i = nextLt < 0 ? n : nextLt;
+  }
+
+  if (!sawRoot) return { ok: false, error: 'không có root element' };
+  if (rootClosed === false && stack.length) {
+    return { ok: false, error: `thẻ <${stack[stack.length - 1]}> chưa đóng` };
+  }
+  if (stack.length) return { ok: false, error: `thẻ <${stack[stack.length - 1]}> chưa đóng` };
+  return { ok: true, error: null };
+}
+
+// ---------------------------------------------------------------------------
 // --check (offline): public/robots.txt + public/sitemap.xml + manifest token
 
 const CANVAS_TOKEN_RE = /--color-canvas:\s*(#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{3})\b/;
 
 function readCanvasToken() {
-  const css = readFileSync(join(ROOT, 'src/index.css'), 'utf8');
-  const m = css.match(CANVAS_TOKEN_RE);
-  return m ? m[1].toUpperCase() : null;
+  try {
+    const css = readFileSync(join(ROOT, 'src/index.css'), 'utf8');
+    const m = css.match(CANVAS_TOKEN_RE);
+    return m ? m[1].toUpperCase() : null;
+  } catch {
+    return null;
+  }
 }
 
-function runCheck() {
+/** robots: lấy các giá trị `Sitemap:` (bỏ comment). */
+function readRobotsSitemaps(text) {
+  return text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#') && /^sitemap\s*:/i.test(l))
+    .map((l) => l.replace(/^sitemap\s*:\s*/i, '').trim())
+    .filter(Boolean);
+}
+
+function runCheck({ allowEmpty }) {
   const errors = [];
   const robotsPath = join(ROOT, 'public', 'robots.txt');
   const sitemapPath = join(ROOT, 'public', 'sitemap.xml');
@@ -162,11 +292,13 @@ function runCheck() {
   if (!existsSync(sitemapPath)) errors.push('thiếu public/sitemap.xml');
   if (!existsSync(manifestPath)) errors.push('thiếu public/manifest.webmanifest');
 
+  let robotsText = '';
   let sitemapOrigin = null;
+  let locCount = 0;
 
   if (existsSync(robotsPath)) {
-    const lines = readFileSync(robotsPath, 'utf8').split('\n');
-    lines.forEach((line, i) => {
+    robotsText = readFileSync(robotsPath, 'utf8');
+    robotsText.split('\n').forEach((line, i) => {
       if (/^\s*#/.test(line)) return;
       if (PLACEHOLDER_HOST_RE.test(line) || /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i.test(line)) {
         errors.push(`robots.txt:${i + 1} chứa host dev/placeholder: ${line.trim()}`);
@@ -176,8 +308,23 @@ function runCheck() {
 
   if (existsSync(sitemapPath)) {
     const xml = readFileSync(sitemapPath, 'utf8');
+
+    const wf = checkXmlWellFormed(xml);
+    if (!wf.ok) errors.push(`sitemap.xml không well-formed: ${wf.error}`);
+
     const locs = [...xml.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/g)].map((m) => m[1]);
+    locCount = locs.length;
     const allowedStatic = new Set(readStaticPublicRoutes());
+
+    if (locs.length === 0) {
+      if (!allowEmpty) {
+        errors.push(
+          'sitemap.xml không có <loc> nào — placeholder chỉ hợp lệ với --allow-empty; ' +
+            'production cần domain thật (`--site https://<domain>`).',
+        );
+      }
+    }
+
     for (const loc of locs) {
       let url;
       try {
@@ -198,12 +345,35 @@ function runCheck() {
       }
       const path = url.pathname.replace(/\/$/, '') || '/';
       if (path.startsWith('/products/')) {
-        const id = decodeURIComponent(path.slice('/products/'.length));
+        let id;
+        try {
+          id = decodeURIComponent(path.slice('/products/'.length));
+        } catch {
+          errors.push(`sitemap.xml: product id không decode được: ${loc}`);
+          continue;
+        }
         if (!isIndexableProductId(id)) {
           errors.push(`sitemap.xml: product URL không hợp lệ/demo: ${loc}`);
         }
       } else if (!allowedStatic.has(path)) {
         errors.push(`sitemap.xml: route không được index hoặc không tồn tại: ${loc}`);
+      }
+    }
+
+    // Có URL ⇒ robots phải trỏ tới đúng sitemap cùng origin.
+    if (locs.length > 0 && sitemapOrigin) {
+      const expected = `${sitemapOrigin}/sitemap.xml`;
+      const declared = readRobotsSitemaps(robotsText);
+      const matched = declared.some((value) => {
+        try {
+          const u = new URL(value);
+          return u.origin === sitemapOrigin && u.pathname.replace(/\/$/, '') === '/sitemap.xml';
+        } catch {
+          return false;
+        }
+      });
+      if (!matched) {
+        errors.push(`robots.txt thiếu "Sitemap: ${expected}" khớp với sitemap.xml`);
       }
     }
   }
@@ -216,7 +386,9 @@ function runCheck() {
       errors.push(`manifest.webmanifest không parse được: ${e.message}`);
     }
     const canvas = readCanvasToken();
-    if (manifest && canvas) {
+    if (!canvas) {
+      errors.push('không đọc được token --color-canvas từ src/index.css — không thể xác nhận màu manifest');
+    } else if (manifest) {
       for (const key of ['background_color', 'theme_color']) {
         const value = String(manifest[key] || '').toUpperCase();
         if (value !== canvas) {
@@ -232,7 +404,10 @@ function runCheck() {
     return 1;
   }
 
-  console.log('✓ gen-seo-files --check: robots.txt/sitemap.xml/manifest hợp lệ (không localhost, không DEMO-*)');
+  console.log(
+    `✓ gen-seo-files --check: robots.txt/sitemap.xml/manifest hợp lệ ` +
+      `(${locCount} URL${locCount === 0 ? ' — placeholder, chờ domain production' : ''})`,
+  );
   return 0;
 }
 
@@ -244,26 +419,31 @@ if (hasFlag('--help') || hasFlag('-h')) {
     [
       'Dùng:',
       '  node scripts/gen-seo-files.mjs --site https://<domain>   # ghi public/',
+      '  SEO_SITE_URL=https://<domain> node scripts/gen-seo-files.mjs',
       '  VITE_SITE_URL=https://<domain> node scripts/gen-seo-files.mjs',
-      '  node scripts/gen-seo-files.mjs --check                   # CI offline',
+      '  node scripts/gen-seo-files.mjs --check --allow-empty     # CI offline khi chưa có domain',
+      '  node scripts/gen-seo-files.mjs --check                   # production: sitemap phải có URL',
       '  node scripts/gen-seo-files.mjs --dev --site http://localhost:3000 --out dist/.seo-preview',
       '',
-      'Không có `--site`/`VITE_SITE_URL` production ⇒ exit 1 và KHÔNG ghi file nào.',
+      'Thứ tự domain: --site > process.env.SEO_SITE_URL > process.env.VITE_SITE_URL',
+      '               > .env SEO_SITE_URL > .env VITE_SITE_URL.',
+      'Không có domain production ⇒ exit 1 và KHÔNG ghi file nào.',
     ].join('\n'),
   );
   process.exit(0);
 }
 
 if (hasFlag('--check')) {
-  process.exit(runCheck());
+  process.exit(runCheck({ allowEmpty: hasFlag('--allow-empty') }));
 }
 
 const env = readEnv();
 const rawSite =
   argValue('--site') ||
+  process.env.SEO_SITE_URL ||
+  process.env.VITE_SITE_URL ||
   env.SEO_SITE_URL ||
   env.VITE_SITE_URL ||
-  env.NEXT_PUBLIC_SITE_URL ||
   '';
 
 const site = parseSite(rawSite);
@@ -273,8 +453,9 @@ const publicDir = resolve(ROOT, 'public');
 
 if (!site) {
   fail(
-    'thiếu domain production. Truyền `--site https://<domain>` hoặc đặt `VITE_SITE_URL`.\n' +
-      '  Không ghi file nào. Muốn xem trước ở máy: `--dev --site http://localhost:3000 --out dist/.seo-preview`.',
+    'thiếu domain production. Truyền `--site https://<domain>`, đặt `SEO_SITE_URL`/`VITE_SITE_URL`\n' +
+      '  trong môi trường hoặc trong `.env`. Không ghi file nào.\n' +
+      '  Xem trước ở máy: `--dev --site http://localhost:3000 --out dist/.seo-preview`.',
   );
 }
 
