@@ -73,7 +73,7 @@ Không sửa DB/migration/seed; không thêm dependency; VI-only; design v3.
 
 ## 7. Đợt khép audit (2026-11-10)
 
-**Trạng thái: 5/5 mục đề xuất DONE**, cộng 2 phát hiện từ review nhất quán. Không push/deploy.
+**Trạng thái: 5/5 mục đề xuất DONE**, cộng 2 phát hiện từ review nhất quán. **Commit `d8eb79a`** trên `main` local; không push/deploy.
 
 | # | Mục | Kết quả | Bằng chứng |
 |---|---|---|---|

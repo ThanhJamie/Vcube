@@ -585,6 +585,8 @@ Chi tiết khảo sát, bảng ưu tiên và giới hạn: `docs/po/UI-UX-AUDIT-
 
 #### 5.9.1 Khép audit (2026-11-10)
 
+**Commit `d8eb79a`** trên `main` local; không push/deploy.
+
 | ID | Item | Kết quả | Bằng chứng |
 |---|---|---|---|
 | UI3-C1 | Quên mật khẩu đúng trạng thái | **DONE (không fake)** | `ENABLE_PASSWORD_RESET=false` vì SMTP chưa xác nhận; nút hiện notice `role=status`, chỉ sang trợ lý/chân trang |
