@@ -344,7 +344,8 @@
   @media (min-width: 640px) {
     :root {
       --font-hero-size: 3.25rem;
-      --font-hero-lh: 1.0;
+      /* P0-1: line-height < 1.03 cắt dấu mũ/acute của "CHẾ TÁC CƠ KHÍ" (tiếng Việt). */
+      --font-hero-lh: 1.05;
       --font-h1-size: 2.25rem;
       --font-h2-size: 1.65rem;
       --font-h3-size: 1.25rem;
@@ -356,7 +357,8 @@
   @media (min-width: 768px) {
     :root {
       --font-hero-size: 4rem;
-      --font-hero-lh: 0.96;
+      /* P0-1: 768px — cần ≥1.03 để dấu mũ (Ế) không bị cắt. */
+      --font-hero-lh: 1.05;
       --font-h1-size: 2.75rem;
       --font-h2-size: 2rem;
       --font-h3-size: 1.35rem;
@@ -368,7 +370,8 @@
   @media (min-width: 1024px) {
     :root {
       --font-hero-size: 4.75rem;
-      --font-hero-lh: 0.92;
+      /* P0-1: 1024–1279px. */
+      --font-hero-lh: 1.04;
       --font-h1-size: 3.25rem;
       --font-h2-size: 2.25rem;
       --font-h3-size: 1.5rem;
@@ -380,7 +383,8 @@
   @media (min-width: 1280px) {
     :root {
       --font-hero-size: 5.25rem;
-      --font-hero-lh: 0.90;
+      /* P0-1: ≥1280px. */
+      --font-hero-lh: 1.03;
       --font-h1-size: 3.5rem;
     }
   }
