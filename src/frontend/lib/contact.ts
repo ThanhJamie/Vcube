@@ -18,12 +18,34 @@ const RESERVED_EMAIL_DOMAIN = /@example\.(?:com|org|net)$/i;
 /** Nhãn dữ liệu mẫu của `scripts/seed-sample-data.mjs` (không phải kênh liên hệ thật). */
 const SAMPLE_MARKER = /\[MẪU\]/iu;
 
+/** Lý do một email KHÔNG dùng được làm kênh liên hệ (rỗng = chưa cấu hình, không phải lỗi). */
+export type ContactEmailIssue = 'sample-marker' | 'malformed' | 'reserved-domain';
+
+/**
+ * Kiểm email admin nhập trước khi lưu. `null` = hợp lệ hoặc rỗng (chưa cấu hình).
+ * Tách khỏi `isDisplayableEmail` để bề mặt admin nói được ĐÚNG lý do bị chặn.
+ */
+export function getContactEmailIssue(email?: string | null): ContactEmailIssue | null {
+  const value = (email ?? '').trim();
+  if (!value) return null;
+  if (SAMPLE_MARKER.test(value)) return 'sample-marker';
+  if (!EMAIL_SHAPE.test(value)) return 'malformed';
+  if (RESERVED_EMAIL_DOMAIN.test(value)) return 'reserved-domain';
+  return null;
+}
+
+/**
+ * Email có dùng được làm kênh liên hệ không? Rỗng = chưa cấu hình ⇒ `true`
+ * (admin được phép bỏ trống, chỉ chặn giá trị sẽ bị UI ẩn nhưng vẫn báo "đã lưu").
+ */
+export function isValidContactEmail(email?: string | null): boolean {
+  return getContactEmailIssue(email) === null;
+}
+
 /** Email chỉ hiển thị khi có hình thức hợp lệ và không phải placeholder/dữ liệu mẫu. */
 export function isDisplayableEmail(email?: string | null): boolean {
   const value = (email ?? '').trim();
-  if (!value || SAMPLE_MARKER.test(value)) return false;
-  if (!EMAIL_SHAPE.test(value)) return false;
-  return !RESERVED_EMAIL_DOMAIN.test(value);
+  return value !== '' && getContactEmailIssue(value) === null;
 }
 
 /**

@@ -9,7 +9,31 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isDisplayableEmail, isDisplayableHotline } from '../../src/frontend/lib/contact';
+import { getContactEmailIssue, isDisplayableEmail, isDisplayableHotline, isValidContactEmail } from '../../src/frontend/lib/contact';
+
+describe('contact — email hợp lệ để admin LƯU', () => {
+  test('rỗng/khoảng trắng ⇒ chưa cấu hình, cho lưu', () => {
+    assert.equal(isValidContactEmail(''), true);
+    assert.equal(isValidContactEmail('   '), true);
+    assert.equal(isValidContactEmail(null), true);
+    assert.equal(isValidContactEmail(undefined), true);
+  });
+
+  test('giá trị sẽ bị UI ẩn ⇒ chặn lưu, trả đúng lý do', () => {
+    assert.equal(isValidContactEmail('khong-phai-email'), false);
+    assert.equal(getContactEmailIssue('khong-phai-email'), 'malformed');
+    assert.equal(getContactEmailIssue('a@b'), 'malformed');
+    assert.equal(getContactEmailIssue('mau@example.com'), 'reserved-domain');
+    assert.equal(getContactEmailIssue('mau@example.org'), 'reserved-domain');
+    assert.equal(getContactEmailIssue('[MẪU] lienhe@vcube.vn'), 'sample-marker');
+  });
+
+  test('email thật ⇒ hợp lệ, không có lý do chặn', () => {
+    assert.equal(isValidContactEmail('contact@vcube.vn'), true);
+    assert.equal(isValidContactEmail('  LienHe@VCUBE.VN  '), true);
+    assert.equal(getContactEmailIssue('contact@vcube.vn'), null);
+  });
+});
 
 describe('contact — email hiển thị được', () => {
   test('rỗng/khoảng trắng/null ⇒ không hiển thị', () => {
