@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button, Card, Field, Icon, Input } from '@frontend/ui';
 import { ENABLE_GOOGLE_OAUTH } from '@frontend/lib/authFlags';
+import { buildAuthSwitchHref, sanitizeRedirectPath } from '@frontend/lib/authRedirect';
 
-interface RegisterViewProps {
-  onNavigate?: (screen: string, payload?: any) => void;
-}
-
-export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
+export const RegisterView: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signUpWithEmail, signInWithGoogle } = useAuth();
+
+  // Giữ đường về sau đăng ký: `?redirectTo=` do `ProtectedRoute`/`RoleGuard` gắn khi guest
+  // mở `/orders`, `/assets`, `/account`… (đi qua login → "Đăng Ký" nên phải sống sót cả
+  // bước chuyển màn). Luôn lọc open-redirect/vòng lặp auth trước khi dùng.
+  const rawRedirectTo = searchParams.get('redirectTo');
+  const redirectTarget = sanitizeRedirectPath(rawRedirectTo);
+  // Link sang đăng nhập (khi cần xác nhận email, hoặc người dùng đổi ý) vẫn mang target.
+  const loginHref = buildAuthSwitchHref('/auth/login', rawRedirectTo);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -115,12 +121,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
         setSuccessMessage(
           'Đăng ký thành công — bạn đã được đăng nhập. Đang chuyển hướng...'
         );
+        // Quay lại đúng path+search đã lưu (không rơi về `/`); `replace` để nút Back
+        // không đưa người dùng về lại form đăng ký vừa hoàn tất.
         setTimeout(() => {
-          if (onNavigate) {
-            onNavigate('home');
-          } else {
-            navigate('/');
-          }
+          navigate(redirectTarget, { replace: true });
         }, 1500);
       } else {
         setAwaitingEmailConfirm(true);
@@ -140,7 +144,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
       setIsGoogleLoading(true);
       setErrorMessage(null);
       await signInWithGoogle();
-      navigate('/');
+      navigate(redirectTarget, { replace: true });
     } catch (err: any) {
       setErrorMessage(err?.message || ('Không thể kết nối Google OAuth.'));
     } finally {
@@ -399,7 +403,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
 
             {awaitingEmailConfirm && !isLoading && (
               <Link
-                to="/auth/login"
+                to={loginHref}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-md border border-line-control bg-surface text-base font-medium text-fg transition-colors duration-200 hover:border-fg-subtle hover:bg-surface-muted"
               >
                 <Icon name="login" size={16} />
@@ -460,7 +464,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             <p className="text-sm text-fg-muted">
               Đã có tài khoản VCUBE?{' '}
               <Link
-                to="/auth/login"
+                to={loginHref}
                 className="ml-1 -my-3 inline-flex min-h-11 items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
               >
                 <span>Đăng Nhập</span>

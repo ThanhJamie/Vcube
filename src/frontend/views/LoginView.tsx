@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button, Card, Field, Icon, Input } from '@frontend/ui';
 import { ENABLE_GOOGLE_OAUTH, ENABLE_PASSWORD_RESET } from '@frontend/lib/authFlags';
-import { sanitizeRedirectPath } from '@frontend/lib/authRedirect';
+import { sanitizeRedirectPath, buildAuthSwitchHref } from '@frontend/lib/authRedirect';
 
 export const LoginView: React.FC = () => {
   const navigate = useNavigate();
@@ -235,7 +235,7 @@ export const LoginView: React.FC = () => {
             <p className="text-sm text-fg-muted">
               Chưa có tài khoản VCUBE?{' '}
               <Link
-                to="/auth/register"
+                to={buildAuthSwitchHref('/auth/register', searchParams.get('redirectTo'))}
                 className="ml-1 -my-3 inline-flex min-h-11 items-center gap-0.5 font-semibold text-primary underline-offset-4 hover:underline"
               >
                 <span>Đăng Ký</span>

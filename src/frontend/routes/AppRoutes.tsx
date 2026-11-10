@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import type {
   CartItem,
   Order,
@@ -51,6 +51,18 @@ const RegisterView = React.lazy(() => import('@frontend/views/RegisterView').the
 const Tool3DView = React.lazy(() => import('@frontend/views/Tool3DView'));
 const AdminDashboardView = React.lazy(() => import('@frontend/views/AdminDashboardView'));
 const DesignerDashboardView = React.lazy(() => import('@frontend/views/DesignerDashboardView'));
+
+/**
+ * Alias auth cũ (`/login`, `/register`).
+ *
+ * `<Navigate to="/auth/...">` thuần sẽ NUỐT query string, tức là `?redirectTo=` do
+ * `ProtectedRoute`/`RoleGuard` gắn sẽ mất trước khi tới màn auth thật. Wrapper này
+ * chuyển route nhưng giữ nguyên `location.search` để đường về không bị thất lạc.
+ */
+function AuthAliasRedirect({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}`} replace />;
+}
 
 export interface AppRoutesProps
   extends Pick<
@@ -465,9 +477,9 @@ export function AppRoutes({
 
           {/* Authentication Pages */}
           <Route path="/auth/login" element={<LoginView />} />
-          <Route path="/login" element={<Navigate to="/auth/login" replace />} />
-          <Route path="/auth/register" element={<RegisterView onNavigate={handleNavigate} />} />
-          <Route path="/register" element={<Navigate to="/auth/register" replace />} />
+          <Route path="/login" element={<AuthAliasRedirect to="/auth/login" />} />
+          <Route path="/auth/register" element={<RegisterView />} />
+          <Route path="/register" element={<AuthAliasRedirect to="/auth/register" />} />
 
           {/* 404 Not Found Fallback */}
           <Route path="*" element={<NotFoundView />} />

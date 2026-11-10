@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 
 import {
   DEFAULT_AUTH_REDIRECT,
+  buildAuthSwitchHref,
   buildLoginHref,
   sanitizeRedirectPath,
 } from '../../src/frontend/lib/authRedirect';
@@ -42,6 +43,18 @@ describe('authRedirect — sanitizeRedirectPath', () => {
     assert.equal(sanitizeRedirectPath('/orders\nX-Injected: 1'), '/');
     assert.equal(sanitizeRedirectPath('/orders\u0000'), '/');
   });
+
+  test('chặn vòng lặp: đích trỏ vào khu vực auth (kể cả alias) ⇒ trang chủ', () => {
+    assert.equal(sanitizeRedirectPath('/auth'), '/');
+    assert.equal(sanitizeRedirectPath('/auth/login'), '/');
+    assert.equal(sanitizeRedirectPath('/auth/register'), '/');
+    assert.equal(sanitizeRedirectPath('/auth/login?redirectTo=%2Forders'), '/');
+    assert.equal(sanitizeRedirectPath('/login'), '/');
+    assert.equal(sanitizeRedirectPath('/register?redirectTo=%2Forders'), '/');
+    // Path có tiền tố giống nhưng KHÔNG thuộc khu vực auth vẫn được giữ.
+    assert.equal(sanitizeRedirectPath('/auth0'), '/auth0');
+    assert.equal(sanitizeRedirectPath('/login-history'), '/login-history');
+  });
 });
 
 describe('authRedirect — buildLoginHref', () => {
@@ -55,5 +68,44 @@ describe('authRedirect — buildLoginHref', () => {
 
   test('path không hợp lệ vẫn rơi về trang chủ', () => {
     assert.equal(buildLoginHref('//evil.example'), '/auth/login?redirectTo=%2F');
+  });
+});
+
+describe('authRedirect — buildAuthSwitchHref', () => {
+  test('không có redirectTo ⇒ route trần, không thêm query rỗng', () => {
+    assert.equal(buildAuthSwitchHref('/auth/register', null), '/auth/register');
+    assert.equal(buildAuthSwitchHref('/auth/login', undefined), '/auth/login');
+    assert.equal(buildAuthSwitchHref('/auth/register', ''), '/auth/register');
+  });
+
+  test('login → register giữ nguyên target (path + search), encode đúng một lần', () => {
+    assert.equal(
+      buildAuthSwitchHref('/auth/register', '/orders'),
+      '/auth/register?redirectTo=%2Forders'
+    );
+    assert.equal(
+      buildAuthSwitchHref('/auth/login', '/orders?status=pending'),
+      '/auth/login?redirectTo=%2Forders%3Fstatus%3Dpending'
+    );
+  });
+
+  test('target không hợp lệ/vòng lặp auth vẫn bị lọc về trang chủ', () => {
+    assert.equal(
+      buildAuthSwitchHref('/auth/register', 'https://evil.example/orders'),
+      '/auth/register?redirectTo=%2F'
+    );
+    assert.equal(
+      buildAuthSwitchHref('/auth/login', '/auth/register'),
+      '/auth/login?redirectTo=%2F'
+    );
+  });
+
+  test('giá trị đã decode từ useSearchParams không bị encode hai lần', () => {
+    // `?redirectTo=%2Forders%3Fstatus%3Dpending` → searchParams.get() = '/orders?status=pending'
+    const decoded = decodeURIComponent('%2Forders%3Fstatus%3Dpending');
+    assert.equal(
+      buildAuthSwitchHref('/auth/register', decoded),
+      '/auth/register?redirectTo=%2Forders%3Fstatus%3Dpending'
+    );
   });
 });
