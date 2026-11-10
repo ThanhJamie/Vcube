@@ -1,10 +1,55 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CartItem } from '../../types';
 import { useCartStore } from '@frontend/stores/useCartStore';
 import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/database';
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
+import { safeImageUrl } from '../lib/productImage';
 import { Button, EmptyState, Icon, Modal, Money } from '@frontend/ui';
+
+/**
+ * Ảnh thumbnail của món trong drawer.
+ *
+ * P1-1: món từ luồng báo giá không có ảnh, trước đây vẫn render `<img src={undefined}>`
+ * rồi bị `onError` ẩn ⇒ để lại ô xám trống. Chỉ render ảnh thật (qua `safeImageUrl`,
+ * cùng luật với CartView); thiếu URL hoặc ảnh lỗi ⇒ icon `photo_library`.
+ * Badge "IN 3D"/"CAD" giữ nguyên overlay đáy.
+ */
+const CartItemThumb: React.FC<{ item: CartItem }> = ({ item }) => {
+  const [failed, setFailed] = useState(false);
+  const imageUrl = safeImageUrl(item.image);
+
+  return (
+    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border border-line-subtle bg-surface-muted">
+      {imageUrl && !failed ? (
+        <img
+          src={imageUrl}
+          alt={item.name}
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+          onLoad={(e) => {
+            // Luồng báo giá dùng ảnh GIF trong suốt 1×1 làm placeholder "chưa có thumbnail";
+            // ảnh ≤1px không phải thumbnail thật ⇒ hiện icon thay vì ô trống.
+            const el = e.currentTarget;
+            if (el.naturalWidth <= 1 || el.naturalHeight <= 1) setFailed(true);
+          }}
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="flex h-full w-full items-center justify-center text-fg-subtle"
+        >
+          <Icon name="photo_library" size={18} />
+        </span>
+      )}
+      <span className={`absolute inset-x-0 bottom-0 py-0.5 text-center font-mono text-xs font-semibold ${
+        item.type === 'physical' ? 'bg-primary text-primary-fg' : 'border-t border-line bg-surface-muted text-fg'
+      }`}>
+        {item.type === 'physical' ? 'IN 3D' : 'CAD'}
+      </span>
+    </div>
+  );
+};
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -161,23 +206,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {cart.map((item) => (
                   <div key={item.id} className="flex gap-3 rounded-md border border-line-subtle p-3">
                     {/* Item Thumbnail */}
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border border-line-subtle bg-surface-muted">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          // Không thay bằng ảnh stock bịa: ẩn ảnh hỏng và để lộ nền trung tính.
-                          const el = e.currentTarget;
-                          el.style.visibility = 'hidden';
-                        }}
-                      />
-                      <span className={`absolute inset-x-0 bottom-0 py-0.5 text-center font-mono text-xs font-semibold ${
-                        item.type === 'physical' ? 'bg-primary text-primary-fg' : 'border-t border-line bg-surface-muted text-fg'
-                      }`}>
-                        {item.type === 'physical' ? 'IN 3D' : 'CAD'}
-                      </span>
-                    </div>
+                    <CartItemThumb item={item} />
 
                     {/* Item Details */}
                     <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
