@@ -247,7 +247,10 @@ export const DEFAULT_SITE_CONTENT: import('../types').SiteContentConfig = {
   // NHÓM A (data-honesty AT-06): kênh hỗ trợ do admin cấu hình
   // (/admin → Nội dung site → Hotline Kỹ Thuật). Rỗng ⇒ ẩn, KHÔNG bịa số hotline.
   hotline: '',
-  contactEmail: 'contact@vcube.vn',
+  // ⚠️ KHÔNG có email liên hệ mặc định: owner CHƯA xác nhận mailbox nào là kênh chính thức
+  // (data-honesty). Rỗng ⇒ footer/Quote/ChatSupport ẩn email và mời "Hỏi trợ lý tự động";
+  // email THẬT do admin nhập ở /admin → Nội dung site (cột `site_content.email`).
+  contactEmail: '',
   hanoiWorkshopAddress: 'Xưởng In 3D VCUBE: Khu Công Nghệ Cao Hòa Lạc, Hà Nội',
   hcmWorkshopAddress: 'Chi Nhánh Nam: Khu Công Nghệ Cao TP. Thủ Đức, TP. Hồ Chí Minh',
 

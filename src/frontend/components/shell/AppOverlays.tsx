@@ -61,9 +61,18 @@ export function AppOverlays({
   // P1 §4: giữ nhãn nhưng BỎ phần rỗng; không còn gì để in thì ẩn cả dòng
   // (không bao giờ in "Hotline: •" hay "Hotline: —"). Lọc giá trị dummy nếu có dữ liệu mẫu.
   const isValidHotline = (phone?: string) => Boolean(phone && !/^0+$/.test(phone.trim()) && !phone.includes('[MẪU]'));
+  // Data-honesty: chỉ in email khi admin đã cấu hình một địa chỉ THẬT. Giá trị placeholder
+  // của seed (`mau@example.com`, nhãn `[MẪU]`) không phải kênh liên hệ ⇒ ẩn cả dòng.
+  // Trước đây email placeholder bị thay bằng một địa chỉ VCUBE đoán — mailbox owner CHƯA xác nhận.
+  const isDisplayableEmail = (email?: string) => {
+    const value = (email ?? '').trim();
+    if (!value || value.includes('[MẪU]')) return false;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return false;
+    return !/@example\.(?:com|org|net)$/i.test(value);
+  };
   const footerContactLine = [
     isValidHotline(siteContent.hotline) ? `Hotline: ${siteContent.hotline}` : '',
-    siteContent.contactEmail ? `Email: ${siteContent.contactEmail === 'mau@example.com' ? 'contact@vcube.vn' : siteContent.contactEmail}` : '',
+    isDisplayableEmail(siteContent.contactEmail) ? `Email: ${siteContent.contactEmail.trim()}` : '',
   ].filter(Boolean).join(' • ');
 
   // P1-B: footer link đạt vùng chạm ≥44px ở mobile (640px đổ xuống); desktop giữ nhịp cũ
