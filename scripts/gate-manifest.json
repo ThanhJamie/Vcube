@@ -5,6 +5,7 @@
     { "id": "lint", "cmd": "npm run lint" },
     { "id": "test-unit", "cmd": "npm run test:unit" },
     { "id": "build", "cmd": "npm run build" },
+    { "id": "seo-files", "cmd": "node scripts/gen-seo-files.mjs --check --allow-empty", "offline": true },
     { "id": "check-contrast-combos", "cmd": "node scripts/check-contrast-combos.mjs --json" },
     { "id": "check-contrast", "cmd": "node scripts/check-contrast.mjs --json" },
     { "id": "check-error-handling", "cmd": "node scripts/check-error-handling.mjs --json" },
