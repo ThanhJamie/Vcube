@@ -664,8 +664,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </span>
           }
           breadcrumb={
-            <span className="truncate text-xs text-fg-subtle">
-              VCUBE / {currentMeta.group} /{' '}
+            /* Mobile: chỉ tên mục hiện tại (tránh "VCUBE / Tổng …" bị cắt).
+               Từ sm: breadcrumb đầy đủ nhóm + mục. */
+            <span className="min-w-0 truncate text-xs text-fg-subtle">
+              <span className="hidden lg:inline">
+                VCUBE / {currentMeta.group} /{' '}
+              </span>
               <span className="font-medium text-fg">{currentMeta.title}</span>
             </span>
           }
@@ -686,10 +690,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <Button
                 variant="secondary"
                 size="sm"
+                aria-label="Về cửa hàng"
                 leadingIcon={<Icon name="storefront" size={16} />}
                 onClick={() => onNavigate('home')}
               >
-                Về cửa hàng
+                <span className="hidden lg:inline">Về cửa hàng</span>
               </Button>
             </>
           }

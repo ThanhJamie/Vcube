@@ -25,6 +25,12 @@ export const CartView: React.FC<CartViewProps> = ({
   onShowToast,
   siteContent
 }) => {
+  /**
+   * Chưa có bảng promotions trong schema ⇒ không có mã nào có thể xác thực.
+   * Ẩn ô nhập thay vì mời người dùng gõ rồi từ chối. Bật lại khi backend có nguồn mã.
+   */
+  const PROMOTIONS_AVAILABLE = false;
+
 
   // P0: mã giảm giá sống trong store để KHÔNG mất khi sang /checkout.
   const appliedDiscount = useCartStore((s) => s.appliedDiscount);
@@ -94,42 +100,44 @@ export const CartView: React.FC<CartViewProps> = ({
   // EMPTY CART STATE
   if (cart.length === 0) {
     return (
-      <div className="flex items-center justify-center bg-canvas px-4 py-16 sm:px-6 sm:py-24">
+      <div className="bg-canvas px-4 py-10 sm:px-6 sm:py-14">
         {/* A11Y-09: nhánh giỏ trống là màn duy nhất của `/cart` không có heading cấp 1.
-            `sr-only` (absolute) nên không đổi layout; EmptyState giữ nguyên title dạng chữ. */}
-        <h1 className="sr-only">Giỏ Hàng</h1>
-        <EmptyState
-          bordered
-          className="w-full max-w-md bg-surface"
-          icon={<Icon name="shopping_cart" size={22} />}
-          title="Giỏ hàng của bạn đang trống"
-          description="Chưa có bản vẽ kỹ thuật CAD hoặc linh kiện in 3D nào được chọn. Hãy khám phá kho thư viện cơ khí tuyển chọn của VCUBE."
-          action={
-            // 2 intent tách bạch: khám phá kho (primary) và gửi tệp để báo giá (secondary).
-            // Xếp dọc vì 2 nhãn tiếng Việt không vừa một hàng trong card `max-w-md`;
-            // dọc ở mọi bề rộng vẫn giữ vùng chạm ≥44px (size="lg" = 48px).
-            <div className="flex w-full flex-col gap-2">
-              <Button
-                variant="primary"
-                size="lg"
-                fullWidth
-                leadingIcon={<Icon name="explore" size={18} />}
-                onClick={() => onNavigate('explore')}
-              >
-                Khám Phá Bản Vẽ CAD
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                fullWidth
-                leadingIcon={<Icon name="upload_file" size={18} />}
-                onClick={() => onNavigate('quote')}
-              >
-                Gửi tệp 3D để báo giá
-              </Button>
-            </div>
-          }
-        />
+            Căn đầu trang + cùng khổ với `/checkout` rỗng (audit 2026-11-10). */}
+        <div className="mx-auto w-full max-w-md space-y-4">
+          <h1 className="sr-only">Giỏ Hàng</h1>
+          <EmptyState
+            bordered
+            className="w-full bg-surface"
+            icon={<Icon name="shopping_cart" size={22} />}
+            title="Giỏ hàng của bạn đang trống"
+            description="Chưa có bản vẽ kỹ thuật CAD hoặc linh kiện in 3D nào được chọn. Hãy khám phá kho thư viện cơ khí tuyển chọn của VCUBE."
+            action={
+              // 2 intent tách bạch: khám phá kho (primary) và gửi tệp để báo giá (secondary).
+              // Xếp dọc vì 2 nhãn tiếng Việt không vừa một hàng trong card `max-w-md`;
+              // dọc ở mọi bề rộng vẫn giữ vùng chạm ≥44px (size="lg" = 48px).
+              <div className="flex w-full flex-col gap-2">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  leadingIcon={<Icon name="explore" size={18} />}
+                  onClick={() => onNavigate('explore')}
+                >
+                  Khám Phá Bản Vẽ CAD
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  leadingIcon={<Icon name="upload_file" size={18} />}
+                  onClick={() => onNavigate('quote')}
+                >
+                  Gửi tệp 3D để báo giá
+                </Button>
+              </div>
+            }
+          />
+        </div>
       </div>
     );
   }
@@ -383,7 +391,10 @@ export const CartView: React.FC<CartViewProps> = ({
               </Card>
             )}
 
-            {/* Interactive Promo Voucher Box */}
+            {/* Interactive Promo Voucher Box — ẩn khi chưa có nguồn khuyến mãi.
+                Schema hiện không có bảng promotions; giữ ô nhập chỉ mời người dùng gõ
+                rồi bị từ chối. Khi có backend khuyến mãi, đổi cờ thành true. */}
+            {PROMOTIONS_AVAILABLE && (
             <Card variant="soft" padding="lg" className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor="cart-promo-code" className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-fg-muted">
@@ -430,6 +441,7 @@ export const CartView: React.FC<CartViewProps> = ({
                 </p>
               )}
             </Card>
+            )}
           </div>
 
           {/* Right Column: Sticky Order Summary Card */}

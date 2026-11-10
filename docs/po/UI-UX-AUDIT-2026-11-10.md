@@ -69,6 +69,48 @@ Không sửa DB/migration/seed; không thêm dependency; VI-only; design v3.
 - Quote dùng STL cục bộ; checkout **không submit** để tránh tạo đơn production.
 - Lỗi mạng mô phỏng bằng abort `rest/v1`; thời gian hiện error phụ thuộc timeout Supabase (~5s).
 - Không kiểm chứng `/lab`, CMS save thật, invoice/print, upload file lên Storage.
+- **Quên mật khẩu:** `sendPasswordReset` có trong `AuthContext` nhưng đang tắt bằng cờ (`ENABLE_PASSWORD_RESET=false`) vì SMTP chưa được xác nhận; **chưa kiểm chứng gửi/nhận email thật**.
+
+## 7. Đợt khép audit (2026-11-10)
+
+**Trạng thái: 5/5 mục đề xuất DONE**, cộng 2 phát hiện từ review nhất quán. Không push/deploy.
+
+| # | Mục | Kết quả | Bằng chứng |
+|---|---|---|---|
+| 1 | Quên mật khẩu | Nút “Quên mật khẩu?” giờ phản hồi bằng ghi chú `role=status`: đặt lại qua email **chưa bật** vì chưa cấu hình gửi mail; chỉ sang trợ lý hỗ trợ/thông tin chân trang. **Không gửi email giả, không báo thành công.** | `close-login-reset-390|768|1440.png`; text notice đúng trạng thái |
+| 2 | Ẩn mã giảm giá | `PROMOTIONS_AVAILABLE=false`; cart có món không còn ô “Mã Giảm Giá/Nhập mã”. Tóm tắt tiền + CTA thanh toán giữ nguyên. | `close-cart-item-390|1440.png`; `promo:false`, `pay:true` |
+| 3 | Checkout rỗng | Tách `CheckoutEmptyState`; cùng khổ `max-w-md`, căn đầu trang, 2 CTA thật (“Khám phá kho bản vẽ”, “Gửi tệp 3D để báo giá”), khớp `/cart` rỗng. | `close-checkout-empty-390|768|1440.png`; card top 120/136 |
+| 4 | Breadcrumb admin/designer mobile | <`lg`: chỉ tên mục đang mở + nút “Về cửa hàng” icon-only; ≥`lg`: breadcrumb đầy đủ + nhãn nút. Không còn cắt cụt. | đo 390/768: `clipped=false`; 1024/1440: full path |
+| 5 | Home 1–2 chỉ số | Mock đúng shape cột `hero_metric*_value`: 1 thẻ “Dung sai đo kiểm ±0.05 mm”, **không** còn “Chưa cấu hình”. | `close-home-partial.png` |
+| 6 | Footer WCAG 2.5.8 | Đo trực tiếp vùng bấm, sửa về tối thiểu 24px ở desktop. | xem bảng dưới |
+| 7 | Quote 768 | Thanh tổng/CTA đổi `md:hidden` → `lg:hidden` (đồng bộ PDP) vì 768–1023 là một cột, bảng giá dưới fold; từ 1024 bảng giá vào cột phải. | `close-quote-768/1024/1440.png`; spacer `max-lg:pb-28` |
+
+### 7.1 Đo footer — sửa lại kết luận cũ
+
+WCAG 2.5.8 xét **kích thước vùng bấm 24×24 CSS px** (hoặc ngoại lệ khoảng cách giữa các target), **không xét cỡ chữ**. Số “chữ 16px” trong backlog trước là không đủ căn cứ.
+
+| Viewport | Kích thước target nhỏ nhất | Khoảng cách tâm gần nhất | Kết luận |
+|---|---|---|---|
+| 390 | 358 × **44px** | 52,0px | PASS (≥24px) |
+| 768 | 109,3 × **24px** | 34,4px | PASS (≥24px + spacing) |
+| 1440 | 109,3 × **24px** | 34,4px | PASS (≥24px + spacing) |
+
+- Trước sửa: desktop cao 16px, gap dọc 8px ⇒ tâm cách 24px (vẫn có thể đạt nhờ spacing exception), nhưng chưa đo bằng chứng.
+- Sau sửa: `sm:min-h-6` ⇒ target cao 24px; không còn target nào <24px (`under24=0`).
+
+### 7.2 Review nhất quán 390 / 768 / 1440
+
+Đã dựng contact sheet 3×3 (`sheet-390/768/1440.png`) cho Home, Explore, PDP 404, Quote, Cart rỗng, Checkout rỗng, Login, Register, 404.
+
+- **Nhất quán:** cart rỗng và checkout rỗng cùng khổ/căn/CTA; primary đen + secondary viền dùng đúng một kiểu; H1 trang 2.75rem, hero display lớn hơn có chủ đích, error/auth 2xl; card bo góc/nền giống nhau.
+- **Đã sửa:** quote tablet trước đây không có thanh CTA (ẩn từ 768) trong khi PDP có; nay cùng `lg:hidden`.
+- **Chấp nhận:** auth/404 căn giữa theo chiều dọc (màn ngắn, một mục tiêu), cart/checkout rỗng căn đầu (màn giao dịch, ưu tiên nội dung); login thấp hơn register vì form ngắn hơn — cùng khổ card.
+- 390/768/1440: **0 tràn ngang, 0 `pageerror`** ở 9 màn đã chụp.
+
+### 7.3 Gate & còn chưa kiểm chứng
+
+- `npx tsc --noEmit` PASS; `npm run test:unit` **203/203**; `npm run check` **24/24** (18 so baseline).
+- **Chưa kiểm chứng:** gửi/nhận email reset thật (SMTP); tài khoản buyer/designer/admin thật; catalog published; `/lab`; CMS save; upload Storage; submit checkout/tạo đơn DB.
 
 ## 6. Kết quả triển khai (2026-11-10)
 

@@ -162,12 +162,21 @@ export const LoginView: React.FC = () => {
                   Quên mật khẩu?
                 </button>
               )}
-              {/* Cờ reset đang tắt (chưa có SMTP) ⇒ giữ kênh gợi ý bằng chữ tĩnh,
-                  không phải link/alert, không bịa hotline (không có site_content trong cây này). */}
+              {/* Cờ reset đang tắt (chưa có SMTP) ⇒ KHÔNG giả lập gửi mail.
+                  Nút vẫn phản hồi khi bấm bằng ghi chú trạng thái đúng + kênh hỗ trợ
+                  thực có trong app (trợ lý góc phải / thông tin ở chân trang). */}
               {!ENABLE_PASSWORD_RESET && (
-                <span className="text-sm text-fg-muted">
-                  Quên mật khẩu? Liên hệ hỗ trợ
-                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setNotice(
+                      'Đặt lại mật khẩu qua email chưa được bật vì hệ thống chưa cấu hình dịch vụ gửi mail. Vui lòng dùng trợ lý hỗ trợ ở góc phải màn hình hoặc thông tin liên hệ ở chân trang để được cấp lại quyền truy cập.'
+                    )
+                  }
+                  className="cursor-pointer rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Quên mật khẩu?
+                </button>
               )}
             </div>
 

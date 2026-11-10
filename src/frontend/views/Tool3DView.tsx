@@ -659,7 +659,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   };
 
   return (
-    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 max-md:pb-28 px-4 sm:px-6 md:px-12 font-sans">
+    <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 max-lg:pb-28 px-4 sm:px-6 md:px-12 font-sans">
       <SEOHead
         title="Báo giá in 3D & kiểm tra hình học CAD"
         description="Tải STL/3MF/OBJ/STEP, đo thể tích, phát hiện lỗi lưới và nhận báo giá in 3D tức thì bằng tiếng Việt."

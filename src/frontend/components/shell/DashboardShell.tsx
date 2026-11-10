@@ -85,19 +85,25 @@ export const DashboardShell: React.FC<{
             </span>
           }
           breadcrumb={
-            <span className="truncate text-xs text-fg-muted">
-              {brandTitle}
-              {activeLabel ? ` / ${activeLabel}` : ''}
+            /* Mobile: chỉ mục đang mở; từ sm: mới ghép brand / mục. Tránh cắt cụt
+               "Xưởng thiết kế / …" trong topbar 390px. */
+            <span className="min-w-0 truncate text-xs text-fg-muted">
+              <span className="hidden lg:inline">
+                {brandTitle}
+                {activeLabel ? ' / ' : ''}
+              </span>
+              <span className="font-medium text-fg">{activeLabel || brandTitle}</span>
             </span>
           }
           actions={
             <Button
               variant="secondary"
               size="sm"
+              aria-label="Về cửa hàng"
               leadingIcon={<Icon name="store" aria-hidden="true" className="size-4" />}
               onClick={() => navigate('/')}
             >
-              Về cửa hàng
+              <span className="hidden lg:inline">Về cửa hàng</span>
             </Button>
           }
           avatar={

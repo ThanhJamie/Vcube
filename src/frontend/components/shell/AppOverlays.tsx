@@ -68,8 +68,8 @@ export function AppOverlays({
   ].filter(Boolean).join(' • ');
 
   // P1-B: footer link đạt vùng chạm ≥44px ở mobile (640px đổ xuống); desktop giữ nhịp cũ
-  // (min-h/w-full chỉ bật ở mobile, từ `sm` trả về kích thước nội dung như trước).
-  const footerLinkClass = 'inline-flex min-h-11 w-full items-center text-left transition-colors hover:text-on-inverse cursor-pointer sm:min-h-0 sm:w-auto';
+  // nhưng nâng min-height 24px để đạt WCAG 2.5.8 mà không cần dựa vào spacing exception.
+  const footerLinkClass = 'inline-flex min-h-11 w-full items-center text-left transition-colors hover:text-on-inverse cursor-pointer sm:min-h-6 sm:w-auto';
 
   return (
     <>

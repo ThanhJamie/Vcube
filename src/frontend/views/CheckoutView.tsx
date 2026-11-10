@@ -8,8 +8,9 @@ import { computeShippingFee, DEFAULT_SALES_RULES } from '../../backend/supabase/
 import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent, vatTotalNote } from '../lib/vat';
 import { safeImageUrl } from '../lib/productImage';
 import { usePricingGlobalSettings } from '../hooks/useSettings';
-import { Icon, Button, Card, EmptyState, Field, Input, Money, Select } from '@frontend/ui';
+import { Icon, Button, Card, Field, Input, Money, Select } from '@frontend/ui';
 import { settingsAccessors, subscribeSettings, getAppSettings } from '../../backend/services/settingsService';
+import { CheckoutEmptyState } from '../components/checkout/CheckoutEmptyState';
 import { getOrderGateway } from '../../backend/services/orderGateway';
 import { finalizeOrderDelivery } from '../../backend/services/deliveryService';
 import { useUIStore } from '@frontend/stores/useUIStore';
@@ -493,28 +494,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   // Critical: giỏ rỗng (deep-link hoặc đã xoá ở tab khác) KHÔNG được render form
   // thanh toán rồi tạo đơn 0đ trong DB.
   if (cart.length === 0) {
-    return (
-      /* P1-D: trừ đúng chiều cao header storefront (`h-20` = 80px, xem `Header.tsx`) khỏi
-         `100dvh` — trước đây dùng `min-h-dvh` nên card bị đẩy xuống, chừa ~300px trống
-         phía trên ở 390. Cùng công thức với `LoginView`/`RegisterView` (`calc(100dvh-80px)`). */
-      <div className="flex min-h-[calc(100dvh-80px)] items-center justify-center bg-canvas px-4 py-10 text-fg sm:px-6 sm:py-16">
-        {/* A11Y-01: h1 cấp trang DUY NHẤT (sr-only — giữ nguyên layout/density của trang).
-            Trước đây /checkout là view duy nhất không có heading cấp 1 (outline bắt đầu ở h2). */}
-        <h1 className="sr-only">Thanh Toán</h1>
-        <EmptyState
-          bordered
-          className="w-full max-w-md bg-surface"
-          icon={<Icon name="shopping_cart" size={22} />}
-          title="Giỏ hàng của bạn đang trống"
-          description="Thêm sản phẩm hoặc tệp CAD vào giỏ trước khi thanh toán."
-          action={
-            <Button variant="primary" size="lg" onClick={() => onNavigate('cart')}>
-              Về giỏ hàng
-            </Button>
-          }
-        />
-      </div>
-    );
+    return <CheckoutEmptyState onNavigate={onNavigate} />;
   }
 
   return (

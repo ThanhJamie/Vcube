@@ -583,7 +583,20 @@ Chi tiết khảo sát, bảng ưu tiên và giới hạn: `docs/po/UI-UX-AUDIT-
 
 **Tích hợp:** `8df434c` → `ab44bf5` → `3ff4ab7` (`ui3/integration`). Gate: tsc PASS, **203 unit test**, `npm run check` **24/24**, browser 390/768/1440 0 tràn/0 `pageerror`.
 
-**Backlog UI/UX còn lại:** promo cart dead-end; checkout rỗng nhiều khoảng trắng; breadcrumb admin mobile bị cắt; footer desktop target 16px; luồng “Quên mật khẩu” tự phục vụ; các màn cần tài khoản thật/staging để kiểm chứng dữ liệu.
+#### 5.9.1 Khép audit (2026-11-10)
+
+| ID | Item | Kết quả | Bằng chứng |
+|---|---|---|---|
+| UI3-C1 | Quên mật khẩu đúng trạng thái | **DONE (không fake)** | `ENABLE_PASSWORD_RESET=false` vì SMTP chưa xác nhận; nút hiện notice `role=status`, chỉ sang trợ lý/chân trang |
+| UI3-C2 | Ẩn mã giảm giá | **DONE** | `PROMOTIONS_AVAILABLE=false`; cart có món không còn ô nhập mã; summary/CTA giữ |
+| UI3-C3 | Checkout rỗng gọn + lối đi tiếp | **DONE** | `CheckoutEmptyState` dùng chung khổ `max-w-md` với cart rỗng; 2 CTA khám phá/báo giá |
+| UI3-C4 | Breadcrumb admin/designer mobile | **DONE** | <`lg` chỉ tên mục + action icon-only; ≥`lg` full path; đo 390/768 không cắt |
+| UI3-C5 | Home 1–2 chỉ số (mock đúng shape) | **DONE** | cột `hero_metric*_value`; 1 thẻ, không “Chưa cấu hình” |
+| UI3-C6 | Footer WCAG 2.5.8 | **DONE** | target 390=44px, 768/1440=24px; min center distance 34,4px; sửa kết luận “cỡ chữ 16px” |
+| UI3-C7 | Quote 768 thiếu CTA | **DONE** | bar `lg:hidden` (đồng bộ PDP); 768 có bar, 1024+ bảng giá vào cột phải |
+| UI3-C8 | Review nhất quán 390/768/1440 | **DONE** | contact sheet 9 màn; cart/checkout rỗng đồng nhất; 0 tràn/0 `pageerror` |
+
+**Không còn backlog UI/UX code-only trong audit này.** Còn lại phụ thuộc môi trường/dữ liệu: SMTP reset, tài khoản thật, catalog published, `/lab`, CMS save, upload Storage, submit checkout/tạo đơn DB.
 
 ---
 
