@@ -14,7 +14,7 @@
  *      Feature/view/component phải dùng `<Icon name="…" />`.
  *   B. CẤM emoji làm icon trong code (ranges 1F300–1FAFF, 2600–27BF, 2B00–2BFF) — trừ COMMENT.
  *      `<option>`/`<select>`/canvas: bỏ emoji, chỉ giữ text (không thêm icon vào option).
- *   C. `<svg>` raw chỉ được là brand asset đã duyệt (Google logo ở AuthModal/Login/Register).
+ *   C. `<svg>` raw chỉ được là brand asset đã duyệt (Google logo ở Login/Register).
  *
  * ALLOWLIST: cố ý RỖNG. Nếu buộc phải tha, thêm entry kèm `why` + ngày + người duyệt; entry
  * hết hạn phải xoá (gate fail nếu allowlist trỏ tới file không còn vi phạm). Xem `verifyAllowlist`.
@@ -40,7 +40,6 @@ const LUCIDE_ALLOW = (file) => file.startsWith(UI_DIR);
  * Khớp theo `file:line` + lý do; xem docs/design/icon-map.md.
  */
 const RAW_SVG_ALLOW = [
-  { file: 'src/frontend/components/AuthModal.tsx', why: 'Google logo — brand asset của nhà cung cấp OAuth' },
   { file: 'src/frontend/views/LoginView.tsx', why: 'Google logo — brand asset của nhà cung cấp OAuth' },
   { file: 'src/frontend/views/RegisterView.tsx', why: 'Google logo — brand asset của nhà cung cấp OAuth' },
 ];

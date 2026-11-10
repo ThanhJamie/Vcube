@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button, Card, Field, Icon, Input } from '@frontend/ui';
-import { ENABLE_GOOGLE_OAUTH } from '../components/AuthModal';
+import { ENABLE_GOOGLE_OAUTH } from '@frontend/lib/authFlags';
 
 interface RegisterViewProps {
   onNavigate?: (screen: string, payload?: any) => void;
@@ -408,7 +408,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onNavigate }) => {
             )}
 
             {/* Divider */}
-            {/* D7 — Google OAuth tam gac: xem `ENABLE_GOOGLE_OAUTH` o AuthModal.tsx */}
+            {/* D7 — Google OAuth tam gac: xem `ENABLE_GOOGLE_OAUTH` trong `frontend/lib/authFlags.ts` */}
             {ENABLE_GOOGLE_OAUTH && (
               <>
               <div className="relative flex items-center justify-center py-1">

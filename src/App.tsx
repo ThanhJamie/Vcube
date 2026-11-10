@@ -39,7 +39,6 @@ function MainApp() {
   const isChatOpen = useUIStore((s) => s.isChatOpen);
   const setIsChatOpen = useUIStore((s) => s.setIsChatOpen);
   const addToast = useUIStore((s) => s.addToast);
-  const openAuthModal = useUIStore((s) => s.openAuthModal);
 
   // Identity ỔN ĐỊNH: `showToast` được truyền xuống AppRoutes → admin panels; hàm thường
   // (identity mới mỗi render) từng làm callback/effect phía panel phụ thuộc nó chạy lại.
@@ -177,10 +176,6 @@ function MainApp() {
     };
   }, [location.pathname, isChatOpen, isCartDrawerOpen]);
 
-  const handleOpenAuth = (mode: 'signin' | 'signup' | 'account' = 'signin') => {
-    openAuthModal(mode);
-  };
-
   const { handleNavigate } = useAppNavigation({
     role,
     isLoggedIn,
@@ -248,7 +243,6 @@ function MainApp() {
           onNavigate={handleNavigate}
           cart={cart}
           siteContent={siteContent}
-          onOpenAuth={handleOpenAuth}
           onOpenCartDrawer={() => setIsCartDrawerOpen(true)}
           notifications={notifications}
           unreadCount={unreadCount}

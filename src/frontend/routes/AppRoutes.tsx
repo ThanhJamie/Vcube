@@ -457,7 +457,7 @@ export function AppRoutes({
           <Route path="/lab/:tab" element={labRouteElement} />
 
           {/* Authentication Pages */}
-          <Route path="/auth/login" element={<LoginView onNavigate={handleNavigate} />} />
+          <Route path="/auth/login" element={<LoginView />} />
           <Route path="/login" element={<Navigate to="/auth/login" replace />} />
           <Route path="/auth/register" element={<RegisterView onNavigate={handleNavigate} />} />
           <Route path="/register" element={<Navigate to="/auth/register" replace />} />
