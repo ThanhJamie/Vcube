@@ -525,6 +525,17 @@ Sau Phase 2:
 
 **P2 follow-up ghi nhận:** Header/NotificationBell/ProductDetail còn vài entry auth trong app chưa truyền `redirectTo`; A11y loading state `/products/:id`/`/order-success/:id` chưa có h1; robots `/assets/` (slash cuối) vẫn crawlable; admin storefront chưa validate email trước khi lưu; guard publish tin `previousStatus` caller.
 
+### 5.6 Wave 1.2 — code-only P2 tiếp theo (2026-11-10)
+
+| ID | Item | Branch / commit | Kết quả | Bằng chứng |
+|---|---|---|---|---|
+| W1.2-AUTH | In-app auth links giữ `redirectTo` (`useAppNavigation`, PDP) | `wave1.2/auth` · `e6a38f7` | **DONE** | `/explore` header login/register = `?redirectTo=%2Fexplore`; guest protected navigation dùng loginHref; 189 test |
+| W1.2-A11Y | H1 loading/latent + tách lỗi tải đơn | `wave1.2/a11y` · `fd52d7e` | **DONE** | Loading `/products/:id` và `/order-success/:id` có 1 h1; `OrderLoadErrorView` có Thử lại; 390/1440 0 tràn |
+| W1.2-SEO | Đóng `/assets/` slash; sửa evidence `$` | `wave1.2/seo` · `1fa18c9` | **DONE** | `Allow: /assets/` + `Disallow: /assets$` + `Disallow: /assets/$`; `seo:check` PASS; negative thiếu rule fail |
+| W1.2-CONTACT | Admin validate email trước khi lưu | `wave1.2/contact` · `e17a4cc` | **DONE** | `getContactEmailIssue`/`isValidContactEmail`; panel chặn email sai/`[MẪU]`/example; 192 test |
+
+**P2 còn lại sau Wave 1.2:** robots parser chỉ mô phỏng group `User-agent: *`; `seo:check` chưa vào `npm run check`; `OrderService` chưa có typed error để phân biệt not-found vs network; guard publish vẫn tin `previousStatus` caller; direct-API publish gap; owner chưa xác nhận mailbox thật.
+
 ---
 
 ## 6. Backlog đầy đủ
