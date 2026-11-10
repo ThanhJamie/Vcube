@@ -15,8 +15,8 @@ import { getOrderGateway } from '../../backend/services/orderGateway';
 import { finalizeOrderDelivery } from '../../backend/services/deliveryService';
 import { useUIStore } from '@frontend/stores/useUIStore';
 import { manualPaymentProvider } from '../../backend/integrations/paymentProvider';
-import type { PaymentInstructions } from '../../backend/integrations/paymentProvider';
 import { getTransferInfoReadiness, resolveSelectablePaymentMethod, TRANSFER_FIELD_LABELS, VNPAY_NOT_CONNECTED_REASON, type CheckoutPaymentMethod } from '../lib/paymentMethods';
+import { TransferInstructionsCard } from '../components/orders/TransferInstructionsCard';
 
 /** Nhãn vai trò hiển thị VI (giá trị `role` trong DB là enum tiếng Anh — không render thô). */
 const ROLE_LABEL: Record<string, string> = {
@@ -108,7 +108,6 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
    * Thiếu cấu hình ⇒ hiện "Chưa cấu hình thông tin nhận tiền" (KHÔNG bịa số tài khoản).
    */
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
-  const [copiedPaymentField, setCopiedPaymentField] = useState<string | null>(null);
   /** PR-3 — khoá idempotency: giữ nguyên qua retry để không tạo đơn thứ hai. */
   const idempotencyKeyRef = useRef<string | null>(null);
 
@@ -237,6 +236,18 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       }
     };
 
+    // OPS-01 — CHỐT hướng dẫn chuyển khoản NGAY TẠI ĐÂY, trước khi gọi gateway: snapshot này
+    // được ghi cùng `orders.payment` (jsonb) nên mở lại đơn ở `/tracking`, `/order-success`
+    // hay sau khi admin đổi `app_settings` vẫn hiện ĐÚNG thông tin khách đã nhận.
+    // COD KHÔNG có hướng dẫn chuyển khoản ⇒ không gán snapshot (tránh hiện số TK cho đơn COD).
+    if (payableMethod === 'vietqr') {
+      newOrder.payment.transferInstructions = manualPaymentProvider.buildInstructions(newOrder, {
+        bankName: transferSettings?.bankName ?? null,
+        bankAccount: transferSettings?.bankAccount ?? null,
+        accountHolder: transferSettings?.legalName ?? null,
+      });
+    }
+
     try {
       // B1 — ĐƠN PHẢI XUỐNG DB TRƯỚC KHI BÁO THÀNH CÔNG. Đường ghi đi qua RANH GIỚI
       // DUY NHẤT `orderGateway` (PR-3): flag `VITE_ATOMIC_ORDER=true` ⇒ RPC atomic
@@ -308,24 +319,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   // FL-1 — màn hình SAU KHI ĐẶT ĐƠN: khối thanh toán thủ công (không tự rời trang).
   // Đặt TRƯỚC guard giỏ rỗng vì `onOrderCompleted` đã clear cart (guard sẽ che mất khối này).
   if (createdOrder) {
-    const instructions: PaymentInstructions = manualPaymentProvider.buildInstructions(createdOrder, {
-      bankName: transferSettings?.bankName ?? null,
-      bankAccount: transferSettings?.bankAccount ?? null,
-      accountHolder: transferSettings?.legalName ?? null,
-    });
     const payment = createdOrder.payment;
-    // P2-2: đơn COD không có hướng dẫn chuyển khoản — hiển thị đúng cách thanh toán khi nhận hàng.
-    const isCodOrder = payment?.status === 'cod';
-    const copyText = async (field: string, value: string | null) => {
-      if (!value) return;
-      try {
-        await navigator.clipboard?.writeText(value);
-        setCopiedPaymentField(field);
-        window.setTimeout(() => setCopiedPaymentField(null), 2000);
-      } catch {
-        /* ignore: clipboard bị trình duyệt chặn — không báo thành công giả, người dùng vẫn copy tay được */
-      }
-    };
 
     return (
       <div className="min-h-dvh bg-canvas text-fg py-8 sm:py-12 px-4 sm:px-6 md:px-12">
@@ -339,89 +333,15 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               <p className="text-sm text-fg-muted">
                 Mã đơn{' '}
                 <strong className="font-mono text-fg tabular-nums">{createdOrder.orderNumber}</strong>.{' '}
-                {isCodOrder ? (
-                  <>Thanh toán khi nhận hàng (COD) — VCUBE xác nhận đơn trước khi xưởng bắt đầu.</>
-                ) : (
-                  <>Đơn đang ở trạng thái <strong className="text-warning">CHỜ THANH TOÁN</strong> — VCUBE xác nhận khoản chuyển thủ công trước khi xưởng bắt đầu.</>
-                )}
+                Hướng dẫn thanh toán bên dưới được lưu cùng đơn này.
               </p>
             </div>
 
-            {/* Số tiền + hướng dẫn chuyển khoản */}
-            <div className="rounded-lg border border-line bg-surface-muted p-4 space-y-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm font-semibold text-fg">
-                  {isCodOrder ? 'Số tiền thanh toán khi nhận hàng' : 'Số tiền cần chuyển'}
-                </span>
-                <Money value={instructions.amount} size="heading" className="text-fg" />
-              </div>
-
-              {isCodOrder ? (
-                <div className="rounded-md border border-info/20 bg-info-tint p-3 text-sm text-fg-muted">
-                  <p className="font-semibold text-info">Thanh toán khi nhận hàng (COD)</p>
-                  <p className="mt-1 leading-relaxed">
-                    Bạn thanh toán cho đơn vị giao hàng khi nhận. Không cần chuyển khoản trước; VCUBE xác nhận
-                    đơn và xưởng bắt đầu in sau đó.
-                  </p>
-                </div>
-              ) : instructions.configured ? (
-                <div className="space-y-2 text-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-fg-muted">Ngân hàng</span>
-                    <strong className="text-fg">{instructions.bankName}</strong>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-fg-muted">Số tài khoản</span>
-                    <span className="flex items-center gap-2">
-                      <strong className="font-mono text-fg tabular-nums">{instructions.bankAccount}</strong>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => void copyText('account', instructions.bankAccount)}
-                        leadingIcon={<Icon name={copiedPaymentField === 'account' ? 'check' : 'content_copy'} size={14} />}
-                      >
-                        {copiedPaymentField === 'account' ? 'Đã chép' : 'Sao chép'}
-                      </Button>
-                    </span>
-                  </div>
-                  {instructions.accountHolder && (
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-fg-muted">Chủ tài khoản</span>
-                      <strong className="text-fg">{instructions.accountHolder}</strong>
-                    </div>
-                  )}
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle pt-2">
-                    <span className="text-fg-muted">Nội dung chuyển khoản</span>
-                    <span className="flex items-center gap-2">
-                      <strong className="font-mono text-fg">{instructions.transferContent}</strong>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => void copyText('content', instructions.transferContent)}
-                        leadingIcon={<Icon name={copiedPaymentField === 'content' ? 'check' : 'content_copy'} size={14} />}
-                      >
-                        {copiedPaymentField === 'content' ? 'Đã chép' : 'Sao chép'}
-                      </Button>
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-md border border-warning/20 bg-warning-tint p-3 text-sm text-fg-muted">
-                  <p className="font-semibold text-warning">Chưa cấu hình thông tin nhận tiền</p>
-                  <p className="mt-1 leading-relaxed">
-                    VCUBE chưa khai báo ngân hàng / số tài khoản nhận chuyển khoản trong hệ thống. Vui lòng liên hệ
-                    VCUBE để nhận thông tin chính xác — không chuyển tiền theo số khác.
-                  </p>
-                </div>
-              )}
-
-              <p className="text-xs leading-relaxed text-fg-muted">
-                {isCodOrder
-                  ? 'Đơn COD chỉ chuyển sang ĐÃ THANH TOÁN sau khi đơn vị giao hàng thu tiền.'
-                  : 'Đơn chỉ chuyển sang trạng thái ĐÃ THANH TOÁN sau khi VCUBE đối soát được khoản chuyển.'}{' '}
-                Bạn có thể tra cứu đơn bằng mã đơn {createdOrder.secureAccessToken ? 'kèm mã truy cập bên dưới' : 'trong mục Đơn hàng của tôi'}.
-              </p>
-            </div>
+            {/*
+              OPS-01: dùng SNAPSHOT `createdOrder.payment.transferInstructions` (đã ghi cùng đơn)
+              qua component dùng chung — không đọc lại `app_settings`, không lặp logic hiển thị.
+            */}
+            <TransferInstructionsCard order={createdOrder} />
 
             {/* Breakdown tiền — giữ nguyên cách tính của checkout */}
             <div className="space-y-2 text-sm">
@@ -467,7 +387,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 variant="primary"
                 size="lg"
                 className="w-full sm:flex-1"
-                onClick={() => onNavigate('order_tracking', { orderId: createdOrder.id })}
+                onClick={() => onNavigate('order_tracking', { orderId: createdOrder.id, token: createdOrder.secureAccessToken })}
                 leadingIcon={<Icon name="sensors" size={18} aria-hidden="true" />}
               >
                 Theo dõi đơn hàng
@@ -810,7 +730,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                         Số tiền: <Money as="strong" value={totalAmount} size="base" className="font-mono font-semibold text-fg" />
                       </div>
                       <div className="sm:col-span-2">
-                        Nội dung chuyển khoản: <strong className="font-mono font-semibold text-warning">VCUBE {phone.replace(/\s/g, '') || '<SĐT>'}</strong>
+                        Nội dung chuyển khoản: <strong className="font-mono font-semibold text-warning">mã đơn hàng</strong> — hệ thống cấp ngay sau khi bạn xác nhận đơn (không dùng số điện thoại).
                       </div>
                       {!transferReadiness.configured && (
                         <p className="sm:col-span-2 font-medium text-warning">

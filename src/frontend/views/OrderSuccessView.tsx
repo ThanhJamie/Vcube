@@ -3,6 +3,7 @@ import { Order } from '../../types';
 import { Icon, Button, Badge, Card } from '@frontend/ui';
 import { EMPTY_VALUE, formatCurrency, formatDateTime } from '../lib/format';
 import { safeImageUrl } from '../lib/productImage';
+import { TransferInstructionsCard } from '../components/orders/TransferInstructionsCard';
 
 /**
  * `Order.date` đến từ HAI nguồn khác nhau:
@@ -102,6 +103,9 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
               </div>
             </div>
           )}
+
+          {/* OPS-01 — hướng dẫn thanh toán đọc từ SNAPSHOT của chính đơn (không đọc app_settings). */}
+          <TransferInstructionsCard order={order} />
 
           {/* Next-steps stepper — trạng thái lấy từ ĐƠN ĐÃ LƯU, không hứa trước.
               OT-08: trước đây màn này khẳng định "Thanh toán — Đã xác nhận" cho một
@@ -203,7 +207,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
                 size="lg"
                 variant="primary"
                 className="w-full sm:w-auto font-mono"
-                onClick={() => onNavigate('tracking', { orderId: order.id })}
+                onClick={() => onNavigate('tracking', { orderId: order.id, token: order.secureAccessToken })}
                 leadingIcon={<Icon name="sensors" size={18} />}
               >
                 <span>THEO DÕI TIẾN ĐỘ ĐƠN HÀNG</span>

@@ -84,6 +84,12 @@ export interface CartItem {
  */
 export type OrderPaymentStatus = 'awaiting_payment' | 'paid' | 'cod' | 'cancelled' | 'unpaid';
 
+/** OPS-01 — snapshot hướng dẫn chuyển khoản đã chốt lúc đặt đơn (`orders.payment` jsonb); đơn cũ đọc ĐÚNG snapshot, KHÔNG đọc `app_settings` hiện tại. */
+export type TransferInstructions = {
+  configured: boolean; method: string; amount: number | null; transferContent: string;
+  bankName: string | null; bankAccount: string | null; accountHolder: string | null; lines: string[];
+};
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -145,6 +151,8 @@ export interface Order {
     total: number;
     isPaid?: boolean;
     status?: OrderPaymentStatus;
+    /** OPS-01 — snapshot hướng dẫn chuyển khoản ghi cùng đơn; vắng ⇒ UI nói thật, không đọc app_settings. */
+    transferInstructions?: TransferInstructions;
   };
   /** FL-1 — snapshot tiền đã chốt trên `orders` (null = chưa chốt/chưa cấu hình). */
   money?: OrderMoneySnapshot;

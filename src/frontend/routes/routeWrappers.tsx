@@ -406,7 +406,63 @@ export const OrderTrackingRoute: React.FC<{
   onOpenInvoice: (order: Order) => void;
 }> = ({ orders, onNavigate, onOpenChat, onOpenInvoice }) => {
   const { orderId } = useParams<{ orderId?: string }>();
-  const order = resolveOrderById(orders, orderId);
+  const location = useLocation();
+  const fromRam = resolveOrderById(orders, orderId);
+  /**
+   * OPS-05 — guest từ `/order-success` sang đây mang `secureAccessToken` qua ROUTER STATE
+   * (không nằm trên URL). Có token + đơn không còn trên RAM (F5/tab mới) ⇒ đọc lại đơn từ DB
+   * đúng một lần; token chỉ dùng để gọi service, KHÔNG render/log.
+   */
+  const guestToken = (location.state as { guestToken?: unknown } | null)?.guestToken;
+  const token = typeof guestToken === 'string' && guestToken.trim() !== '' ? guestToken.trim() : null;
+
+  const [dbOrder, setDbOrder] = React.useState<Order | null>(null);
+  // 'loading' ngay từ lần render đầu khi CHẮC CHẮN sẽ đọc DB — tránh 1 frame hiện nhầm
+  // cổng tra cứu ("không tìm thấy đơn") trước khi effect kịp chạy.
+  const [loadState, setLoadState] = React.useState<'idle' | 'loading' | 'not_found' | 'error'>(() =>
+    orderId && !fromRam && token ? 'loading' : 'idle'
+  );
+  const [retryTick, setRetryTick] = React.useState(0);
+
+  React.useEffect(() => {
+    // Không có id/token, hoặc đơn đã có trên RAM ⇒ không gọi mạng.
+    if (!orderId || fromRam || !token) {
+      setDbOrder(null);
+      setLoadState('idle');
+      return;
+    }
+    let alive = true;
+    setLoadState('loading');
+    OrderService.getOrderDetail(orderId, { token })
+      .then((res) => {
+        if (!alive) return;
+        setDbOrder(res.order);
+        setLoadState('idle');
+      })
+      .catch((err: unknown) => {
+        if (!alive) return;
+        setDbOrder(null);
+        // `not_found` = sai id/token ⇒ cổng tra cứu; mọi mã khác = chưa đọc được ⇒ màn lỗi + Thử lại.
+        setLoadState(err instanceof OrderDetailError && err.code === 'not_found' ? 'not_found' : 'error');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [orderId, fromRam, token, retryTick]);
+
+  const order = fromRam ?? dbOrder;
+
+  if (!order) {
+    if (loadState === 'loading') return <PageSkeleton heading="Tiến độ đơn hàng" />;
+    if (loadState === 'error') {
+      return (
+        <OrderLoadErrorView
+          onRetry={() => setRetryTick((n) => n + 1)}
+          onNavigate={onNavigate}
+        />
+      );
+    }
+  }
 
   return (
     <OrderTrackingView

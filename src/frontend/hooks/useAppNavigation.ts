@@ -13,6 +13,12 @@ export interface AppNavPayload {
   product?: Product;
   order?: Order;
   orderId?: string;
+  /**
+   * OPS-05 — mã truy cập của đơn khách vãng lai. Chỉ chuyển qua ROUTER STATE
+   * (`location.state.guestToken`), KHÔNG đưa lên URL/query để không lộ token trong
+   * lịch sử trình duyệt/log/referrer.
+   */
+  token?: string;
   category?: string;
   search?: string;
   tag?: string;
@@ -174,7 +180,12 @@ export function useAppNavigation({
         if (targetOrderId) {
           const latestOrder = orders.find((o) => o.id === targetOrderId) || payload?.order;
           if (latestOrder) setActiveOrder(latestOrder);
-          navigate(`/tracking/${targetOrderId}`);
+          // OPS-05: guest vừa đặt đơn có `secureAccessToken` — chuyển kèm token qua state để
+          // route wrapper đọc lại được đơn từ DB (F5/tab mới) mà không cần đăng nhập.
+          const guestToken = payload?.token?.trim() || payload?.order?.secureAccessToken;
+          navigate(`/tracking/${targetOrderId}`, {
+            state: guestToken ? { guestToken } : undefined,
+          });
         } else {
           // Không bịa id đơn: mở cổng tra cứu để người dùng nhập mã + token.
           navigate('/tracking');
