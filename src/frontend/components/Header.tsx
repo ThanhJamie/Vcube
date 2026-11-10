@@ -13,13 +13,14 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { CartItem, SiteContentConfig } from '@/types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { UserAvatarMenu } from './auth/UserAvatarMenu';
 import { NotificationBell } from './NotificationBell';
 import type { OrderNotification } from '@frontend/hooks/useOrdersData';
+import { buildAuthSwitchHref, buildLoginHref } from '@frontend/lib/authRedirect';
 import { Button, Icon, useBodyScrollLock } from '@frontend/ui';
 
 interface HeaderProps {
@@ -47,7 +48,25 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { user, profile, role, isLoggedIn, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
+
+  // Header auth links phải mang đường về giống card Login/Register, nếu không bấm từ
+  // header sẽ làm mất `?redirectTo=`:
+  //  - đang ở `/auth/login` hoặc `/auth/register` ⇒ giữ `redirectTo` hiện có (đổi
+  //    login ⟷ register vẫn về đúng đích);
+  //  - đang ở trang public khác ⇒ lấy chính `pathname + search` hiện tại làm đích để
+  //    đăng nhập/đăng ký xong quay lại trang đang xem.
+  const isAuthScreen =
+    location.pathname === '/auth/login' || location.pathname === '/auth/register';
+  const currentRedirectTo = new URLSearchParams(location.search).get('redirectTo');
+  const authTarget = isAuthScreen
+    ? currentRedirectTo
+    : `${location.pathname}${location.search}`;
+  const loginHref = isAuthScreen
+    ? buildAuthSwitchHref('/auth/login', currentRedirectTo)
+    : buildLoginHref(location.pathname, location.search);
+  const registerHref = buildAuthSwitchHref('/auth/register', authTarget);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickSearchQuery, setQuickSearchQuery] = useState('');
   const navRef = useRef<HTMLElement | null>(null);
@@ -313,14 +332,14 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <div className="hidden lg:flex items-center gap-2">
                 <Link
-                  to="/auth/login"
+                  to={loginHref}
                   className="inline-flex h-10 items-center gap-1.5 rounded-md border border-line-control bg-surface px-4 text-sm font-medium text-fg transition-colors duration-200 hover:border-fg-subtle hover:bg-surface-muted cursor-pointer font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Icon name="login" size={16} />
                   <span>Đăng nhập</span>
                 </Link>
                 <Link
-                  to="/auth/register"
+                  to={registerHref}
                   className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors duration-200 hover:bg-primary-hover cursor-pointer font-sans focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Icon name="person_add" size={16} />
@@ -493,7 +512,7 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <Link
-                    to="/auth/login"
+                    to={loginHref}
                     onClick={() => setMobileMenuOpen(false)}
                     className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md border border-line-control bg-surface px-3 text-sm font-medium text-fg transition-colors duration-200 hover:border-fg-subtle hover:bg-surface-muted cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
@@ -501,7 +520,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>Đăng nhập</span>
                   </Link>
                   <Link
-                    to="/auth/register"
+                    to={registerHref}
                     onClick={() => setMobileMenuOpen(false)}
                     className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-sm font-semibold text-primary-fg shadow-e1 transition-colors duration-200 hover:bg-primary-hover cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
