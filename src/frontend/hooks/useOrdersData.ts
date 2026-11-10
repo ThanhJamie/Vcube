@@ -53,6 +53,12 @@ export interface OrdersData {
   notifications: OrderNotification[];
   unreadCount: number;
   markNotificationsRead: () => void;
+  /** OPS-35 — đang nạp danh sách đơn từ DB (chỉ bật khi CHƯA có danh sách để tránh nháy). */
+  ordersLoading: boolean;
+  /** OPS-35 — lần nạp gần nhất thất bại (mạng/RLS); KHÔNG đồng nghĩa "chưa có đơn". */
+  ordersError: boolean;
+  /** OPS-35 — "Thử lại": chạy lại effect nạp đơn. */
+  reloadOrders: () => void;
 }
 
 /** Số cột số từ payload realtime (có thể là `null`, chuỗi số hoặc thiếu hẳn). */
@@ -66,12 +72,21 @@ function toNumberOrNull(value: unknown): number | null {
 const MAX_NOTIFICATIONS = 20;
 
 export function useOrdersData(): OrdersData {
-  const { role, isLoggedIn, user } = useAuth();
+  const { role, isLoggedIn, user, loading: authLoading } = useAuth();
   const clearCartStore = useCartStore((s) => s.clearCart);
 
   // Đơn hàng KHÔNG được seed từ fixture: chỉ chứa đơn thật do người dùng tạo
   // trong phiên, hoặc đơn đọc từ Supabase (xem effect bên dưới).
   const [orders, setOrders] = useState<Order[]>([]);
+  /**
+   * OPS-35 — trạng thái nạp danh sách. Khởi tạo `true` khi phiên còn đang khôi phục hoặc
+   * đã đăng nhập: lần render đầu của `/orders` là skeleton, không nháy "Bạn chưa có đơn hàng".
+   */
+  const [ordersLoading, setOrdersLoading] = useState(authLoading || isLoggedIn);
+  /** OPS-35 — cờ boolean (không lộ `err.message`), view tự phân biệt lỗi-khi-rỗng/lỗi-khi-có-list. */
+  const [ordersError, setOrdersError] = useState(false);
+  /** Tick để effect nạp đơn chạy lại khi người dùng bấm "Thử lại". */
+  const [ordersReloadTick, setOrdersReloadTick] = useState(0);
   const [assets, setAssets] = useState<DigitalAsset[]>([]);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   /** Thông báo trạng thái của phiên hiện tại — RAM-only, dọn khi đổi người dùng. */
@@ -103,19 +118,43 @@ export function useOrdersData(): OrdersData {
    * `vcube_orders_owner_read` chỉ trả đơn khớp `user_id`/`customer_email` của JWT, còn
    * `vcube_orders_admin_all` cho admin thấy toàn bộ — nên KHÔNG truyền email/điều kiện
    * từ client (tránh bỏ sót đơn có email khác lúc đặt).
+   *
+   * OPS-35: lỗi mạng/RLS KHÔNG còn bị nuốt thành "chưa có đơn". Khi bắt đầu nạp ⇒
+   * `loading=true, error=false`; lỗi ⇒ `error=true` + giữ nguyên danh sách cũ (nếu có)
+   * để view hiện banner "có thể cũ"; kết thúc ⇒ `loading=false`. `ordersReloadTick` là
+   * nút "Thử lại" của view.
    */
   useEffect(() => {
-    if (!isLoggedIn) return;
+    // Đang khôi phục phiên ⇒ chưa biết có đơn để nạp hay không: giữ loading, chưa kết luận.
+    if (authLoading) return;
+    if (!isLoggedIn) {
+      // Chưa đăng nhập ⇒ không có nguồn dữ liệu; không bật loading/error giả.
+      setOrdersLoading(false);
+      setOrdersError(false);
+      return;
+    }
     let alive = true;
+    setOrdersLoading(true);
+    setOrdersError(false);
     dbService.getOrders()
       .then((list) => {
-        if (alive && Array.isArray(list)) setOrders(list);
+        if (!alive || !Array.isArray(list)) return;
+        setOrders(list);
       })
-      .catch((err) => console.warn('Could not load orders:', err));
+      .catch((err) => {
+        if (!alive) return;
+        // Giữ danh sách cũ: view phân biệt "lỗi + rỗng" (màn lỗi) với "lỗi + còn list"
+        // (banner cảnh báo) — không xoá dữ liệu đang xem.
+        console.warn('Could not load orders:', err);
+        setOrdersError(true);
+      })
+      .finally(() => {
+        if (alive) setOrdersLoading(false);
+      });
     return () => {
       alive = false;
     };
-  }, [isLoggedIn, role]);
+  }, [authLoading, isLoggedIn, role, ordersReloadTick]);
 
   /**
    * Đổi người dùng / đăng xuất ⇒ thông báo của phiên trước phải biến mất: chúng chứa mã đơn
@@ -206,6 +245,9 @@ export function useOrdersData(): OrdersData {
   /**
    * Lưới an toàn khi realtime rớt (tab ngủ, mạng chập chờn): quay lại tab ⇒ đồng bộ lại
    * danh sách đơn từ DB (RLS tự lọc). Chỉ chạy khi đã đăng nhập.
+   *
+   * OPS-35: cập nhật luôn `ordersError` để lần đồng bộ lỗi không bị che; và CHỈ bật
+   * `ordersLoading` khi trong RAM chưa có danh sách (tránh nháy skeleton khi quay lại tab).
    */
   useEffect(() => {
     if (!isLoggedIn || !isSupabaseConfigured) return;
@@ -213,11 +255,21 @@ export function useOrdersData(): OrdersData {
 
     const syncWhenVisible = () => {
       if (document.visibilityState !== 'visible') return;
+      if (ordersRef.current.length === 0) setOrdersLoading(true);
       dbService.getOrders()
         .then((list) => {
-          if (alive && Array.isArray(list)) setOrders(list);
+          if (!alive || !Array.isArray(list)) return;
+          setOrders(list);
+          setOrdersError(false);
         })
-        .catch((err) => console.warn('Could not sync orders on focus:', err));
+        .catch((err) => {
+          if (!alive) return;
+          console.warn('Could not sync orders on focus:', err);
+          setOrdersError(true);
+        })
+        .finally(() => {
+          if (alive) setOrdersLoading(false);
+        });
     };
 
     document.addEventListener('visibilitychange', syncWhenVisible);
@@ -304,6 +356,11 @@ export function useOrdersData(): OrdersData {
     setReadIds(new Set(notificationsRef.current.map((n) => n.id)));
   }, []);
 
+  /** OPS-35 — đổi tick để effect nạp đơn chạy lại; identity ổn định cho prop `onRetry`. */
+  const reloadOrders = useCallback(() => {
+    setOrdersReloadTick((tick) => tick + 1);
+  }, []);
+
   const unreadCount = notifications.reduce((acc, n) => acc + (readIds.has(n.id) ? 0 : 1), 0);
 
   return {
@@ -316,6 +373,9 @@ export function useOrdersData(): OrdersData {
     notifications,
     unreadCount,
     markNotificationsRead,
+    ordersLoading,
+    ordersError,
+    reloadOrders,
   };
 }
 
