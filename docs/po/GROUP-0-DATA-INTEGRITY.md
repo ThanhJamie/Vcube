@@ -64,3 +64,11 @@ Nhánh `group0/data-integrity` (base `f8c5310`), **không push**:
 - Key localStorage cũ `vcube_custom_design_requests` **không tự xoá** trên máy đã dùng; cần quyết định purge một lần.
 - Lỗi insert product còn message generic do `result.ts`; đúng là không báo thành công nhưng chưa hữu ích.
 - Không sửa 11 modal conditional khác vì production đã xác nhận mở được.
+
+## 5. Follow-up giữ mở (theo PO review)
+
+| Item | Trạng thái | Việc còn lại |
+|---|---|---|
+| OPS-24 | Một phần | Patch theo field chỉ giải quyết hai panel **cùng phiên**. Hai admin/hai trình duyệt vẫn có thể last-write-wins vì body full object. Cần cập nhật theo field hoặc version check. |
+| OPS-23 | Một phần | App không còn đọc/ghi key, nhưng key cũ vẫn nằm trên máy người dùng. Cần purge **đúng** `vcube_custom_design_requests` một lần khi mở bản mới; không xoá localStorage khác. |
+| OPS-19 | Một phần | UI hết báo thành công giả; chưa chứng minh cleanup Storage khi upload xong nhưng insert product/asset lỗi. Cần review trong luồng designer. |

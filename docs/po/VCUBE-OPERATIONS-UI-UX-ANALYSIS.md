@@ -518,7 +518,24 @@ PO đã review và chốt thứ tự ưu tiên “ghi dữ liệu đáng tin” 
 
 **Gate trên nhánh:** tsc PASS; 203/203 unit; `npm run check` 24/24; browser 390/1440 0 tràn/0 pageerror.
 
-**Chưa làm trong Nhóm 0:** purge key localStorage cũ trên máy người dùng (cần quyết định); thông điệp lỗi insert product còn generic do `result.ts`; body site_content vẫn full object (chỉ semantic patch); các luồng Nhóm 1–3 chưa bắt đầu.
+**Chưa làm trong Nhóm 0:** purge key localStorage cũ trên máy người dùng (cần quyết định); thông điệp lỗi insert product còn generic do `result.ts`; body site_content vẫn full object (chỉ semantic patch); các luồng Nhóm 2–3 chưa bắt đầu.
+
+### 11.1 Nhóm 1 — Đơn hàng (2026-11-10)
+
+Hai nhánh `group1/orders-a` (`3b37784`) + `group1/orders-b` (`e50ace4`) → tích hợp `ca241fa`, **không push**.
+
+| Item | Trạng thái | Thay đổi chính | Bằng chứng |
+|---|---|---|---|
+| OPS-01 | **FIXED (per-order)** | Snapshot `payment.transferInstructions` vào `orders.payment` jsonb khi tạo đơn; bank/STK/nội dung CK gắn với đơn. Đơn cũ thiếu snapshot hiện thông báo trung thực, không đọc `app_settings` hiện tại | Success/tracking/orders mock: bank đúng; old order “chưa lưu thông tin nhận tiền” |
+| OPS-05 | **FIXED (in-app)** | Success → Tracking truyền token qua router **state**, không vào URL; TrackingRoute fetch bằng token khi không có đơn RAM | Guest success → `/tracking/:id`, URL sạch token, bank hiển thị; F5 cần nhập token |
+| OPS-04 | **FIXED (UI)** | Bỏ toàn bộ copy “hoặc số điện thoại”; chỉ mã đơn + mã truy cập | `/tracking` không còn chuỗi “số điện thoại” |
+| OPS-07 | **FIXED** | CTA chỉ “Xem hướng dẫn thanh toán” khi snapshot configured; còn lại “Xem chi tiết đơn”; COD không hiện bank | `/orders` 4 đơn mock: VietQR/no-snapshot/COD/cancelled đúng |
+| OPS-34 | **FIXED** | Cancelled: “Đơn đã hủy — không cần thanh toán”; tracking badge “ĐÃ HỦY” | `/orders` + tracking mock |
+| OPS-35 | **FIXED** | `ordersLoading/ordersError/reloadOrders`; lỗi 500 → alert + Thử lại, không “chưa có đơn”; banner stale khi có list | 500 → retry 200 ra list; 390/1440 |
+
+**Gate:** tsc PASS; 203/203 unit; `npm run check` 24/24; browser 4 kịch bản × 390/1440, 0 tràn/0 pageerror.
+
+**Follow-up:** đơn cũ không snapshot cần hỗ trợ tay; token state mất khi F5; OPS-24/23/19 vẫn mở như §5 Nhóm 0.
 
 - Báo cáo nháp đầy đủ: `/tmp/opencode/ops-analysis/worker-A.md`, `worker-B.md`, `worker-C.md`, `worker-D.md`.
 - Ảnh: `/tmp/opencode/ops-analysis/worker-a-*.png`, `worker-b-*.png`, `worker-c-*.png`, `worker-d-*.png`.
