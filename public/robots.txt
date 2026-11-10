@@ -1,14 +1,18 @@
 # VCUBE — sinh bởi scripts/gen-seo-files.mjs
+# Chưa cấu hình domain production (SEO-01). Sinh lại:
+#   node scripts/gen-seo-files.mjs --site https://<domain>
 User-agent: *
 Allow: /
+
 Disallow: /admin
 Disallow: /designer
 Disallow: /lab
 Disallow: /orders
 Disallow: /assets
+Disallow: /account
 Disallow: /checkout
 Disallow: /cart
 Disallow: /tracking
 Disallow: /auth
-
-Sitemap: http://localhost:3000/sitemap.xml
+Disallow: /personalize
+Disallow: /order-success
