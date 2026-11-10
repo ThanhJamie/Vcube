@@ -18,6 +18,12 @@
  *   - `--check` cũng so rule `Allow`/`Disallow` của robots với generator (chống sửa tay lệch)
  *     và mô phỏng khớp rule để chắc crawler tải được asset build (`/assets/*.js|css`) nhưng
  *     KHÔNG crawl được `/assets` (route app) lẫn `/assets/` (biến thể slash cuối).
+ *     Kiểm **mọi group** `User-agent`, không chỉ `*`: group `Googlebot`/`Bingbot` chặn asset
+ *     (`Disallow: /`, prefix `Disallow: /assets`) cũng là lỗi; group chỉ có `User-agent` mà
+ *     không có rule thì không kết luận gì (RFC 9309 §2.1: `User-agent` liền nhau = cùng group).
+ *   - `--self-test`: offline, khoá hành vi parser group + mô phỏng rule bằng 5 case cố định
+ *     (in PASS/FAIL từng case, exit 1 nếu có case fail). Không đọc `public/` nên chạy được
+ *     cả khi chưa build / chưa có domain.
  *   - `/assets` là HAI thứ trên cùng origin: route app (thư viện CAD số, cần chặn index) và
  *     thư mục build Vite (crawler phải tải để render). Vì vậy generator phát
  *     `Allow: /assets/` + `Disallow: /assets$` + `Disallow: /assets/$`, KHÔNG dùng prefix
@@ -329,13 +335,25 @@ function buildRobotsRules() {
   return lines;
 }
 
-/** Tách rule `allow`/`disallow` + dòng directive của group `User-agent: *` (bỏ comment, Sitemap). */
+/**
+ * Tách robots.txt thành các **group** (`User-agent` + rule của group), bỏ comment.
+ *
+ * - Nhiều dòng `User-agent` liền nhau = **cùng một group** (`Googlebot` + `Bingbot` chung rule).
+ * - Gặp `User-agent` sau khi group đã có rule ⇒ mở group mới (RFC 9309 §2.1).
+ * - Rule nằm trước `User-agent` đầu tiên không thuộc group nào ⇒ bỏ qua (không crawler nào áp).
+ * - `Disallow:` rỗng = "không chặn gì": vẫn ghi vào `directives` để so khớp generator như bản cũ,
+ *   nhưng KHÔNG thêm vào `rules` (tránh kết luận sai "đã chặn").
+ *
+ * @returns {{
+ *   groups: Array<{ agents: string[], rules: Array<{ type: string, pattern: string }>, directives: string[] }>,
+ *   rules: Array<{ type: string, pattern: string }>,
+ *   directives: string[],
+ * }} `rules`/`directives` là tổng hợp của (các) group `*` — giữ tương thích cho `--check`.
+ */
 function parseRobotsRules(text) {
-  const rules = [];
-  const directives = [];
-  let agents = [];
-  let inAgentBlock = true;
-  let applies = false;
+  const groups = [];
+  let group = null;
+  let inAgentBlock = false;
 
   for (const raw of text.split('\n')) {
     const line = raw.replace(/#.*$/, '').trim();
@@ -347,21 +365,27 @@ function parseRobotsRules(text) {
 
     if (key === 'user-agent') {
       if (!inAgentBlock) {
-        agents = [];
+        group = { agents: [], rules: [], directives: [] };
+        groups.push(group);
         inAgentBlock = true;
       }
-      agents.push(value.toLowerCase());
-      applies = agents.includes('*');
+      if (group) group.agents.push(value.toLowerCase());
       continue;
     }
     if (key !== 'allow' && key !== 'disallow') continue; // sitemap/crawl-delay: ngoài phạm vi khớp
+    if (!group) continue; // rule trước mọi `User-agent` ⇒ không áp cho crawler nào
     inAgentBlock = false;
-    if (!applies) continue;
-    directives.push(`${key}: ${value}`);
+    group.directives.push(`${key}: ${value}`);
     if (key === 'disallow' && !value) continue; // "Disallow:" rỗng = không chặn gì
-    rules.push({ type: key, pattern: value });
+    group.rules.push({ type: key, pattern: value });
   }
-  return { rules, directives };
+
+  const star = groups.filter((g) => g.agents.includes('*'));
+  return {
+    groups,
+    rules: star.flatMap((g) => g.rules),
+    directives: star.flatMap((g) => g.directives),
+  };
 }
 
 /** `$` = neo cuối; `*` = wildcard; không có `$` = khớp tiền tố (RFC 9309, rút gọn). */
@@ -463,6 +487,63 @@ function checkRobotsPolicy(text, errors) {
   }
 }
 
+/** Nhãn group cho message lỗi: `*` hoặc danh sách agent (đã lowercase). */
+function robotsGroupLabel(group) {
+  return group.agents.length ? [...new Set(group.agents)].join(', ') : '(không tên)';
+}
+
+/**
+ * Mô phỏng rule của **mọi group**, không chỉ `*` — crawler cụ thể (`Googlebot`, `Bingbot`…)
+ * dùng rule riêng của group đó, nên group chặn asset là site hỏng với crawler ấy.
+ *
+ * - Group `*` do `checkRobotsPolicy` lo (khớp generator + route nội bộ) ⇒ bỏ qua ở đây, tránh lặp lỗi.
+ * - Group **không có rule** (`User-agent: X` đứng một mình) ⇒ không kết luận gì (RFC: group rỗng
+ *   không chặn gì; cũng có thể crawler rơi về group `*`).
+ * - Group `Disallow: /` / `Disallow: /assets` / `Disallow: /assets/` ⇒ prefix match giết JS/CSS ⇒ FAIL.
+ * - Asset build (`/assets/*.js|css` + URL thật trong `dist/index.html`) phải ALLOW;
+ *   route app `/assets` + `/assets/` phải DISALLOW.
+ */
+function checkRobotsGroups(text, errors) {
+  const { groups } = parseRobotsRules(text);
+  const assetUrls = [...new Set([...BUILD_ASSET_SAMPLES, ...readBuiltAssetUrls()])];
+
+  for (const group of groups) {
+    if (group.agents.includes('*')) continue;
+    if (group.rules.length === 0) continue;
+    const label = robotsGroupLabel(group);
+
+    // 1) Chặn cả thư mục asset bằng prefix ⇒ crawler không tải được JS/CSS.
+    const blocking = group.rules.find(
+      (r) => r.type === 'disallow' && ['/', ASSET_ROUTE, `${ASSET_ROUTE}/`].includes(r.pattern),
+    );
+    if (blocking) {
+      errors.push(
+        `robots.txt group "${label}": "Disallow: ${blocking.pattern}" chặn asset build (khớp tiền tố) — ` +
+          `dùng "Allow: ${ASSET_ROUTE}/" + "Disallow: ${ASSET_ROUTE}$" + "Disallow: ${ASSET_ROUTE}/$"`,
+      );
+      continue;
+    }
+
+    // 2) Asset build phải tải được.
+    const blockedAssets = assetUrls.filter((u) => !robotsAllows(u, group.rules));
+    if (blockedAssets.length) {
+      errors.push(
+        `robots.txt group "${label}" chặn asset build: ${blockedAssets.slice(0, 3).join(', ')}` +
+          `${blockedAssets.length > 3 ? ` (+${blockedAssets.length - 3} URL)` : ''}`,
+      );
+    }
+
+    // 3) Route app `/assets` và biến thể slash cuối phải bị chặn.
+    for (const route of [ASSET_ROUTE, `${ASSET_ROUTE}/`]) {
+      if (!robotsAllows(route, group.rules)) continue;
+      errors.push(
+        `robots.txt group "${label}" không chặn route app ${route} — ` +
+          `cần "Disallow: ${ASSET_ROUTE}$" + "Disallow: ${ASSET_ROUTE}/$"`,
+      );
+    }
+  }
+}
+
 function runCheck({ allowEmpty }) {
   const errors = [];
   const robotsPath = join(ROOT, 'public', 'robots.txt');
@@ -487,6 +568,8 @@ function runCheck({ allowEmpty }) {
     });
     // Rule asset/route: crawler phải tải được `/assets/*.js|css`, route app vẫn bị chặn.
     checkRobotsPolicy(robotsText, errors);
+    // Group cụ thể (Googlebot/Bingbot…) cũng phải không chặn asset — không chỉ group `*`.
+    checkRobotsGroups(robotsText, errors);
   }
 
   if (existsSync(sitemapPath)) {
@@ -594,6 +677,71 @@ function runCheck({ allowEmpty }) {
   return 0;
 }
 
+/** Chạy toàn bộ kiểm robots trên một chuỗi text (dùng cho `--self-test`). */
+function collectRobotsErrors(text) {
+  const errors = [];
+  const { groups } = parseRobotsRules(text);
+  if (groups.some((g) => g.agents.includes('*'))) checkRobotsPolicy(text, errors);
+  checkRobotsGroups(text, errors);
+  return errors;
+}
+
+/**
+ * `--self-test` (offline, không đọc `public/`): khoá hành vi parser group + mô phỏng rule.
+ * Case PASS/FAIL in rõ; có case fail ⇒ exit 1.
+ */
+function runRobotsSelfTest() {
+  // Rule đúng = generator bỏ dòng `User-agent` (dùng lại cho group cụ thể).
+  const correctRules = buildRobotsRules().filter((l) => !/^user-agent\s*:/i.test(l));
+
+  const cases = [
+    {
+      name: 'group * hiện tại pass',
+      text: buildRobotsRules().join('\n'),
+      expect: 'pass',
+    },
+    {
+      name: 'Googlebot "Disallow: /assets" (prefix) fail',
+      text: ['User-agent: Googlebot', 'Allow: /', 'Disallow: /assets'].join('\n'),
+      expect: /googlebot/i,
+    },
+    {
+      name: 'Googlebot + Bingbot cùng group, rule đúng pass',
+      text: ['User-agent: Googlebot', 'User-agent: Bingbot', ...correctRules].join('\n'),
+      expect: 'pass',
+    },
+    {
+      name: 'Googlebot chỉ User-agent (không rule) pass',
+      text: 'User-agent: Googlebot',
+      expect: 'pass',
+    },
+    {
+      name: 'Googlebot "Disallow: /" fail',
+      text: ['User-agent: Googlebot', 'Disallow: /'].join('\n'),
+      expect: /googlebot/i,
+    },
+  ];
+
+  let failed = 0;
+  const lines = [];
+  for (const c of cases) {
+    const errors = collectRobotsErrors(c.text);
+    const pass = c.expect === 'pass' ? errors.length === 0 : errors.some((e) => c.expect.test(e));
+    if (!pass) failed += 1;
+    const detail = pass
+      ? ''
+      : `\n        -> ${errors[0] || 'không có lỗi nào (mong đợi lỗi chặn asset)'}`;
+    lines.push(`  ${pass ? 'PASS' : 'FAIL'}  ${c.name}${detail}`);
+  }
+
+  const total = cases.length;
+  console.log(
+    `${failed === 0 ? '✓' : '✖'} gen-seo-files --self-test: ${total - failed}/${total} PASS`,
+  );
+  console.log(lines.join('\n'));
+  return failed === 0 ? 0 : 1;
+}
+
 // ---------------------------------------------------------------------------
 // CLI
 
@@ -606,6 +754,7 @@ if (hasFlag('--help') || hasFlag('-h')) {
       '  VITE_SITE_URL=https://<domain> node scripts/gen-seo-files.mjs',
       '  node scripts/gen-seo-files.mjs --check --allow-empty     # CI offline khi chưa có domain',
       '  node scripts/gen-seo-files.mjs --check                   # production: sitemap phải có URL',
+      '  node scripts/gen-seo-files.mjs --self-test               # offline: test parser group + rule asset',
       '  node scripts/gen-seo-files.mjs --dev --site http://localhost:3000 --out dist/.seo-preview',
       '',
       'Thứ tự domain: --site > process.env.SEO_SITE_URL > process.env.VITE_SITE_URL',
@@ -614,6 +763,10 @@ if (hasFlag('--help') || hasFlag('-h')) {
     ].join('\n'),
   );
   process.exit(0);
+}
+
+if (hasFlag('--self-test')) {
+  process.exit(runRobotsSelfTest());
 }
 
 if (hasFlag('--check')) {
