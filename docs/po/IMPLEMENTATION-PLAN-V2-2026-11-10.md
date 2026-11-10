@@ -548,6 +548,26 @@ Sau Phase 2:
 
 **Blocker chưa đổi:** QA-MONEY-01 staging; SEC-01; DB publish enforcement; SEO-02/domain; DATA-01/02/03; mailbox liên hệ.
 
+### 5.8 Wave 2 — UI/UX feature wave (2026-11-10)
+
+Chi tiết khảo sát/ownership/bằng chứng: `docs/po/WAVE-2-UI.md`. Không dùng QA-MONEY staging làm gate; không push/deploy.
+
+| ID | Item | Branch / commit | Kết quả | Bằng chứng |
+|---|---|---|---|---|
+| W2-Q1 | Direct order đóng cart drawer trước checkout | `wave2/quote` · `9595fec` | **DONE** | `/quote` → `/checkout`, 0 `dialog[open]` |
+| W2-Q2 | Mobile sticky tổng tiền + CTA quote | `wave2/quote` · `9595fec` | **DONE** | 390 bar “Đặt in ngay” trong viewport; 1440 không render |
+| W2-Q3 | Phân tầng giá in/VAT/tổng | `wave2/quote` · `9595fec` | **DONE** | 3 nhóm nhãn thật; logic giá/VAT không đổi |
+| W2-D1 | PDP not-found CTA báo giá + kho mẫu | `wave2/discover` · `be9fb9b` | **DONE** | `/products/nope` có 2 CTA đúng đích |
+| W2-D2 | PDP mobile buy bar chỉ khi có kênh bán | `wave2/discover` · `be9fb9b` | **DONE** | Mock product 390 có bar; mock no-channel 390 không bar |
+| W2-D3 | Explore empty state dải danh mục | `wave2/discover` · `be9fb9b` | **DONE** | 6 nhóm thật, “0 mẫu”, không fake sản phẩm |
+| W2-M1 | Preview storefront chưa lưu | `wave2/marketing` · `823cfda` | **DONE** | `StorefrontPreview` desktop sticky/mobile trước form; field trống “Chưa cấu hình” |
+
+**Tích hợp:** `68db0b5` → `cc9c3c3` → `4cd8e4f` (`wave2/integration`). Gate: tsc PASS, **203 unit test**, `npm run check` **24/24** (18 so baseline), browser 390/1440 0 tràn/0 `pageerror`.
+
+**Giới hạn/DB còn thiếu:** không item nào cần schema mới; PDP sellable + admin preview chỉ chứng minh bằng mock (không có catalog publish/tài khoản admin thật); preview chỉ phủ field `site_content` hiện có. **Không đánh dấu Phase 0 hoàn tất.**
+
+**Blocker chưa đổi:** QA-MONEY-01 staging; SEC-01; DB publish enforcement; SEO-02/domain; DATA-01/02/03; mailbox liên hệ.
+
 ---
 
 ## 6. Backlog đầy đủ
