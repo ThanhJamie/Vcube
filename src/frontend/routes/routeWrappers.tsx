@@ -116,8 +116,11 @@ export const ProductDetailRoute: React.FC<{
 
   if (productsLoading) {
     return (
-      <div role="status" className="min-h-dvh bg-canvas flex items-center justify-center p-6">
+      <div role="status" aria-live="polite" aria-busy="true" className="min-h-dvh bg-canvas flex items-center justify-center p-6">
         <div className="text-center space-y-3">
+          {/* A11Y-W1.2: trạng thái tải là toàn bộ trang ⇒ vẫn cần h1 cấp trang, cùng nhãn
+              với h1 của trạng thái lỗi bên dưới. */}
+          <h1 className="sr-only">Chi tiết bản vẽ CAD</h1>
           <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin motion-reduce:animate-none mx-auto" />
           <p className="font-mono text-xs text-fg-subtle">Đang tải thông số kỹ thuật mô hình 3D...</p>
         </div>
@@ -205,7 +208,7 @@ export const PersonalizeRoute: React.FC<{
   }
 
   // Đang nạp catalog: hiện skeleton thay vì 404/empty state sai thời điểm.
-  if (productsLoading) return <PageSkeleton />;
+  if (productsLoading) return <PageSkeleton heading="Tuỳ biến mẫu 3D" />;
 
   // Lỗi tải catalog: nói thật + cho thử lại (không giả vờ kho rỗng).
   if (productsError) {
@@ -303,7 +306,14 @@ export const OrderSuccessRoute: React.FC<{
   //   * Khách vãng lai: cần `?token=<secure_access_token>` (RPC SECURITY DEFINER) — không đoán.
   // Không có fallback sang đơn khác: sai id/token ⇒ trạng thái "không tìm thấy" như cũ.
   const [dbOrder, setDbOrder] = React.useState<Order | null>(null);
-  const [loadState, setLoadState] = React.useState<'idle' | 'loading' | 'error'>('idle');
+  // Khởi tạo 'loading' khi đã có `orderId` mà chưa có đơn trên RAM: tránh 1 frame hiện
+  // nhầm "không tìm thấy" trước khi effect kịp chạy (A11Y-W1.2 audit loading/error).
+  const [loadState, setLoadState] = React.useState<'idle' | 'loading' | 'error'>(() =>
+    orderId && !fromRam ? 'loading' : 'idle'
+  );
+  // A11Y-W1.2: lỗi đọc đơn (mạng/DB) phải tách khỏi "không tìm thấy". Mỗi lần bấm
+  // "Thử lại" tăng tick ⇒ effect chạy lại; KHÔNG đổi logic đọc DB.
+  const [retryTick, setRetryTick] = React.useState(0);
 
   React.useEffect(() => {
     if (!orderId || fromRam) {
@@ -325,12 +335,21 @@ export const OrderSuccessRoute: React.FC<{
     return () => {
       alive = false;
     };
-  }, [orderId, fromRam, token]);
+  }, [orderId, fromRam, token, retryTick]);
 
   const order = fromRam ?? dbOrder;
 
   if (!order) {
-    if (loadState === 'loading') return <PageSkeleton />;
+    if (loadState === 'loading') return <PageSkeleton heading="Xác nhận đơn hàng" />;
+    // Lỗi kết nối/đọc dữ liệu ≠ đơn không tồn tại ⇒ không được hiện "Không tìm thấy đơn hàng".
+    if (loadState === 'error') {
+      return (
+        <OrderLoadErrorView
+          onRetry={() => setRetryTick((n) => n + 1)}
+          onNavigate={onNavigate}
+        />
+      );
+    }
     return <OrderNotFoundView onNavigate={onNavigate} context="order-success" />;
   }
 
@@ -386,6 +405,45 @@ export const OrderNotFoundView: React.FC<{
           onClick={() => onNavigate('tracking')}
         >
           Tra cứu đơn hàng
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
+          onClick={() => onNavigate('my_orders')}
+        >
+          Đơn hàng của tôi
+        </Button>
+      </div>
+    </div>
+  </div>
+);
+
+/**
+ * A11Y-W1.2 / honesty: `/order-success/:id` đọc đơn từ DB mà lỗi (mạng/DB) KHÔNG phải
+ * "không tìm thấy đơn". Trạng thái này nói đúng là CHƯA ĐỌC ĐƯỢC (nêu cả khả năng mất
+ * kết nối lẫn mã/token không khớp vì service không phân biệt được hai nguyên nhân) và
+ * cho thử lại; không khẳng định đơn không tồn tại.
+ */
+export const OrderLoadErrorView: React.FC<{
+  onRetry: () => void;
+  onNavigate: (screen: string, payload?: any) => void;
+}> = ({ onRetry, onNavigate }) => (
+  <div role="alert" className="min-h-dvh bg-canvas flex items-center justify-center p-6">
+    <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
+      <Icon name="error" size={36} className="text-fg-subtle" />
+      <h1 className="font-bold text-lg text-fg">Không tải được đơn hàng</h1>
+      <p className="text-xs text-fg-subtle leading-relaxed">
+        Chưa đọc được đơn này từ máy chủ. Có thể do mất kết nối mạng, hoặc mã đơn kèm token
+        không khớp. Kiểm tra kết nối rồi thử lại.
+      </p>
+      <div className="flex flex-col sm:flex-row justify-center gap-2 pt-1">
+        <Button
+          variant="primary"
+          size="lg"
+          leadingIcon={<Icon name="refresh" size={18} />}
+          onClick={onRetry}
+        >
+          Thử lại
         </Button>
         <Button
           variant="secondary"
