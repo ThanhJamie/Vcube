@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "check": "node scripts/run-checks.mjs",
     "test:unit": "tsx --test tests/unit/*.test.ts",
+    "test:e2e:api": "tsx scripts/e2e/guest-order-flow.ts",
     "skills:sync": "node scripts/sync-mattpocock-skills.mjs",
     "po:audit": "node scripts/po-audit.mjs",
     "seo:gen": "node scripts/gen-seo-files.mjs",

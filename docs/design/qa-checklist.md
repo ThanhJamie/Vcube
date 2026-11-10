@@ -5,6 +5,11 @@
 
 **Route source of truth:** `src/App.tsx` (route table `<Routes>`; screen mapping `getCurrentScreenFromPath()`; `CHROMELESS_SCREENS`). If a route is added, removed or renamed there, this file must be updated in the same change.
 
+> **Cập nhật 2026-11-10 (QA-BROWSER-01):** route table hiện nằm ở
+> `src/frontend/routes/AppRoutes.tsx` (`src/App.tsx` chỉ còn shell). Checklist smoke nhanh
+> 390/1440 + template evidence ở [`browser-smoke-qa.md`](./browser-smoke-qa.md). File này vẫn là
+> checklist sâu; khi mâu thuẫn về route, ưu tiên code.
+
 > **Line numbers trong file này là ảnh chụp 2026-09**, số dòng sẽ trôi theo mỗi lần sửa. Khi lệch, `grep` theo tên symbol (`getCurrentScreenFromPath`, tên component) để định vị lại — đừng tin số dòng tuyệt đối.
 
 **How to use it**
