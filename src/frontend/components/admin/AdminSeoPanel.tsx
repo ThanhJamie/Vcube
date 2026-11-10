@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SiteContentConfig } from '@/types';
 import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
+import { buildSiteContentPatch } from '@frontend/hooks/useSiteSettings';
 
 interface AdminSeoPanelProps {
   siteContent: SiteContentConfig;
-  onUpdateSiteContent: (content: SiteContentConfig) => Promise<{ success: boolean; error?: string }> | void;
+  onUpdateSiteContent: (patch: Partial<SiteContentConfig>) => Promise<{ success: boolean; error?: string }> | void;
   onShowToast: (message: string) => void;
 }
 
@@ -15,6 +16,11 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
 }) => {
 
   const [localContent, setLocalContent] = useState<SiteContentConfig>({ ...siteContent });
+  /**
+   * Snapshot "sạch" để tính patch khi Lưu (OPS-24): cập nhật khi sync từ prop và sau save
+   * thành công, KHÔNG cập nhật khi form còn dirty.
+   */
+  const initialContentRef = useRef<SiteContentConfig>({ ...siteContent });
   const [activeTab, setActiveTab] = useState<'meta' | 'serp' | 'social' | 'schema'>('meta');
   const [devicePreview, setDevicePreview] = useState<'desktop' | 'mobile'>('desktop');
   const [isSaved, setIsSaved] = useState(true);
@@ -22,7 +28,9 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
 
   // Đồng bộ khi prop đổi từ bên ngoài — chỉ khi form không có thay đổi dở.
   useEffect(() => {
-    if (isSaved) setLocalContent({ ...siteContent });
+    if (!isSaved) return;
+    setLocalContent({ ...siteContent });
+    initialContentRef.current = { ...siteContent };
   }, [siteContent, isSaved]);
 
   // Cảnh báo trình duyệt khi đóng tab/tải lại lúc còn thay đổi chưa lưu.
@@ -62,8 +70,10 @@ export const AdminSeoPanel: React.FC<AdminSeoPanelProps> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const res = await onUpdateSiteContent(localContent);
+      const patch = buildSiteContentPatch(initialContentRef.current, localContent);
+      const res = await onUpdateSiteContent(patch);
       if (!res || res.success) {
+        initialContentRef.current = { ...localContent };
         setIsSaved(true);
         onShowToast('Đã lưu cấu hình SEO thành công!');
       } else {

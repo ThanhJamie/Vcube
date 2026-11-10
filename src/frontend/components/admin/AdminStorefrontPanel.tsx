@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SiteContentConfig } from '@/types';
 import { getContactEmailIssue, type ContactEmailIssue } from '@frontend/lib/contact';
+import { buildSiteContentPatch } from '@frontend/hooks/useSiteSettings';
 import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
 import { StorefrontPreview } from './StorefrontPreview';
 
@@ -17,7 +18,7 @@ const CONTACT_EMAIL_ISSUE_MESSAGE: Record<ContactEmailIssue, string> = {
 
 interface AdminStorefrontPanelProps {
   siteContent: SiteContentConfig;
-  onUpdateSiteContent: (content: SiteContentConfig) => Promise<{ success: boolean; error?: string }> | void;
+  onUpdateSiteContent: (patch: Partial<SiteContentConfig>) => Promise<{ success: boolean; error?: string }> | void;
   onShowToast: (message: string) => void;
 }
 
@@ -52,15 +53,16 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
   onUpdateSiteContent,
   onShowToast,
 }) => {
-
   const [localContent, setLocalContent] = useState<SiteContentConfig>({ ...siteContent });
+  /** Snapshot "sạch" để tính patch khi Lưu (OPS-24) — chỉ cập nhật khi sync prop / save xong. */
+  const initialContentRef = useRef<SiteContentConfig>({ ...siteContent });
   const [activeTab, setActiveTab] = useState<'hero' | 'announcement' | 'workflow' | 'estimator' | 'facilities' | 'customIdea'>('hero');
   const [isSaved, setIsSaved] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   // Đồng bộ khi prop đổi từ bên ngoài (realtime/reload) — chỉ khi form không có thay đổi dở.
   useEffect(() => {
-    if (isSaved) setLocalContent({ ...siteContent });
+    if (isSaved) { setLocalContent({ ...siteContent }); initialContentRef.current = { ...siteContent }; }
   }, [siteContent, isSaved]);
 
   // Cảnh báo trình duyệt khi đóng tab/tải lại lúc còn thay đổi chưa lưu.
@@ -124,9 +126,10 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
     setIsSaving(true);
     try {
-      const res = await onUpdateSiteContent(localContent);
+      const res = await onUpdateSiteContent(buildSiteContentPatch(initialContentRef.current, localContent));
       if (!res || res.success) {
         setIsSaved(true);
+        initialContentRef.current = { ...localContent };
         onShowToast('Đã lưu cấu hình giao diện trang chủ & cửa hàng!');
       } else {
         setIsSaved(false);
@@ -174,13 +177,10 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
             onClick={handleSave}
             disabled={isSaved}
           >
-            {isSaving ? ('Đang lưu…') : isSaved
-              ? ('Đã Lưu Nội Dung')
-              : ('Lưu Thay Đổi Ngay')}
+            {isSaving ? ('Đang lưu…') : isSaved ? ('Đã Lưu Nội Dung') : ('Lưu Thay Đổi Ngay')}
           </Button>
         </div>
       </div>
-
       {/* Tab Navigation — segmented §3.6. Grid đặt form ở cột 1, preview cột 2 (desktop);
           mobile dùng `order` để preview nằm ngay dưới header, trước form. */}
       <div className="order-2 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-md border border-line bg-surface-muted p-1 xl:col-start-1 xl:row-start-2">

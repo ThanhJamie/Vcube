@@ -112,7 +112,7 @@ interface AdminDashboardViewProps {
   onAddProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
   onUpdateOrderStatus: (orderId: string, newStageIndex: number, newStatus: Order['status'], progress?: number) => void;
-  onUpdateSiteContent: (content: SiteContentConfig) => Promise<{ success: boolean; error?: string }> | void;
+  onUpdateSiteContent: (patch: Partial<SiteContentConfig>) => Promise<{ success: boolean; error?: string }> | void;
   onUpdateMaterials: (materials: MaterialProfile[]) => void;
   onUpdatePrinters: (printers: PrinterProfile[]) => void;
   onUpdateAccessories: (accessories: AccessoryItem[]) => void;

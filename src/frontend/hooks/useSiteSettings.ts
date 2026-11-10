@@ -11,7 +11,7 @@
  *   `effectivePricingConfig` chỉ bù ĐÚNG ô `platformCommissionPercent` khi có số thật.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InkiriCostFormulaConfig, SiteContentConfig } from '@/types';
 import { DEFAULT_SITE_CONTENT } from '@/data/mockData';
 import type { WriteResult } from '@backend/lib/result';
@@ -22,13 +22,19 @@ export interface SiteSettings {
   siteContent: SiteContentConfig;
   pricingConfig: InkiriCostFormulaConfig | null;
   effectivePricingConfig: InkiriCostFormulaConfig | null;
-  handleUpdateSiteContent: (newContent: SiteContentConfig) => Promise<WriteResult>;
+  handleUpdateSiteContent: (patch: Partial<SiteContentConfig>) => Promise<WriteResult>;
   handleUpdatePricingConfig: (newConfig: InkiriCostFormulaConfig) => Promise<WriteResult<InkiriCostFormulaConfig>>;
 }
 
 export function useSiteSettings(): SiteSettings {
   // Chưa cấu hình/không đọc được DB ⇒ dùng bộ nhãn mặc định (config thật, không mock).
   const [siteContent, setSiteContent] = useState<SiteContentConfig>(DEFAULT_SITE_CONTENT);
+  /**
+   * Bản MỚI NHẤT của `siteContent` (OPS-24): panel chỉ gửi patch các khoá đã sửa, hook merge
+   * patch lên ref này rồi mới ghi — không phụ thuộc state closure có thể cũ trong lúc await.
+   * Ref cũng là nguồn rollback khi ghi lỗi (OPS-25).
+   */
+  const siteContentRef = useRef<SiteContentConfig>(DEFAULT_SITE_CONTENT);
 
   /**
    * `null` = CHƯA có cấu hình công thức giá thật.
@@ -81,7 +87,10 @@ export function useSiteSettings(): SiteSettings {
     }).catch((err) => console.warn('Could not load remote pricing config:', err));
 
     dbService.getSiteContent().then((content) => {
-      if (isMounted && content) setSiteContent(content);
+      if (isMounted && content) {
+        siteContentRef.current = content;
+        setSiteContent(content);
+      }
     }).catch((err) => console.warn('Could not load remote site content:', err));
 
     return () => {
@@ -128,13 +137,23 @@ export function useSiteSettings(): SiteSettings {
     } as InkiriCostFormulaConfig;
   }, [pricingConfig, marketplaceFeePercent]);
 
-  const handleUpdateSiteContent = async (newContent: SiteContentConfig) => {
-    setSiteContent(newContent);
+  const handleUpdateSiteContent = async (patch: Partial<SiteContentConfig>) => {
+    // OPS-24: panel gửi PATCH (chỉ khoá đã sửa); merge lên bản mới nhất thành object ĐẦY ĐỦ
+    // vì `dbService.saveSiteContent` yêu cầu full object. Panel kia không bị ghi đè bằng
+    // snapshot cũ của panel này.
+    const previous = siteContentRef.current;
+    const merged: SiteContentConfig = { ...previous, ...patch } as SiteContentConfig;
+    siteContentRef.current = merged;
+    setSiteContent(merged);
     // Trả kết quả THẬT cho panel để nó chỉ báo "đã lưu" khi DB nhận (trước đây panel tự báo
     // thành công trước khi hàm này chạy xong).
-    const res = await dbService.saveSiteContent(newContent);
+    const res = await dbService.saveSiteContent(merged);
     if (!res.success) {
       console.warn('Could not save site content to Supabase:', res.error);
+      // OPS-25: ghi lỗi ⇒ rollback state global (Home/Storefront không giữ giá trị chưa ghi);
+      // panel vẫn giữ bản local + dirty để admin sửa/lưu lại.
+      siteContentRef.current = previous;
+      setSiteContent(previous);
     }
     return res;
   };
@@ -146,4 +165,25 @@ export function useSiteSettings(): SiteSettings {
     handleUpdateSiteContent,
     handleUpdatePricingConfig,
   };
+}
+
+/**
+ * So sánh snapshot (giá trị lúc form bắt đầu sạch) với bản local để chỉ lấy các khoá ĐÃ ĐỔI
+ * (OPS-24) — panel Storefront/SEO gửi patch thay vì cả object nên không ghi đè field của panel kia.
+ *
+ * Khoá bị xoá khỏi bản local (ví dụ admin xoá trắng phí ship) vẫn nằm trong patch với giá trị
+ * `undefined`: `dbService.saveSiteContent` hiểu "khoá vắng mặt = đã xoá" cho nhóm `settings`.
+ * So sánh bằng `JSON.stringify` để bắt cả mảng (`trustPartnersList`) mà không cần thư viện.
+ */
+export function buildSiteContentPatch(
+  snapshot: SiteContentConfig,
+  next: SiteContentConfig
+): Partial<SiteContentConfig> {
+  const before = snapshot as unknown as Record<string, unknown>;
+  const after = next as unknown as Record<string, unknown>;
+  const patch: Record<string, unknown> = {};
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) patch[key] = after[key];
+  }
+  return patch as Partial<SiteContentConfig>;
 }
