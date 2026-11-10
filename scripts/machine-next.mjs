@@ -122,8 +122,10 @@ const CATALOG = [
     id: 'seo',
     title: 'SEO/PWA (robots, sitemap, manifest, SEOHead)',
     owners: ['public/robots.txt', 'public/sitemap.xml', 'public/manifest.webmanifest', 'index.html', 'src/frontend/components/SEOHead.tsx'],
-    verify: ['npm run seo:gen', 'npm run po:audit'],
-    direction: 'Sinh lại file SEO; bổ sung canonical/noindex cho route private; không bịa OG image.',
+    verify: ['node scripts/gen-seo-files.mjs --check --allow-empty', 'npm run po:audit'],
+    direction:
+      'Sinh lại file SEO chờ domain production (node scripts/gen-seo-files.mjs --site https://<domain>); ' +
+      'bổ sung canonical/noindex cho route private; không bịa OG image. `npm run seo:gen` fail có chủ đích khi chưa có domain.',
   },
   {
     match: (c) => c.group === 'performance',

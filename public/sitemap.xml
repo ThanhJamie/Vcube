@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  VCUBE — chưa cấu hình domain production (SEO-01).
-  Sinh sitemap thật: node scripts/gen-seo-files.mjs --site https://<domain>
-  Generator không bao giờ ghi localhost/DEMO-*; thiếu domain thì không ghi file.
+  VCUBE chưa cấu hình domain production (SEO-01).
+  Sinh sitemap thật bằng: node scripts/gen-seo-files.mjs (tham số site https://domain)
+  Generator không ghi localhost hay DEMO; thiếu domain thì không ghi file.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 </urlset>
