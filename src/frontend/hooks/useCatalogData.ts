@@ -85,6 +85,9 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
   const materialsRef = useRef<MaterialProfile[]>([]);
   const printersRef = useRef<PrinterProfile[]>([]);
   const accessoriesRef = useRef<AccessoryItem[]>([]);
+  /** OPS-28: chỉ cho ghi kho SAU khi lần đọc đầu tiên đã xong (kể cả DB rỗng). */
+  const materialsLoadedRef = useRef(false);
+  const accessoriesLoadedRef = useRef(false);
   const showToastRef = useRef(showToast);
 
   useEffect(() => {
@@ -219,6 +222,7 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
 
     dbService.getMaterials().then((remoteMats) => {
       if (isMounted && remoteMats && remoteMats.length > 0) setMaterials(remoteMats);
+      if (isMounted) materialsLoadedRef.current = true;
     }).catch((err) => console.warn('Could not load remote materials:', err));
 
     dbService.getPrinters().then((remotePrinters) => {
@@ -230,6 +234,7 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
     // (để UI hiện trạng thái trống), KHÔNG giữ fixture và không bịa danh mục.
     dbService.getAccessories().then((remoteAccessories) => {
       if (isMounted && Array.isArray(remoteAccessories)) setAccessories(remoteAccessories);
+      if (isMounted) accessoriesLoadedRef.current = true;
     }).catch((err) => console.warn('Could not load remote accessories:', err));
 
     return () => {
@@ -246,9 +251,9 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
   const handleUpdateMaterials = useCallback(async (newMaterials: MaterialProfile[]): Promise<WriteResult> => {
     const previous = materialsRef.current;
 
-    if (newMaterials.length === 0 && previous.length > 0) {
-      showToastRef.current('Danh sách vật liệu chưa tải xong/không hợp lệ — đã chặn cập nhật để tránh mất dữ liệu.');
-      return fail('Danh sách vật liệu chưa tải xong/không hợp lệ.');
+    if (!materialsLoadedRef.current) {
+      showToastRef.current('Kho vật liệu chưa tải xong — đã chặn cập nhật để tránh mất dữ liệu.');
+      return fail('Kho vật liệu chưa tải xong.');
     }
 
     // Xoá trên DB những vật liệu đã bị bỏ khỏi danh sách (trước đây chỉ upsert phần còn lại
@@ -294,9 +299,9 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
   const handleUpdateAccessories = useCallback(async (newAccessories: AccessoryItem[]): Promise<WriteResult> => {
     const previous = accessoriesRef.current;
 
-    if (newAccessories.length === 0 && previous.length > 0) {
-      showToastRef.current('Danh sách phụ kiện chưa tải xong/không hợp lệ — đã chặn cập nhật để tránh mất dữ liệu.');
-      return fail('Danh sách phụ kiện chưa tải xong/không hợp lệ.');
+    if (!accessoriesLoadedRef.current) {
+      showToastRef.current('Kho phụ kiện chưa tải xong — đã chặn cập nhật để tránh mất dữ liệu.');
+      return fail('Kho phụ kiện chưa tải xong.');
     }
 
     const removed = previous.filter((a) => !newAccessories.some((n) => n.id === a.id));
