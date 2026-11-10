@@ -169,16 +169,22 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               điện thoại nhận hàng) đã dùng khi đặt hàng. Mã truy cập được cấp ở màn hình xác nhận đơn.
             </p>
 
-            <form id="guest-lookup-form" onSubmit={handleGuestLookup} className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
-              <Field id="lookup-code" label="Mã Đơn Hàng:" className="sm:col-span-5">
+            {/*
+              P0-2: `noValidate` để handler tự hiện lỗi tiếng Việt ("Vui lòng nhập mã đơn hàng." /
+              "Cần thêm số điện thoại hoặc mã token…") thay cho tooltip HTML5 tiếng Anh.
+              `required` đặt trên Field (nhãn tự thêm dấu *) khớp với Input — trước đây nhãn ghi
+              "(không bắt buộc)" trong khi Input chặn submit.
+            */}
+            <form id="guest-lookup-form" onSubmit={handleGuestLookup} noValidate className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+              <Field id="lookup-code" label="Mã Đơn Hàng:" required className="sm:col-span-5">
                 {(control) => (
                   <Input {...control} type="text" value={lookupCode} className="font-mono" required
                     onChange={(e) => setLookupCode(e.target.value)} placeholder="Ví dụ: #VCUBE-8924" />
                 )}
               </Field>
 
-              <Field id="lookup-token" className="sm:col-span-5"
-                label="Mã truy cập hoặc số điện thoại nhận hàng (bắt buộc):"
+              <Field id="lookup-token" className="sm:col-span-5" required
+                label="Mã truy cập hoặc số điện thoại nhận hàng:"
                 hint="Chúng tôi không hiển thị đơn hàng nếu chỉ có mã đơn.">
                 {(control) => (
                   <Input {...control} type="text" value={lookupAuth} className="font-mono" required
@@ -330,14 +336,14 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               <span className="text-xs font-mono text-fg-subtle">Bắt buộc mã truy cập hoặc SĐT</span>
             </div>
 
-            <form id="guest-lookup-form-2" onSubmit={handleGuestLookup} className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
-              <Field id="lookup-code-2" label="Mã Đơn Hàng:" className="sm:col-span-5">
+            <form id="guest-lookup-form-2" onSubmit={handleGuestLookup} noValidate className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+              <Field id="lookup-code-2" label="Mã Đơn Hàng:" required className="sm:col-span-5">
                 {(control) => (
                   <Input {...control} type="text" value={lookupCode} className="font-mono" required
                     onChange={(e) => setLookupCode(e.target.value)} placeholder="Ví dụ: #VCUBE-8924" />
                 )}
               </Field>
-              <Field id="lookup-token-2" label="Mã truy cập hoặc số điện thoại (bắt buộc):" className="sm:col-span-5">
+              <Field id="lookup-token-2" label="Mã truy cập hoặc số điện thoại:" required className="sm:col-span-5">
                 {(control) => (
                   <Input {...control} type="text" value={lookupAuth} className="font-mono" required
                     onChange={(e) => setLookupAuth(e.target.value)} placeholder="Mã truy cập trong màn hình xác nhận đơn" />
