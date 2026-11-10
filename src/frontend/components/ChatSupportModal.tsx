@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { Button, Icon, Input, Modal } from '@frontend/ui';
+import { isDisplayableEmail, isDisplayableHotline } from '../lib/contact';
 
 interface ChatSupportModalProps {
   isOpen: boolean;
@@ -12,12 +13,12 @@ interface ChatSupportModalProps {
 
 export const ChatSupportModal: React.FC<ChatSupportModalProps> = ({ isOpen, onClose, contactHotline, contactEmail }) => {
   const { t } = useLanguage();
-  // P1: kênh liên hệ chỉ dùng khi có cấu hình hợp lệ. Không có ⇒ nói rõ chưa cấu hình.
+  // P1: kênh liên hệ chỉ dùng khi có cấu hình hợp lệ. Không có (hoặc chỉ là giá trị mẫu
+  // `mau@example.com`/`000…`) ⇒ nói rõ chưa cấu hình. Luật lọc ở `lib/contact`.
   const hotline = (contactHotline ?? '').trim();
-  const hotlineDigits = hotline.replace(/[^\d+]/g, '');
   const email = (contactEmail ?? '').trim();
-  const hasHotline = /^\+?\d{8,15}$/.test(hotlineDigits);
-  const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const hasHotline = isDisplayableHotline(hotline);
+  const hasEmail = isDisplayableEmail(email);
   const contactHint = hasHotline
     ? `Nếu cần người thật xử lý, vui lòng gọi hotline ${hotline}.`
     : hasEmail

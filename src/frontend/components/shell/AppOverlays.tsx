@@ -17,6 +17,7 @@ import { InvoiceModal } from '@frontend/components/InvoiceModal';
 import { CartDrawer } from '@frontend/components/CartDrawer';
 import { Icon } from '@frontend/ui';
 import type { AppNavigate } from '@frontend/hooks/useAppNavigation';
+import { isDisplayableEmail, isDisplayableHotline } from '@frontend/lib/contact';
 import { CHROMELESS_SCREENS, FAB_HIDDEN_SCREENS } from './screens';
 
 export interface AppOverlaysProps {
@@ -59,19 +60,10 @@ export function AppOverlays({
   const removeToast = useUIStore((s) => s.removeToast);
 
   // P1 §4: giữ nhãn nhưng BỎ phần rỗng; không còn gì để in thì ẩn cả dòng
-  // (không bao giờ in "Hotline: •" hay "Hotline: —"). Lọc giá trị dummy nếu có dữ liệu mẫu.
-  const isValidHotline = (phone?: string) => Boolean(phone && !/^0+$/.test(phone.trim()) && !phone.includes('[MẪU]'));
-  // Data-honesty: chỉ in email khi admin đã cấu hình một địa chỉ THẬT. Giá trị placeholder
-  // của seed (`mau@example.com`, nhãn `[MẪU]`) không phải kênh liên hệ ⇒ ẩn cả dòng.
-  // Trước đây email placeholder bị thay bằng một địa chỉ VCUBE đoán — mailbox owner CHƯA xác nhận.
-  const isDisplayableEmail = (email?: string) => {
-    const value = (email ?? '').trim();
-    if (!value || value.includes('[MẪU]')) return false;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return false;
-    return !/@example\.(?:com|org|net)$/i.test(value);
-  };
+  // (không bao giờ in "Hotline: •" hay "Hotline: —"). Luật lọc dùng chung ở
+  // `@frontend/lib/contact` (giá trị mẫu/`example.com`/dãy `000…` không phải kênh thật).
   const footerContactLine = [
-    isValidHotline(siteContent.hotline) ? `Hotline: ${siteContent.hotline}` : '',
+    isDisplayableHotline(siteContent.hotline) ? `Hotline: ${siteContent.hotline.trim()}` : '',
     isDisplayableEmail(siteContent.contactEmail) ? `Email: ${siteContent.contactEmail.trim()}` : '',
   ].filter(Boolean).join(' • ');
 
@@ -305,7 +297,7 @@ export function AppOverlays({
                   </p>
                 )}
                 {footerContactLine && (
-                  <p className="text-on-inverse/70 font-tech">{footerContactLine.replace(/\[MẪU\]\s*/g, '')}</p>
+                  <p className="text-on-inverse/70 font-tech">{footerContactLine}</p>
                 )}
               </div>
             </div>
