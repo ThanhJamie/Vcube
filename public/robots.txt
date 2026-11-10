@@ -3,12 +3,12 @@
 #   node scripts/gen-seo-files.mjs --site https://<domain>
 User-agent: *
 Allow: /
-
 Disallow: /admin
 Disallow: /designer
 Disallow: /lab
 Disallow: /orders
-Disallow: /assets
+Allow: /assets/
+Disallow: /assets$
 Disallow: /account
 Disallow: /checkout
 Disallow: /cart
