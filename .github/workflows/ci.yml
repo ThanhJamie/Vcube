@@ -42,6 +42,12 @@ jobs:
       - name: Unit tests (npm run test:unit)
         run: npm run test:unit
 
+      # QA-API-01: harness API/DB. Dry-run mặc định, KHÔNG cần .env và KHÔNG gọi mạng —
+      # chỉ kiểm fixture (prefix E2E-, token, tổng tiền). Đây là self-test của harness,
+      # KHÔNG chứng minh vòng tiền (live write nằm ở job `live-gates`, cần staging secret).
+      - name: E2E API harness (dry-run, fixture only)
+        run: npm run test:e2e:api
+
       - name: Build (npm run build)
         run: npm run build
 
@@ -130,6 +136,93 @@ jobs:
         if: steps.detect.outputs.present == 'true'
         run: npx tsx scripts/test-catalog-sync.ts
 
+      # QA-API-01 — live write chỉ chạy khi (a) có secret STAGING riêng và (b) repo variable
+      # `E2E_LIVE_WRITE=true`. Dùng secret staging riêng để không bao giờ ghi nhầm production.
+      - name: Detect staging E2E secrets
+        id: e2e
+        env:
+          E2E_STAGING_SUPABASE_URL: ${{ secrets.E2E_STAGING_SUPABASE_URL }}
+          E2E_STAGING_PUBLISHABLE_KEY: ${{ secrets.E2E_STAGING_PUBLISHABLE_KEY }}
+          E2E_STAGING_SECRET_KEY: ${{ secrets.E2E_STAGING_SECRET_KEY }}
+        run: |
+          if [ -n "$E2E_STAGING_SUPABASE_URL" ] && [ -n "$E2E_STAGING_PUBLISHABLE_KEY" ] && [ -n "$E2E_STAGING_SECRET_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Không có secret staging E2E — bỏ qua live write (QA-API-01 chỉ dry-run)."
+          fi
+
+      - name: Guard staging URL khác production
+        id: stageguard
+        if: steps.e2e.outputs.present == 'true'
+        env:
+          E2E_STAGING_SUPABASE_URL: ${{ secrets.E2E_STAGING_SUPABASE_URL }}
+          PROD_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        run: |
+          norm() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's#/+$##'; }
+          STAGING="$(norm "$E2E_STAGING_SUPABASE_URL")"
+          PROD="$(norm "$PROD_SUPABASE_URL")"
+          if [ -z "$PROD" ]; then
+            echo "::error::Không có VITE_SUPABASE_URL để so sánh — fail-closed, không chạy QA-API-01 live-write."
+            echo "safe=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          if [ "$STAGING" = "$PROD" ]; then
+            echo "::error::E2E_STAGING_SUPABASE_URL trùng VITE_SUPABASE_URL (production) — chặn QA-API-01 live-write."
+            echo "safe=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "URL staging khác production — cho phép dry-run/live-write có kiểm soát."
+          echo "safe=true" >> "$GITHUB_OUTPUT"
+
+      - name: Write staging env file for E2E
+        if: steps.e2e.outputs.present == 'true' && steps.stageguard.outputs.safe == 'true'
+        env:
+          E2E_STAGING_SUPABASE_URL: ${{ secrets.E2E_STAGING_SUPABASE_URL }}
+          E2E_STAGING_PUBLISHABLE_KEY: ${{ secrets.E2E_STAGING_PUBLISHABLE_KEY }}
+          E2E_STAGING_SECRET_KEY: ${{ secrets.E2E_STAGING_SECRET_KEY }}
+        run: |
+          umask 077
+          {
+            printf 'VITE_SUPABASE_URL=%s\n' "$E2E_STAGING_SUPABASE_URL"
+            printf 'VITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$E2E_STAGING_PUBLISHABLE_KEY"
+            printf 'SUPABASE_SECRET_KEY=%s\n' "$E2E_STAGING_SECRET_KEY"
+          } > /tmp/e2e-staging.env
+
+      # Dry-run với env STAGING: chỉ ĐỌC bảng `products`, không ghi DB (không dùng production).
+      - name: E2E API dry-run (staging, read-only)
+        if: steps.e2e.outputs.present == 'true' && steps.stageguard.outputs.safe == 'true'
+        env:
+          E2E_ENV_FILE: /tmp/e2e-staging.env
+          E2E_TARGET: staging
+        run: npm run test:e2e:api -- --json --report e2e-api-dryrun.json
+
+      - name: E2E API live write (staging, opt-in)
+        if: steps.e2e.outputs.present == 'true' && steps.stageguard.outputs.safe == 'true' && vars.E2E_LIVE_WRITE == 'true'
+        env:
+          E2E_ENV_FILE: /tmp/e2e-staging.env
+          E2E_ALLOW_LIVE: '1'
+          E2E_TARGET: staging
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_STAGING_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_STAGING_ADMIN_PASSWORD }}
+        run: |
+          ARGS="--live --cleanup --json --report e2e-api-live.json"
+          if [ -n "$E2E_ADMIN_EMAIL" ] && [ -n "$E2E_ADMIN_PASSWORD" ]; then
+            ARGS="$ARGS --admin-session"
+          else
+            echo "::notice::Không có E2E_STAGING_ADMIN_* — live-write chỉ guest insert/RLS/token."
+          fi
+          npm run test:e2e:api -- $ARGS
+
+      - name: E2E API report (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-api-01-report
+          path: e2e-api-*.json
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Skipped (no secrets)
         if: steps.detect.outputs.present != 'true'
-        run: echo "Live gate bỏ qua — thiếu secret Supabase (verify-rls/inspect-db/test-catalog-sync)."
+        run: echo "Live gate bỏ qua — thiếu secret Supabase (verify-rls/inspect-db/test-catalog-sync/QA-API-01)."
