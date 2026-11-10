@@ -51,3 +51,23 @@ Không thêm dependency. Không sửa `scripts/gen-seo-files.mjs` (worker E sở
 
 - `seo:check` xanh **không** chứng minh SEO production đúng (domain thật, sản phẩm published,
   không URL 404). Việc đó thuộc DATA-02/SEO-02 sau khi có domain + dữ liệu.
+
+## 6. Bổ sung 2026-11-10 — `Disallow: /assets` từng chặn asset build
+
+| Trước | Sau |
+|---|---|
+| `Disallow: /assets` (prefix ⇒ chặn `/assets/index-*.js|css`) | `Allow: /assets/` + `Disallow: /assets$` (chỉ chặn đúng route app) |
+
+- **Bằng chứng:** `dist/index.html` (build thật) nạp `/assets/index-CMz-WlGN.js`,
+  `/assets/react-vendor-…js`, `/assets/supabase-vendor-…js`, `/assets/index-Ccjb4e85.css`;
+  `dist/assets/` có 49 file; `vercel.json:12-21` cache `/assets/(.*)`. Rule prefix chặn hết
+  ⇒ Googlebot không tải được JS/CSS để render SPA.
+- **Route app vẫn chặn:** `/assets` là `ProtectedRoute` (`AppRoutes.tsx:322`, `AssetLibraryView`)
+  nên vẫn `Disallow: /assets$`; `Allow: /assets/` khớp dài hơn (RFC 9309) nên crawler không hỗ trợ
+  `$` vẫn tải được asset.
+- **Gate mới trong `--check`:** (1) so rule `Allow`/`Disallow` của `public/robots.txt` với generator;
+  (2) mô phỏng khớp rule (RFC 9309 rút gọn: `*`, `$`, prefix, longest-match, hoà ⇒ Allow) trên mẫu
+  asset Vite + asset thật trong `dist/index.html` nếu có; (3) mọi route `NON_INDEXABLE` (kể cả
+  `/assets`) phải bị chặn. Negative test: đổi lại `Disallow: /assets` ⇒ `--check` exit 1 với
+  7–8 lỗi "robots.txt chặn asset build".
+- `npm run seo:check` (placeholder, chưa có domain) vẫn exit 0; chưa chọn domain production.

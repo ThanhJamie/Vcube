@@ -15,6 +15,11 @@
  *   - `--check`: kiểm tra offline `public/robots.txt` + `public/sitemap.xml` + màu manifest.
  *     Parse XML well-formed, cấm host dev/DEMO URL, bắt robots khai báo `Sitemap` cùng origin.
  *     `--allow-empty` chỉ dùng cho placeholder repo/CI khi chưa có domain production.
+ *   - `--check` cũng so rule `Allow`/`Disallow` của robots với generator (chống sửa tay lệch)
+ *     và mô phỏng khớp rule để chắc crawler tải được asset build (`/assets/*.js|css`).
+ *   - `/assets` là HAI thứ trên cùng origin: route app (thư viện CAD số, cần chặn index) và
+ *     thư mục build Vite (crawler phải tải để render). Vì vậy generator phát
+ *     `Allow: /assets/` + `Disallow: /assets$`, KHÔNG dùng prefix `Disallow: /assets`.
  *
  * Nguồn route: `src/frontend/routes/AppRoutes.tsx`. Nguồn sản phẩm: Supabase
  * (`products` với `status=eq.published`) nếu `.env` có URL + publishable key.
@@ -282,6 +287,151 @@ function readRobotsSitemaps(text) {
     .filter(Boolean);
 }
 
+// ---------------------------------------------------------------------------
+// robots rule: nguồn duy nhất cho generate + --check
+
+/**
+ * Rule robots cho `User-agent: *`.
+ *
+ * `/assets` là hai thứ khác nhau trên cùng origin:
+ *   1. route app `/assets` (thư viện CAD số, `ProtectedRoute`) → không muốn index;
+ *   2. thư mục build Vite `/assets/` (`index-<hash>.js|css`, chunk vendor… — 49 file trong
+ *      `dist/assets`) → crawler PHẢI tải được để render SPA; `vercel.json` còn cache `/assets/(.*)`.
+ *
+ * Rule `Disallow: /assets` không có `$` là khớp **tiền tố** ⇒ chặn luôn JS/CSS. Vì vậy:
+ *   - `Allow: /assets/` (khớp dài hơn ⇒ thắng theo RFC 9309) giữ asset cho mọi crawler,
+ *     kể cả crawler không hỗ trợ `$`;
+ *   - `Disallow: /assets$` chỉ chặn đúng URL route `/assets`.
+ */
+const ASSET_ROUTE = '/assets';
+
+function buildRobotsRules() {
+  const lines = ['User-agent: *', 'Allow: /'];
+  for (const p of NON_INDEXABLE) {
+    if (p === ASSET_ROUTE) {
+      lines.push(`Allow: ${ASSET_ROUTE}/`, `Disallow: ${ASSET_ROUTE}$`);
+    } else {
+      lines.push(`Disallow: ${p}`);
+    }
+  }
+  return lines;
+}
+
+/** Tách rule `allow`/`disallow` + dòng directive của group `User-agent: *` (bỏ comment, Sitemap). */
+function parseRobotsRules(text) {
+  const rules = [];
+  const directives = [];
+  let agents = [];
+  let inAgentBlock = true;
+  let applies = false;
+
+  for (const raw of text.split('\n')) {
+    const line = raw.replace(/#.*$/, '').trim();
+    if (!line) continue;
+    const idx = line.indexOf(':');
+    if (idx < 0) continue;
+    const key = line.slice(0, idx).trim().toLowerCase();
+    const value = line.slice(idx + 1).trim();
+
+    if (key === 'user-agent') {
+      if (!inAgentBlock) {
+        agents = [];
+        inAgentBlock = true;
+      }
+      agents.push(value.toLowerCase());
+      applies = agents.includes('*');
+      continue;
+    }
+    if (key !== 'allow' && key !== 'disallow') continue; // sitemap/crawl-delay: ngoài phạm vi khớp
+    inAgentBlock = false;
+    if (!applies) continue;
+    directives.push(`${key}: ${value}`);
+    if (key === 'disallow' && !value) continue; // "Disallow:" rỗng = không chặn gì
+    rules.push({ type: key, pattern: value });
+  }
+  return { rules, directives };
+}
+
+/** `$` = neo cuối; `*` = wildcard; không có `$` = khớp tiền tố (RFC 9309, rút gọn). */
+function robotsPatternMatches(pattern, pathname) {
+  if (!pattern) return false;
+  const anchored = pattern.endsWith('$');
+  const body = anchored ? pattern.slice(0, -1) : pattern;
+  if (!body) return false;
+  const rx =
+    '^' +
+    body
+      .split('*')
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('.*') +
+    (anchored ? '$' : '');
+  return new RegExp(rx).test(pathname);
+}
+
+/** Path (bỏ query/hash) có được crawl không: rule khớp dài nhất thắng, hoà ⇒ Allow thắng. */
+function robotsAllows(pathname, rules) {
+  const path = pathname.split('#')[0].split('?')[0];
+  let best = null;
+  for (const rule of rules) {
+    if (!robotsPatternMatches(rule.pattern, path)) continue;
+    const weight = rule.pattern.replace(/\$$/, '').length;
+    if (!best || weight > best.weight || (weight === best.weight && rule.type === 'allow')) {
+      best = { weight, type: rule.type };
+    }
+  }
+  return !best || best.type === 'allow';
+}
+
+/** Mẫu URL asset Vite (hash lấy từ build gần nhất trong repo — không cần build lại). */
+const BUILD_ASSET_SAMPLES = [
+  '/assets/index-CMz-WlGN.js',
+  '/assets/index-Ccjb4e85.css',
+  '/assets/react-vendor-BFTP0yF9.js',
+  '/assets/supabase-vendor-gHjsosjr.js',
+  '/assets/three-vendor-CTPGR6fN.js',
+  '/assets/cadParser.worker-wcZ8WCcY.js',
+  '/assets/ThreeModelViewer-CzL3UBVm.js',
+];
+
+/** URL asset thật trong `dist/index.html` nếu có build sẵn (không bắt buộc — CI offline bỏ qua). */
+function readBuiltAssetUrls() {
+  const p = join(ROOT, 'dist', 'index.html');
+  if (!existsSync(p)) return [];
+  const html = readFileSync(p, 'utf8');
+  return [...new Set([...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]))];
+}
+
+function checkRobotsPolicy(text, errors) {
+  const { rules, directives } = parseRobotsRules(text);
+
+  // 1) Rule phải đúng như generator (file có header "sinh bởi" — sửa tay lệch là lỗi).
+  const expected = buildRobotsRules()
+    .filter((l) => !/^user-agent\s*:/i.test(l))
+    .map((l) => l.toLowerCase());
+  if (directives.length !== expected.length || directives.some((d, i) => d !== expected[i])) {
+    errors.push(
+      'robots.txt lệch generator (`Allow`/`Disallow`) — sinh lại bằng scripts/gen-seo-files.mjs; ' +
+        `mong đợi: ${expected.join(' | ')}`,
+    );
+  }
+
+  // 2) Asset build phải crawl được (negative test: quay lại prefix `Disallow: /assets` ⇒ fail).
+  for (const u of [...new Set([...BUILD_ASSET_SAMPLES, ...readBuiltAssetUrls()])]) {
+    if (!robotsAllows(u, rules)) {
+      errors.push(
+        `robots.txt chặn asset build: ${u} — dùng "Allow: /assets/" + "Disallow: /assets$", ` +
+          'không dùng prefix "Disallow: /assets"',
+      );
+    }
+  }
+
+  // 3) Route app nội bộ vẫn phải bị chặn (kể cả `/assets` — chỉ chặn đúng URL đó).
+  for (const p of NON_INDEXABLE) {
+    if (!robotsAllows(p, rules)) continue;
+    errors.push(`robots.txt không chặn route nội bộ ${p}`);
+  }
+}
+
 function runCheck({ allowEmpty }) {
   const errors = [];
   const robotsPath = join(ROOT, 'public', 'robots.txt');
@@ -304,6 +454,8 @@ function runCheck({ allowEmpty }) {
         errors.push(`robots.txt:${i + 1} chứa host dev/placeholder: ${line.trim()}`);
       }
     });
+    // Rule asset/route: crawler phải tải được `/assets/*.js|css`, route app vẫn bị chặn.
+    checkRobotsPolicy(robotsText, errors);
   }
 
   if (existsSync(sitemapPath)) {
@@ -528,10 +680,7 @@ ${urls
 `;
 
 const robots = `# VCUBE — sinh bởi scripts/gen-seo-files.mjs
-User-agent: *
-Allow: /
-
-${NON_INDEXABLE.map((p) => `Disallow: ${p}`).join('\n')}
+${buildRobotsRules().join('\n')}
 
 Sitemap: ${site}/sitemap.xml
 `;
