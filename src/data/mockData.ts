@@ -245,9 +245,14 @@ export const DEFAULT_SITE_CONTENT: import('../types').SiteContentConfig = {
   // ⚠️ KHÁC `DEFAULT_SALES_RULES` (database.ts): đó là default để TÍNH TIỀN khi không có
   // cấu hình — cố ý giữ nguyên, không liên quan tới việc màn admin hiện gì.
   // NHÓM A (data-honesty AT-06): kênh hỗ trợ do admin cấu hình
-  // (/admin → Nội dung site → Hotline Kỹ Thuật). Rỗng ⇒ ẩn, KHÔNG bịa số hotline.
+  // (/admin → Trang chủ & quảng cáo → ô Hotline / Email Tiếp Nhận Hồ Sơ CAD).
+  // Rỗng ⇒ ẩn, KHÔNG bịa số hotline.
   hotline: '',
-  contactEmail: 'contact@vcube.vn',
+  // ⚠️ KHÔNG có email liên hệ mặc định: owner CHƯA xác nhận mailbox nào là kênh chính thức
+  // (data-honesty). Rỗng ⇒ footer/Quote/ChatSupport ẩn email và mời "Hỏi trợ lý tự động";
+  // email THẬT do admin nhập ở /admin → Trang chủ & quảng cáo → ô "Email Tiếp Nhận Hồ Sơ CAD"
+  // (cột `site_content.email`).
+  contactEmail: '',
   hanoiWorkshopAddress: 'Xưởng In 3D VCUBE: Khu Công Nghệ Cao Hòa Lạc, Hà Nội',
   hcmWorkshopAddress: 'Chi Nhánh Nam: Khu Công Nghệ Cao TP. Thủ Đức, TP. Hồ Chí Minh',
 

@@ -15,6 +15,7 @@ import { Badge, Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
 import { useAuth } from '../../context/AuthContext';
 import { useUIStore } from '@frontend/stores/useUIStore';
 import { EMPTY_VALUE, formatCurrency, formatNumber, formatWeight } from '../../lib/format';
+import { isDisplayableEmail, isDisplayableHotline } from '../../lib/contact';
 
 /**
  * Q (#2): `materials.price_per_gram` nay là **nullable thật** (mappers không còn điền 850).
@@ -179,13 +180,12 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   // chỉ render cho vai trò quản trị, không lộ cho khách. Hook đứng trước mọi `return` dưới.
   const { role } = useAuth();
   const canSeeInternalCost = role === 'admin';
-  // P1-2: kênh liên hệ lấy từ `site_content` thật. Không có hotline/email hợp lệ ⇒ chỉ mời
-  // trợ lý tự động và nói RÕ trợ lý không gửi yêu cầu (không hứa "đã ghi nhận/đã gửi").
+  // P1-2: kênh liên hệ lấy từ `site_content` thật; giá trị mẫu (`mau@example.com`/`000…`) bị ẩn.
   const hotline = (contactHotline ?? '').trim();
   const hotlineDigits = hotline.replace(/[^\d+]/g, '');
   const email = (contactEmail ?? '').trim();
-  const hasHotline = /^\+?\d{8,15}$/.test(hotlineDigits);
-  const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const hasHotline = isDisplayableHotline(hotline);
+  const hasEmail = isDisplayableEmail(email);
   const guestContactHref = hasHotline ? `tel:${hotlineDigits}` : hasEmail ? `mailto:${email}` : null;
   const guestContactLabel = hasHotline ? 'Gọi hotline hỗ trợ' : hasEmail ? 'Gửi email hỗ trợ' : 'Hỏi trợ lý tự động';
   const guestContactIcon = hasHotline ? 'call' : hasEmail ? 'mail' : 'support_agent';
