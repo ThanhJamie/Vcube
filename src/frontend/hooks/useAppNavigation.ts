@@ -4,8 +4,9 @@
  * giữ đủ guard auth/role + toast + payload mapping như bản gốc.
  */
 
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { Order, Product } from '@/types';
+import { buildAuthSwitchHref, buildLoginHref } from '@frontend/lib/authRedirect';
 
 /** Payload mà views cũ truyền cho `onNavigate(screen, payload)` — các field dùng trong bridge. */
 export interface AppNavPayload {
@@ -45,17 +46,34 @@ export function useAppNavigation({
   showToast,
 }: UseAppNavigationInput): { handleNavigate: AppNavigate } {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Entry auth phải mang đường về (UX-02), nếu không đăng nhập xong người dùng bị ném
+  // về trang chủ thay vì quay lại chỗ đang xem:
+  //  - đang ở `/auth/login` hoặc `/auth/register` ⇒ giữ `redirectTo` hiện có (đổi
+  //    login ⟷ register vẫn về đúng đích);
+  //  - đang ở trang public khác ⇒ lấy chính `pathname + search` hiện tại làm đích.
+  const isAuthScreen =
+    location.pathname === '/auth/login' || location.pathname === '/auth/register';
+  const currentRedirectTo = new URLSearchParams(location.search).get('redirectTo');
+  const loginHref = isAuthScreen
+    ? buildAuthSwitchHref('/auth/login', currentRedirectTo)
+    : buildLoginHref(location.pathname, location.search);
+  const registerHref = buildAuthSwitchHref(
+    '/auth/register',
+    isAuthScreen ? currentRedirectTo : `${location.pathname}${location.search}`
+  );
 
   // Central Navigation Adapter Bridge
   const handleNavigate = (screen: string, payload?: AppNavPayload) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (screen === 'login' || screen === 'signin') {
-      navigate('/auth/login');
+      navigate(loginHref);
       return;
     }
     if (screen === 'register' || screen === 'signup') {
-      navigate('/auth/register');
+      navigate(registerHref);
       return;
     }
 
@@ -74,7 +92,9 @@ export function useAppNavigation({
       'tracking',
     ];
     if (!isLoggedIn && !publicScreens.includes(screen)) {
-      navigate('/auth/login');
+      // Vào màn cần đăng nhập ⇒ quay lại đúng màn đó sau khi đăng nhập (dùng cùng
+      // `loginHref` để giữ `redirectTo` khi đang đứng sẵn ở màn auth).
+      navigate(loginHref);
       return;
     }
 
