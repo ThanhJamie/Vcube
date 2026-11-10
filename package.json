@@ -15,6 +15,7 @@
     "skills:sync": "node scripts/sync-mattpocock-skills.mjs",
     "po:audit": "node scripts/po-audit.mjs",
     "seo:gen": "node scripts/gen-seo-files.mjs",
+    "seo:check": "node scripts/gen-seo-files.mjs --check --allow-empty",
     "machine:next": "node scripts/machine-next.mjs",
     "guard:max-lines": "node scripts/check-max-lines.mjs",
     "guard:any-budget": "node scripts/check-any-budget.mjs",
