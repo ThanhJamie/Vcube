@@ -174,6 +174,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     : Math.round(unitBeforeDiscount * (1 - volumeDiscountPercent / 100));
   const orderTotal = dynamicPricePhysical === null ? null : dynamicPricePhysical * quantity;
   const purchaseBlocked = dynamicPricePhysical === null || engravingBlocked || materialBlocked;
+  /** W2-D2: cả hai kênh đều không mở bán ⇒ thanh mua mobile chỉ hiện `—` + 2 nút khoá, ẩn hẳn. */
+  const hasAnyChannel = physicalPrice !== null || digitalPrice !== null;
 
   // T3: đánh giá chỉ có nghĩa khi có CẢ điểm VÀ số lượng đánh giá thật.
   const reviewsCount: number | null = isNum(product.reviewsCount) ? product.reviewsCount : null;
@@ -1409,39 +1411,45 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </div>
       </div>
 
-      {/* Mobile Sticky Order Bar (< lg) — CTA duy nhất trong viewport (UI-008) */}
-      <div className="fixed inset-x-0 bottom-0 z-sticky border-t border-line bg-surface/95 p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] shadow-e2 backdrop-blur-md lg:hidden">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-          <div className="min-w-0">
-            <span className="block font-mono text-xs uppercase text-fg-muted">
-              Tổng đặt in
-            </span>
-            <span className="block truncate font-mono text-base font-bold tabular-nums text-fg">
-              {vnd(orderTotal, locale)}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleAddDigital}
-              disabled={digitalPrice === null}
-              title="Mua tệp CAD"
-              leadingIcon={<Icon name="download" size={16} />}
-            >
-              <span>Tệp CAD</span>
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleAddPhysical}
-              disabled={isAdding || purchaseBlocked}
-              leadingIcon={<Icon name="precision_manufacturing" size={16} />}
-            >
-              <span>{isAdding ? 'Đang xử lý…' : ('Đặt in 3D')}</span>
-            </Button>
+      {/* Mobile Sticky Order Bar (< lg) — CTA duy nhất trong viewport (UI-008).
+          W2-D2: chỉ render khi có kênh mở bán; FAB đã ẩn ở route này, bar chừa safe-area. */}
+      {hasAnyChannel && (
+        <div
+          role="region" aria-label="Đặt in nhanh"
+          className="fixed inset-x-0 bottom-0 z-sticky border-t border-line bg-surface/95 p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))] shadow-e2 backdrop-blur-md lg:hidden"
+        >
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="block font-mono text-xs uppercase text-fg-muted">
+                Tổng đặt in
+              </span>
+              <span className="block truncate font-mono text-base font-bold tabular-nums text-fg">
+                {vnd(orderTotal, locale)}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleAddDigital}
+                disabled={digitalPrice === null}
+                title="Mua tệp CAD"
+                leadingIcon={<Icon name="download" size={16} />}
+              >
+                <span>Tệp CAD</span>
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleAddPhysical}
+                disabled={isAdding || purchaseBlocked}
+                leadingIcon={<Icon name="precision_manufacturing" size={16} />}
+              >
+                <span>{isAdding ? 'Đang xử lý…' : ('Đặt in 3D')}</span>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
