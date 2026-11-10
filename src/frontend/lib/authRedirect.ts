@@ -23,9 +23,17 @@ export type AuthScreenPath = '/auth/login' | '/auth/register';
 /**
  * `redirectTo` trỏ vào khu vực auth (kể cả alias cũ `/login`, `/register`) sẽ khiến
  * luồng đăng nhập/đăng ký quay lại chính form auth ⇒ chặn trước khi ghép URL.
+ *
+ * Chuẩn hoá **CHỈ để so sánh** (trim, bỏ query/hash, bỏ `/` cuối, lowercase) để bắt
+ * được biến thể `/LOGIN`, `/login/`, `/Auth/Login`…; giá trị path hợp lệ trả về từ
+ * `sanitizeRedirectPath` vẫn giữ nguyên chữ hoa/dấu `/` gốc.
  */
 function isAuthAreaPath(value: string): boolean {
-  const pathname = value.split(/[?#]/)[0];
+  const pathname = value
+    .trim()
+    .split(/[?#]/)[0]
+    .replace(/\/+$/, '')
+    .toLowerCase();
   return (
     pathname === '/auth' ||
     pathname.startsWith('/auth/') ||

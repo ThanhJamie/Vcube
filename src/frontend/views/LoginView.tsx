@@ -35,7 +35,8 @@ export const LoginView: React.FC = () => {
       // UX-02: quay lại đúng chỗ vừa bị chặn (`?redirectTo=` do ProtectedRoute/RoleGuard gắn).
       // Trước đây giá trị này đi qua adapter chuỗi "screen" nên path lạ (`/orders`) rơi về
       // trang chủ; nay navigate thẳng bằng router, sau khi lọc open-redirect.
-      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')));
+      // `replace` để nút Back không quay lại form đăng nhập vừa hoàn tất.
+      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')), { replace: true });
     } catch (err: any) {
       setErrorMessage(
         err?.message ||
@@ -52,7 +53,7 @@ export const LoginView: React.FC = () => {
       setErrorMessage(null);
       setNotice(null);
       await signInWithGoogle();
-      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')));
+      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')), { replace: true });
     } catch (err: any) {
       setErrorMessage(err?.message || ('Không thể kết nối Google OAuth.'));
     } finally {

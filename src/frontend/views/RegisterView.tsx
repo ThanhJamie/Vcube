@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button, Card, Field, Icon, Input } from '@frontend/ui';
@@ -35,6 +35,16 @@ export const RegisterView: React.FC = () => {
   const [awaitingEmailConfirm, setAwaitingEmailConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // Hẹn giờ chuyển hướng sau khi đăng ký thành công: clear khi unmount để không
+  // navigate trên component đã tháo (tránh warning/điều hướng ngoài ý muốn).
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    },
+    []
+  );
 
   // Password strength calculation
   const getPasswordStrength = () => {
@@ -123,7 +133,7 @@ export const RegisterView: React.FC = () => {
         );
         // Quay lại đúng path+search đã lưu (không rơi về `/`); `replace` để nút Back
         // không đưa người dùng về lại form đăng ký vừa hoàn tất.
-        setTimeout(() => {
+        redirectTimerRef.current = setTimeout(() => {
           navigate(redirectTarget, { replace: true });
         }, 1500);
       } else {

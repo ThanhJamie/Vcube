@@ -55,6 +55,19 @@ describe('authRedirect — sanitizeRedirectPath', () => {
     assert.equal(sanitizeRedirectPath('/auth0'), '/auth0');
     assert.equal(sanitizeRedirectPath('/login-history'), '/login-history');
   });
+
+  test('biến thể case/trailing slash của khu vực auth cũng bị chặn', () => {
+    assert.equal(sanitizeRedirectPath('/LOGIN'), '/');
+    assert.equal(sanitizeRedirectPath('/login/'), '/');
+    assert.equal(sanitizeRedirectPath('/Auth/Login'), '/');
+    assert.equal(sanitizeRedirectPath('/AUTH/register/'), '/');
+    assert.equal(sanitizeRedirectPath('/auth/'), '/');
+    assert.equal(sanitizeRedirectPath('/REGISTER/?redirectTo=%2Forders'), '/');
+    // Giá trị hợp lệ KHÔNG bị lowercase/đổi dấu `/` khi trả về.
+    assert.equal(sanitizeRedirectPath('/orders'), '/orders');
+    assert.equal(sanitizeRedirectPath('/Orders/Detail?id=1'), '/Orders/Detail?id=1');
+    assert.equal(sanitizeRedirectPath('/'), '/');
+  });
 });
 
 describe('authRedirect — buildLoginHref', () => {

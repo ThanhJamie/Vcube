@@ -61,7 +61,8 @@ const DesignerDashboardView = React.lazy(() => import('@frontend/views/DesignerD
  */
 function AuthAliasRedirect({ to }: { to: string }) {
   const location = useLocation();
-  return <Navigate to={`${to}${location.search}`} replace />;
+  // Giữ nguyên query (`?redirectTo=`) + hash khi chuyển route.
+  return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
 }
 
 export interface AppRoutesProps
