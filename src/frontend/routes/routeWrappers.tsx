@@ -21,6 +21,7 @@ import { PageSkeleton } from '@frontend/components/PageSkeleton';
 import { Button, EmptyState, Icon } from '@frontend/ui';
 import { ExploreView } from '@frontend/views/ExploreView';
 import { OrderService } from '@backend/services/orderService';
+import { OrderDetailError } from '@/types/orderRecords';
 import { ProductDetailView } from '@frontend/views/ProductDetailView';
 import { buildLoginHref } from '@frontend/lib/authRedirect';
 
@@ -308,7 +309,9 @@ export const OrderSuccessRoute: React.FC<{
   const [dbOrder, setDbOrder] = React.useState<Order | null>(null);
   // Khởi tạo 'loading' khi đã có `orderId` mà chưa có đơn trên RAM: tránh 1 frame hiện
   // nhầm "không tìm thấy" trước khi effect kịp chạy (A11Y-W1.2 audit loading/error).
-  const [loadState, setLoadState] = React.useState<'idle' | 'loading' | 'error'>(() =>
+  // W1.3: `not_found` (không có đơn) TÁCH khỏi `error` (không đọc được) — chỉ `error` mới có
+  // nút "Thử lại"; `not_found` dùng màn không tìm thấy (không retry vô ích).
+  const [loadState, setLoadState] = React.useState<'idle' | 'loading' | 'not_found' | 'error'>(() =>
     orderId && !fromRam ? 'loading' : 'idle'
   );
   // A11Y-W1.2: lỗi đọc đơn (mạng/DB) phải tách khỏi "không tìm thấy". Mỗi lần bấm
@@ -329,8 +332,12 @@ export const OrderSuccessRoute: React.FC<{
         setDbOrder(res.order);
         setLoadState('idle');
       })
-      .catch(() => {
-        if (alive) setLoadState('error');
+      .catch((err: unknown) => {
+        if (!alive) return;
+        setDbOrder(null);
+        // `OrderDetailError('not_found')` = DB không có đơn (sai id/token) ⇒ màn không tìm thấy.
+        // Mọi mã khác (network/forbidden/unknown) ⇒ màn lỗi + Thử lại.
+        setLoadState(err instanceof OrderDetailError && err.code === 'not_found' ? 'not_found' : 'error');
       });
     return () => {
       alive = false;
@@ -350,6 +357,7 @@ export const OrderSuccessRoute: React.FC<{
         />
       );
     }
+    // `not_found` (hoặc chưa bắt đầu đọc): đơn thật sự không tồn tại ⇒ không có nút Thử lại.
     return <OrderNotFoundView onNavigate={onNavigate} context="order-success" />;
   }
 
