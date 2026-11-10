@@ -16,10 +16,12 @@
  *     Parse XML well-formed, cấm host dev/DEMO URL, bắt robots khai báo `Sitemap` cùng origin.
  *     `--allow-empty` chỉ dùng cho placeholder repo/CI khi chưa có domain production.
  *   - `--check` cũng so rule `Allow`/`Disallow` của robots với generator (chống sửa tay lệch)
- *     và mô phỏng khớp rule để chắc crawler tải được asset build (`/assets/*.js|css`).
+ *     và mô phỏng khớp rule để chắc crawler tải được asset build (`/assets/*.js|css`) nhưng
+ *     KHÔNG crawl được `/assets` (route app) lẫn `/assets/` (biến thể slash cuối).
  *   - `/assets` là HAI thứ trên cùng origin: route app (thư viện CAD số, cần chặn index) và
  *     thư mục build Vite (crawler phải tải để render). Vì vậy generator phát
- *     `Allow: /assets/` + `Disallow: /assets$`, KHÔNG dùng prefix `Disallow: /assets`.
+ *     `Allow: /assets/` + `Disallow: /assets$` + `Disallow: /assets/$`, KHÔNG dùng prefix
+ *     `Disallow: /assets`. `$` là ký tự đặc biệt mà crawler BẮT BUỘC hỗ trợ — RFC 9309 §2.2.3.
  *
  * Nguồn route: `src/frontend/routes/AppRoutes.tsx`. Nguồn sản phẩm: Supabase
  * (`products` với `status=eq.published`) nếu `.env` có URL + publishable key.
@@ -299,9 +301,15 @@ function readRobotsSitemaps(text) {
  *      `dist/assets`) → crawler PHẢI tải được để render SPA; `vercel.json` còn cache `/assets/(.*)`.
  *
  * Rule `Disallow: /assets` không có `$` là khớp **tiền tố** ⇒ chặn luôn JS/CSS. Vì vậy:
- *   - `Allow: /assets/` (khớp dài hơn ⇒ thắng theo RFC 9309) giữ asset cho mọi crawler,
- *     kể cả crawler không hỗ trợ `$`;
- *   - `Disallow: /assets$` chỉ chặn đúng URL route `/assets`.
+ *   - `Allow: /assets/` giữ asset build (`/assets/index-<hash>.js|css`, chunk vendor…);
+ *   - `Disallow: /assets$` chặn đúng URL route `/assets`;
+ *   - `Disallow: /assets/$` chặn biến thể slash cuối `/assets/`.
+ *
+ * `$` KHÔNG phải ngoại lệ cần né: RFC 9309 §2.2.3 bắt buộc crawler hỗ trợ `$` (cùng `*`, `#`),
+ * nên rule neo cuối là hợp lệ với mọi crawler tuân thủ. Độ cụ thể tính theo **độ dài chuỗi
+ * pattern** (gồm `$`) — giống tham chiếu google/robotstxt (`MatchAllow`/`MatchDisallow` trả
+ * `pattern.length()`): `Disallow: /assets/$` (9) thắng `Allow: /assets/` (8) đúng ở `/assets/`,
+ * còn `/assets/<file>` chỉ khớp Allow (8) nên vẫn tải được.
  */
 const ASSET_ROUTE = '/assets';
 
@@ -309,7 +317,11 @@ function buildRobotsRules() {
   const lines = ['User-agent: *', 'Allow: /'];
   for (const p of NON_INDEXABLE) {
     if (p === ASSET_ROUTE) {
-      lines.push(`Allow: ${ASSET_ROUTE}/`, `Disallow: ${ASSET_ROUTE}$`);
+      lines.push(
+        `Allow: ${ASSET_ROUTE}/`,
+        `Disallow: ${ASSET_ROUTE}$`,
+        `Disallow: ${ASSET_ROUTE}/$`,
+      );
     } else {
       lines.push(`Disallow: ${p}`);
     }
@@ -368,13 +380,17 @@ function robotsPatternMatches(pattern, pathname) {
   return new RegExp(rx).test(pathname);
 }
 
-/** Path (bỏ query/hash) có được crawl không: rule khớp dài nhất thắng, hoà ⇒ Allow thắng. */
+/**
+ * Path (bỏ query/hash) có được crawl không: rule khớp dài nhất thắng, hoà ⇒ Allow thắng.
+ * Độ dài = độ dài chuỗi pattern **gồm cả neo `$`** (google/robotstxt trả `pattern.length()`),
+ * nhờ đó `Disallow: /assets/$` (9) thắng `Allow: /assets/` (8) ở đúng `/assets/`.
+ */
 function robotsAllows(pathname, rules) {
   const path = pathname.split('#')[0].split('?')[0];
   let best = null;
   for (const rule of rules) {
     if (!robotsPatternMatches(rule.pattern, path)) continue;
-    const weight = rule.pattern.replace(/\$$/, '').length;
+    const weight = rule.pattern.length;
     if (!best || weight > best.weight || (weight === best.weight && rule.type === 'allow')) {
       best = { weight, type: rule.type };
     }
@@ -429,6 +445,21 @@ function checkRobotsPolicy(text, errors) {
   for (const p of NON_INDEXABLE) {
     if (!robotsAllows(p, rules)) continue;
     errors.push(`robots.txt không chặn route nội bộ ${p}`);
+  }
+
+  // 3b) Biến thể slash cuối `/assets/` phải bị chặn bởi `Disallow: /assets/$`.
+  // Negative: bỏ rule này (hoặc để độ cụ thể hoà) ⇒ `/assets/` vẫn crawlable ⇒ fail.
+  const slashRule = `${ASSET_ROUTE}/$`;
+  const hasSlashRule = rules.some((r) => r.type === 'disallow' && r.pattern === slashRule);
+  if (!hasSlashRule) {
+    errors.push(
+      `robots.txt thiếu "Disallow: ${slashRule}" — biến thể ${ASSET_ROUTE}/ vẫn crawlable`,
+    );
+  } else if (robotsAllows(`${ASSET_ROUTE}/`, rules)) {
+    errors.push(
+      `robots.txt vẫn cho crawl ${ASSET_ROUTE}/ dù có "Disallow: ${slashRule}" — ` +
+        'kiểm tra độ cụ thể: rule neo `$` phải dài hơn `Allow: /assets/`',
+    );
   }
 }
 

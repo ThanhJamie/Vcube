@@ -9,6 +9,7 @@ Disallow: /lab
 Disallow: /orders
 Allow: /assets/
 Disallow: /assets$
+Disallow: /assets/$
 Disallow: /account
 Disallow: /checkout
 Disallow: /cart
