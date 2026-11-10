@@ -116,6 +116,9 @@ interface QuoteSummaryPanelProps {
   materials?: MaterialProfile[];
   printers?: PrinterProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
+  /** P1-2: kênh liên hệ THẬT từ `site_content`; rỗng ⇒ không dựng CTA giả kênh gửi. */
+  contactHotline?: string;
+  contactEmail?: string;
   onPrinterChange: (id: string) => void;
   onMaterialChange: (id: string) => void;
   onInfillChange: (val: number) => void;
@@ -146,6 +149,8 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   materials = MATERIALS_CATALOG,
   printers = PRINTER_PROFILES,
   pricingConfig,
+  contactHotline,
+  contactEmail,
   onPrinterChange,
   onMaterialChange,
   onInfillChange,
@@ -174,6 +179,33 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   // chỉ render cho vai trò quản trị, không lộ cho khách. Hook đứng trước mọi `return` dưới.
   const { role } = useAuth();
   const canSeeInternalCost = role === 'admin';
+  // P1-2: kênh liên hệ lấy từ `site_content` thật. Không có hotline/email hợp lệ ⇒ chỉ mời
+  // trợ lý tự động và nói RÕ trợ lý không gửi yêu cầu (không hứa "đã ghi nhận/đã gửi").
+  const hotline = (contactHotline ?? '').trim();
+  const hotlineDigits = hotline.replace(/[^\d+]/g, '');
+  const email = (contactEmail ?? '').trim();
+  const hasHotline = /^\+?\d{8,15}$/.test(hotlineDigits);
+  const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const guestContactHref = hasHotline ? `tel:${hotlineDigits}` : hasEmail ? `mailto:${email}` : null;
+  const guestContactLabel = hasHotline ? 'Gọi hotline hỗ trợ' : hasEmail ? 'Gửi email hỗ trợ' : 'Hỏi trợ lý tự động';
+  const guestContactIcon = hasHotline ? 'call' : hasEmail ? 'mail' : 'support_agent';
+  const guestContactHint = guestContactHref
+    ? 'Vui lòng liên hệ VCUBE để được báo giá thủ công.'
+    : 'Trợ lý tự động chỉ giải đáp nhanh, không gửi yêu cầu báo giá.';
+  const pricingAdminHint = canSeeInternalCost ? 'Quản trị viên thêm ở /admin → Cấu hình giá (Đội Máy In / Danh Mục Nhựa & Resin).' : guestContactHint;
+  const pricingConfigAction = canSeeInternalCost ? (
+    <Link to="/admin/pricing" className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover">
+      <Icon name="tune" size={18} /> Mở cấu hình giá (/admin/pricing)
+    </Link>
+  ) : guestContactHref ? (
+    <a href={guestContactHref} className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover">
+      <Icon name={guestContactIcon} size={18} /> {guestContactLabel}
+    </a>
+  ) : (
+    <Button variant="secondary" size="md" leadingIcon={<Icon name={guestContactIcon} size={18} />} onClick={() => setIsChatOpen(true)}>
+      {guestContactLabel}
+    </Button>
+  );
 
   // Đợt 9 (R1): tỉ lệ VAT đọc từ `pricing_global_settings.vat_percent`.
   // Hook đặt Ở ĐÂY — TRƯỚC mọi `return` bên dưới — vì panel có early return khi chưa tính
@@ -258,16 +290,8 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         <EmptyState
           icon={<Icon name="precision_manufacturing" size={20} />}
           title="Chưa thể báo giá tự động"
-          description={`${pricingUnavailableReason ?? 'Thiếu dữ liệu máy in hoặc vật liệu thật để tính giá.'} Quản trị viên thêm ở /admin → Cấu hình giá (Đội Máy In / Danh Mục Nhựa & Resin).`}
-          action={
-            <Link
-              to="/admin/pricing"
-              className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover"
-            >
-              <Icon name="tune" size={18} />
-              Mở cấu hình giá (/admin/pricing)
-            </Link>
-          }
+          description={`${pricingUnavailableReason ?? 'Thiếu dữ liệu máy in hoặc vật liệu thật để tính giá.'} ${pricingAdminHint}`}
+          action={pricingConfigAction}
         />
       </div>
     );
@@ -400,7 +424,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               so sánh và nói NGUYÊN NHÂN THẬT, thay vì để lỗi ném ra và trắng cả trang. */}
           {machineComparisons === null && (
             <InfoTip label="Vì sao chưa so sánh được các máy in?">
-              {`${machineComparisonUnavailableReason ?? 'Không tính được giá cho một máy trong đội máy.'} Bảng so sánh cần khổ bàn (bed_dimensions) và thông số giá của MỌI máy. Quản trị viên bổ sung ở /admin → Cấu hình giá (Đội Máy In).`}
+              {`${machineComparisonUnavailableReason ?? 'Không tính được giá cho một máy trong đội máy.'} Bảng so sánh cần khổ bàn (bed_dimensions) và thông số giá của MỌI máy. ${canSeeInternalCost ? 'Quản trị viên bổ sung ở /admin → Cấu hình giá (Đội Máy In).' : 'Vui lòng liên hệ VCUBE nếu cần so sánh thủ công.'}`}
             </InfoTip>
           )}
 
@@ -468,7 +492,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           onClick={() => onAddToCart(handleBuildCartItem(selectedPackage))}
           leadingIcon={<Icon name="shopping_cart" size={20} />}
         >
-          Thêm vào giỏ &amp; đặt hàng
+          Thêm vào giỏ
         </Button>
 
         <button
@@ -728,16 +752,8 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
             bordered
             icon={<Icon name="precision_manufacturing" size={20} />}
             title="Chưa dựng được gói giao hàng"
-            description={`${packagesUnavailableReason ?? 'Chưa cấu hình chiết khấu gói Tiết kiệm / phụ thu gói Hỏa tốc để dựng 3 gói báo giá.'} Quản trị viên bổ sung ở /admin → Cấu hình giá (Cấu hình chung).`}
-            action={
-              <Link
-                to="/admin/pricing"
-                className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover"
-              >
-                <Icon name="tune" size={18} />
-                Mở cấu hình giá (/admin/pricing)
-              </Link>
-            }
+            description={`${packagesUnavailableReason ?? 'Chưa cấu hình chiết khấu gói Tiết kiệm / phụ thu gói Hỏa tốc để dựng 3 gói báo giá.'} ${canSeeInternalCost ? 'Quản trị viên bổ sung ở /admin → Cấu hình giá (Cấu hình chung).' : guestContactHint}`}
+            action={pricingConfigAction}
           />
         ) : (
         <div className="space-y-2">

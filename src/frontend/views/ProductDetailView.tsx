@@ -62,7 +62,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   onShowToast
 }) => {
   const locale = 'vi-VN';
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, role } = useAuth();
+  // UX-01: chỉ admin thấy đường dẫn cấu hình nội bộ; khách nhận copy trung tính.
+  const isAdmin = role === 'admin';
 
   const materialsList = materials && materials.length > 0 ? materials : MATERIALS_CATALOG;
   /**
@@ -948,7 +950,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         <p className="mt-1.5 flex items-start gap-1.5 text-xs text-danger">
                           <Icon name="error" size={16} className="mt-0.5 shrink-0" />
                           <span>
-                            Chưa cấu hình phí khắc laser (customEngravingFee) nên chưa thể đặt khắc. Quản trị viên nhập ở /admin, mục Cấu hình giá.
+                            {isAdmin
+                              ? 'Chưa cấu hình phí khắc laser (customEngravingFee) nên chưa thể đặt khắc. Nhập ở /admin, mục Cấu hình giá.'
+                              : 'Chưa cấu hình phí khắc laser nên chưa thể đặt khắc. Vui lòng liên hệ VCUBE nếu bạn cần khắc tên.'}
                           </span>
                         </p>
                       )}

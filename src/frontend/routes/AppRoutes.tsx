@@ -188,6 +188,9 @@ export function AppRoutes({
             element={
               <PersonalizeRoute
                 products={products}
+                productsLoading={productsLoading}
+                productsError={productsError}
+                onRetry={loadProducts}
                 materials={materials}
                 pricingConfig={effectivePricingConfig as InkiriCostFormulaConfig | undefined}
                 onAddToCart={handleAddToCart}
@@ -201,6 +204,9 @@ export function AppRoutes({
             element={
               <PersonalizeRoute
                 products={products}
+                productsLoading={productsLoading}
+                productsError={productsError}
+                onRetry={loadProducts}
                 materials={materials}
                 pricingConfig={effectivePricingConfig as InkiriCostFormulaConfig | undefined}
                 onAddToCart={handleAddToCart}
@@ -218,6 +224,7 @@ export function AppRoutes({
                 materials={materials}
                 printers={printers}
                 pricingConfig={effectivePricingConfig as InkiriCostFormulaConfig | undefined}
+                siteContent={siteContent}
                 onAddToCart={handleAddToCart}
                 onNavigate={handleNavigate}
                 onShowToast={showToast}
