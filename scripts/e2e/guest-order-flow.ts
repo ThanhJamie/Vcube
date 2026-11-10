@@ -16,12 +16,18 @@
  *   - `--live`: ghi DB thật (staging). Đây mới là bằng chứng API/DB.
  *   - Browser smoke (QA-BROWSER-01) là gate RIÊNG, không thay thế được script này.
  *
- * An toàn dữ liệu — FAIL-CLOSED:
+ * An toàn dữ liệu — FAIL-CLOSED (phòng thủ nhiều lớp):
  * - Mặc định DRY-RUN (không ghi DB).
  * - Ghi thật (`--live`) yêu cầu ĐỒNG THỜI:
  *     · `E2E_TARGET=staging` (sau trim/lowercase). Mọi giá trị khác — kể cả trống/`unknown`/
- *       `production` — đều BLOCKED exit 2. KHÔNG có bypass production.
+ *       `production` — đều BLOCKED exit 2.
+ *     · `E2E_STAGING_SUPABASE_URL` tồn tại và **khớp** `VITE_SUPABASE_URL` sau khi chuẩn hoá
+ *       (trim/lowercase/bỏ `/` cuối). Lệch/thiếu → BLOCKED exit 2. Đây là chốt chống `.env`
+ *       production bị dùng nhầm khi chỉ đặt `E2E_TARGET=staging`.
  *     · `E2E_ALLOW_LIVE=1` (cổng xác nhận thêm).
+ * - Biến môi trường (`process.env`) THẮNG file `.env`, để `E2E_*`/`VITE_*` do người chạy đặt
+ *   không bị `.env` đè. Giới hạn: harness tin `E2E_STAGING_SUPABASE_URL` thực sự là staging —
+ *   phải cấp secret staging riêng, không tái sử dụng URL production.
  * - Đơn test có prefix `E2E-`; dọn bằng `--cleanup` (dùng `SUPABASE_SECRET_KEY` **server-only**,
  *   chạy trong Node, KHÔNG bao giờ đưa vào bundle). `--cleanup` xoá đơn của lần chạy này rồi
  *   ĐỌC LẠI để xác nhận đã sạch. `--cleanup-stale` dọn mọi đơn `E2E-%` còn sót + admin tạm
@@ -43,9 +49,12 @@
  * Chạy:
  *   npm run test:e2e:api                                     # dry-run, không cần credentials (fixture self-check)
  *   npm run test:e2e:api -- --json --report .loop/e2e.json   # dry-run + report máy đọc
- *   E2E_ALLOW_LIVE=1 E2E_TARGET=staging npx tsx scripts/e2e/guest-order-flow.ts --live
- *   E2E_ALLOW_LIVE=1 E2E_TARGET=staging npx tsx scripts/e2e/guest-order-flow.ts --live --cleanup
- *   E2E_ALLOW_LIVE=1 E2E_TARGET=staging E2E_ADMIN_EMAIL=... E2E_ADMIN_PASSWORD=... \
+ *   E2E_ALLOW_LIVE=1 E2E_TARGET=staging E2E_STAGING_SUPABASE_URL=https://<staging-ref>.supabase.co \
+ *     npx tsx scripts/e2e/guest-order-flow.ts --live
+ *   E2E_ALLOW_LIVE=1 E2E_TARGET=staging E2E_STAGING_SUPABASE_URL=https://<staging-ref>.supabase.co \
+ *     npx tsx scripts/e2e/guest-order-flow.ts --live --cleanup
+ *   E2E_ALLOW_LIVE=1 E2E_TARGET=staging E2E_STAGING_SUPABASE_URL=https://<staging-ref>.supabase.co \
+ *     E2E_ADMIN_EMAIL=... E2E_ADMIN_PASSWORD=... \
  *     npx tsx scripts/e2e/guest-order-flow.ts --live --admin-session --cleanup
  */
 
@@ -80,7 +89,9 @@ function loadEnv(): Env {
   } catch {
     /* .env không có ⇒ dùng biến môi trường đang có */
   }
-  const merged: Env = { ...(process.env as Env), ...out };
+  // Thứ tự ưu tiên: biến môi trường THẮNG file `.env`. Nếu ngược lại, một `.env` có sẵn
+  // credential thật có thể đè `E2E_*`/`VITE_*` do người chạy cố ý đặt (nguy hiểm cho --live).
+  const merged: Env = { ...out, ...(process.env as Env) };
   merged.VITE_SUPABASE_URL ||= merged.NEXT_PUBLIC_SUPABASE_URL || '';
   merged.VITE_SUPABASE_PUBLISHABLE_KEY ||= merged.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   return merged;
@@ -112,10 +123,16 @@ const env = loadEnv();
 const SUPABASE_URL = env.VITE_SUPABASE_URL;
 const ANON_KEY = env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const SECRET_KEY = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '';
+const STAGING_URL = env.E2E_STAGING_SUPABASE_URL || '';
 const TARGET_RAW = env.E2E_TARGET ?? '';
 const TARGET = TARGET_RAW.trim().toLowerCase() || 'unknown';
 const ALLOW_LIVE = env.E2E_ALLOW_LIVE === '1';
 const ADMIN_REQUESTED = ADMIN_SESSION || PROVISION_ADMIN;
+
+/** Chuẩn hoá URL để so khớp: trim, lowercase, bỏ mọi `/` cuối. Không in URL ra log. */
+function normalizeUrl(value: string): string {
+  return value.trim().toLowerCase().replace(/\/+$/, '');
+}
 
 const startedAt = new Date().toISOString();
 const results: Result[] = [];
@@ -392,7 +409,7 @@ async function cleanupStale(reason: string): Promise<void> {
 function requiredChecks(): string[] {
   const required = ['fixture.valid'];
   if (LIVE) {
-    required.push('env', 'guard.live', 'guest.insert', 'guest.read_by_token', 'guest.rls_order_items_blocked', 'guest.rls_payment_blocked');
+    required.push('env', 'guard.live', 'guard.staging_url', 'guest.insert', 'guest.read_by_token', 'guest.rls_order_items_blocked', 'guest.rls_payment_blocked');
   }
   if (ADMIN_REQUESTED) required.push('admin.signin', 'admin.confirm');
   if (PROVISION_ADMIN) required.push('admin.provision', 'admin.provision_cleanup');
@@ -415,7 +432,7 @@ async function main() {
   if (HELP) {
     console.log(
       'Flags: --live --cleanup --cleanup-stale --admin-session --provision-admin --json --report <path>\n' +
-        'Live yêu cầu E2E_ALLOW_LIVE=1 VÀ E2E_TARGET=staging (fail-closed; không có bypass production).'
+        'Live yêu cầu E2E_ALLOW_LIVE=1, E2E_TARGET=staging VÀ VITE_SUPABASE_URL khớp E2E_STAGING_SUPABASE_URL.'
     );
     return 0;
   }
@@ -451,6 +468,7 @@ async function main() {
       record('guest.insert', 'SKIP', 'dry-run — bật --live (kèm E2E_TARGET=staging + E2E_ALLOW_LIVE=1) để ghi đơn thật');
       record('guest.rls_order_items_blocked', 'SKIP', 'dry-run');
       record('guest.rls_payment_blocked', 'SKIP', 'dry-run');
+      if (ADMIN_REQUESTED) record('admin.signin', 'SKIP', 'dry-run — không thực hiện đăng nhập admin');
       record('admin.confirm', 'SKIP', 'dry-run');
       record('cleanup', 'SKIP', 'dry-run — không có gì để dọn');
       return 0;
@@ -465,6 +483,22 @@ async function main() {
         `E2E_TARGET="${TARGET_RAW}" (chuẩn hoá: "${TARGET}") — --live chỉ cho phép E2E_TARGET=staging`
       );
       return 2;
+    }
+    // URL thật phải khớp URL staging được cấp riêng. Không in URL để tránh lộ cấu hình.
+    if (LIVE) {
+      if (!STAGING_URL) {
+        record('guard.staging_url', 'BLOCKED', 'thiếu E2E_STAGING_SUPABASE_URL — không xác nhận được đích staging');
+        return 2;
+      }
+      if (normalizeUrl(SUPABASE_URL) !== normalizeUrl(STAGING_URL)) {
+        record(
+          'guard.staging_url',
+          'BLOCKED',
+          'VITE_SUPABASE_URL không khớp E2E_STAGING_SUPABASE_URL — từ chối --live (không in URL)'
+        );
+        return 2;
+      }
+      record('guard.staging_url', 'PASS', 'URL thực khớp E2E_STAGING_SUPABASE_URL');
     }
     if (LIVE && !ALLOW_LIVE) {
       record('guard.live', 'BLOCKED', 'cần E2E_ALLOW_LIVE=1 để ghi DB (chống chạy nhầm production)');
@@ -488,6 +522,7 @@ async function main() {
       record('guest.insert', 'SKIP', 'dry-run — bật --live để ghi đơn thật');
       record('guest.rls_order_items_blocked', 'SKIP', 'dry-run');
       record('guest.rls_payment_blocked', 'SKIP', 'dry-run');
+      if (ADMIN_REQUESTED) record('admin.signin', 'SKIP', 'dry-run — không thực hiện đăng nhập admin');
       record('admin.confirm', 'SKIP', 'dry-run');
       record('cleanup', 'SKIP', 'dry-run — không có gì để dọn');
       return 0;

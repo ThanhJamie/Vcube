@@ -51,6 +51,12 @@ jobs:
       - name: Build (npm run build)
         run: npm run build
 
+      # QA/SEO P1-2: kiểm tra robots/sitemap/manifest. `--allow-empty` để không fail khi
+      # chưa có domain/sản phẩm thật. Offline, không cần secret. Phụ thuộc generator hỗ trợ
+      # `--check` (worker E); nếu chưa merge, script chỉ regenerate và vẫn RC=0.
+      - name: SEO files check (npm run seo:check)
+        run: npm run seo:check
+
       - name: Guard — file ≤800 dòng
         run: node scripts/check-max-lines.mjs
 
@@ -187,6 +193,7 @@ jobs:
             printf 'VITE_SUPABASE_URL=%s\n' "$E2E_STAGING_SUPABASE_URL"
             printf 'VITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$E2E_STAGING_PUBLISHABLE_KEY"
             printf 'SUPABASE_SECRET_KEY=%s\n' "$E2E_STAGING_SECRET_KEY"
+            printf 'E2E_STAGING_SUPABASE_URL=%s\n' "$E2E_STAGING_SUPABASE_URL"
           } > /tmp/e2e-staging.env
 
       # Dry-run với env STAGING: chỉ ĐỌC bảng `products`, không ghi DB (không dùng production).
@@ -194,6 +201,7 @@ jobs:
         if: steps.e2e.outputs.present == 'true' && steps.stageguard.outputs.safe == 'true'
         env:
           E2E_ENV_FILE: /tmp/e2e-staging.env
+          E2E_STAGING_SUPABASE_URL: ${{ secrets.E2E_STAGING_SUPABASE_URL }}
           E2E_TARGET: staging
         run: npm run test:e2e:api -- --json --report e2e-api-dryrun.json
 
@@ -201,6 +209,7 @@ jobs:
         if: steps.e2e.outputs.present == 'true' && steps.stageguard.outputs.safe == 'true' && vars.E2E_LIVE_WRITE == 'true'
         env:
           E2E_ENV_FILE: /tmp/e2e-staging.env
+          E2E_STAGING_SUPABASE_URL: ${{ secrets.E2E_STAGING_SUPABASE_URL }}
           E2E_ALLOW_LIVE: '1'
           E2E_TARGET: staging
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_STAGING_ADMIN_EMAIL }}

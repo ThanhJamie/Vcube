@@ -10,7 +10,7 @@
 |---|---|
 | `scripts/e2e/guest-order-flow.ts` chỉ chạy tay, không có npm script/CI | `npm run test:e2e:api` (dry-run mặc định) + self-test trong CI offline; dry-run chạy được **không cần credentials** |
 | Dry-run thiếu `.env` → `env FAIL` + exit 1 | Dry-run thiếu `.env` → `env SKIP`, vẫn kiểm fixture, exit 0 (không gọi mạng) |
-| `--live` có thể ghi DB ngay | **Fail-closed:** `--live` chỉ chạy khi `E2E_TARGET=staging` (trim/lowercase) **và** `E2E_ALLOW_LIVE=1`; mọi target khác (trống/`unknown`/`production`) → BLOCKED exit 2. Không có bypass production |
+| `--live` có thể ghi DB ngay | **Fail-closed nhiều lớp:** `--live` chỉ chạy khi `E2E_TARGET=staging` (trim/lowercase), `VITE_SUPABASE_URL` **khớp** `E2E_STAGING_SUPABASE_URL` (chuẩn hoá) **và** `E2E_ALLOW_LIVE=1`; thiếu/lệch → BLOCKED exit 2. Không có cờ bypass production |
 | Không có output máy đọc | `--json` (stdout) + `--report <path>` (file JSON cho CI artifact) |
 | RLS test coi mọi lỗi là "đã chặn" | Chỉ `SQLSTATE 42501` / `row-level security` mới là PASS; lỗi khác là FAIL (không kết luận được) |
 | Cleanup xoá nhưng không kiểm | Cleanup đọc lại `orders` để xác nhận đã sạch; `--cleanup-stale` dọn đơn `E2E-%` + admin tạm cũ |
@@ -18,6 +18,8 @@
 | Requested step bị SKIP vẫn báo PASS | `result` có thêm `PARTIAL`; `--admin-session`/`--cleanup`/`--cleanup-stale` bị SKIP/BLOCKED ⇒ exit 1, không PASS |
 | Probe lỗi khi có env bị SKIP/PASS | Có env mà `db.reachable` lỗi ⇒ **FAIL** ở mọi mode (dry-run lẫn live) |
 | Crash giữa chừng bỏ rơi dữ liệu | `main()` bọc `try/finally`: dọn đơn/admin tạm dù throw sau insert/tạo admin |
+| `.env` đè biến môi trường | `process.env` **thắng** `.env` (để `E2E_*`/`VITE_*` do người chạy đặt không bị đè) |
+| `--admin-session` nhưng admin không chạy | Record `admin.signin SKIP` + `admin.confirm SKIP` ⇒ `PARTIAL`, exit 1 |
 
 ## 2. File thay đổi
 
@@ -55,12 +57,12 @@ npm run test:e2e:api
 # 2) Dry-run có output máy đọc
 npm run test:e2e:api -- --json --report /tmp/e2e-api.json
 
-# 3) LIVE trên staging (chỉ khi có credential staging)
-E2E_ALLOW_LIVE=1 E2E_TARGET=staging \
+# 3) LIVE trên staging (chỉ khi có credential staging; URL phải khớp E2E_STAGING_SUPABASE_URL)
+E2E_ALLOW_LIVE=1 E2E_TARGET=staging E2E_STAGING_SUPABASE_URL=https://<staging-ref>.supabase.co \
   npx tsx scripts/e2e/guest-order-flow.ts --live --cleanup --json --report /tmp/e2e-api-live.json
 
 # 4) LIVE + admin confirm tiền (QA-MONEY-01 dùng về sau, KHÔNG phải acceptance của item này)
-E2E_ALLOW_LIVE=1 E2E_TARGET=staging \
+E2E_ALLOW_LIVE=1 E2E_TARGET=staging E2E_STAGING_SUPABASE_URL=https://<staging-ref>.supabase.co \
   E2E_ADMIN_EMAIL=... E2E_ADMIN_PASSWORD=... \
   npx tsx scripts/e2e/guest-order-flow.ts --live --admin-session --cleanup
 ```
@@ -72,11 +74,15 @@ Biến môi trường:
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` | client anon (bắt buộc cho live) |
 | `SUPABASE_SECRET_KEY` | **server-only**, chỉ dùng cho cleanup/provision admin |
 | `E2E_ENV_FILE` | trỏ file env staging riêng (CI), tránh lẫn `.env` production |
+| `E2E_STAGING_SUPABASE_URL` | **bắt buộc để `--live`**; phải khớp `VITE_SUPABASE_URL` sau chuẩn hoá (trim/lowercase/bỏ `/` cuối). Thiếu/lệch → BLOCKED |
 | `E2E_TARGET=staging` | **bắt buộc để `--live`**; chỉ đúng chuỗi `staging` (sau trim/lowercase). Giá trị khác → BLOCKED |
 | `E2E_ALLOW_LIVE=1` | bắt buộc thêm để `--live` ghi DB |
 | `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` | phiên admin thật cho bước confirm (nếu `--admin-session`) |
 
-Không còn biến `E2E_ALLOW_PRODUCTION`: harness **không** hỗ trợ ghi production.
+Không có biến `E2E_ALLOW_PRODUCTION`. Lưu ý giới hạn: harness **tin** `E2E_STAGING_SUPABASE_URL`
+là staging. Nếu ai đó cấu hình cả URL production cho cả hai biến, guard URL không phân biệt được —
+vì vậy phải cấp **secret staging riêng**, và CI còn so URL staging với `VITE_SUPABASE_URL`
+production trước khi chạy.
 
 ## 5. Kết quả chạy trong worktree (2026-11-10)
 
@@ -87,9 +93,13 @@ Môi trường: worktree `wave1/qa`, **không có `.env`**, không có credentia
 | `npx tsc --noEmit` | PASS (0 lỗi) | 0 |
 | `npm run test:e2e:api` | `fixture.valid PASS`; `env SKIP`; 6 SKIP; **RESULT=PASS** (dry-run) | 0 |
 | `npm run test:e2e:api -- --json --report …` | JSON hợp lệ, `result=PASS`, `mode=dry-run`, ghi file OK | 0 |
-| `npm run test:e2e:api -- --admin-session` (không credential) | `admin.signin/confirm SKIP` ⇒ **RESULT=PARTIAL** | 1 |
+| `npm run test:e2e:api -- --admin-session` (không credential) | `admin.signin SKIP` + `admin.confirm SKIP` ⇒ **RESULT=PARTIAL** | 1 |
 | `--live` target trống/`unknown` | `guard.target BLOCKED` ⇒ RESULT=FAIL | 2 |
 | `--live` target `PRODUCTION` (kể cả allow live) | `guard.target BLOCKED` ⇒ RESULT=FAIL | 2 |
+| `--live` staging nhưng thiếu `E2E_STAGING_SUPABASE_URL` | `guard.staging_url BLOCKED` ⇒ RESULT=FAIL | 2 |
+| `--live` staging, `VITE_SUPABASE_URL` ≠ `E2E_STAGING_SUPABASE_URL` | `guard.staging_url BLOCKED` (không in URL) | 2 |
+| `--live` URL khớp sau chuẩn hoá (`EXAMPLE.invalid/` vs `example.invalid`) | guard pass, sau đó `db.reachable FAIL` vì host giả | 1 |
+| `process.env` vs `E2E_ENV_FILE` | process.env thắng: URL `proc.invalid` được dùng, không bị file `file.invalid` đè | 1 |
 | `--live` target `staging` thiếu `E2E_ALLOW_LIVE` | `guard.live BLOCKED` ⇒ RESULT=FAIL | 2 |
 | `--live` staging + allow + credential sai | `db.reachable FAIL` ⇒ RESULT=FAIL | 1 |
 | dry-run có env nhưng DB không kết nối | `db.reachable FAIL` (không còn SKIP) ⇒ RESULT=FAIL | 1 |
@@ -114,6 +124,9 @@ Cần PO/Ops cấp **staging project riêng** (không dùng production):
 
 Nếu chỉ có URL/key mà không có secret key: chạy được `--live` guest insert nhưng **không cleanup
 được** → không nên chạy (ràng buộc dữ liệu sạch).
+
+Nếu thiếu `E2E_STAGING_SUPABASE_URL` (hoặc khác `VITE_SUPABASE_URL`): `--live` bị **BLOCKED** —
+worktree local hiện rơi vào trường hợp này, nên không có lượt live nào được chạy.
 
 ## 7. CI
 
@@ -154,7 +167,8 @@ Nếu chỉ có URL/key mà không có secret key: chạy được `--live` gues
 
 | Mã | Trạng thái | Bằng chứng |
 |---|---|---|
-| P1-1 fail-closed target | ✅ | Chỉ `TARGET === 'staging'`; unknown/production → `guard.target BLOCKED`, exit 2 |
+| P1-1 fail-closed target | ✅ | `TARGET === 'staging'` **và** `VITE_SUPABASE_URL` khớp `E2E_STAGING_SUPABASE_URL`; unknown/production/thiếu/lệch → `guard.* BLOCKED`, exit 2. `process.env` thắng `.env` |
+| P2 `admin.signin` SKIP | ✅ | Khi `--admin-session`, cả dry-run lẫn thiếu credential đều record `admin.signin SKIP` + `admin.confirm SKIP` ⇒ PARTIAL exit 1 |
 | P1-2 CI staging vs production | ✅ | Step `Guard staging URL khác production`, RC 1 nếu trùng/thiếu URL production |
 | P1-3 report PASS dù SKIP/BLOCKED | ✅ | `result=PASS/PARTIAL/FAIL`; requested step thiếu PASS ⇒ PARTIAL exit 1; guard ⇒ exit 2 |
 | P2-1 try/finally + stale admin | ✅ | `finally` dọn admin tạm + đơn đã insert; `--cleanup-stale` xoá admin `e2e-admin-*@vcube.test` cũ >1 giờ |
