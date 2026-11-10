@@ -11,6 +11,7 @@ import { computeVat, vatLabel, vatNotConfiguredLabel, vatRateFromPercent } from 
 import { usePricingGlobalSettings } from '../../hooks/useSettings';
 import { InternalCostBreakdownModal } from './InternalCostBreakdownModal';
 import { MachineComparisonModal } from './MachineComparisonModal';
+import { QuoteMobileOrderBar } from './QuoteMobileOrderBar';
 import { Badge, Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
 import { useAuth } from '../../context/AuthContext';
 import { useUIStore } from '@frontend/stores/useUIStore';
@@ -443,40 +444,34 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       </div>
 
       {/* Final Total Summary Bar.
-          Đợt 9 (R1): giá gói là giá CHƯA gồm VAT (hợp đồng của `lib/vat.ts`), nên nhãn cũ
-          "Đã gồm VAT & Gói …" là một khẳng định SAI về thuế — đã bỏ. Nay in giá gói, DÒNG
-          VAT thật (cùng tỉ lệ với /cart → /checkout → hoá đơn) và tổng SAU VAT.
-          P0-1: không có gói giao hàng thật thì KHÔNG có tổng nào để in — ẩn thanh này thay vì
-          bịa số; nguyên nhân đã nêu ở khối "2. Báo Giá Chính Xác" phía dưới.
-          P0-C: khối tổng + CTA đặt in đứng NGAY SAU header để khách thấy "Tổng phải trả" và nút
-          đặt in mà không phải cuộn ở 1440×900 — chỉ đổi thứ tự render, KHÔNG đổi nhãn/logic. */}
+          Giá gói là giá CHƯA gồm VAT (`lib/vat.ts`); panel in DÒNG VAT thật (cùng tỉ lệ với
+          /cart → /checkout → hoá đơn) rồi tổng SAU VAT. Không có gói giao hàng thật thì ẩn
+          thanh này thay vì bịa số (nguyên nhân nêu ở khối "2. Báo Giá Chính Xác" bên dưới). */}
+      {/* W2-Q3: nhóm rõ giá in → VAT → tổng; nhãn ngắn + `whitespace-nowrap` để cột hẹp
+          (xl 3/12) không bẻ nhãn xuống từng chữ. Số liệu/nguồn giá giữ nguyên. */}
       {selectedPackage && (
-      <div className="rounded-lg border border-line bg-surface p-4 space-y-2.5">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs uppercase font-mono tracking-wider text-fg-muted block">
-            Tổng giá trị đơn hàng ({quantity} cái):
-          </span>
-          <span className="text-xs text-fg-subtle font-mono shrink-0">Gói {selectedPackage.name}</span>
+      <div className="rounded-lg border border-line bg-surface p-4 space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-line-subtle pb-2.5">
+          <span className="font-mono text-xs font-semibold uppercase tracking-wide text-fg-muted whitespace-nowrap">Tổng đơn · {quantity} cái</span>
+          <span className="shrink-0 rounded-sm border border-line bg-surface-muted px-2 py-0.5 font-mono text-xs font-semibold text-fg-muted whitespace-nowrap">{selectedPackage.name}</span>
         </div>
-        <div className="space-y-1 text-sm font-mono">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-fg-muted">Giá gói (chưa gồm VAT):</span>
-            <span className="tabular-nums text-right text-fg">{vnd(selectedPackage.totalPrice)}</span>
+        <div className="space-y-2 font-mono text-sm">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-fg-muted whitespace-nowrap">Giá in (chưa VAT)</span>
+            <span className="shrink-0 tabular-nums text-fg">{vnd(selectedPackage.totalPrice)}</span>
           </div>
           {vat ? (
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-fg-muted">{vatLabel(vat.rate)}:</span>
-              <span className="tabular-nums text-right text-fg">{vndAllowZero(vat.amount)}</span>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-fg-muted whitespace-nowrap">{vatLabel(vat.rate)}</span>
+              <span className="shrink-0 tabular-nums text-fg">{vndAllowZero(vat.amount)}</span>
             </div>
           ) : (
-            <p className="text-xs text-fg-muted leading-relaxed font-sans">{vatNotConfiguredLabel()}</p>
+            <p className="font-sans text-xs leading-relaxed text-fg-muted">{vatNotConfiguredLabel()}</p>
           )}
-          <div className="flex items-baseline justify-between gap-2 border-t border-line-subtle pt-2">
-            <span className="text-lg font-bold text-fg">Tổng phải trả:</span>
-            <span className="font-mono tabular-nums text-lg font-bold text-fg text-right">
-              {vnd(vat ? vat.total : selectedPackage.totalPrice)}
-            </span>
-          </div>
+        </div>
+        <div className="flex items-baseline justify-between gap-3 border-t border-line pt-2.5">
+          <span className="text-base font-bold text-fg whitespace-nowrap">Tổng phải trả</span>
+          <span className="shrink-0 whitespace-nowrap text-right font-mono text-lg font-bold tabular-nums text-fg">{vnd(vat ? vat.total : selectedPackage.totalPrice)}</span>
         </div>
       </div>
       )}
@@ -530,6 +525,11 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           Gửi yêu cầu hỗ trợ kỹ thuật
         </button>
       </div>
+      )}
+
+      {/* W2-Q2: thanh tổng + CTA cố định đáy, chỉ mobile — hiện sau khi đã có gói thật. */}
+      {selectedPackage && (
+        <QuoteMobileOrderBar totalLabel={vnd(vat ? vat.total : selectedPackage.totalPrice)} onDirectOrder={() => onDirectOrder(handleBuildCartItem(selectedPackage))} />
       )}
 
       {/* F7 — khối lượng nhựa & thời gian in kèm NGUỒN (data-honesty PC-05/MP-13).
