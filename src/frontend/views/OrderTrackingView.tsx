@@ -6,6 +6,7 @@ import { dbService } from '../../backend/supabase/database';
 import { Icon, Button, Badge, Card, Field, Input, Skeleton } from '@frontend/ui';
 import { formatCurrency } from '../lib/format';
 import { safeImageUrl } from '../lib/productImage';
+import { TransferInstructionsCard } from '../components/orders/TransferInstructionsCard';
 
 interface OrderTrackingViewProps {
   order?: Order;
@@ -92,7 +93,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
     if (!cleanToken) {
       setLookupState('idle');
       setLookupError(
-        'Cần thêm số điện thoại hoặc mã token để bảo vệ thông tin đơn hàng. Tra cứu chỉ bằng mã đơn không được phép.'
+        'Cần thêm mã truy cập để bảo vệ thông tin đơn hàng. Tra cứu chỉ bằng mã đơn không được phép.'
       );
       return;
     }
@@ -148,7 +149,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               </div>
               <p className="text-xs text-fg-muted leading-relaxed">
                 Chúng tôi không có đơn hàng nào khớp với thông tin bạn nhập. Vui lòng kiểm tra lại mã đơn,
-                hoặc dùng đúng mã truy cập / số điện thoại đã dùng khi đặt hàng.
+                hoặc dùng đúng mã truy cập đã nhận khi đặt hàng.
               </p>
             </Card>
           )}
@@ -165,13 +166,13 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
             </div>
 
             <p className="text-xs text-fg-muted leading-relaxed">
-              Để bảo vệ thông tin đơn hàng, tra cứu yêu cầu <strong>cả mã đơn và mã truy cập</strong> (hoặc số
-              điện thoại nhận hàng) đã dùng khi đặt hàng. Mã truy cập được cấp ở màn hình xác nhận đơn.
+              Để bảo vệ thông tin đơn hàng, tra cứu yêu cầu <strong>cả mã đơn và mã truy cập</strong> đã
+              nhận khi đặt hàng. Mã truy cập được cấp ở màn hình xác nhận đơn.
             </p>
 
             {/*
               P0-2: `noValidate` để handler tự hiện lỗi tiếng Việt ("Vui lòng nhập mã đơn hàng." /
-              "Cần thêm số điện thoại hoặc mã token…") thay cho tooltip HTML5 tiếng Anh.
+              "Cần thêm mã truy cập…") thay cho tooltip HTML5 tiếng Anh.
               `required` đặt trên Field (nhãn tự thêm dấu *) khớp với Input — trước đây nhãn ghi
               "(không bắt buộc)" trong khi Input chặn submit.
             */}
@@ -184,7 +185,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
               </Field>
 
               <Field id="lookup-token" className="sm:col-span-5" required
-                label="Mã truy cập hoặc số điện thoại nhận hàng:"
+                label="Mã truy cập:"
                 hint="Chúng tôi không hiển thị đơn hàng nếu chỉ có mã đơn.">
                 {(control) => (
                   <Input {...control} type="text" value={lookupAuth} className="font-mono" required
@@ -250,6 +251,9 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   const layerProgress = currentOrder.layerProgress ?? null;
   const currentStageIndex = currentOrder.statusStageIndex ?? null;
   const hasCarrierData = Boolean(currentOrder.carrier?.trackingCode);
+  // OPS-34: đơn đã hủy KHÔNG còn "CHỜ THANH TOÁN" — trạng thái đơn là nguồn ưu tiên.
+  const isCancelledOrder =
+    currentOrder.status === 'cancelled' || currentOrder.payment?.status === 'cancelled';
 
   return (
     <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
@@ -333,7 +337,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   Tra Cứu Đơn Khác
                 </h3>
               </div>
-              <span className="text-xs font-mono text-fg-subtle">Bắt buộc mã truy cập hoặc SĐT</span>
+              <span className="text-xs font-mono text-fg-subtle">Bắt buộc mã truy cập</span>
             </div>
 
             <form id="guest-lookup-form-2" onSubmit={handleGuestLookup} noValidate className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
@@ -343,7 +347,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                     onChange={(e) => setLookupCode(e.target.value)} placeholder="Ví dụ: #VCUBE-8924" />
                 )}
               </Field>
-              <Field id="lookup-token-2" label="Mã truy cập hoặc số điện thoại:" required className="sm:col-span-5">
+              <Field id="lookup-token-2" label="Mã truy cập:" required className="sm:col-span-5">
                 {(control) => (
                   <Input {...control} type="text" value={lookupAuth} className="font-mono" required
                     onChange={(e) => setLookupAuth(e.target.value)} placeholder="Mã truy cập trong màn hình xác nhận đơn" />
@@ -527,17 +531,23 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                   Thanh Toán & Vận Chuyển
                 </h3>
                 <Badge
-                  variant={currentOrder.payment.isPaid ? 'success' : 'warning'}
+                  variant={isCancelledOrder ? 'danger' : currentOrder.payment.isPaid ? 'success' : 'warning'}
                   dot
                   className="font-mono"
                 >
-                  {currentOrder.payment.isPaid
+                  {isCancelledOrder
+                    ? 'ĐÃ HỦY'
+                    : currentOrder.payment.isPaid
                     ? 'ĐÃ THANH TOÁN'
                     : currentOrder.payment.status === 'cod'
                     ? 'THU KHI GIAO (COD)'
                     : 'CHỜ THANH TOÁN'}
                 </Badge>
               </div>
+
+              {/* OPS-01 — hướng dẫn thanh toán đọc từ snapshot của chính đơn (không app_settings).
+                  Badge trạng thái đã nằm ở header thẻ này ⇒ ẩn badge lặp trong card. */}
+              <TransferInstructionsCard order={currentOrder} showStatusBadge={false} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>

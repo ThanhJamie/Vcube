@@ -342,6 +342,32 @@ export function rowToAccessory(d: SupabaseRow): AccessoryItem {
 /* ============================================================================
  * Đơn hàng
  * ========================================================================== */
+
+/**
+ * OPS-01 — đọc snapshot hướng dẫn chuyển khoản đã lưu trong `orders.payment` jsonb.
+ * Trước đây `rowToOrder` dựng lại object `payment` nên trường lạ (kể cả `transferInstructions`)
+ * bị làm rơi ⇒ khách mở lại đơn cũ không thấy thông tin nhận tiền. Hàm chỉ ĐỌC ĐÚNG thứ đã lưu:
+ * thiếu dấu hiệu snapshot ⇒ `undefined` (UI nói thật "chưa lưu thông tin nhận tiền"), KHÔNG bịa.
+ */
+export function rowToTransferInstructions(raw: unknown): Order['payment']['transferInstructions'] {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const o = raw as Record<string, unknown>;
+  const optStr = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v : null);
+  const transferContent = optStr(o.transferContent);
+  const method = optStr(o.method);
+  if (transferContent === null && method === null) return undefined;
+  return {
+    configured: o.configured === true,
+    method: method ?? '',
+    amount: typeof o.amount === 'number' && Number.isFinite(o.amount) ? o.amount : null,
+    transferContent: transferContent ?? '',
+    bankName: optStr(o.bankName),
+    bankAccount: optStr(o.bankAccount),
+    accountHolder: optStr(o.accountHolder),
+    lines: Array.isArray(o.lines) ? o.lines.filter((l): l is string => typeof l === 'string') : [],
+  };
+}
+
 export function rowToOrder(d: SupabaseRow): Order {
   const payment = d.payment || {};
   const shippingFee =
@@ -391,6 +417,8 @@ export function rowToOrder(d: SupabaseRow): Order {
       // Chỉ tin cờ đã lưu; thiếu dữ liệu ⇒ chưa thanh toán.
       isPaid: payment.isPaid === true || d.payment_status === 'paid',
       status: d.payment_status || (payment.isPaid === true ? 'paid' : 'unpaid'),
+      // OPS-01: giữ snapshot hướng dẫn chuyển khoản của CHÍNH đơn (không đọc cấu hình hiện tại).
+      transferInstructions: rowToTransferInstructions(payment.transferInstructions),
     },
     // FL-1 — snapshot tiền §3b (NULL = chưa chốt; không bịa 0).
     money: rowToOrderMoney(d),
