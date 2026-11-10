@@ -21,6 +21,8 @@ export interface AppNavPayload {
   appliedDiscount?: number;
   /** UX-06: "In lại đơn" — danh sách item của đơn cũ, chuyển sang `/quote` qua router state. */
   reorderItems?: Order['items'];
+  /** Mã đơn cũ để /quote hiển thị đối chiếu. */
+  reorderOrderNumber?: string;
 }
 
 export type AppNavigate = (screen: string, payload?: AppNavPayload) => void;

@@ -27,6 +27,11 @@ export interface Tool3DEmptyStateProps {
   isAdmin?: boolean;
   /** UX-06: đơn cũ được "In lại" — chỉ để liệt kê lại, KHÔNG đủ dữ liệu dựng báo giá. */
   reorderItems?: Order['items'];
+  /** Mã đơn cũ (nếu có) — hiển thị để khách đối chiếu. */
+  reorderOrderNumber?: string;
+  /** P2-1: chỉ chủ tài khoản mới mở được Thư viện tệp CAD. */
+  isLoggedIn?: boolean;
+  onOpenAssetLibrary?: () => void;
 }
 
 export const Tool3DEmptyState: React.FC<Tool3DEmptyStateProps> = ({
@@ -41,7 +46,10 @@ export const Tool3DEmptyState: React.FC<Tool3DEmptyStateProps> = ({
   currentPrinter,
   currentMaterial,
   isAdmin = false,
-  reorderItems
+  reorderItems,
+  reorderOrderNumber,
+  isLoggedIn = false,
+  onOpenAssetLibrary
 }) => (
       <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
         <SEOHead
@@ -60,24 +68,40 @@ export const Tool3DEmptyState: React.FC<Tool3DEmptyStateProps> = ({
             </h1>
           </div>
 
-          {/* UX-06: "In lại đơn" từ /orders chỉ mang tên/số lượng/vật liệu — nêu đúng giới hạn
-              dữ liệu và yêu cầu tải lại tệp, không dựng báo giá từ tên sản phẩm. */}
+          {/* UX-06: "In lại đơn" từ /orders chỉ có dữ liệu mức đơn hàng (tên, số lượng, vật liệu),
+              KHÔNG có tệp CAD/thể tích — nêu đúng giới hạn, không dựng báo giá từ tên sản phẩm. */}
           {reorderItems && reorderItems.length > 0 && (
             <div className="rounded-lg border border-line bg-surface-muted p-4">
               <div className="flex items-start gap-2.5">
                 <Icon name="replay" size={18} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
                 <div className="min-w-0 space-y-1.5">
-                  <p className="text-sm font-semibold text-fg">Đang in lại đơn cũ</p>
+                  <p className="text-sm font-semibold text-fg">
+                    Đang in lại đơn cũ{reorderOrderNumber ? ` · ${reorderOrderNumber}` : ''}
+                  </p>
                   <p className="text-xs leading-relaxed text-fg-muted">
-                    Đơn cũ chỉ có tên sản phẩm và số lượng, không kèm tệp CAD hay thể tích để dựng lại
-                    báo giá. Với đơn in, vui lòng tải lại tệp bên dưới; bản vẽ số đã mua vẫn nằm trong
-                    mục Tài sản số.
+                    Đơn cũ chỉ có tên, số lượng và vật liệu ở mức đơn hàng — không kèm tệp CAD hay
+                    thể tích để dựng lại báo giá. Với đơn in, vui lòng tải lại tệp bên dưới.
+                    {reorderItems.some((item) => item.type === 'digital') && (
+                      isLoggedIn ? (
+                        <> Bản vẽ số đã mua nằm trong{' '}
+                          <button
+                            type="button"
+                            onClick={onOpenAssetLibrary}
+                            className="cursor-pointer font-semibold text-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            Thư viện tệp CAD
+                          </button>.
+                        </>
+                      ) : (
+                        ' Bản vẽ số đã mua nằm trong Thư viện tệp CAD — đăng nhập để xem.'
+                      )
+                    )}
                   </p>
                   <ul className="flex flex-wrap gap-1.5">
                     {reorderItems.map((item) => (
                       <li
                         key={item.id}
-                        className="rounded-full border border-line bg-surface px-2.5 py-1 font-mono text-xs text-fg"
+                        className="max-w-full break-words rounded-full border border-line bg-surface px-2.5 py-1 font-mono text-xs text-fg"
                       >
                         {item.name} ×{item.quantity}
                         {item.material ? ` · ${item.material}` : ''}

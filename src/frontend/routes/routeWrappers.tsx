@@ -165,68 +165,99 @@ export const ProductDetailRoute: React.FC<{
 
 export const PersonalizeRoute: React.FC<{
   products: Product[];
+  productsLoading?: boolean;
+  productsError?: boolean;
+  onRetry?: () => void;
   materials?: MaterialProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
   onAddToCart: (item: CartItem) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onShowToast: (msg: string) => void;
-}> = ({ products, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
+}> = ({ products, productsLoading, productsError, onRetry, materials, pricingConfig, onAddToCart, onNavigate, onShowToast }) => {
   const { productId } = useParams<{ productId?: string }>();
-  // A11 GUARD (CI-04): catalog fixture đã bị rỗng hoá ⇒ `products[0]` là `undefined` và
-  // `PersonalizeView` (prop `product` bắt buộc) crash khi truy cập `product.images[0]`.
-  // Không cá nhân hoá một sản phẩm không tồn tại: id không khớp HOẶC catalog rỗng ⇒ trạng thái
-  // "không tìm thấy". `/personalize` không kèm id vẫn lấy sản phẩm đầu khi catalog có dữ liệu thật.
+  // UX-04: chỉ kết luận "không có mẫu" khi catalog đã tải XONG và không lỗi.
+  // `PersonalizeView` (prop `product` bắt buộc) crash nếu `products[0]` là `undefined`,
+  // nên không bao giờ truyền sản phẩm không tồn tại.
   const product = productId ? products.find((p) => p.id === productId) : products[0];
 
-  if (!product) {
-    // UX-04: `/personalize` KHÔNG kèm id mà kho mẫu rỗng ⇒ đây là trạng thái rỗng của storefront,
-    // không phải URL sai. Chỉ `/personalize/:productId` không khớp mới là 404 thật.
-    if (!productId) {
-      return (
-        <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
-          <div className="w-full max-w-md">
-            <EmptyState
-              icon={<Icon name="view_in_ar" size={20} />}
-              title="Chưa có mẫu nào để tuỳ biến"
-              description="Kho mẫu đang trống nên chưa có sản phẩm để cá nhân hoá. Bạn vẫn có thể tải tệp CAD lên để nhận báo giá in 3D."
-              action={
-                <>
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    leadingIcon={<Icon name="upload_file" size={18} />}
-                    onClick={() => onNavigate('quote')}
-                  >
-                    Báo giá tệp 3D
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    leadingIcon={<Icon name="storefront" size={18} />}
-                    onClick={() => onNavigate('explore')}
-                  >
-                    Khám phá kho mẫu
-                  </Button>
-                </>
-              }
-            />
-          </div>
-        </div>
-      );
-    }
-    return <NotFoundView />;
+  if (product) {
+    return (
+      <PersonalizeView
+        product={product}
+        materials={materials}
+        pricingConfig={pricingConfig}
+        onAddToCart={onAddToCart}
+        onNavigate={onNavigate}
+        onShowToast={onShowToast}
+      />
+    );
   }
 
-  return (
-    <PersonalizeView
-      product={product}
-      materials={materials}
-      pricingConfig={pricingConfig}
-      onAddToCart={onAddToCart}
-      onNavigate={onNavigate}
-      onShowToast={onShowToast}
-    />
-  );
+  // Đang nạp catalog: hiện skeleton thay vì 404/empty state sai thời điểm.
+  if (productsLoading) return <PageSkeleton />;
+
+  // Lỗi tải catalog: nói thật + cho thử lại (không giả vờ kho rỗng).
+  if (productsError) {
+    return (
+      <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <EmptyState
+            icon={<Icon name="error" size={20} />}
+            title="Không tải được kho mẫu"
+            description="Không kết nối được tới kho mẫu nên chưa thể mở trình tuỳ biến. Kiểm tra kết nối mạng rồi thử lại."
+            action={
+              <Button
+                variant="secondary"
+                size="md"
+                leadingIcon={<Icon name="refresh" size={18} />}
+                onClick={() => onRetry?.()}
+              >
+                Thử lại
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // UX-04: `/personalize` KHÔNG kèm id mà kho mẫu rỗng ⇒ trạng thái rỗng của storefront,
+  // không phải URL sai. Chỉ `/personalize/:productId` không khớp mới là 404 thật.
+  if (!productId) {
+    return (
+      <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <EmptyState
+            icon={<Icon name="view_in_ar" size={20} />}
+            title="Chưa có mẫu nào để tuỳ biến"
+            description="Kho mẫu đang trống nên chưa có sản phẩm để cá nhân hoá. Bạn vẫn có thể tải tệp CAD lên để nhận báo giá in 3D."
+            action={
+              <>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  leadingIcon={<Icon name="upload_file" size={18} />}
+                  onClick={() => onNavigate('quote')}
+                >
+                  Báo giá tệp 3D
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  leadingIcon={<Icon name="storefront" size={18} />}
+                  onClick={() => onNavigate('explore')}
+                >
+                  Khám phá kho mẫu
+                </Button>
+              </>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return <NotFoundView />;
 };
 
 /**

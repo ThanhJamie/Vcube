@@ -79,7 +79,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
     setReorderSuccessId(order.id);
     setTimeout(() => {
       setReorderSuccessId(null);
-      onNavigate('tool_3d', { reorderItems: order.items });
+      onNavigate('tool_3d', { reorderItems: order.items, reorderOrderNumber: order.orderNumber });
     }, 1200);
   };
 

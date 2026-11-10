@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import * as THREE from 'three';
-import { AnalysisFile, CartItem, Order, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, PrintabilityAnalysis, InkiriCostFormulaConfig, SlicerPresetInfo } from '@/types';
+import { AnalysisFile, CartItem, Order, SiteContentConfig, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, PrintabilityAnalysis, InkiriCostFormulaConfig, SlicerPresetInfo } from '@/types';
 import { SAMPLE_ANALYSIS_FILES, PRINTER_PROFILES, MATERIALS_CATALOG } from '@/data/mockData';
 import { ModelViewer3D } from '../components/tool3d/ModelViewer3D';
 import { SEOHead } from '../components/SEOHead';
@@ -46,6 +46,7 @@ interface Tool3DViewProps {
   materials?: MaterialProfile[];
   printers?: PrinterProfile[];
   pricingConfig?: InkiriCostFormulaConfig;
+  siteContent?: SiteContentConfig;
   onAddToCart: (item: CartItem) => void;
   onNavigate: (screen: string, payload?: any) => void;
   onShowToast: (message: string) => void;
@@ -55,6 +56,7 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   materials = MATERIALS_CATALOG,
   printers = PRINTER_PROFILES,
   pricingConfig,
+  siteContent,
   onAddToCart,
   onNavigate,
   onShowToast
@@ -67,9 +69,9 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
   // UX-06: `MyOrdersView` chuyển "In lại đơn" sang /quote kèm `location.state.reorderItems`.
   // Đơn chỉ lưu tên/số lượng/vật liệu, KHÔNG có tệp CAD hay thể tích để dựng lại báo giá —
   // nên chỉ hiển thị danh sách để khách tải lại tệp, tuyệt đối không bịa giá/đơn.
-  const reorderItems: Order['items'] | undefined = Array.isArray((location.state as { reorderItems?: unknown } | null)?.reorderItems)
-    ? ((location.state as { reorderItems: Order['items'] }).reorderItems)
-    : undefined;
+  const reorderState = location.state as { reorderItems?: unknown; reorderOrderNumber?: unknown } | null;
+  const reorderItems = Array.isArray(reorderState?.reorderItems) ? (reorderState.reorderItems as Order['items']) : undefined;
+  const reorderOrderNumber = typeof reorderState?.reorderOrderNumber === 'string' ? reorderState.reorderOrderNumber : undefined;
   // Chặn double-click: một lần bấm chỉ ghi MỘT hàng `quotes` (id mới mỗi lần).
   const savingQuoteRef = useRef(false);
 
@@ -386,8 +388,8 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         setManualReviewNoteShown={setManualReviewNoteShown}
         currentPrinter={currentPrinter}
         currentMaterial={currentMaterial}
-        isAdmin={isAdmin}
-        reorderItems={reorderItems}
+        isAdmin={isAdmin} reorderItems={reorderItems} reorderOrderNumber={reorderOrderNumber}
+        isLoggedIn={isLoggedIn} onOpenAssetLibrary={() => onNavigate('asset_library')}
       />
     );
   }
@@ -991,6 +993,8 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
                 materials={materials}
                 printers={printers}
                 pricingConfig={pricingConfig}
+                contactHotline={siteContent?.hotline}
+                contactEmail={siteContent?.contactEmail}
                 onPrinterChange={setSelectedPrinterId}
                 onMaterialChange={setSelectedMaterialId}
                 onInfillChange={setInfillDensity}
