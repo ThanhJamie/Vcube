@@ -94,7 +94,8 @@ export const LoginView: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          {/* `noValidate`: tắt tooltip tiếng Anh của trình duyệt, để `handleLogin` hiện lỗi VI inline. */}
+          <form onSubmit={handleLogin} noValidate className="space-y-5">
             <Field label="Email hoặc Mã định danh" required>
               {(control) => (
                 <div className="relative">
