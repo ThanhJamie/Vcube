@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { SiteContentConfig } from '@/types';
+import { getContactEmailIssue, type ContactEmailIssue } from '@frontend/lib/contact';
 import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
+
+/**
+ * Toast khi email liên hệ sẽ bị footer/Quote/ChatSupport ẨN. Nói đúng lý do để admin
+ * sửa được, thay vì báo "Đã lưu thành công" rồi kênh liên hệ biến mất khỏi UI.
+ */
+const CONTACT_EMAIL_ISSUE_MESSAGE: Record<ContactEmailIssue, string> = {
+  'sample-marker': 'Email liên hệ còn chứa nhãn [MẪU] — hãy nhập email thật trước khi lưu',
+  malformed: 'Email liên hệ không đúng định dạng (ví dụ: ten@congty.vn)',
+  'reserved-domain':
+    'Email liên hệ dùng tên miền dành riêng cho dữ liệu mẫu (example.com/org/net) — hãy nhập email thật',
+};
 
 interface AdminStorefrontPanelProps {
   siteContent: SiteContentConfig;
@@ -86,6 +98,14 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
   };
 
   const handleSave = async () => {
+    // Email admin nhập sẽ bị UI ẩn nếu không hiển thị được (`[MẪU]`, sai định dạng,
+    // example.com/org/net) — chặn lưu và nêu đúng lý do. Bỏ trống = "chưa cấu hình" ⇒ cho lưu.
+    const emailIssue = getContactEmailIssue(localContent.contactEmail);
+    if (emailIssue) {
+      onShowToast(CONTACT_EMAIL_ISSUE_MESSAGE[emailIssue]);
+      return;
+    }
+
     // Bỏ trống là hợp lệ ("chưa cấu hình"), nhưng số âm là vô nghĩa ⇒ CHẶN lưu và nói rõ
     // trường nào, thay vì âm thầm thay bằng một con số mặc định.
     const invalidShippingKey = (['freeShippingThreshold', 'standardShippingFee'] as const).find((key) => {
