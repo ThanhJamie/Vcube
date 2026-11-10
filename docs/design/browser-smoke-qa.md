@@ -76,7 +76,7 @@ Khi có **published product** trên staging: thêm `/products/<id thật>` và
 
 | Route | Kỳ vọng |
 |---|---|
-| `/orders`, `/assets`, `/account` | `ProtectedRoute` → `/auth/login` |
+| `/orders`, `/assets`, `/account` | `ProtectedRoute` → `/auth/login?redirectTo=<path+search>` |
 | `/designer`, `/designer/:tab` | `RoleGuard` → `/auth/login?redirectTo=…` |
 | `/admin`, `/admin/:section` | `RoleGuard` → `/auth/login?redirectTo=…` |
 | `/lab`, `/lab/:tab` | `RoleGuard` → `/auth/login?redirectTo=…` |

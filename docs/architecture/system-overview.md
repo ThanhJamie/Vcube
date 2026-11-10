@@ -80,7 +80,6 @@ The project follows a modular directory layout segregating frontend UI, backend 
 │   │   ├── components/                  # Reusable UI widgets & domain components
 │   │   │   ├── Header.tsx               # Primary storefront navigation & role switcher
 │   │   │   ├── CartDrawer.tsx           # Slide-out interactive shopping drawer
-│   │   │   ├── AuthModal.tsx            # Multi-mode authentication dialog
 │   │   │   ├── RoleGuard.tsx            # Route guard for RBAC protected views
 │   │   │   ├── ThreeModelViewer.tsx     # Three.js 3D thumbnail & interactive preview
 │   │   │   ├── CadQuickViewModal.tsx    # Instant CAD inspection & quick-buy modal
@@ -213,7 +212,7 @@ The bootstrap pipeline starts from a lightweight HTML shell, initializes global 
          |
          v
 +------------------+
-|    <MainApp>     |  Mount Header, CartDrawer, AuthModal, RouteErrorBoundary,
+|    <MainApp>     |  Mount Header, CartDrawer, auth routes (Login/Register), RouteErrorBoundary,
 +--------+---------+  Routes, and Storefront Footer
 ```
 
@@ -358,7 +357,7 @@ State in VCUBE 3.0 is partitioned into three distinct tiers: Global Client Store
 - Uses Zustand `persist` middleware with the storage key `vcube_cart_store`.
 
 ### 2. `useUIStore` (`src/frontend/stores/useUIStore.ts`)
-- Coordinates global modals: `isCartDrawerOpen`, `isAuthModalOpen`, `isChatOpen`.
+- Coordinates global modals: `isCartDrawerOpen`, `isChatOpen`. Auth dùng route `/auth/login` + `/auth/register` (AuthModal đã xoá ở wave1/auth).
 - Manages the toast queue (`toastQueue`; `toasts` is kept as an alias).
 - **Data Honesty Rule on Toasts**: Standard info/success toasts auto-dismiss after 4000ms. Error toasts (`type === 'error'`) **never auto-dismiss**; they persist until the user explicitly acknowledges and closes them.
 

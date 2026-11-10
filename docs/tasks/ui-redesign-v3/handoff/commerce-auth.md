@@ -1,6 +1,9 @@
 <!-- doc-meta: status=active; verified=2026-10-20; owner=commerce-auth -->
 # HANDOFF — W2 Transaction + Auth (commerce-auth) · v3 "Soft Studio"
 
+> **Lịch sử:** AuthModal đã bị xoá ở wave1/auth; các dòng nhắc `AuthModal` dưới đây là bối cảnh
+> cũ, không phải file hiện hành. Auth flags nay ở `src/frontend/lib/authFlags.ts`.
+
 > **Trạng thái: DONE.** `npm run lint` PASS · `npm run build` PASS · toàn bộ gate offline xanh
 > (`check-fabricated`, `check-ui-rules`, `check-contrast`, `check-contrast-combos`, `check-icon-names`).
 > Không commit/push. Không sửa file ngoài write scope của task-5.
@@ -31,7 +34,7 @@
 | `src/frontend/components/CartDrawer.tsx` | `FreeShip`→"miễn phí vận chuyển"; money qua `Money` (bỏ `formatNumber(...) + ' đ'`); giữ EmptyState + free-ship progress; sheet/JSX không đổi kiến trúc |
 | `src/frontend/components/InvoiceModal.tsx` | **UI-020**: bỏ `min-w-[720px]`; ≤sm ẩn cột "Vật liệu & dung sai" + "Đơn giá", chỉ `sm:min-w-[560px]` ⇒ 390 không còn cuộn ngang lồng trong modal; tiêu đề chỉ ghi "HOÁ ĐƠN GTGT" khi đơn **có** `payment.vatRate` (không bịa VAT); `VIETNAM PRECISION FABRICATION`→"Chế tác chính xác Việt Nam"; `Hotline`→"Tổng đài kỹ thuật"; thead `fg-subtle`→`fg-muted`; **giữ nguyên** hành vi in (`window.print()`, không chữ ký/badge paid giả, chỉ số đã ghi nhận) |
 | `src/frontend/components/OrderProgress.tsx` | Thêm `role="progressbar"` + `aria-valuenow/valuetext` cho track compact (trước đây 0 ARIA, tên nấc chỉ có tooltip hover); `title` từng nấc; bỏ `VCUBE Express` (OT-11) → "Chưa có mã vận đơn"; `G-Code & Slicing`→"Cắt lớp & G-code"; câu huỷ đơn không hứa hoàn phí tự động; `fg-subtle`→`fg-muted` trên `surface-muted` |
-| `src/frontend/components/AuthModal.tsx` | **UI-019**: bỏ `bodyClassName` flex-column + bỏ `overflow-y-auto` lồng ⇒ **một vùng cuộn duy nhất** (body Modal); **UI-006/E1–E4**: role label VI (`Quản trị viên`, `Tác giả thiết kế 3D`, `Xưởng in (MES)`, `Khách hàng`) — trước đó cả nhãn vai trò VI và chip mini render enum `currentRole`; **UI-014**: 5 nút dismiss/footer/"Đổi tài khoản" raw → `Button`; segmented tabs/role theo recipe v3; bỏ control chết "Ghi nhớ đăng nhập"; `VCUBE HUBS`→"Trung tâm VCUBE"; `Đang hoạt động (Active)`→VI; footer `fg-subtle` trên `surface-muted`→`fg-muted`; error/success thêm `role="alert"/"status"`; cờ `ENABLE_GOOGLE_OAUTH` / `ENABLE_PASSWORD_RESET` **giữ nguyên false** |
+| AuthModal.tsx (đã xoá ở wave1/auth; flags nay ở `src/frontend/lib/authFlags.ts`) | **UI-019**: bỏ `bodyClassName` flex-column + bỏ `overflow-y-auto` lồng ⇒ **một vùng cuộn duy nhất** (body Modal); **UI-006/E1–E4**: role label VI (`Quản trị viên`, `Tác giả thiết kế 3D`, `Xưởng in (MES)`, `Khách hàng`) — trước đó cả nhãn vai trò VI và chip mini render enum `currentRole`; **UI-014**: 5 nút dismiss/footer/"Đổi tài khoản" raw → `Button`; segmented tabs/role theo recipe v3; bỏ control chết "Ghi nhớ đăng nhập"; `VCUBE HUBS`→"Trung tâm VCUBE"; `Đang hoạt động (Active)`→VI; footer `fg-subtle` trên `surface-muted`→`fg-muted`; error/success thêm `role="alert"/"status"`; cờ `ENABLE_GOOGLE_OAUTH` / `ENABLE_PASSWORD_RESET` **giữ nguyên false** |
 | `src/frontend/components/auth/UserAvatarMenu.tsx` | **UI-006/UI-014**: badge `FORGE ADMIN / DESIGNER PRO / MES HUB CNC / CUSTOMER` → VI; tiêu đề section `CREATOR STUDIO / MES HUB & PRINT FLEET / QUẢN TRỊ FORGECONTROL` → VI; bỏ EN trong title/sub (`(Customizer)`, `Studio Thiết Kế`, `(Queue)`), bỏ claim `8 Nấc Chuẩn ISO`; 2 nút footer → `Button` ghost/danger-ghost; **link role lab** `/admin/queue` `/admin/machines` → `/lab` `/lab/machines` (trước đây đẩy xưởng in vào console admin); panel thêm `max-w-[calc(100vw-2rem)]` chống tràn 390. 13 menu-row raw `<button>` **giữ nguyên có lý do** (layout icon-tile + 2 dòng, xem §6) |
 
 ---

@@ -407,12 +407,12 @@ Added to `src/frontend/ui/iconMap.ts` so they resolve instead of rendering `FALL
 
 ## Files by usage
 
-Top 24 by render-site count - migrate in this order. (Site #25 cũ thuộc cây Next.js đã xoá.)
+Top 23 by render-site count - migrate in this order. (Site #25 cũ thuộc cây Next.js đã xoá;
+`AuthModal.tsx` đã bị xoá ở wave1/auth, nên bảng giữ số thứ tự gốc và không còn dòng #2.)
 
 | # | file | icon usages |
 | ---: | --- | ---: |
-| 1 | `src/frontend/components/AuthModal.tsx` | 35 |
-| 2 | `src/frontend/views/HomeView.tsx` | 35 |
+| 1 | `src/frontend/views/HomeView.tsx` | 35 |
 | 3 | `src/frontend/components/admin/groups/Group5ProductionPanel.tsx` | 34 |
 | 4 | `src/frontend/components/admin/PricingConfigPanel.tsx` | 29 |
 | 5 | `src/frontend/views/ExploreView.tsx` | 29 |

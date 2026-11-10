@@ -78,7 +78,7 @@
 | `/creator` | `/auth/login?redirectTo=%2Fdesigner` | như 390 | PASS |
 | `/login` | `/auth/login` | `/auth/login` | PASS |
 | `/register` | `/auth/register` | `/auth/register` | PASS |
-| `/orders`, `/assets`, `/account` | `/auth/login` | `/auth/login` | PASS — **observation:** `ProtectedRoute` không giữ `redirectTo` (UX-02, worker khác) |
+| `/orders`, `/assets`, `/account` | `/auth/login?redirectTo=<path+search>` | như 390 | PASS — UX-02 đã sửa sau wave1/auth; evidence gốc đo tại `6ecfa19` |
 | `/designer`, `/designer/models` | `/auth/login?redirectTo=…` | như 390 | PASS |
 | `/admin/{overview,products,orders,audit-log}` | `/auth/login?redirectTo=…` | như 390 | PASS |
 | `/lab`, `/lab/queue` | `/auth/login?redirectTo=…` | như 390 | PASS |

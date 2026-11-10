@@ -1,6 +1,9 @@
 <!-- doc-meta: status=active; verified=2026-10-20; owner=review-consistency -->
 # REVIEW R1 — Cross-page consistency (W4) · cây tích hợp W2+W3
 
+> **Lịch sử:** AuthModal đã bị xoá ở wave1/auth; các dòng nhắc `AuthModal` dưới đây là bối cảnh
+> cũ, không phải file hiện hành. Auth flags nay ở `src/frontend/lib/authFlags.ts`.
+
 > **Snapshot:** `HEAD 97cc256` + working tree **2026-10-20 13:2x** (159 file dirty, chưa commit).
 > Review **read-only**: không sửa `.tsx`/`index.css`/docs khác; chỉ ghi file này.
 > Nguồn đối chiếu: `PLAN.md` · `DESIGN-LANGUAGE.md` (v3 LOCKED) · `docs/design/tokens.md` ·
@@ -41,7 +44,7 @@ mở**. Ở dev, StrictMode chạy mount → cleanup → mount; cleanup của `u
 `CadQuickViewModal`, 4 modal tool3d). Ba file dưới **chưa** sửa và **không** có trong
 bất kỳ handoff nào ⇒ QA W6 (chạy dev server) sẽ thấy Đăng nhập / Giỏ hàng / Hoá đơn không mở.
 
-Bằng chứng: `src/frontend/components/AuthModal.tsx:79` `if (!isOpen) return null;` (Modal ở `:231`)
+Bằng chứng: AuthModal.tsx (đã xoá ở wave1/auth; flags nay ở `src/frontend/lib/authFlags.ts`) `if (!isOpen) return null;` (Modal ở `:231`)
 · `CartDrawer.tsx:40` `if (!isOpen) return null;` (Modal ở `:75`) · `InvoiceModal.tsx:65`
 `if (!isOpen || !order) return null;` (Modal ở `:89`). Đối chiếu pattern đã sửa:
 `CadQuickViewModal.tsx:47-51` (comment ghi rõ bẫy) và cách ly body.

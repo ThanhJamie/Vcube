@@ -1,10 +1,10 @@
-<!-- AUTO-GENERATED — đừng sửa tay · routes: 32 · source: src/frontend/routes/AppRoutes.tsx · source-sha256: e7c4f29fdaa6 -->
+<!-- AUTO-GENERATED — đừng sửa tay · routes: 32 · source: src/frontend/routes/AppRoutes.tsx · source-sha256: e471b302d973 -->
 
 # Bảng route (sinh tự động)
 
 > Sinh bởi `scripts/gen-routes-doc.mjs` từ `src/frontend/routes/AppRoutes.tsx` — **đừng sửa tay**.
 > Sửa route trong `src/frontend/routes/AppRoutes.tsx` rồi chạy lại: `node scripts/gen-routes-doc.mjs`.
-> routes: **32** · source: `src/frontend/routes/AppRoutes.tsx` · source-sha256: `e7c4f29fdaa6` (output ổn định, không kèm ngày).
+> routes: **32** · source: `src/frontend/routes/AppRoutes.tsx` · source-sha256: `e471b302d973` (output ổn định, không kèm ngày).
 
 | Path | Component/Element | Guard | Redirect? |
 |---|---|---|---|

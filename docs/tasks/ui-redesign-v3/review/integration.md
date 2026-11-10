@@ -75,7 +75,7 @@
 
 | File | Finding |
 |---|---|
-| `src/frontend/components/AuthModal.tsx` | CC-01 |
+| AuthModal.tsx (đã xoá ở wave1/auth; flags nay ở `src/frontend/lib/authFlags.ts`) | CC-01 |
 | `src/frontend/components/CartDrawer.tsx` | CC-01 |
 | `src/frontend/components/InvoiceModal.tsx` | CC-01 (tách `InvoiceModalBody`) |
 | `src/frontend/components/admin/groups/Group2DesignersPanel.tsx` | CC-02 |
