@@ -506,6 +506,25 @@ Sau Phase 2:
 - **E — Legal scaffold:** LEG-01 (nội dung chờ PO/legal).
 - **F — Publish guard:** UI-01 (sau UX-03); **QA-MONEY-01** ngay sau đó.
 
+### 5.5 Wave 1.1 — code-only P2 (2026-11-10)
+
+| ID | Item | Branch / commit | Kết quả | Bằng chứng |
+|---|---|---|---|---|
+| W1.1-AUTH | Register/Header giữ `redirectTo` sau đăng ký | `wave1.1/auth` · `60dee17` → `ad181c4` → `57255a9` | **DONE** | Card + Header login/register link giữ `?redirectTo=`; loop `/LOGIN`, `/login/`, `/Auth/Login` bị chặn; 189 unit test; 390/1440 0 tràn |
+| W1.1-A11Y | Audit H1 public | `wave1.1/a11y` · `c51a62d` | **DONE** | `/order-success`, `/order-success/:id`, `/products/:id` not-found/error có đúng 1 h1; public settled routes 1 h1; 0 tràn |
+| W1.1-SEO | robots `/assets` vs asset build | `wave1.1/seo` · `daaf3cb` | **DONE** | `dist/index.html` dùng `/assets/*.js|css`; đổi sang `Allow: /assets/` + `Disallow: /assets$`; `npm run seo:check` PASS; negative prefix test fail đúng |
+| W1.1-CONTACT | Bỏ email mặc định chưa xác nhận; lọc placeholder dùng chung | `wave1.1/contact` · `8ce0d4b` → `6544548` | **DONE (code)** | `DEFAULT_SITE_CONTENT.contactEmail=''`; footer/Quote/ChatSupport dùng `src/frontend/lib/contact.ts`; 7 test; `contact@vcube.vn` không còn trong `src/` |
+
+**Wave 1.1 vẫn không đóng các blocker:**
+- QA-MONEY-01 / staging: chưa có `E2E_STAGING_*` + quyền ghi/xoá fixture.
+- SEC-01: chưa có quyết định drop/chuyển bảng backup PII.
+- DB publish enforcement: guard client/service vẫn có direct-API gap; cần migration/trigger + DB owner.
+- SEO-02: chờ production domain + catalog published.
+- DATA-01/02/03: chờ dữ liệu/ảnh/app_settings + QA-MONEY.
+- Owner chưa xác nhận mailbox liên hệ thật; UI đang ẩn/fallback trợ lý tự động.
+
+**P2 follow-up ghi nhận:** Header/NotificationBell/ProductDetail còn vài entry auth trong app chưa truyền `redirectTo`; A11y loading state `/products/:id`/`/order-success/:id` chưa có h1; robots `/assets/` (slash cuối) vẫn crawlable; admin storefront chưa validate email trước khi lưu; guard publish tin `previousStatus` caller.
+
 ---
 
 ## 6. Backlog đầy đủ
