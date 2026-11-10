@@ -16,6 +16,8 @@ import type { AccessoryItem, MaterialProfile, PrinterProfile, Product } from '@/
 import { dbService } from '@backend/supabase/database';
 import { rowToProduct } from '@backend/supabase/mappers';
 import { supabase } from '@backend/supabase/client';
+import type { WriteResult } from '@backend/lib/result';
+import { fail, ok } from '@backend/lib/result';
 import { useAuth } from '@frontend/context/AuthContext';
 
 export interface CatalogData {
@@ -29,9 +31,9 @@ export interface CatalogData {
   handleAddNewProduct: (prod: Product) => Promise<void>;
   handleUpdateProduct: (updated: Product) => Promise<void>;
   handleDeleteProduct: (productId: string) => Promise<void>;
-  handleUpdateMaterials: (newMaterials: MaterialProfile[]) => void;
+  handleUpdateMaterials: (newMaterials: MaterialProfile[]) => Promise<WriteResult>;
   handleUpdatePrinters: (newPrinters: PrinterProfile[]) => void;
-  handleUpdateAccessories: (newAccessories: AccessoryItem[]) => void;
+  handleUpdateAccessories: (newAccessories: AccessoryItem[]) => Promise<WriteResult>;
 }
 
 export function useCatalogData({ showToast }: { showToast: (msg: string) => void }): CatalogData {
@@ -236,17 +238,45 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
   }, []);
 
   // Identity ỔN ĐỊNH (useCallback + ref) — xem khối `*Ref` ở trên.
-  const handleUpdateMaterials = useCallback((newMaterials: MaterialProfile[]) => {
+  //
+  // OPS-28: panel kho có thể mount khi `materials` còn RỖNG (cold deep-link/mạng chậm). Nếu một
+  // handler cũ (stale closure) gọi với danh sách rỗng thì phần "đã bị xoá" = TOÀN BỘ danh mục,
+  // tức lệnh delete phá dữ liệu. Chốt an toàn dưới đây chặn đúng trường hợp đó.
+  // OPS-32: chỉ báo kết quả sau khi DB trả về; lỗi ⇒ rollback state, KHÔNG báo thành công.
+  const handleUpdateMaterials = useCallback(async (newMaterials: MaterialProfile[]): Promise<WriteResult> => {
+    const previous = materialsRef.current;
+
+    if (newMaterials.length === 0 && previous.length > 0) {
+      showToastRef.current('Danh sách vật liệu chưa tải xong/không hợp lệ — đã chặn cập nhật để tránh mất dữ liệu.');
+      return fail('Danh sách vật liệu chưa tải xong/không hợp lệ.');
+    }
+
     // Xoá trên DB những vật liệu đã bị bỏ khỏi danh sách (trước đây chỉ upsert phần còn lại
     // nên hàng đã xoá vẫn sống trong DB và quay lại sau khi tải lại).
-    const removed = materialsRef.current.filter((m) => !newMaterials.some((n) => n.id === m.id));
+    const removed = previous.filter((m) => !newMaterials.some((n) => n.id === m.id));
     setMaterials(newMaterials);
-    newMaterials.forEach((m) => {
-      dbService.saveMaterial(m).catch((e) => console.warn('Failed to sync material to Supabase:', e));
-    });
-    removed.forEach((m) => {
-      dbService.deleteMaterial(m.id).catch((e) => console.warn('Failed to delete material from Supabase:', e));
-    });
+
+    let results: WriteResult[];
+    try {
+      results = await Promise.all([
+        ...newMaterials.map((m) => dbService.saveMaterial(m)),
+        ...removed.map((m) => dbService.deleteMaterial(m.id)),
+      ]);
+    } catch (err) {
+      setMaterials(previous);
+      showToastRef.current('Không lưu được thay đổi kho vật liệu — đã hoàn tác. Kiểm tra kết nối rồi thử lại.');
+      return fail(err, 'Không lưu được thay đổi kho vật liệu.');
+    }
+
+    const firstFailure = results.find(
+      (r): r is Extract<WriteResult, { success: false }> => !r.success
+    );
+    if (firstFailure) {
+      setMaterials(previous);
+      showToastRef.current('Không lưu được thay đổi kho vật liệu — đã hoàn tác. Kiểm tra quyền ghi/kết nối rồi thử lại.');
+      return firstFailure;
+    }
+    return ok();
   }, []);
 
   const handleUpdatePrinters = useCallback((newPrinters: PrinterProfile[]) => {
@@ -260,15 +290,39 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
     });
   }, []);
 
-  const handleUpdateAccessories = useCallback((newAccessories: AccessoryItem[]) => {
-    const removed = accessoriesRef.current.filter((a) => !newAccessories.some((n) => n.id === a.id));
+  /** Cùng hợp đồng an toàn như `handleUpdateMaterials` (OPS-28 + OPS-32). */
+  const handleUpdateAccessories = useCallback(async (newAccessories: AccessoryItem[]): Promise<WriteResult> => {
+    const previous = accessoriesRef.current;
+
+    if (newAccessories.length === 0 && previous.length > 0) {
+      showToastRef.current('Danh sách phụ kiện chưa tải xong/không hợp lệ — đã chặn cập nhật để tránh mất dữ liệu.');
+      return fail('Danh sách phụ kiện chưa tải xong/không hợp lệ.');
+    }
+
+    const removed = previous.filter((a) => !newAccessories.some((n) => n.id === a.id));
     setAccessories(newAccessories);
-    newAccessories.forEach((a) => {
-      dbService.saveAccessory(a).catch((e) => console.warn('Failed to sync accessory to Supabase:', e));
-    });
-    removed.forEach((a) => {
-      dbService.deleteAccessory(a.id).catch((e) => console.warn('Failed to delete accessory from Supabase:', e));
-    });
+
+    let results: WriteResult[];
+    try {
+      results = await Promise.all([
+        ...newAccessories.map((a) => dbService.saveAccessory(a)),
+        ...removed.map((a) => dbService.deleteAccessory(a.id)),
+      ]);
+    } catch (err) {
+      setAccessories(previous);
+      showToastRef.current('Không lưu được thay đổi kho phụ kiện — đã hoàn tác. Kiểm tra kết nối rồi thử lại.');
+      return fail(err, 'Không lưu được thay đổi kho phụ kiện.');
+    }
+
+    const firstFailure = results.find(
+      (r): r is Extract<WriteResult, { success: false }> => !r.success
+    );
+    if (firstFailure) {
+      setAccessories(previous);
+      showToastRef.current('Không lưu được thay đổi kho phụ kiện — đã hoàn tác. Kiểm tra quyền ghi/kết nối rồi thử lại.');
+      return firstFailure;
+    }
+    return ok();
   }, []);
 
   // Product Handlers — DB (Supabase) là nguồn duy nhất, optimistic update + rollback khi lỗi.
@@ -289,6 +343,9 @@ export function useCatalogData({ showToast }: { showToast: (msg: string) => void
       console.warn('Rollback adding product due to DB error:', res.error);
       setProducts(previous);
       showToastRef.current('Không thể lưu vào Supabase. Đã hoàn tác.');
+      // OPS-19: caller (wizard Designer) phải biết thất bại — trước đây handler "nuốt" lỗi nên
+      // wrapper không await được và UI báo thành công giả.
+      throw new Error(res.error || 'Không lưu được sản phẩm.');
     } else {
       showToastRef.current('Đã thêm sản phẩm thành công!');
     }

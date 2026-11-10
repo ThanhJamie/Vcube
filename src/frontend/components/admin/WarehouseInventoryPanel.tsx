@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { MaterialProfile, AccessoryItem } from '@/types';
 import { Icon, InfoTip, DataTable, EmptyState, Field, Input, Button, Badge } from '@frontend/ui';
 import type { DataTableColumn } from '@frontend/ui';
+import type { WriteResult } from '@backend/lib/result';
 import { EMPTY_VALUE, formatNumber } from '../../lib/format';
 
 /**
@@ -54,8 +55,12 @@ const isAccessoryLow = (a: AccessoryItem): boolean => {
 interface WarehouseInventoryPanelProps {
   materials: MaterialProfile[];
   accessories: AccessoryItem[];
-  onUpdateMaterials: (materials: MaterialProfile[]) => void;
-  onUpdateAccessories: (accessories: AccessoryItem[]) => void;
+  /**
+   * OPS-32: trả `WriteResult` để panel chỉ báo "Đã cập nhật…" SAU khi DB xác nhận.
+   * `void` giữ cho tương thích ngược với call site chưa nâng cấp (panel khi đó chỉ gọi).
+   */
+  onUpdateMaterials: (materials: MaterialProfile[]) => Promise<WriteResult> | void;
+  onUpdateAccessories: (accessories: AccessoryItem[]) => Promise<WriteResult> | void;
   onShowToast: (message: string) => void;
 }
 
@@ -128,7 +133,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
   ).sort();
 
   // Handle Material Stock Adjust
-  const handleMaterialStockAdjust = (id: string, delta: number) => {
+  const handleMaterialStockAdjust = async (id: string, delta: number) => {
     const updated = materials.map(m => {
       if (m.id === id) {
         // Bấm ±1 CHÍNH LÀ hành vi khai tồn: dòng CHƯA khai (`null`) lấy mốc 0 rồi ghi số mới
@@ -139,12 +144,15 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       }
       return m;
     });
-    onUpdateMaterials(updated);
-    onShowToast(`Đã cập nhật tồn kho vật liệu (${delta > 0 ? `+${delta}` : delta} cuộn/bình)`);
+    // OPS-32: chờ hook ghi DB xong mới báo thành công. Hook đã tự toast lỗi + rollback khi thất bại.
+    const result = await onUpdateMaterials(updated);
+    if (!result || result.success) {
+      onShowToast(`Đã cập nhật tồn kho vật liệu (${delta > 0 ? `+${delta}` : delta} cuộn/bình)`);
+    }
   };
 
   // Handle Accessory Stock Adjust
-  const handleAccessoryStockAdjust = (id: string, delta: number) => {
+  const handleAccessoryStockAdjust = async (id: string, delta: number) => {
     const updated = accessories.map(a => {
       if (a.id === id) {
         const base = declaredNumber(a.stockCount) ?? 0;
@@ -153,8 +161,10 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
       }
       return a;
     });
-    onUpdateAccessories(updated);
-    onShowToast(`Đã cập nhật tồn kho phụ kiện (${delta > 0 ? `+${delta}` : delta})`);
+    const result = await onUpdateAccessories(updated);
+    if (!result || result.success) {
+      onShowToast(`Đã cập nhật tồn kho phụ kiện (${delta > 0 ? `+${delta}` : delta})`);
+    }
   };
 
   const filteredMaterials = useMemo(
@@ -169,8 +179,15 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
     [materials, searchTerm, filterType]
   );
 
-  /** Cột bảng vật liệu dùng primitive `DataTable`. */
-  const materialColumns = useMemo<DataTableColumn<MaterialProfile>[]>(() => [
+  /**
+   * Cột bảng vật liệu dùng primitive `DataTable`.
+   *
+   * OPS-28: KHÔNG bọc `useMemo(..., [])`. Handler +/- đóng trên `materials` của LẦN RENDER ĐÓ;
+   * memo rỗng giữ handler của lần render đầu (`materials=[]`) ⇒ bấm +1 sau khi dữ liệu tải xong
+   * sẽ gửi danh sách RỖNG lên hook ⇒ hook coi cả danh mục là "đã xoá". Dựng lại mỗi render là
+   * đủ rẻ cho một bảng quản trị và luôn dùng dữ liệu hiện tại.
+   */
+  const materialColumns: DataTableColumn<MaterialProfile>[] = [
     {
       key: 'name',
       header: 'Tên Vật Liệu',
@@ -271,8 +288,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
         </div>
       ),
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], []);
+  ];
 
   const filteredAccessoriesList = useMemo(
     () =>
@@ -288,8 +304,8 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
     [accessories, searchTerm, selectedLocation, filterType]
   );
 
-  /** Cột bảng phụ kiện dùng primitive `DataTable`. */
-  const accessoryColumns = useMemo<DataTableColumn<AccessoryItem>[]>(() => [
+  /** Cột bảng phụ kiện dùng primitive `DataTable` — cùng lý do OPS-28 (không memo rỗng). */
+  const accessoryColumns: DataTableColumn<AccessoryItem>[] = [
     {
       key: 'name',
       header: 'PK / SKU',
@@ -382,8 +398,7 @@ export const WarehouseInventoryPanel: React.FC<WarehouseInventoryPanelProps> = (
         </div>
       ),
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], []);
+  ];
 
   return (
     <div className="space-y-6">
