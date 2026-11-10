@@ -141,16 +141,27 @@ export const ProductDetailRoute: React.FC<{
             title="Không tải được kho bản vẽ"
             description="Không kết nối được tới máy chủ dữ liệu. Kiểm tra kết nối mạng rồi thử lại."
             action={
-              <Button
-                variant="secondary"
-                size="md"
-                loading={Boolean(productsLoading)}
-                loadingLabel="Đang tải…"
-                leadingIcon={<Icon name="refresh" size={18} />}
-                onClick={() => onRetry?.()}
-              >
-                Thử lại
-              </Button>
+              <>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  loading={Boolean(productsLoading)}
+                  loadingLabel="Đang tải…"
+                  leadingIcon={<Icon name="refresh" size={18} />}
+                  onClick={() => onRetry?.()}
+                >
+                  Thử lại
+                </Button>
+                {/* W2-D1: lỗi tải kho không chặn được việc gửi tệp riêng để báo giá. */}
+                <Button
+                  variant="primary"
+                  size="md"
+                  leadingIcon={<Icon name="request_quote" size={18} />}
+                  onClick={() => onNavigate('quote')}
+                >
+                  Gửi tệp 3D để báo giá
+                </Button>
+              </>
             }
           />
         </div>
@@ -161,18 +172,36 @@ export const ProductDetailRoute: React.FC<{
   return (
     <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
       <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
-        <Icon name="precision_manufacturing" size={36} className="text-fg-subtle" />
+        <span className="flex justify-center">
+          <Icon name="precision_manufacturing" size={36} className="text-fg-subtle" />
+        </span>
         {/* A11Y-W1.1: đây là heading DUY NHẤT của trạng thái not-found ⇒ dùng h1
             (trước là h2, khiến trang không có heading cấp 1). */}
         <h1 className="font-bold text-lg text-fg">Không tìm thấy bản vẽ CAD này</h1>
         <p className="text-xs text-fg-subtle">Mô hình bạn đang tìm có thể đã được lưu trữ hoặc thay đổi mã định danh.</p>
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={() => onNavigate('explore')}
-        >
-          Quay lại Kho Bản Vẽ
-        </Button>
+        {/* W2-D1: nêu đúng đường dẫn đã yêu cầu để người dùng đối chiếu (id do URL cung cấp). */}
+        <p className="font-mono text-xs text-fg-muted">
+          Đường dẫn đã mở: <span className="break-all font-bold text-fg">/products/{productId}</span>
+        </p>
+        {/* W2-D1: 404 đúng ngữ cảnh vẫn có 2 lối thoát thật — báo giá tệp riêng hoặc về kho mẫu. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Button
+            variant="primary"
+            size="lg"
+            leadingIcon={<Icon name="request_quote" size={18} />}
+            onClick={() => onNavigate('quote')}
+          >
+            Gửi tệp 3D để báo giá
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            leadingIcon={<Icon name="storefront" size={18} />}
+            onClick={() => onNavigate('explore')}
+          >
+            Về kho mẫu
+          </Button>
+        </div>
       </div>
     </div>
   );
