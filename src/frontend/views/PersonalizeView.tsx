@@ -78,6 +78,9 @@ const PersonalizeUnavailable: React.FC<{ onNavigate: (screen: string, payload?: 
       description="Chọn một bản vẽ trong kho để tuỳ chỉnh vật liệu, màu sắc, khắc chữ và nhận báo giá in 3D."
     />
     <div className="mx-auto max-w-3xl">
+      {/* A11Y-W1.2: fallback latent (`!props.product`) vẫn là một trang ⇒ cần h1 cấp trang.
+          Dùng đúng nhãn đã có ở các trạng thái loading/lỗi của `PersonalizeRoute`. */}
+      <h1 className="sr-only">Tuỳ biến mẫu 3D</h1>
       <Card variant="soft" padding="lg">
         <EmptyState
           icon={<Icon name="view_in_ar" size={20} />}

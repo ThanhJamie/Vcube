@@ -4,11 +4,14 @@ import { Icon } from '@frontend/ui';
 export interface PageSkeletonProps {
   title?: string;
   subtitle?: string;
+  /** Nhãn heading cấp trang (h1 sr-only) khi skeleton thay cho nội dung thật. */
+  heading?: string;
 }
 
 export const PageSkeleton: React.FC<PageSkeletonProps> = ({
   title = 'Đang nạp mô-đun kỹ thuật...',
-  subtitle = 'Đang tải thư viện xử lý 3D & dữ liệu CAD bồi đắp'
+  subtitle = 'Đang tải thư viện xử lý 3D & dữ liệu CAD bồi đắp',
+  heading = 'Đang tải trang, vui lòng chờ…'
 }) => {
   return (
     <div
@@ -20,7 +23,10 @@ export const PageSkeleton: React.FC<PageSkeletonProps> = ({
       aria-busy="true"
       className="min-h-[calc(100dvh-140px)] w-full bg-canvas text-fg p-4 sm:p-6 lg:p-8 animate-in fade-in duration-300"
     >
-      <span className="sr-only">Đang tải trang, vui lòng chờ…</span>
+      {/* A11Y-W1.2: skeleton là nội dung THAY THẾ cho view thật ⇒ vẫn phải có heading
+          cấp trang (h1). `sr-only` nên không đổi layout; không bao giờ trùng với h1 của
+          view thật vì hai trạng thái loại trừ nhau. */}
+      <h1 className="sr-only">{heading}</h1>
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Top Breadcrumb & Status Bar Skeleton */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line-subtle">
