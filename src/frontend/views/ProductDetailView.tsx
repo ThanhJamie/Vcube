@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Product, CartItem, MaterialProfile, InkiriCostFormulaConfig, Order } from '../../types';
 import { MATERIALS_CATALOG } from '../../data/mockData';
 import { ThreeModelViewer } from '../components/LazyThreeModelViewer';
@@ -9,6 +9,7 @@ import { SEOHead } from '../components/SEOHead';
 import { useAuth } from '../context/AuthContext';
 import { EMPTY_VALUE, formatDate, formatNumber } from '@frontend/lib/format';
 import { isFabricatedImage, realProductImageUrl } from '@frontend/lib/productImage';
+import { buildLoginHref } from '@frontend/lib/authRedirect';
 import { Icon, Button, Card, EmptyState, InfoTip, Badge, KeyValue, ProgressBar, Field, Select } from '@frontend/ui';
 import {
   listProductReviews,
@@ -63,6 +64,10 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 }) => {
   const locale = 'vi-VN';
   const { isLoggedIn, role } = useAuth();
+  const location = useLocation();
+  // Entry auth của PDP phải mang đường về (UX-02): đăng nhập xong quay lại đúng sản phẩm
+  // thay vì rơi về trang chủ.
+  const loginHref = buildLoginHref(location.pathname, location.search);
   // UX-01: chỉ admin thấy đường dẫn cấu hình nội bộ; khách nhận copy trung tính.
   const isAdmin = role === 'admin';
 
@@ -1172,7 +1177,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   {!isLoggedIn ? (
                     <p className="text-xs leading-relaxed text-fg-muted">
                       <Link
-                        to="/auth/login"
+                        to={loginHref}
                         className="rounded-sm font-medium text-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         Đăng nhập để đánh giá
