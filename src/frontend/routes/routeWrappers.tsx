@@ -129,6 +129,9 @@ export const ProductDetailRoute: React.FC<{
     return (
       <div role="alert" className="min-h-dvh bg-canvas flex items-center justify-center p-6">
         <div className="w-full max-w-md">
+          {/* A11Y-W1.1: trạng thái lỗi vẫn phải có h1 cấp trang (EmptyState chỉ render `<p>`).
+              `sr-only` nên không đổi layout hay thêm heading thị giác. */}
+          <h1 className="sr-only">Chi tiết bản vẽ CAD</h1>
           <EmptyState
             icon={<Icon name="error" size={20} />}
             title="Không tải được kho bản vẽ"
@@ -155,7 +158,9 @@ export const ProductDetailRoute: React.FC<{
     <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
       <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
         <Icon name="precision_manufacturing" size={36} className="text-fg-subtle" />
-        <h2 className="font-bold text-lg text-fg">Không tìm thấy bản vẽ CAD này</h2>
+        {/* A11Y-W1.1: đây là heading DUY NHẤT của trạng thái not-found ⇒ dùng h1
+            (trước là h2, khiến trang không có heading cấp 1). */}
+        <h1 className="font-bold text-lg text-fg">Không tìm thấy bản vẽ CAD này</h1>
         <p className="text-xs text-fg-subtle">Mô hình bạn đang tìm có thể đã được lưu trữ hoặc thay đổi mã định danh.</p>
         <Button
           variant="primary"
@@ -366,7 +371,9 @@ export const OrderNotFoundView: React.FC<{
   <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
     <div className="bg-surface p-8 rounded-lg text-center max-w-md space-y-4 shadow-e1">
       <Icon name="receipt_long" size={36} className="text-fg-subtle" />
-      <h2 className="font-bold text-lg text-fg">Không tìm thấy đơn hàng</h2>
+      {/* A11Y-W1.1: heading DUY NHẤT của màn không tìm thấy đơn ⇒ h1 (trước là h2,
+          khiến `/order-success` không có heading cấp 1). */}
+      <h1 className="font-bold text-lg text-fg">Không tìm thấy đơn hàng</h1>
       <p className="text-xs text-fg-subtle leading-relaxed">
         {context === 'order-success'
           ? 'Liên kết này không ứng với đơn hàng nào trong phiên làm việc hiện tại. Đơn của bạn nằm trong mục Đơn hàng, hoặc tra cứu bằng mã đơn kèm token.'
