@@ -333,7 +333,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const partnersList = (activeContent.trustPartnersList ?? DEFAULT_SITE_CONTENT.trustPartnersList ?? [])
     .filter((p) => typeof p === 'string' && p.trim() !== '');
   const hasPartners = partnersList.length > 0;
-  // Dải số liệu: giá trị rỗng ⇒ "Chưa cấu hình"; shortcut nhập nội dung chỉ hiện với admin.
+  // Dải số liệu: giá trị rỗng ⇒ admin thấy "Chưa cấu hình" + shortcut nhập nội dung; khách ẩn hẳn.
   const heroMetrics = [
     { label: activeContent.heroMetric1Label || ('Dung Sai Đo Kiểm'), value: (activeContent.heroMetric1Value || '').trim() },
     { label: activeContent.heroMetric2Label || ('Thời Gian Bàn Giao'), value: (activeContent.heroMetric2Value || '').trim() },
@@ -376,6 +376,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
               <h1 className="fluid-hero-heading text-fg tracking-tight">
                 {activeContent.heroHeadlineLine1 || ('CHẾ TÁC CƠ KHÍ')}
+                {/* P0-1: khoảng trắng tường minh trước <br /> để accessible name không dính
+                    "KHÍIN"; xuống dòng vẫn do <br />, không đổi hình ảnh. */}
+                {' '}
                 <br />
                 <span className="text-primary">
                   {activeContent.heroHeadlineHighlight || ('IN 3D CÔNG NGHIỆP CHÍNH XÁC')}
@@ -417,24 +420,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
               {/* 3 Technical Quality Spec Metrics Cards */}
               {/* Dải số liệu kiểm định — nền `surface` + viền nhạt (§2.1: tint KHÔNG dùng cho thẻ KPI).
-                  P1 §5: cả 3 rỗng ⇒ GỘP thành một dòng mảnh (trước đây là một hàng 3 thẻ trống). */}
+                  P1 §5: cả 3 rỗng ⇒ GỘP thành một dòng mảnh (trước đây là một hàng 3 thẻ trống).
+                  P1-3 (audit 2026-11-10): dòng "Chưa cấu hình" chỉ dành cho admin (shortcut nhập
+                  nội dung); khách không thấy trạng thái "web chưa hoàn thiện" này. */}
               {heroMetricsFilled.length === 0 ? (
-                <p className="pt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fg-muted">
-                  <Icon name="info" size={16} className="text-fg-muted shrink-0" />
-                  <span>
-                    Dung sai đo kiểm, thời gian bàn giao và tiêu chuẩn sản xuất:
-                  </span>
-                  <span className="font-mono font-semibold text-fg-muted">
-                    Chưa cấu hình
-                  </span>
-                  {isAdmin && (
+                isAdmin ? (
+                  <p className="pt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fg-muted">
+                    <Icon name="info" size={16} className="text-fg-muted shrink-0" />
+                    <span>
+                      Dung sai đo kiểm, thời gian bàn giao và tiêu chuẩn sản xuất:
+                    </span>
+                    <span className="font-mono font-semibold text-fg-muted">
+                      Chưa cấu hình
+                    </span>
                     <Button variant="ghost" size="sm" className="text-primary font-bold"
                       onClick={() => onNavigate('admin')}
                     >
                       Nhập ở /admin
                     </Button>
-                  )}
-                </p>
+                  </p>
+                ) : null
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                   {heroMetrics.map((m) => (
