@@ -233,8 +233,9 @@ export const DesignerUploadWizardTab: React.FC<DesignerUploadWizardTabProps> = (
       uploadedPath = buildCadStoragePath(user.id, cadFile.name);
       await getCadFileStorage().upload(uploadedPath, cadFile);
 
-      // (2) Tạo sản phẩm (App đang lưu DB + rollback nếu lỗi; wrapper ở DesignerDashboardView
-      //     không trả promise nên client chỉ chờ UI, KHÔNG xác nhận được DB đã ghi).
+      // (2) Tạo sản phẩm — wrapper ở DesignerDashboardView trả promise và chỉ chuyển tab sau
+      //     khi DB ghi xong; `handleAddNewProduct` rollback + throw khi insert lỗi nên khối catch
+      //     bên dưới hiển thị lỗi thật, KHÔNG báo thành công giả.
       setPublishPhase('saving');
       await onAddNewProduct(newProd);
 

@@ -3,28 +3,11 @@ import { rowToCustomDesignRequest } from '../supabase/mappers';
 import { ok, fail, type WriteResult } from '../lib/result';
 import type { CustomDesignRequest, CustomDesignMessage } from '../../types';
 
-const LOCAL_REQUESTS_KEY = 'vcube_custom_design_requests';
-
-function getLocalRequests(): CustomDesignRequest[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(LOCAL_REQUESTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalRequest(req: CustomDesignRequest): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const existing = getLocalRequests();
-    const updated = [req, ...existing.filter((r) => r.id !== req.id)];
-    localStorage.setItem(LOCAL_REQUESTS_KEY, JSON.stringify(updated));
-  } catch (err) {
-    console.warn('[customDesignService] Không thể lưu vào localStorage:', err);
-  }
-}
+/**
+ * DB là nguồn duy nhất cho yêu cầu thiết kế CAD.
+ * KHÔNG cache localStorage: yêu cầu gắn tài khoản (brief/PII) — cache trên máy sẽ lộ
+ * sang designer khác đăng nhập cùng trình duyệt và vi phạm quy tắc "một nguồn dữ liệu".
+ */
 
 /** Kết quả bảng yêu cầu của designer: danh sách + id thuộc chợ mở (chưa nhận). */
 export interface DesignerRequestBoard {
@@ -40,12 +23,13 @@ const OPEN_POOL_LABEL = 'Khách hàng ẩn danh';
  *   · hàng được gán cho mình / của mình đọc trực tiếp từ bảng (RLS siết theo uid);
  *   · chợ mở (`designer_id is null`) đọc qua view cột-không-nhạy-cảm `open_design_requests` —
  *     RLS bảng gốc nay KHÔNG còn cho designer thấy hàng chưa nhận.
+ *
+ * DB là nguồn duy nhất — không đọc cache localStorage. Lỗi mạng/RLS trả bảng rỗng
+ * (view hiện empty state thật) thay vì hiện dữ liệu cũ trên máy.
  */
 async function loadRequestBoard(designerId?: string): Promise<DesignerRequestBoard> {
-  const localRequests = getLocalRequests();
-
   if (!isSupabaseConfigured) {
-    return { requests: localRequests, openRequestIds: [] };
+    return { requests: [], openRequestIds: [] };
   }
 
   try {
@@ -56,7 +40,7 @@ async function loadRequestBoard(designerId?: string): Promise<DesignerRequestBoa
 
     if (error) {
       console.error('[customDesignService] Lỗi tải yêu cầu thiết kế CAD:', error);
-      return { requests: localRequests, openRequestIds: [] };
+      return { requests: [], openRequestIds: [] };
     }
 
     const assigned = (data ?? []).map(rowToCustomDesignRequest);
@@ -81,23 +65,20 @@ async function loadRequestBoard(designerId?: string): Promise<DesignerRequestBoa
     const assignedIds = new Set(assigned.map((r) => r.id));
     const openOnly = open.filter((r) => !assignedIds.has(r.id));
 
-    const dbIds = new Set([...assignedIds, ...openOnly.map((r) => r.id)]);
-    const unsyncedLocals = localRequests.filter((r) => !dbIds.has(r.id));
-
     return {
-      requests: [...unsyncedLocals, ...assigned, ...openOnly],
+      requests: [...assigned, ...openOnly],
       openRequestIds: openOnly.map((r) => r.id),
     };
   } catch (err) {
     console.error('[customDesignService] Exception khi tải yêu cầu:', err);
-    return { requests: localRequests, openRequestIds: [] };
+    return { requests: [], openRequestIds: [] };
   }
 }
 
 export const customDesignService = {
   /**
    * Tải danh sách yêu cầu thiết kế CAD tùy chỉnh từ Supabase (gồm cả chợ mở nếu có
-   * `designerId`). Khi offline/demo, tự động đọc từ local mock store.
+   * `designerId`). DB là nguồn duy nhất — không đọc cache localStorage.
    */
   async getRequests(designerId?: string): Promise<CustomDesignRequest[]> {
     const board = await loadRequestBoard(designerId);
@@ -136,8 +117,8 @@ export const customDesignService = {
 
   /**
    * Tạo yêu cầu thiết kế CAD tùy chỉnh mới (từ Section Custom Idea hoặc khách hàng).
-   * Lưu Supabase khi khả dụng; khi CHƯA cấu hình (offline/demo) rơi về local mock store.
-   * Lỗi máy chủ trả `fail()` để tầng view biết thất bại — KHÔNG báo thành công giả.
+   * DB là nguồn duy nhất: chỉ ghi Supabase, KHÔNG cache localStorage và KHÔNG có fallback
+   * offline giả. Chưa cấu hình hoặc lỗi máy chủ đều trả `fail()` — không báo thành công giả.
    */
   async createRequest(
     request: Partial<CustomDesignRequest> & {
@@ -177,9 +158,13 @@ export const customDesignService = {
     const messages =
       request.messages && request.messages.length > 0 ? request.messages : [initialMessage];
 
+    if (!isSupabaseConfigured) {
+      return fail('Supabase chưa cấu hình — không thể lưu yêu cầu thiết kế.');
+    }
+
     // Lấy customerId từ session nếu không truyền
     let customerId = request.customerId;
-    if (!customerId && isSupabaseConfigured) {
+    if (!customerId) {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         customerId = sessionData?.session?.user?.id;
@@ -188,76 +173,46 @@ export const customDesignService = {
       }
     }
 
-    const fallbackId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const mockRequest: CustomDesignRequest = {
-      id: request.id || fallbackId,
-      clientName,
-      clientInitials,
-      title,
-      previewMessage: messageText,
-      time: timeStr,
-      status: 'Pending',
-      unread: true,
-      budget: request.budget || '—',
-      deadline: request.deadline || '—',
-      serviceType: request.serviceType || 'custom_cad',
-      targetSpecs: request.targetSpecs || {
-        material: 'PLA/PETG',
-        infill: '30%',
-        nozzle: '0.4mm',
-      },
-      referenceFiles: request.referenceFiles || [],
-      messages,
-    };
+    try {
+      const dbRow: Record<string, unknown> = {
+        customer_id: customerId || null,
+        title,
+        client_name: clientName,
+        client_initials: clientInitials,
+        status: 'pending',
+        budget: request.budget || '—',
+        deadline: request.deadline || '—',
+        service_type: request.serviceType || 'custom_cad',
+        target_specs: {
+          material: request.targetSpecs?.material || '',
+          infill: request.targetSpecs?.infill || '',
+          nozzle: request.targetSpecs?.nozzle || '',
+          phone: request.clientPhone || '',
+          email: request.clientEmail || '',
+          company: request.clientCompany || '',
+        },
+        reference_files: request.referenceFiles || [],
+        messages,
+        unread: true,
+      };
 
-    if (isSupabaseConfigured) {
-      try {
-        const dbRow: Record<string, unknown> = {
-          customer_id: customerId || null,
-          title,
-          client_name: clientName,
-          client_initials: clientInitials,
-          status: 'pending',
-          budget: request.budget || '—',
-          deadline: request.deadline || '—',
-          service_type: request.serviceType || 'custom_cad',
-          target_specs: {
-            material: request.targetSpecs?.material || '',
-            infill: request.targetSpecs?.infill || '',
-            nozzle: request.targetSpecs?.nozzle || '',
-            phone: request.clientPhone || '',
-            email: request.clientEmail || '',
-            company: request.clientCompany || '',
-          },
-          reference_files: request.referenceFiles || [],
-          messages,
-          unread: true,
-        };
+      const { data, error } = await supabase
+        .from('custom_design_requests')
+        .insert(dbRow)
+        .select()
+        .single();
 
-        const { data, error } = await supabase
-          .from('custom_design_requests')
-          .insert(dbRow)
-          .select()
-          .single();
-
-        if (error) {
-          return fail(error.message, 'Không lưu được yêu cầu thiết kế lên máy chủ.');
-        }
-        if (!data) {
-          return fail('Máy chủ không trả về yêu cầu thiết kế vừa tạo.', 'Không lưu được yêu cầu thiết kế lên máy chủ.');
-        }
-
-        const created = rowToCustomDesignRequest(data);
-        saveLocalRequest(created);
-        return ok(created);
-      } catch (err) {
-        return fail(err, 'Không lưu được yêu cầu thiết kế lên máy chủ.');
+      if (error) {
+        return fail(error.message, 'Không lưu được yêu cầu thiết kế lên máy chủ.');
       }
-    }
+      if (!data) {
+        return fail('Máy chủ không trả về yêu cầu thiết kế vừa tạo.', 'Không lưu được yêu cầu thiết kế lên máy chủ.');
+      }
 
-    // Fallback offline/demo: lưu vào local mock store.
-    saveLocalRequest(mockRequest);
-    return ok(mockRequest);
+      return ok(rowToCustomDesignRequest(data));
+    } catch (err) {
+      return fail(err, 'Không lưu được yêu cầu thiết kế lên máy chủ.');
+    }
   },
 
   /**

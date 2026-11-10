@@ -25,7 +25,7 @@ const DESIGNER_TAB_LABELS: Record<DesignerTabId, string> = {
 
 interface DesignerDashboardViewProps {
   products: Product[];
-  onAddNewProduct: (product: Product) => void;
+  onAddNewProduct: (product: Product) => void | Promise<void>;
   onUpdateProduct?: (product: Product) => void;
   onDeleteProduct?: (productId: string) => void;
   materials?: MaterialProfile[];
@@ -95,8 +95,11 @@ export const DesignerDashboardView: React.FC<DesignerDashboardViewProps> = ({
       boundaryLabel: 'Đăng tải ấn phẩm',
       element: (
         <DesignerUploadWizardTab
-          onAddNewProduct={(prod) => {
-            onAddNewProduct(prod);
+          // OPS-19: wrapper trả promise — chỉ chuyển sang tab Ấn phẩm khi DB đã ghi xong.
+          // `handleAddNewProduct` rollback + throw khi insert lỗi ⇒ wizard bắt lỗi, giữ tab,
+          // không báo thành công giả.
+          onAddNewProduct={async (prod) => {
+            await onAddNewProduct(prod);
             setActiveTab('models');
           }}
           onShowToast={onShowToast}
