@@ -72,6 +72,37 @@ export interface OrderFileRecord {
 }
 
 /**
+ * Mã lỗi của `OrderService.getOrderDetail` — để UI phân biệt "đơn KHÔNG TỒN TẠI" với
+ * "KHÔNG ĐỌC ĐƯỢC đơn" (mạng/DB/quyền). Trước đây mọi trường hợp đều ném cùng một câu
+ * `'Không tìm thấy đơn hàng.'`, khiến lỗi mạng bị báo thành đơn không tồn tại.
+ */
+export type OrderDetailErrorCode = 'not_found' | 'network' | 'forbidden' | 'unknown';
+
+/**
+ * Lỗi có mã của `OrderService.getOrderDetail`.
+ *
+ * `not_found` = DB trả về "không có hàng" (sai id/sai token) — KHÔNG có nghĩa là lỗi hệ thống.
+ * `network` / `forbidden` / `unknown` = không đọc được; caller nên hiện màn "thử lại" thay vì
+ * màn "không tìm thấy".
+ */
+export class OrderDetailError extends Error {
+  readonly code: OrderDetailErrorCode;
+  /** Warning đã thu được trước khi lỗi (giữ lại để log/audit, không mất dấu nguyên nhân). */
+  readonly warnings: readonly string[];
+
+  constructor(
+    code: OrderDetailErrorCode,
+    message: string,
+    options: { cause?: unknown; warnings?: readonly string[] } = {}
+  ) {
+    super(message, options.cause !== undefined ? { cause: options.cause } : undefined);
+    this.name = 'OrderDetailError';
+    this.code = code;
+    this.warnings = options.warnings ? [...options.warnings] : [];
+  }
+}
+
+/**
  * Kết quả `OrderService.getOrderDetail` — đọc từ DB (bền qua F5).
  *
  * `sources` nói RÕ nguồn từng phần để UI không bịa: guest không có quyền đọc

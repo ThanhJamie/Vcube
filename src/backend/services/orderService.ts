@@ -6,7 +6,9 @@ import type {
   OrderDetailResult,
   OrderItemRecord,
 } from '../../types/orderRecords';
+import { OrderDetailError } from '../../types/orderRecords';
 import { dbService } from '../supabase/database';
+import { classifyOrderDetailError } from './orderDetailError';
 import { computeOrderMoney, buildOrderItemRows, isOrderAlreadyConfirmed } from './orderMoney';
 import type { OrderMoneyConfig } from './orderMoney';
 import { buildManualPaymentRow } from '../integrations/paymentProvider';
@@ -102,19 +104,25 @@ export class OrderService {
    *   các bảng con không có policy anon ⇒ trả rỗng + `sources.*='unavailable_rls'` + warning,
    *   KHÔNG bịa "đơn không có hàng".
    *
-   * NÉM LỖI 'Không tìm thấy đơn hàng' khi không resolve được đơn.
+   * NÉM `OrderDetailError` (có `code`) khi không resolve được đơn:
+   *   * `not_found` — DB trả về "không có hàng" (sai id / sai token), KHÔNG có lỗi đọc;
+   *   * `network` / `forbidden` / `unknown` — lỗi khi đọc (mạng, RLS/quyền, còn lại).
+   * UI dùng `code` để chọn màn "không tìm thấy" hay màn "không tải được + Thử lại".
    */
   static async getOrderDetail(orderId: string, options: GetOrderDetailOptions = {}): Promise<OrderDetailResult> {
-    if (!orderId) throw new Error('Không tìm thấy đơn hàng.');
+    if (!orderId) throw new OrderDetailError('not_found', 'Không tìm thấy đơn hàng.');
 
     const warnings: string[] = [];
     let order: Order | null = null;
     let orderSource: OrderDetailResult['sources']['order'] = 'orders_table';
+    /** Lỗi đọc thật (nếu có) — dùng để phân loại khi không resolve được đơn. */
+    let readError: unknown = null;
 
     try {
       order = await dbService.getOrderById(orderId);
     } catch (err) {
       // Không có quyền đọc bảng (anon) — thử token nếu có.
+      readError = err;
       warnings.push(`Không đọc được orders qua RLS: ${describeError(err)}`);
     }
 
@@ -123,11 +131,21 @@ export class OrderService {
         order = await dbService.getOrderByToken(orderId, options.token.trim());
         if (order) orderSource = 'guest_token';
       } catch (err) {
+        if (!readError) readError = err;
         warnings.push(`Không tra cứu được đơn bằng token: ${describeError(err)}`);
       }
     }
 
-    if (!order) throw new Error('Không tìm thấy đơn hàng.');
+    // KHÔNG nuốt lỗi đọc thành "không tìm thấy": không đọc được thì báo đúng loại lỗi.
+    if (!order) {
+      if (readError) {
+        throw new OrderDetailError(classifyOrderDetailError(readError), `Không tải được đơn hàng: ${describeError(readError)}`, {
+          cause: readError,
+          warnings,
+        });
+      }
+      throw new OrderDetailError('not_found', 'Không tìm thấy đơn hàng.', { warnings });
+    }
 
     const [itemsRes, paymentsRes, filesRes] = await Promise.allSettled([
       dbService.getOrderItems(orderId),
