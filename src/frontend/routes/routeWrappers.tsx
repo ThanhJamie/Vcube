@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import type {
   CartItem,
   InkiriCostFormulaConfig,
@@ -22,6 +22,7 @@ import { Button, EmptyState, Icon } from '@frontend/ui';
 import { ExploreView } from '@frontend/views/ExploreView';
 import { OrderService } from '@backend/services/orderService';
 import { ProductDetailView } from '@frontend/views/ProductDetailView';
+import { buildLoginHref } from '@frontend/lib/authRedirect';
 
 // View chỉ dùng bởi các wrapper dưới đây ⇒ lazy declaration đặt tại đây (cùng pattern
 // `import().then(m => ({ default: m.X }))` như App.tsx, không đổi cách code-split).
@@ -31,6 +32,7 @@ const OrderTrackingView = React.lazy(() => import('@frontend/views/OrderTracking
 
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isLoggedIn, loading } = useAuth();
+  const location = useLocation();
   // Chờ khôi phục phiên trước khi redirect: nếu không, deep-link (F5 / tab mới) tới
   // /orders, /assets… sẽ bị đẩy về /auth/login dù phiên Supabase còn hợp lệ.
   // UI-001 (P1): trước đây trả `null` ⇒ màn TRẮNG trong lúc khôi phục phiên, không có
@@ -39,7 +41,11 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   // `!isLoggedIn` như cũ.
   if (loading) return <PageSkeleton />;
   if (!isLoggedIn) {
-    return <Navigate to="/auth/login" replace />;
+    // UX-02: GIỮ ĐƯỜNG VỀ. Trước đây guest mở /orders (hoặc /assets, /account) bị đẩy
+    // sang `/auth/login` không kèm query ⇒ đăng nhập xong rơi về trang chủ, mất ngữ cảnh.
+    // Nay gắn `?redirectTo=<pathname+search>` (chỉ path nội bộ — xem `authRedirect.ts`);
+    // `LoginView` đọc lại và điều hướng sau khi đăng nhập thành công.
+    return <Navigate to={buildLoginHref(location.pathname, location.search)} replace />;
   }
   return <>{children}</>;
 };

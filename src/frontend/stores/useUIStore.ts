@@ -14,11 +14,6 @@ export interface UIState {
   setIsCartDrawerOpen: (open: boolean) => void;
   toggleCartDrawer: () => void;
   
-  isAuthModalOpen: boolean;
-  authModalMode: 'signin' | 'signup' | 'account';
-  openAuthModal: (mode?: 'signin' | 'signup' | 'account') => void;
-  closeAuthModal: () => void;
-
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
 
@@ -56,11 +51,6 @@ export const useUIStore = create<UIState>()((set, get) => ({
   isCartDrawerOpen: false,
   setIsCartDrawerOpen: (open) => set({ isCartDrawerOpen: open }),
   toggleCartDrawer: () => set((state) => ({ isCartDrawerOpen: !state.isCartDrawerOpen })),
-
-  isAuthModalOpen: false,
-  authModalMode: 'signin',
-  openAuthModal: (mode = 'signin') => set({ isAuthModalOpen: true, authModalMode: mode }),
-  closeAuthModal: () => set({ isAuthModalOpen: false }),
 
   isChatOpen: false,
   setIsChatOpen: (open) => set({ isChatOpen: open }),

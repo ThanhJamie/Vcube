@@ -1,15 +1,17 @@
 /**
  * AppOverlays — nhóm lớp phủ luôn-mount tách NGUYÊN VĂN khỏi `src/App.tsx` (Phase 4d):
- * FAB "Trợ lý tự động", toast live-region, 4 modal (Auth/ChatSupport/Invoice/CartDrawer),
+ * FAB "Trợ lý tự động", toast live-region, 3 modal (ChatSupport/Invoice/CartDrawer),
  * và footer storefront. JSX giữ **byte-identical** với bản trong App.tsx; component này chỉ
  * nhận props dữ liệu/handler từ `MainApp` và đọc state UI từ `useUIStore` (cùng store/selector).
+ *
+ * TECH-01: `AuthModal` (913 dòng) đã bị xoá — không còn luồng nào mở nó; auth canonical là
+ * 2 route `/auth/login` + `/auth/register`.
  */
 
 import type { RefObject } from 'react';
 import type { CartItem, Order, SiteContentConfig } from '@/types';
 import { useLanguage } from '@frontend/context/LanguageContext';
 import { useUIStore } from '@frontend/stores/useUIStore';
-import { AuthModal } from '@frontend/components/AuthModal';
 import { ChatSupportModal } from '@frontend/components/ChatSupportModal';
 import { InvoiceModal } from '@frontend/components/InvoiceModal';
 import { CartDrawer } from '@frontend/components/CartDrawer';
@@ -49,9 +51,6 @@ export function AppOverlays({
   const { t } = useLanguage();
 
   // Zustand State Management for UI Drawers, Modals & Toast Queue
-  const isAuthModalOpen = useUIStore((s) => s.isAuthModalOpen);
-  const authModalMode = useUIStore((s) => s.authModalMode);
-  const closeAuthModal = useUIStore((s) => s.closeAuthModal);
   const isChatOpen = useUIStore((s) => s.isChatOpen);
   const setIsChatOpen = useUIStore((s) => s.setIsChatOpen);
   const isCartDrawerOpen = useUIStore((s) => s.isCartDrawerOpen);
@@ -157,14 +156,6 @@ export function AppOverlays({
           </div>
         ))}
       </div>
-
-      {/* Auth Modal for Login & Registration */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={closeAuthModal}
-        initialMode={authModalMode}
-        onSuccess={showToast}
-      />
 
       {/* Quick Engineer Hotline & Support Modal */}
       <ChatSupportModal

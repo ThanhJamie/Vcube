@@ -2,13 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button, Card, Field, Icon, Input } from '@frontend/ui';
-import { ENABLE_GOOGLE_OAUTH, ENABLE_PASSWORD_RESET } from '../components/AuthModal';
+import { ENABLE_GOOGLE_OAUTH, ENABLE_PASSWORD_RESET } from '@frontend/lib/authFlags';
+import { sanitizeRedirectPath } from '@frontend/lib/authRedirect';
 
-interface LoginViewProps {
-  onNavigate?: (screen: string, payload?: any) => void;
-}
-
-export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
+export const LoginView: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { signInWithEmail, signInWithGoogle } = useAuth();
@@ -35,12 +32,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
     setIsLoading(true);
     try {
       await signInWithEmail(email.trim(), password);
-      const redirectTarget = searchParams.get('redirectTo') || '/';
-      if (onNavigate) {
-        onNavigate(redirectTarget.replace(/^\//, '') || 'home');
-      } else {
-        navigate(redirectTarget);
-      }
+      // UX-02: quay lại đúng chỗ vừa bị chặn (`?redirectTo=` do ProtectedRoute/RoleGuard gắn).
+      // Trước đây giá trị này đi qua adapter chuỗi "screen" nên path lạ (`/orders`) rơi về
+      // trang chủ; nay navigate thẳng bằng router, sau khi lọc open-redirect.
+      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')));
     } catch (err: any) {
       setErrorMessage(
         err?.message ||
@@ -57,8 +52,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
       setErrorMessage(null);
       setNotice(null);
       await signInWithGoogle();
-      const redirectTarget = searchParams.get('redirectTo') || '/';
-      navigate(redirectTarget);
+      navigate(sanitizeRedirectPath(searchParams.get('redirectTo')));
     } catch (err: any) {
       setErrorMessage(err?.message || ('Không thể kết nối Google OAuth.'));
     } finally {
@@ -189,7 +183,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onNavigate }) => {
             </Button>
 
             {/* Divider */}
-            {/* D7 — Google OAuth tam gac: xem `ENABLE_GOOGLE_OAUTH` o AuthModal.tsx */}
+            {/* D7 — Google OAuth tam gac: xem `ENABLE_GOOGLE_OAUTH` trong `frontend/lib/authFlags.ts` */}
             {ENABLE_GOOGLE_OAUTH && (
               <>
               <div className="relative flex items-center justify-center py-1">

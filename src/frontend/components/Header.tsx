@@ -28,7 +28,6 @@ interface HeaderProps {
   cart: CartItem[];
   siteContent?: SiteContentConfig;
   onOpenSearch?: () => void;
-  onOpenAuth?: (mode?: 'signin' | 'signup' | 'account') => void;
   onOpenCartDrawer?: () => void;
   /** Cập nhật trạng thái đơn CÓ THẬT từ `useOrdersData` (realtime), RAM-only. */
   notifications?: OrderNotification[];
@@ -41,7 +40,6 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   cart,
   siteContent,
-  onOpenAuth,
   onOpenCartDrawer,
   notifications = [],
   unreadCount = 0,
