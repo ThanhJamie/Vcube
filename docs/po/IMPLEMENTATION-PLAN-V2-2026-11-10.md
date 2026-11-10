@@ -568,6 +568,23 @@ Chi tiết khảo sát/ownership/bằng chứng: `docs/po/WAVE-2-UI.md`. Không 
 
 **Blocker chưa đổi:** QA-MONEY-01 staging; SEC-01; DB publish enforcement; SEO-02/domain; DATA-01/02/03; mailbox liên hệ.
 
+### 5.9 Audit UI/UX toàn app + nhóm sửa guest journey (2026-11-10)
+
+Chi tiết khảo sát, bảng ưu tiên và giới hạn: `docs/po/UI-UX-AUDIT-2026-11-10.md`.
+
+| ID | Item | Branch / commit | Kết quả | Bằng chứng |
+|---|---|---|---|---|
+| UI3-P0-1 | Hero không cắt dấu tiếng Việt | `ui3/home` · `a7fd99a` | **DONE** | `--font-hero-lh` ≥1.05; 390/768/1440 dấu đủ; accessible h1 có khoảng trắng |
+| UI3-P1-3 | Khách không thấy “Chưa cấu hình” | `ui3/home` · `a7fd99a` | **DONE** | Ẩn dòng 0-metric với khách; admin giữ shortcut; metric lẻ cũng lọc cho khách |
+| UI3-P0-3 | Nút 404 không còn co 21px | `ui3/auth` · `9af1934` | **DONE** | `w-full sm:flex-1`; đo 48px ở 390/768/1440 |
+| UI3-P1-2 | Auth validate VI, nhãn 1 `*`, toggle 44px | `ui3/auth` · `9af1934` | **DONE** | `noValidate`; alert VI; 0 nhãn `**`; role toggle 44/44 |
+| UI3-P0-2 | Tra cứu đơn đúng nhãn + lỗi VI | `ui3/commerce` · `9cd8fe7` | **DONE** | 2 form `noValidate`; Field `required`; thiếu mã → lỗi VI; not-found `role=status` |
+| UI3-P1-1 | Cart drawer fallback thumbnail | `ui3/commerce` · `9cd8fe7` | **DONE** | `safeImageUrl` + icon `photo_library`; badge giữ nguyên |
+
+**Tích hợp:** `8df434c` → `ab44bf5` → `3ff4ab7` (`ui3/integration`). Gate: tsc PASS, **203 unit test**, `npm run check` **24/24**, browser 390/768/1440 0 tràn/0 `pageerror`.
+
+**Backlog UI/UX còn lại:** promo cart dead-end; checkout rỗng nhiều khoảng trắng; breadcrumb admin mobile bị cắt; footer desktop target 16px; luồng “Quên mật khẩu” tự phục vụ; các màn cần tài khoản thật/staging để kiểm chứng dữ liệu.
+
 ---
 
 ## 6. Backlog đầy đủ

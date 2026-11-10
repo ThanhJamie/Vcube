@@ -371,7 +371,7 @@
     :root {
       --font-hero-size: 4.75rem;
       /* P0-1: 1024–1279px. */
-      --font-hero-lh: 1.04;
+      --font-hero-lh: 1.05;
       --font-h1-size: 3.25rem;
       --font-h2-size: 2.25rem;
       --font-h3-size: 1.5rem;
@@ -383,8 +383,8 @@
   @media (min-width: 1280px) {
     :root {
       --font-hero-size: 5.25rem;
-      /* P0-1: ≥1280px. */
-      --font-hero-lh: 1.03;
+      /* P0-1: ≥1280px — giữ 1.05 để dấu Ế không sát badge. */
+      --font-hero-lh: 1.05;
       --font-h1-size: 3.5rem;
     }
   }

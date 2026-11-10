@@ -442,7 +442,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ) : null
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                  {heroMetrics.map((m) => (
+                  {(isAdmin ? heroMetrics : heroMetricsFilled).map((m) => (
                     <Card key={m.label} variant="soft" padding="md">
                       <span className="block text-xs text-fg-muted font-medium mb-1">{m.label}</span>
                       {m.value ? (
