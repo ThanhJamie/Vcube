@@ -536,6 +536,18 @@ Sau Phase 2:
 
 **P2 còn lại sau Wave 1.2:** robots parser chỉ mô phỏng group `User-agent: *`; `seo:check` chưa vào `npm run check`; `OrderService` chưa có typed error để phân biệt not-found vs network; guard publish vẫn tin `previousStatus` caller; direct-API publish gap; owner chưa xác nhận mailbox thật.
 
+### 5.7 Wave 1.3 — 3 P2 chốt (2026-11-10)
+
+| ID | Item | Branch / commit | Kết quả | Bằng chứng |
+|---|---|---|---|---|
+| W1.3-SEO-GATE | `seo:check` vào gate chung | `wave1.3/seo-gate` · `110ef35` | **DONE** | `gate-manifest` + baseline thêm `seo-files`; `npm run check` **24 gate**, 18 gate so baseline; `seo-files` xanh |
+| W1.3-ROBOTS | Parser nhiều `User-agent` + self-test | `wave1.3/robots` · `9e49ba9` | **DONE** | Group `*` + Googlebot/Bingbot; asset must allow, `/assets` must disallow; `--self-test` **5/5 PASS**; negative prefix/`Disallow: /` fail |
+| W1.3-ORDER | Typed error `not_found/network/forbidden/unknown` | `wave1.3/order` · `7999a2c` | **DONE** | `OrderDetailError` + classifier; `OrderSuccessRoute` not-found tĩnh vs lỗi có retry; **203 unit test**; 11 test classifier |
+
+**P2 còn lại sau Wave 1.3:** `dbService.getOrderByToken` vẫn nuốt lỗi RPC (guest token lỗi mạng có thể thành not_found); group robots có cả `*` + agent cụ thể chỉ báo qua nhánh `*`; group có rule không liên quan asset bị coi thiếu chặn `/assets` (chặt theo spec); admin email/mailbox owner; publish guard direct-API gap.
+
+**Blocker chưa đổi:** QA-MONEY-01 staging; SEC-01; DB publish enforcement; SEO-02/domain; DATA-01/02/03; mailbox liên hệ.
+
 ---
 
 ## 6. Backlog đầy đủ
