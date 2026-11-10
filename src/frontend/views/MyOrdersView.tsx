@@ -391,7 +391,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({
                         disabled={isCompleted && reorderSuccessId === ord.id}
                         leadingIcon={<Icon name={isCompleted && reorderSuccessId === ord.id ? 'check_circle' : primary.icon} size={16} />}
                       >
-                        <span>{isCompleted && reorderSuccessId === ord.id ? 'Đang chuyển…' : primary.label}</span>
+                        <span>{isCompleted && reorderSuccessId === ord.id ? 'Đang mở báo giá…' : primary.label}</span>
                       </Button>
 
                       {/* Thao tác phụ gom vào menu "…" */}

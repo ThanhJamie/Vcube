@@ -179,6 +179,41 @@ export const PersonalizeRoute: React.FC<{
   const product = productId ? products.find((p) => p.id === productId) : products[0];
 
   if (!product) {
+    // UX-04: `/personalize` KHÔNG kèm id mà kho mẫu rỗng ⇒ đây là trạng thái rỗng của storefront,
+    // không phải URL sai. Chỉ `/personalize/:productId` không khớp mới là 404 thật.
+    if (!productId) {
+      return (
+        <div className="min-h-dvh bg-canvas flex items-center justify-center p-6">
+          <div className="w-full max-w-md">
+            <EmptyState
+              icon={<Icon name="view_in_ar" size={20} />}
+              title="Chưa có mẫu nào để tuỳ biến"
+              description="Kho mẫu đang trống nên chưa có sản phẩm để cá nhân hoá. Bạn vẫn có thể tải tệp CAD lên để nhận báo giá in 3D."
+              action={
+                <>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    leadingIcon={<Icon name="upload_file" size={18} />}
+                    onClick={() => onNavigate('quote')}
+                  >
+                    Báo giá tệp 3D
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    leadingIcon={<Icon name="storefront" size={18} />}
+                    onClick={() => onNavigate('explore')}
+                  >
+                    Khám phá kho mẫu
+                  </Button>
+                </>
+              }
+            />
+          </div>
+        </div>
+      );
+    }
     return <NotFoundView />;
   }
 

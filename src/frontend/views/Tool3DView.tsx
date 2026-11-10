@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import * as THREE from 'three';
-import { AnalysisFile, CartItem, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, PrintabilityAnalysis, InkiriCostFormulaConfig, SlicerPresetInfo } from '@/types';
+import { AnalysisFile, CartItem, Order, TransformState, MeasurementResult, MaterialProfile, PrinterProfile, PrintabilityAnalysis, InkiriCostFormulaConfig, SlicerPresetInfo } from '@/types';
 import { SAMPLE_ANALYSIS_FILES, PRINTER_PROFILES, MATERIALS_CATALOG } from '@/data/mockData';
 import { ModelViewer3D } from '../components/tool3d/ModelViewer3D';
 import { SEOHead } from '../components/SEOHead';
@@ -61,7 +61,15 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
 }) => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, role } = useAuth();
+  // UX-01: hướng dẫn cấu hình nội bộ chỉ dành cho admin.
+  const isAdmin = role === 'admin';
+  // UX-06: `MyOrdersView` chuyển "In lại đơn" sang /quote kèm `location.state.reorderItems`.
+  // Đơn chỉ lưu tên/số lượng/vật liệu, KHÔNG có tệp CAD hay thể tích để dựng lại báo giá —
+  // nên chỉ hiển thị danh sách để khách tải lại tệp, tuyệt đối không bịa giá/đơn.
+  const reorderItems: Order['items'] | undefined = Array.isArray((location.state as { reorderItems?: unknown } | null)?.reorderItems)
+    ? ((location.state as { reorderItems: Order['items'] }).reorderItems)
+    : undefined;
   // Chặn double-click: một lần bấm chỉ ghi MỘT hàng `quotes` (id mới mỗi lần).
   const savingQuoteRef = useRef(false);
 
@@ -378,6 +386,8 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
         setManualReviewNoteShown={setManualReviewNoteShown}
         currentPrinter={currentPrinter}
         currentMaterial={currentMaterial}
+        isAdmin={isAdmin}
+        reorderItems={reorderItems}
       />
     );
   }
@@ -762,8 +772,10 @@ export const Tool3DView: React.FC<Tool3DViewProps> = ({
             <p>
               {!currentPrinter ? 'Chưa có máy in nào trong hệ thống. ' : ''}
               {!currentMaterial ? 'Chưa có vật liệu nào trong hệ thống. ' : ''}
-              Báo giá tự động chỉ tính khi có dữ liệu thật — quản trị viên thêm ở{' '}
-              <strong>/admin → Cấu hình giá → Đội Máy In / Danh Mục Nhựa &amp; Resin</strong>.
+              Báo giá tự động chỉ tính khi có dữ liệu thật —{' '}
+              {isAdmin
+                ? <><strong>/admin → Cấu hình giá → Đội Máy In / Danh Mục Nhựa &amp; Resin</strong>.</>
+                : 'vui lòng liên hệ VCUBE để được báo giá thủ công.'}
             </p>
           </div>
         )}

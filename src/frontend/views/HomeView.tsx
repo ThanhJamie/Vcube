@@ -12,6 +12,7 @@ import { SEOHead } from '../components/SEOHead';
 import { EMPTY_VALUE, formatNumber, formatPercent } from '@frontend/lib/format';
 import { realProductImageUrl } from '@frontend/lib/productImage';
 import { Icon, Button, Card, EmptyState, InfoTip } from '@frontend/ui';
+import { useAuth } from '../context/AuthContext';
 
 interface HomeViewProps {
   products: Product[];
@@ -170,6 +171,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onShowToast
 }) => {
   const locale = 'vi-VN';
+  // UX-01: lối nhập nội dung site là bề mặt QUẢN TRỊ. Chỉ admin thấy shortcut; khách chỉ
+  // thấy trạng thái trung tính "Chưa cấu hình", không bị dẫn tới /admin rồi bị đá về login.
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   /**
    * D8/Đợt P: `DEFAULT_INKIRI_FORMULA_CONFIG` KHÔNG còn là nguồn giá trị. Không có cấu hình
    * thật ⇒ `null` và mọi con số phái sinh đều là `—` kèm InfoTip nêu ĐÍCH DANH thông số thiếu
@@ -328,7 +333,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const partnersList = (activeContent.trustPartnersList ?? DEFAULT_SITE_CONTENT.trustPartnersList ?? [])
     .filter((p) => typeof p === 'string' && p.trim() !== '');
   const hasPartners = partnersList.length > 0;
-  // Dải số liệu: giá trị rỗng ⇒ "Chưa cấu hình" (nhập ở /admin -> Nội dung site), không đoán.
+  // Dải số liệu: giá trị rỗng ⇒ "Chưa cấu hình"; shortcut nhập nội dung chỉ hiện với admin.
   const heroMetrics = [
     { label: activeContent.heroMetric1Label || ('Dung Sai Đo Kiểm'), value: (activeContent.heroMetric1Value || '').trim() },
     { label: activeContent.heroMetric2Label || ('Thời Gian Bàn Giao'), value: (activeContent.heroMetric2Value || '').trim() },
@@ -422,11 +427,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <span className="font-mono font-semibold text-fg-muted">
                     Chưa cấu hình
                   </span>
-                  <Button variant="ghost" size="sm" className="text-primary font-bold"
-                    onClick={() => onNavigate('admin')}
-                  >
-                    Nhập ở /admin
-                  </Button>
+                  {isAdmin && (
+                    <Button variant="ghost" size="sm" className="text-primary font-bold"
+                      onClick={() => onNavigate('admin')}
+                    >
+                      Nhập ở /admin
+                    </Button>
+                  )}
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
@@ -530,7 +537,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
               {/* Dải dung sai cam kết — CHỈ hiện khi có dữ liệu thật.
                   P1 §5: rỗng thì bỏ hẳn panel rời rạc "lạc lõng"; thông tin đã nằm
-                  trong dòng mảnh ở cột trái (kèm lối nhập ở /admin). */}
+                  trong dòng mảnh ở cột trái (shortcut nhập chỉ hiện với admin). */}
               {toleranceSpec && (
                 <Card variant="soft" padding="sm" className="mt-3 flex w-full items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">

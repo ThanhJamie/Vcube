@@ -174,6 +174,30 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
   // chỉ render cho vai trò quản trị, không lộ cho khách. Hook đứng trước mọi `return` dưới.
   const { role } = useAuth();
   const canSeeInternalCost = role === 'admin';
+  // UX-01: copy cấu hình nội bộ chỉ dành cho admin. Khách nhận thông điệp trung tính + kênh
+  // liên hệ, không bị dẫn tới /admin (nơi sẽ đá họ về trang đăng nhập).
+  const pricingAdminHint = canSeeInternalCost
+    ? 'Quản trị viên thêm ở /admin → Cấu hình giá (Đội Máy In / Danh Mục Nhựa & Resin).'
+    : 'Vui lòng liên hệ VCUBE để được báo giá thủ công.';
+  /** CTA cấu hình giá: admin mở /admin/pricing, khách mở kênh hỗ trợ (không dẫn tới /admin). */
+  const pricingConfigAction = canSeeInternalCost ? (
+    <Link
+      to="/admin/pricing"
+      className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover"
+    >
+      <Icon name="tune" size={18} />
+      Mở cấu hình giá (/admin/pricing)
+    </Link>
+  ) : (
+    <Button
+      variant="secondary"
+      size="md"
+      leadingIcon={<Icon name="support_agent" size={18} />}
+      onClick={() => setIsChatOpen(true)}
+    >
+      Liên hệ hỗ trợ báo giá
+    </Button>
+  );
 
   // Đợt 9 (R1): tỉ lệ VAT đọc từ `pricing_global_settings.vat_percent`.
   // Hook đặt Ở ĐÂY — TRƯỚC mọi `return` bên dưới — vì panel có early return khi chưa tính
@@ -258,16 +282,8 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
         <EmptyState
           icon={<Icon name="precision_manufacturing" size={20} />}
           title="Chưa thể báo giá tự động"
-          description={`${pricingUnavailableReason ?? 'Thiếu dữ liệu máy in hoặc vật liệu thật để tính giá.'} Quản trị viên thêm ở /admin → Cấu hình giá (Đội Máy In / Danh Mục Nhựa & Resin).`}
-          action={
-            <Link
-              to="/admin/pricing"
-              className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover"
-            >
-              <Icon name="tune" size={18} />
-              Mở cấu hình giá (/admin/pricing)
-            </Link>
-          }
+          description={`${pricingUnavailableReason ?? 'Thiếu dữ liệu máy in hoặc vật liệu thật để tính giá.'} ${pricingAdminHint}`}
+          action={pricingConfigAction}
         />
       </div>
     );
@@ -400,7 +416,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
               so sánh và nói NGUYÊN NHÂN THẬT, thay vì để lỗi ném ra và trắng cả trang. */}
           {machineComparisons === null && (
             <InfoTip label="Vì sao chưa so sánh được các máy in?">
-              {`${machineComparisonUnavailableReason ?? 'Không tính được giá cho một máy trong đội máy.'} Bảng so sánh cần khổ bàn (bed_dimensions) và thông số giá của MỌI máy. Quản trị viên bổ sung ở /admin → Cấu hình giá (Đội Máy In).`}
+              {`${machineComparisonUnavailableReason ?? 'Không tính được giá cho một máy trong đội máy.'} Bảng so sánh cần khổ bàn (bed_dimensions) và thông số giá của MỌI máy. ${canSeeInternalCost ? 'Quản trị viên bổ sung ở /admin → Cấu hình giá (Đội Máy In).' : 'Vui lòng liên hệ VCUBE nếu cần so sánh thủ công.'}`}
             </InfoTip>
           )}
 
@@ -468,7 +484,7 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
           onClick={() => onAddToCart(handleBuildCartItem(selectedPackage))}
           leadingIcon={<Icon name="shopping_cart" size={20} />}
         >
-          Thêm vào giỏ &amp; đặt hàng
+          Thêm vào giỏ
         </Button>
 
         <button
@@ -728,16 +744,8 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
             bordered
             icon={<Icon name="precision_manufacturing" size={20} />}
             title="Chưa dựng được gói giao hàng"
-            description={`${packagesUnavailableReason ?? 'Chưa cấu hình chiết khấu gói Tiết kiệm / phụ thu gói Hỏa tốc để dựng 3 gói báo giá.'} Quản trị viên bổ sung ở /admin → Cấu hình giá (Cấu hình chung).`}
-            action={
-              <Link
-                to="/admin/pricing"
-                className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-fg shadow-e1 transition-colors hover:bg-primary-hover"
-              >
-                <Icon name="tune" size={18} />
-                Mở cấu hình giá (/admin/pricing)
-              </Link>
-            }
+            description={`${packagesUnavailableReason ?? 'Chưa cấu hình chiết khấu gói Tiết kiệm / phụ thu gói Hỏa tốc để dựng 3 gói báo giá.'} ${canSeeInternalCost ? 'Quản trị viên bổ sung ở /admin → Cấu hình giá (Cấu hình chung).' : 'Vui lòng liên hệ VCUBE để được báo giá theo tiến độ giao hàng.'}`}
+            action={pricingConfigAction}
           />
         ) : (
         <div className="space-y-2">

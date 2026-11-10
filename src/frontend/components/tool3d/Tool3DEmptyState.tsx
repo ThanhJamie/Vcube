@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, EmptyState, Icon, InfoTip } from '@frontend/ui';
-import type { AnalysisFile, MaterialProfile, PrinterProfile } from '@/types';
+import type { AnalysisFile, MaterialProfile, Order, PrinterProfile } from '@/types';
 import { ParseFailurePanel } from './ParseFailurePanel';
 import { SEOHead } from '../SEOHead';
 import type { ParseFailure } from './tool3dAnalysis';
@@ -23,6 +23,10 @@ export interface Tool3DEmptyStateProps {
   currentMaterial: MaterialProfile | undefined;
   /** Giữ trong props để khớp chữ ký cũ; hiện khối rỗng không dùng tới. */
   selectedFile?: AnalysisFile | null;
+  /** UX-01: chỉ admin thấy đường dẫn cấu hình nội bộ (/admin → Cấu hình giá). */
+  isAdmin?: boolean;
+  /** UX-06: đơn cũ được "In lại" — chỉ để liệt kê lại, KHÔNG đủ dữ liệu dựng báo giá. */
+  reorderItems?: Order['items'];
 }
 
 export const Tool3DEmptyState: React.FC<Tool3DEmptyStateProps> = ({
@@ -35,7 +39,9 @@ export const Tool3DEmptyState: React.FC<Tool3DEmptyStateProps> = ({
   manualReviewNoteShown,
   setManualReviewNoteShown,
   currentPrinter,
-  currentMaterial
+  currentMaterial,
+  isAdmin = false,
+  reorderItems
 }) => (
       <div className="min-h-dvh bg-canvas text-fg py-6 sm:py-10 px-4 sm:px-6 md:px-12 font-sans">
         <SEOHead
@@ -53,6 +59,36 @@ export const Tool3DEmptyState: React.FC<Tool3DEmptyStateProps> = ({
               Xưởng phân tích & báo giá 3D tức thì
             </h1>
           </div>
+
+          {/* UX-06: "In lại đơn" từ /orders chỉ mang tên/số lượng/vật liệu — nêu đúng giới hạn
+              dữ liệu và yêu cầu tải lại tệp, không dựng báo giá từ tên sản phẩm. */}
+          {reorderItems && reorderItems.length > 0 && (
+            <div className="rounded-lg border border-line bg-surface-muted p-4">
+              <div className="flex items-start gap-2.5">
+                <Icon name="replay" size={18} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+                <div className="min-w-0 space-y-1.5">
+                  <p className="text-sm font-semibold text-fg">Đang in lại đơn cũ</p>
+                  <p className="text-xs leading-relaxed text-fg-muted">
+                    Đơn cũ chỉ có tên sản phẩm và số lượng, không kèm tệp CAD hay thể tích để dựng lại
+                    báo giá. Với đơn in, vui lòng tải lại tệp bên dưới; bản vẽ số đã mua vẫn nằm trong
+                    mục Tài sản số.
+                  </p>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {reorderItems.map((item) => (
+                      <li
+                        key={item.id}
+                        className="rounded-full border border-line bg-surface px-2.5 py-1 font-mono text-xs text-fg"
+                      >
+                        {item.name} ×{item.quantity}
+                        {item.material ? ` · ${item.material}` : ''}
+                        {item.type === 'digital' ? ' · bản vẽ số' : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -139,8 +175,10 @@ export const Tool3DEmptyState: React.FC<Tool3DEmptyStateProps> = ({
               <p>
                 {!currentPrinter ? 'Chưa có máy in nào trong hệ thống. ' : ''}
                 {!currentMaterial ? 'Chưa có vật liệu nào trong hệ thống. ' : ''}
-                Báo giá tự động chỉ tính khi có dữ liệu thật — quản trị viên thêm ở{' '}
-                <strong>/admin → Cấu hình giá → Đội Máy In / Danh Mục Nhựa &amp; Resin</strong>.
+                Báo giá tự động chỉ tính khi có dữ liệu thật —{' '}
+                {isAdmin
+                  ? <><strong>/admin → Cấu hình giá → Đội Máy In / Danh Mục Nhựa &amp; Resin</strong>.</>
+                  : 'vui lòng liên hệ VCUBE để được báo giá thủ công.'}
               </p>
             </div>
           )}
