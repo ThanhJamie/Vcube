@@ -27,7 +27,7 @@ export const NotFoundView: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <Button
             size="lg"
-            className="flex-1"
+            className="w-full sm:flex-1"
             onClick={() => navigate('/')}
             leadingIcon={<Icon name="home" size={16} />}
           >
@@ -37,6 +37,7 @@ export const NotFoundView: React.FC = () => {
           <Button
             size="lg"
             variant="secondary"
+            className="w-full sm:w-auto"
             onClick={() => navigate('/explore')}
             leadingIcon={<Icon name="storefront" size={16} />}
           >

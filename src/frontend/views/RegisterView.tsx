@@ -208,7 +208,8 @@ export const RegisterView: React.FC = () => {
             </div>
           </div>
 
-          <form onSubmit={handleRegister} className="space-y-5">
+          {/* `noValidate`: tắt tooltip tiếng Anh của trình duyệt, để `handleRegister` hiện lỗi VI inline. */}
+          <form onSubmit={handleRegister} noValidate className="space-y-5">
             {/* T58 — lựa chọn loại tài khoản (chỉ Khách hàng / Nhà thiết kế) */}
             <div>
               <span id="signup-role-label" className="mb-2 block text-sm font-medium text-fg">
@@ -223,7 +224,7 @@ export const RegisterView: React.FC = () => {
                   type="button"
                   onClick={() => setSignupRole('customer')}
                   aria-pressed={signupRole === 'customer'}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     signupRole === 'customer'
                       ? 'bg-surface font-semibold text-fg shadow-soft'
                       : 'text-fg-muted hover:text-fg'
@@ -236,7 +237,7 @@ export const RegisterView: React.FC = () => {
                   type="button"
                   onClick={() => setSignupRole('designer')}
                   aria-pressed={signupRole === 'designer'}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     signupRole === 'designer'
                       ? 'bg-surface font-semibold text-fg shadow-soft'
                       : 'text-fg-muted hover:text-fg'
@@ -250,7 +251,7 @@ export const RegisterView: React.FC = () => {
 
             {/* Full Name and Email */}
             <div className="grid grid-cols-1 gap-4">
-              <Field label="Họ và tên *" required>
+              <Field label="Họ và tên" required>
                 {(control) => (
                   <div className="relative">
                     <Icon
@@ -271,7 +272,7 @@ export const RegisterView: React.FC = () => {
                 )}
               </Field>
 
-              <Field label="Địa chỉ Email *" required>
+              <Field label="Địa chỉ Email" required>
                 {(control) => (
                   <div className="relative">
                     <Icon
@@ -296,7 +297,7 @@ export const RegisterView: React.FC = () => {
             {/* Password & Confirm Password */}
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <Field label="Mật khẩu *" required>
+                <Field label="Mật khẩu" required>
                   {(control) => (
                     <div className="relative">
                       <Icon
@@ -343,7 +344,7 @@ export const RegisterView: React.FC = () => {
               </div>
 
               <Field
-                label="Xác nhận lại mật khẩu *"
+                label="Xác nhận lại mật khẩu"
                 required
                 error={
                   confirmPassword && confirmPassword !== password
