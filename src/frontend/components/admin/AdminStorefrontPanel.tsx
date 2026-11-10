@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { SiteContentConfig } from '@/types';
 import { getContactEmailIssue, type ContactEmailIssue } from '@frontend/lib/contact';
 import { Button, Field, Icon, InfoTip, Input } from '@frontend/ui';
+import { StorefrontPreview } from './StorefrontPreview';
 
 /**
  * Toast khi email liên hệ sẽ bị footer/Quote/ChatSupport ẨN. Nói đúng lý do để admin
@@ -137,9 +138,9 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:items-start">
       {/* Header */}
-      <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4 xl:col-span-2">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-2.5 py-0.5 bg-primary-tint text-fg font-mono text-xs font-semibold rounded-sm border border-line uppercase tracking-wider">
@@ -162,8 +163,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           {!isSaved && !isSaving && (
             <span className="text-xs font-medium text-warning flex items-center gap-1">
-              <Icon name="warning" size={14} />
-              Chưa lưu
+              <Icon name="warning" size={14} /> Chưa lưu
             </span>
           )}
           <Button
@@ -174,17 +174,16 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
             onClick={handleSave}
             disabled={isSaved}
           >
-            {isSaving
-              ? ('Đang lưu…')
-              : isSaved
+            {isSaving ? ('Đang lưu…') : isSaved
               ? ('Đã Lưu Nội Dung')
               : ('Lưu Thay Đổi Ngay')}
           </Button>
         </div>
       </div>
 
-      {/* Tab Navigation — segmented §3.6 */}
-      <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-md border border-line bg-surface-muted p-1">
+      {/* Tab Navigation — segmented §3.6. Grid đặt form ở cột 1, preview cột 2 (desktop);
+          mobile dùng `order` để preview nằm ngay dưới header, trước form. */}
+      <div className="order-2 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-md border border-line bg-surface-muted p-1 xl:col-start-1 xl:row-start-2">
         <button
           type="button"
           onClick={() => setActiveTab('hero')}
@@ -272,7 +271,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
       {/* Tab 1: Hero Section */}
       {activeTab === 'hero' && (
-        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
+        <div className="order-2 rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6 xl:col-start-1 xl:row-start-3">
           <div className="border-b border-line-subtle pb-4">
             <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
               <Icon name="view_carousel" size={22} className="text-fg-muted" />
@@ -485,7 +484,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
       {/* Tab 2: Top Announcement */}
       {activeTab === 'announcement' && (
-        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
+        <div className="order-2 rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6 xl:col-start-1 xl:row-start-3">
           <div className="border-b border-line-subtle pb-4">
             <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
               <Icon name="campaign" size={22} className="text-fg-muted" />
@@ -558,7 +557,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
       {/* Tab 3: Workflow */}
       {activeTab === 'workflow' && (
-        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
+        <div className="order-2 rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6 xl:col-start-1 xl:row-start-3">
           <div className="border-b border-line-subtle pb-4">
             <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
               <Icon name="precision_manufacturing" size={22} className="text-fg-muted" />
@@ -689,7 +688,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
       {/* Tab 4: Estimator */}
       {activeTab === 'estimator' && (
-        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
+        <div className="order-2 rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6 xl:col-start-1 xl:row-start-3">
           <div className="border-b border-line-subtle pb-4">
             <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
               <Icon name="calculate" size={22} className="text-fg-muted" />
@@ -779,7 +778,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
       {/* Tab 5: Facilities, Partners & Shipping */}
       {activeTab === 'facilities' && (
-        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
+        <div className="order-2 rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6 xl:col-start-1 xl:row-start-3">
           <div className="border-b border-line-subtle pb-4">
             <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
               <Icon name="domain" size={22} className="text-fg-muted" />
@@ -908,7 +907,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
 
       {/* Tab 6: Custom 3D Model by Idea Section */}
       {activeTab === 'customIdea' && (
-        <div className="rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6">
+        <div className="order-2 rounded-xl border border-line bg-surface p-6 sm:p-8 space-y-6 xl:col-start-1 xl:row-start-3">
           <div className="border-b border-line-subtle pb-4">
             <h3 className="text-lg font-bold tracking-tight text-fg flex items-center gap-2">
               <Icon name="design_services" size={22} className="text-fg-muted" />
@@ -1107,6 +1106,7 @@ export const AdminStorefrontPanel: React.FC<AdminStorefrontPanelProps> = ({
           </div>
         </div>
       )}
+      <StorefrontPreview content={localContent} className="order-1 min-w-0 xl:order-none xl:col-start-2 xl:row-span-2 xl:sticky xl:top-6 xl:self-start xl:max-h-[calc(100dvh-3rem)] xl:overflow-y-auto" />
     </div>
   );
 };
