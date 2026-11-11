@@ -17,8 +17,8 @@ P0 trước khi dùng DB hiện tại cho bất kỳ luồng thật.
 - Rotate **7/7** tài khoản bằng mật khẩu ngẫu nhiên riêng từng tài khoản (24 byte base64url).
 - Ghi file `0600`, thư mục `0700` ngoài repo; không in mật khẩu ra chat/log.
 - Kiểm lại hash: `123456` = 0/7, `1234566` = 0/7, `Password123!@` = 0/7.
-- Kiểm session: `auth.sessions` = 0, `auth.refresh_tokens` = 0 ⇒ refresh token/phiên hiện tại
-  đã bị thu hồi; access JWT cũ (nếu có) vẫn có thể sống tới expiry theo tài liệu Supabase.
+- Đã thử đăng nhập **một admin** bằng mật khẩu mới đọc từ file (không in ra): login OK, DB trả `role=admin`, logout **204**.
+- Tại thời điểm kiểm tra: `auth.sessions` = 0, `auth.refresh_tokens` = 0. Đây là **trạng thái đo được**, không tự chứng minh rotation là nguyên nhân thu hồi phiên; access JWT cũ (nếu có) vẫn có thể sống tới expiry.
 
 ## 3. Còn mở
 
