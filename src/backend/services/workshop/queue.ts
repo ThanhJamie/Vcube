@@ -14,7 +14,7 @@ export async function getMyQueueOrders(partnerId: string | null): Promise<MyQueu
   const { data, error } = await supabase
     .from('orders')
     .select(
-      'id,order_number,date,estimated_delivery,status,status_stage_index,layer_progress,items,assigned_printer_id'
+      'id,order_number,date,estimated_delivery,status,status_stage_index,layer_progress,items,assigned_printer_id,shipping_address,payment_status'
     )
     .eq('assigned_workshop_id', partnerId)
     .order('created_at', { ascending: false });

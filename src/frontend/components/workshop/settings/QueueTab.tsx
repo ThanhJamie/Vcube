@@ -1,9 +1,11 @@
 // QueueTab — tách từ WorkshopSettingsView.tsx (Phase 4c, block-move verbatim; parent giữ state).
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, DataTable, EmptyState, Field, Input, type DataTableColumn, Icon } from '@frontend/ui';
 import { formatDate, formatNumber, EMPTY_VALUE } from '@frontend/lib/format';
 import { MES_PIPELINE_STAGES } from '../../OrderProgress';
 import { MY_ORDER_STATUS_LABELS, type MyQueueOrder } from '@backend/services/workshopService';
+import { canAcceptJob, canAdvanceTo, canMarkDelivered, canStartProduction, isTerminalOrderStatus } from '@frontend/lib/productionRules';
+import { PrintJobDetail, PaymentBadge, isPaymentBlocked } from '../PrintJobDetail';
 import { QUEUE_KANBAN_COLUMNS } from './helpers';
 import type { WorkshopSettingsController } from './types';
 
@@ -18,6 +20,23 @@ export const QueueTab: React.FC<QueueTabProps> = ({ ctl }) => {
     loadQueue, loadingOrders, machines, orders,
     ordersError, partnerId, queueView, setActiveTab,
     setBusyLabel, setLayerDraft, setQueueView } = ctl;
+
+  /** Đơn đang mở phiếu việc — state cục bộ của tab, không đụng controller/URL. */
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const selectedOrder = selectedOrderId ? orders.find((o) => o.id === selectedOrderId) ?? null : undefined;
+
+  /**
+   * Lý do nút "Nhận việc" bị khoá — nêu ĐÚNG điều kiện còn thiếu (thanh toán / trạng thái / nấc).
+   * Không dùng `stageIndex = 1` mù: mọi guard đọc nấc hiện tại của chính đơn.
+   */
+  const acceptBlockedReason = (row: MyQueueOrder): string => {
+    if (isTerminalOrderStatus(row.status)) return 'Đơn đã hoàn tất hoặc đã huỷ — không nhận việc.';
+    if (row.statusStageIndex == null) return 'Hệ thống chưa có nấc tiến độ của đơn — không thể nhận việc.';
+    if (isPaymentBlocked(row.paymentStatus)) return 'VietQR/chuyển khoản chưa được xác nhận thanh toán — chỉ đơn COD mới được nhận trước khi thu tiền.';
+    if (!canStartProduction({ paymentStatus: row.paymentStatus })) return 'Đơn chưa đủ điều kiện thanh toán để bắt đầu in.';
+    if (row.statusStageIndex > 1) return 'Đơn đã qua nấc nhận việc (chỉ nhận ở nấc 1–2/8).';
+    return 'Chưa đủ điều kiện nhận việc.';
+  };
 
 const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
     () => [
@@ -78,6 +97,19 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
         value: (row) => (row.statusStageIndex != null ? row.statusStageIndex : -1),
       },
       {
+        key: 'payment',
+        header: 'Thanh toán',
+        render: (row) => (
+          <div className="flex flex-col items-start gap-1">
+            <PaymentBadge status={row.paymentStatus} />
+            {isPaymentBlocked(row.paymentStatus) ? (
+              <span className="text-xs text-warning">Chưa đối soát — chưa nhận việc</span>
+            ) : null}
+          </div>
+        ),
+        value: (row) => row.paymentStatus ?? '',
+      },
+      {
         key: 'layer',
         header: 'Tiến độ lớp',
         render: (row) => (
@@ -93,13 +125,27 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
         render: (row) => {
           const stageIndex = row.statusStageIndex;
           const disabled = busyOrderId === row.id;
+          const terminal = isTerminalOrderStatus(row.status);
+          const canAccept = canAcceptJob(row, stageIndex);
+          const canConfirmDone = !terminal && canStartProduction(row) && canAdvanceTo(stageIndex, 7);
+          const canDeliver = canMarkDelivered(stageIndex, row.status);
+          const isOpen = selectedOrderId === row.id;
           return (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-expanded={isOpen}
+                  onClick={() => setSelectedOrderId(isOpen ? null : row.id)}
+                >
+                  {isOpen ? 'Ẩn chi tiết' : 'Chi tiết'}
+                </Button>
+                <Button
                   variant="secondary"
                   size="sm"
-                  disabled={disabled}
+                  disabled={disabled || !canAccept}
+                  title={canAccept ? 'Nhận việc và chuyển sang nấc kế tiếp' : acceptBlockedReason(row)}
                   onClick={() => handleAcceptJob(row)}
                 >
                   Nhận việc
@@ -107,44 +153,70 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                 <Button
                   variant="primary"
                   size="sm"
-                  disabled={disabled}
+                  disabled={disabled || !canConfirmDone}
+                  title={
+                    canConfirmDone
+                      ? 'Chuyển nấc 7/8 → 8/8 (Xuất xưởng giao)'
+                      : isPaymentBlocked(row.paymentStatus)
+                        ? 'Chưa xác nhận thanh toán (VietQR/chuyển khoản) — chưa được tiến nấc.'
+                        : 'Chỉ xác nhận khi đơn đang ở nấc 7/8 (Đóng gói) và chưa kết thúc.'
+                  }
                   onClick={() => handleConfirmDone(row)}
                 >
                   Xác nhận hoàn thành
                 </Button>
-                {(row.statusStageIndex ?? -1) >= 7 && row.status !== 'completed' && (
+                {!terminal && (
                   <Button
                     variant="secondary"
                     size="sm"
-                    disabled={disabled}
+                    disabled={disabled || !canDeliver}
+                    title={
+                      canDeliver
+                        ? 'Đánh dấu đơn đã giao cho khách'
+                        : 'Chỉ đánh dấu đã giao khi đơn ở nấc 8/8 và trạng thái Đang giao.'
+                    }
                     onClick={() => handleMarkDelivered(row)}
                   >
                     Đánh dấu đã giao
                   </Button>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-1">
-                {MES_PIPELINE_STAGES.map((stage, idx) => (
-                  <button
-                    key={stage.id}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => {
-                      setBusyLabel(`Đang ghi nấc ${idx + 1}/8…`);
-                      void applyStage(row, idx, stage.shortLabel).finally(() => setBusyLabel(null));
-                    }}
-                    title={`Đặt nấc ${idx + 1}/8 — ${stage.label}`}
-                    aria-label={`Đặt nấc ${idx + 1}/8 — ${stage.label}`}
-                    className={`inline-flex items-center justify-center rounded-sm border px-1.5 py-0.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 max-md:min-h-11 max-md:min-w-11 ${
-                      stageIndex === idx
-                        ? 'border-primary bg-primary text-primary-fg'
-                        : 'border-line-control bg-surface text-fg-muted hover:bg-surface-muted'
-                    }`}
-                  >
-                    {idx + 1}
-                  </button>
-                ))}
-              </div>
+              {terminal ? (
+                <p className="text-xs text-fg-subtle">Đơn đã kết thúc — không còn thao tác tiến độ.</p>
+              ) : (
+                <div className="flex flex-wrap items-center gap-1">
+                  {MES_PIPELINE_STAGES.map((stage, idx) => {
+                    const paidReady = canStartProduction(row);
+                    const locked = !paidReady || !canAdvanceTo(stageIndex, idx);
+                    return (
+                      <button
+                        key={stage.id}
+                        type="button"
+                        disabled={disabled || locked}
+                        onClick={() => {
+                          setBusyLabel(`Đang ghi nấc ${idx + 1}/8…`);
+                          void applyStage(row, idx, stage.shortLabel).finally(() => setBusyLabel(null));
+                        }}
+                        title={
+                          !paidReady
+                            ? 'VietQR/chuyển khoản chưa được xác nhận thanh toán — chưa được tiến nấc (COD được phép).'
+                            : locked
+                              ? `Không lùi/nhảy nấc — chỉ tiến từ nấc ${stageIndex != null ? stageIndex + 1 : '—'} lên nấc kế tiếp`
+                              : `Đặt nấc ${idx + 1}/8 — ${stage.label}`
+                        }
+                        aria-label={`Đặt nấc ${idx + 1}/8 — ${stage.label}`}
+                        className={`inline-flex items-center justify-center rounded-sm border px-1.5 py-0.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 max-md:min-h-11 max-md:min-w-11 ${
+                          stageIndex === idx
+                            ? 'border-primary bg-primary text-primary-fg'
+                            : 'border-line-control bg-surface text-fg-muted hover:bg-surface-muted'
+                        }`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <div className="flex items-end gap-1.5">
                 <Field label="Tiến độ lớp (%)" hideLabel>
                   {(control) => (
@@ -159,7 +231,12 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                     />
                   )}
                 </Field>
-                <Button variant="ghost" size="sm" disabled={disabled} onClick={() => handleSaveLayerProgress(row)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={disabled || terminal}
+                  onClick={() => handleSaveLayerProgress(row)}
+                >
                   Lưu %
                 </Button>
               </div>
@@ -169,7 +246,7 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [busyOrderId, layerDraft, applyStage],
+    [busyOrderId, layerDraft, applyStage, selectedOrderId],
   );
 
   return (
@@ -218,6 +295,12 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
             </div>
 
             {queueView === 'list' && (
+            <div className="w-full space-y-3">
+              {/* Phiếu việc mở NGAY TRÊN bảng (không modal) — tránh double-mount của StrictMode
+                  và giữ vị trí cuộn của hàng đợi. Mobile chiếm toàn bộ chiều ngang. */}
+              {selectedOrder ? (
+                <PrintJobDetail order={selectedOrder} onClose={() => setSelectedOrderId(null)} />
+              ) : null}
             <DataTable<MyQueueOrder>
               columns={queueColumns}
               rows={orders}
@@ -277,6 +360,7 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                 )
               }
             />
+            </div>
             )}
 
             {queueView === 'board' && (
@@ -313,6 +397,7 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                                 <span className="shrink-0 font-mono text-xs tabular-nums text-info">{o.layerProgress}%</span>
                               ) : null}
                             </div>
+                            <PaymentBadge status={o.paymentStatus} />
                             <p className="truncate text-sm text-fg-muted">{o.items[0]?.name || EMPTY_VALUE}</p>
                             <p className="truncate font-mono text-xs text-fg-subtle">
                               {formatNumber(o.items.reduce((s, it) => s + it.quantity, 0))} chi tiết

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { formatNumber } from '@frontend/lib/format';
 import { useAuth } from '../context/AuthContext';
 import { MES_PIPELINE_STAGES } from '../components/OrderProgress';
+import { canAcceptJob, canAdvanceTo, canMarkDelivered, canStartProduction, isTerminalOrderStatus } from '../lib/productionRules';
 import { workshopService, MY_MACHINE_STATUS_LABELS, MY_ORDER_STATUS_BY_STAGE, type MaterialCatalogRef, type MyAccessory, type MyInventoryLog, type MyMachine, type MyMaterial, type MyQueueOrder, type MyWorkshopProfile, type PrinterFleetRef } from '@backend/services/workshopService';
 import { SettingsHeader } from '../components/workshop/settings/SettingsHeader';
 import { SettingsBanners } from '../components/workshop/settings/SettingsBanners';
@@ -211,14 +212,15 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
         notify('Tài khoản chưa được gắn mã đối tác xưởng nên không thể nhận đơn.', 'warning');
         return;
       }
+      // Guard thứ hai (UI đã disable): VietQR chưa trả KHÔNG được tiến nấc; chỉ tiến đúng 1 nấc.
+      if (!canStartProduction(order) || !canAdvanceTo(order.statusStageIndex, stageIndex)) {
+        notify('Không chuyển được nấc: đơn chưa xác nhận thanh toán hoặc sai thứ tự (chỉ tiến một nấc).', 'warning');
+        return;
+      }
       const stage = MES_PIPELINE_STAGES[stageIndex];
       setBusyOrderId(order.id);
       const res = await workshopService.updateMyOrderProgress({
-        orderId: order.id,
-        partnerId,
-        stageIndex,
-        status: MY_ORDER_STATUS_BY_STAGE[stageIndex] ?? order.status,
-        layerProgress: stageIndex >= 5 ? 100 : order.layerProgress,
+        orderId: order.id, partnerId, stageIndex, status: MY_ORDER_STATUS_BY_STAGE[stageIndex] ?? order.status, layerProgress: stageIndex >= 5 ? 100 : order.layerProgress,
       });
       setBusyOrderId(null);
 
@@ -229,18 +231,12 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
       setOrders((prev) =>
         prev.map((o) =>
           o.id === order.id
-            ? {
-                ...o,
-                statusStageIndex: stageIndex,
-                status: MY_ORDER_STATUS_BY_STAGE[stageIndex] ?? o.status,
-                layerProgress: stageIndex >= 5 ? 100 : o.layerProgress,
-              }
+            ? { ...o, statusStageIndex: stageIndex, status: MY_ORDER_STATUS_BY_STAGE[stageIndex] ?? o.status, layerProgress: stageIndex >= 5 ? 100 : o.layerProgress }
             : o,
         ),
       );
       notify(
-        `Đơn ${order.orderNumber} → nấc ${stageIndex + 1}/8 "${stage.label}". ` +
-          `Khách thấy đúng nấc này ở trang theo dõi đơn. Không có thông báo nào được gửi thêm.`,
+        `Đơn ${order.orderNumber} → nấc ${stageIndex + 1}/8 "${stage.label}". Khách thấy đúng nấc này ở trang theo dõi đơn. Không có thông báo nào được gửi thêm.`,
         'success',
       );
     },
@@ -251,11 +247,19 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
 
   const handleAcceptJob = (order: MyQueueOrder) => {
+    if (!canAcceptJob(order, order.statusStageIndex)) {
+      notify('Đơn chưa đủ điều kiện nhận việc (chưa thanh toán, đã kết thúc hoặc sai nấc).', 'warning');
+      return;
+    }
     setBusyLabel('Đang nhận việc…');
-    void applyStage(order, 1, 'Nhận việc').finally(() => setBusyLabel(null));
+    void applyStage(order, (order.statusStageIndex ?? 0) + 1, 'Nhận việc').finally(() => setBusyLabel(null));
   };
 
   const handleConfirmDone = (order: MyQueueOrder) => {
+    if (isTerminalOrderStatus(order.status) || !canStartProduction(order) || !canAdvanceTo(order.statusStageIndex, 7)) {
+      notify('Chỉ xác nhận hoàn thành khi đơn ở nấc 7/8 (Đóng gói), đã đủ điều kiện thanh toán và chưa kết thúc.', 'warning');
+      return;
+    }
     setBusyLabel('Đang xác nhận hoàn thành…');
     void applyStage(order, 7, 'Hoàn thành').finally(() => setBusyLabel(null));
   };
@@ -266,19 +270,17 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
    * đưa đơn tới `completed`.
    */
   const handleMarkDelivered = (order: MyQueueOrder) => {
+    if (!canMarkDelivered(order.statusStageIndex, order.status)) {
+      notify('Chỉ đánh dấu đã giao khi đơn ở nấc 8/8 và trạng thái Đang giao.', 'warning');
+      return;
+    }
     if (!partnerId) {
       notify('Tài khoản chưa được gắn mã đối tác xưởng.', 'warning');
       return;
     }
     setBusyOrderId(order.id);
     void workshopService
-      .updateMyOrderProgress({
-        orderId: order.id,
-        partnerId,
-        stageIndex: 7,
-        status: 'completed',
-        layerProgress: 100,
-      })
+      .updateMyOrderProgress({ orderId: order.id, partnerId, stageIndex: 7, status: 'completed', layerProgress: 100 })
       .then((res) => {
         if (!res.success) {
           notify(`Chưa đánh dấu được đã giao cho ${order.orderNumber}: ${res.error}`, 'error');
@@ -317,13 +319,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
     const stageIndex = order.statusStageIndex ?? 4;
     setBusyOrderId(order.id);
     void workshopService
-      .updateMyOrderProgress({
-        orderId: order.id,
-        partnerId,
-        stageIndex,
-        status: MY_ORDER_STATUS_BY_STAGE[stageIndex] ?? order.status,
-        layerProgress: value,
-      })
+      .updateMyOrderProgress({ orderId: order.id, partnerId, stageIndex, status: MY_ORDER_STATUS_BY_STAGE[stageIndex] ?? order.status, layerProgress: value })
       .then((res) => {
         if (!res.success) {
           notify(`Chưa lưu được tiến độ lớp cho ${order.orderNumber}: ${res.error}`, 'error');
