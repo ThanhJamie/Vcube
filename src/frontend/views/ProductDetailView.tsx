@@ -310,6 +310,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       color: selectedColor?.name,
       colorHex: selectedColor?.hex,
       dimensions: product.specs?.dimensions,
+      // OPS-02: snapshot độ đặc/độ dày lớp THẬT đang chọn để xưởng không phải đoán lại.
+      infill: product.specs?.infillDefault,
+      layerHeightMm: Number.parseFloat(resolution) || undefined,
       resolution: resolution,
       customText: customEngraving.trim() || undefined
     };

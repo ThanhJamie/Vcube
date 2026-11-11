@@ -187,6 +187,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         // Dòng SỐ phải mang id SẢN PHẨM thì RPC `finalize_digital_delivery` mới join được
         // `digital_assets.product_id`; id giỏ hàng (`cart-…`) sẽ không bao giờ khớp.
         id: item.type === 'digital' ? (item.productId || item.id) : item.id,
+        // OPS-02: snapshot đủ trường in để phiếu việc xưởng không phải suy từ chuỗi hiển thị.
+        productId: item.productId,
         name: item.name,
         designer: item.designer,
         type: item.type,
@@ -195,7 +197,11 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         quantity: item.quantity,
         material: item.material,
         color: item.color,
+        dimensions: item.dimensions,
         resolution: item.resolution,
+        infill: item.infill,
+        layerHeightMm: item.layerHeightMm,
+        note: item.note,
         license: item.licenseType,
         customText: item.customText,
         weightGrams: item.weightGrams ?? null,

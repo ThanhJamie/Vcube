@@ -388,6 +388,8 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
       colorHex: file.parts[0]?.colorHex || '#00687a',
       dimensions: `${file.dimensions.x.toFixed(1)} x ${file.dimensions.y.toFixed(1)} x ${file.dimensions.z.toFixed(1)} mm`,
       resolution: `Lớp in ${layerHeight} mm • Độ đặc ${infillDensity}% ${infillPattern} • Giao: ${pkg.completionDate}`,
+      // OPS-02: lưu THẲNG thông số đang chọn (xưởng không phải đoán lại từ chuỗi `resolution`).
+      infill: `${infillDensity}% ${infillPattern}`, layerHeightMm: Number.isFinite(Number(layerHeight)) ? Number(layerHeight) : undefined,
       // Gram ước tính cho 1 cái (từ breakdown) — để đơn hoàn thành tự trừ kho chính xác.
       weightGrams: isNum(breakdown.totalFilamentGrams) ? breakdown.totalFilamentGrams : null,
     };
@@ -395,7 +397,6 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
 
   return (
     <div className="rounded-lg border border-line bg-surface p-5 sm:p-6 space-y-6 font-sans">
-      
       {/* Header & 3-Tier Status */}
       <div className="border-b border-line pb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -602,7 +603,6 @@ export const QuoteSummaryPanel: React.FC<QuoteSummaryPanelProps> = ({
 
       {/* Slicer Config Controls */}
       <div className="space-y-4 pt-1">
-        
         {/* Máy In & Vật Liệu */}
         <div className="grid grid-cols-1 gap-3">
           <div className="space-y-1">

@@ -130,6 +130,14 @@ export function mapMyAccessory(d: Record<string, unknown>): MyAccessory {
 
 export function mapMyQueueOrder(d: Record<string, unknown>): MyQueueOrder {
   const rawItems = Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : [];
+  const addr =
+    d.shipping_address && typeof d.shipping_address === 'object'
+      ? (d.shipping_address as Record<string, unknown>)
+      : {};
+  const addressText = [addr.address, addr.district, addr.city]
+    .map((part) => (part ? String(part).trim() : ''))
+    .filter((part) => part.length > 0)
+    .join(', ');
   return {
     id: String(d.id ?? ''),
     orderNumber: String(d.order_number ?? ''),
@@ -139,12 +147,24 @@ export function mapMyQueueOrder(d: Record<string, unknown>): MyQueueOrder {
     statusStageIndex: toNumberOrNull(d.status_stage_index),
     layerProgress: toNumberOrNull(d.layer_progress),
     assignedPrinterId: d.assigned_printer_id ? String(d.assigned_printer_id) : null,
+    paymentStatus: d.payment_status ? String(d.payment_status) : null,
+    customerName: addr.fullName ? String(addr.fullName) : null,
+    customerPhone: addr.phone ? String(addr.phone) : null,
+    customerAddress: addressText || null,
+    customerNote: addr.note ? String(addr.note) : null,
     items: rawItems.map((it) => ({
       id: String(it.id ?? ''),
       name: String(it.name ?? ''),
       quantity: toNumberOrNull(it.quantity) ?? 0,
       material: it.material ? String(it.material) : null,
       color: it.color ? String(it.color) : null,
+      productId: it.productId ? String(it.productId) : null,
+      dimensions: it.dimensions ? String(it.dimensions) : null,
+      resolution: it.resolution ? String(it.resolution) : null,
+      infill: it.infill ? String(it.infill) : null,
+      layerHeightMm: toNumberOrNull(it.layerHeightMm),
+      weightGrams: toNumberOrNull(it.weightGrams),
+      note: it.note ? String(it.note) : null,
     })),
   };
 }

@@ -190,12 +190,25 @@ export interface MyAccessoryInput {
   isActive?: boolean;
 }
 
+/**
+ * Một dòng hàng của phiếu việc — snapshot từ `orders.items` (jsonb), KHÔNG suy lại từ sản phẩm.
+ * `null` = đơn cũ chưa lưu trường đó ⇒ UI in "Chưa có" (data-honesty, không bịa thông số).
+ */
 export interface MyQueueItem {
   id: string;
   name: string;
   quantity: number;
   material: string | null;
   color: string | null;
+  /** OPS-02: liên kết sản phẩm/ficha kỹ thuật (nếu đơn có lưu). */
+  productId: string | null;
+  dimensions: string | null;
+  resolution: string | null;
+  infill: string | null;
+  layerHeightMm: number | null;
+  /** Khối lượng nhựa 1 chi tiết (g) — chỉ để hiển thị, không tự tính lại. */
+  weightGrams: number | null;
+  note: string | null;
 }
 
 /** Một đơn được giao CHO XƯỞNG NÀY (`orders.assigned_workshop_id = partner_id`). */
@@ -210,6 +223,13 @@ export interface MyQueueOrder {
   /** `null` = máy in chưa báo tiến độ lớp. */
   layerProgress: number | null;
   assignedPrinterId: string | null;
+  /** `orders.payment_status` — `null` = đơn cũ chưa có dữ liệu thanh toán. */
+  paymentStatus: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  /** Ghép từ `shipping_address.address/district/city` (bỏ phần rỗng). */
+  customerAddress: string | null;
+  customerNote: string | null;
   items: MyQueueItem[];
 }
 
