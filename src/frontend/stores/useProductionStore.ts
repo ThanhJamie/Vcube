@@ -1,4 +1,13 @@
 import { create } from 'zustand';
+import type { Order } from '@/types';
+import {
+  canAdvanceTo,
+  canRollback,
+  canStartProduction,
+  isCodPayment,
+  isPaidPayment,
+  isTerminalOrderStatus,
+} from '@frontend/lib/productionRules';
 
 export type ProductionStageKey =
   | 'pending_payment'
@@ -207,6 +216,8 @@ export interface ProductionJob {
   customerAddress: string;
   customerCity: string;
   region: ProductionRegion;
+  /** `orders.status` THẬT — cần cho guard lùi/tiến (shipping/completed/cancelled). */
+  orderStatus: Order['status'];
   stageIndex: number;
   stageKey: ProductionStageKey;
   /** Tóm tắt hạng mục suy từ `orders.items`; đơn không có item ⇒ `null`. */
@@ -215,6 +226,10 @@ export interface ProductionJob {
   colorName: string | null;
   /** `orders.items[].color` là TÊN màu, không phải mã hex ⇒ luôn `null` cho tới khi có nguồn. */
   colorHex: string | null;
+  /** `orders.payment.status` (đã chuẩn hoá bởi mappers); thiếu ⇒ `null`, KHÔNG đoán là đã trả. */
+  paymentStatus: string | null;
+  /** `true` chỉ khi DB nói đã thu tiền; COD chưa thu vẫn `false`. */
+  isPaid: boolean;
   /** Không có cột trong `orders` ⇒ `null` (UI hiện `—`). */
   layerHeightMm: number | null;
   /** Suy từ `orders.items[].infill` (chuỗi khách chọn) — không parse được ⇒ `null`. */
@@ -243,6 +258,89 @@ export interface ProductionJob {
   /** CHỈ TRONG PHIÊN (chưa có cột DB). */
   qcNotes?: string;
   createdAt: string;
+}
+
+/**
+ * Nhãn thanh toán hiển thị trên thẻ Kanban/chi tiết.
+ *
+ * Suy từ `paymentStatus`/`isPaid` THẬT của đơn; thiếu dữ liệu ⇒ nói "chưa rõ", không đoán
+ * "đã trả". `className` dùng token màu sẵn có (cùng kiểu `KANBAN_STAGES`).
+ */
+export interface PaymentBadgeView {
+  label: string;
+  className: string;
+  detail: string;
+}
+
+export function paymentBadgeOf(job: Pick<ProductionJob, 'paymentStatus' | 'isPaid'>): PaymentBadgeView {
+  if (isPaidPayment(job)) {
+    return { label: 'Đã trả', className: 'bg-positive-tint text-positive border-positive/20', detail: 'Đã ghi nhận thanh toán' };
+  }
+  if (isCodPayment(job)) {
+    return {
+      label: 'COD',
+      className: 'bg-info-tint text-info border-info/20',
+      detail: 'Thu tiền khi giao hàng — COD được phép bắt đầu sản xuất trước khi thu',
+    };
+  }
+  if (job.paymentStatus === 'awaiting_payment') {
+    return {
+      label: 'Chưa trả (VietQR)',
+      className: 'bg-warning-tint text-warning border-warning/20',
+      detail: 'VietQR chưa nhận được tiền — chưa thể bắt đầu sản xuất',
+    };
+  }
+  if (job.paymentStatus === 'unpaid') {
+    return { label: 'Chưa trả', className: 'bg-warning-tint text-warning border-warning/20', detail: 'Chưa nhận được tiền' };
+  }
+  if (job.paymentStatus === 'cancelled') {
+    return { label: 'Thanh toán đã huỷ', className: 'bg-danger-tint text-danger border-danger/20', detail: 'Giao dịch thanh toán đã bị huỷ' };
+  }
+  return {
+    label: 'Chưa rõ thanh toán',
+    className: 'bg-surface-muted text-fg-muted border-line',
+    detail: 'Đơn chưa có trạng thái thanh toán trong orders.payment',
+  };
+}
+
+/** Kết quả kiểm một lần chuyển nấc — một guard duy nhất cho Kanban, modal chi tiết và Dispatcher. */
+export interface ProductionStageMove {
+  ok: boolean;
+  /** Rỗng khi `ok`; khi bị chặn là lý do hiển thị cho admin. */
+  reason: string;
+}
+
+/**
+ * Có được chuyển `job` sang nấc `target` không (dùng `productionRules`, không guard cứng theo
+ * phương thức thanh toán: COD được bắt đầu, VietQR phải `paid`).
+ */
+export function stageMoveOf(
+  job: Pick<ProductionJob, 'stageIndex' | 'orderStatus' | 'paymentStatus' | 'isPaid'>,
+  target: number
+): ProductionStageMove {
+  if (target === job.stageIndex) return { ok: false, reason: 'Đơn đang ở nấc này' };
+  if (target > job.stageIndex) {
+    if (target > KANBAN_STAGES.length - 1) return { ok: false, reason: 'Đã ở nấc cuối (Đang giao)' };
+    if (job.orderStatus === 'shipping' || isTerminalOrderStatus(job.orderStatus)) {
+      return { ok: false, reason: 'Đơn đã giao/hoàn tất — không tiến nấc' };
+    }
+    if (!canAdvanceTo(job.stageIndex, target)) return { ok: false, reason: 'Chỉ tiến một nấc mỗi lần' };
+    if (job.stageIndex <= 1 && !canStartProduction(job)) {
+      const reason =
+        job.paymentStatus === 'awaiting_payment'
+          ? 'Chưa thanh toán (VietQR)'
+          : job.paymentStatus === 'cancelled'
+            ? 'Thanh toán đã huỷ'
+            : 'Chưa rõ thanh toán';
+      return { ok: false, reason };
+    }
+    return { ok: true, reason: '' };
+  }
+  if (!canRollback(job.stageIndex, job.orderStatus)) {
+    return { ok: false, reason: 'Không lùi nấc từ Đang giao/Hoàn tất/Huỷ' };
+  }
+  if (target !== job.stageIndex - 1) return { ok: false, reason: 'Chỉ lùi một nấc mỗi lần' };
+  return { ok: true, reason: '' };
 }
 
 export interface WorkshopTelemetryNode {

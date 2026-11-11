@@ -5,7 +5,7 @@ import {
   ProductionJob,
   ProductionRegion,
   ProductionStageKey,
-  regionFromAddress,
+  paymentBadgeOf, regionFromAddress, stageMoveOf,
 } from '@frontend/stores/useProductionStore';
 import { Order, WorkshopProfile } from '@/types';
 import { dbService } from '../../../../backend/supabase/database';
@@ -105,6 +105,7 @@ const orderToProductionJob = (order: Order): ProductionJob => {
     customerAddress: address.address || '',
     customerCity: address.city || '',
     region: regionFromAddress(`${address.district || ''} ${address.city || ''} ${address.address || ''}`),
+    orderStatus: order.status,
     stageIndex,
     stageKey: stage.key,
     itemsSummary: summary,
@@ -112,6 +113,8 @@ const orderToProductionJob = (order: Order): ProductionJob => {
     colorName: uniqText(items.map((i) => i.color)),
     // `orders.items[].color` là TÊN màu; bảng không có mã hex ⇒ không bịa màu.
     colorHex: null,
+    paymentStatus: order.payment?.status ?? null, // thiếu ⇒ null/false, không đoán đã trả
+    isPaid: order.payment?.isPaid === true || order.payment?.status === 'paid',
     layerHeightMm: null,
     infillPercent: parsePercent(firstInfill?.infill),
     totalGrams: null,
@@ -283,6 +286,9 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
   const persistStage = async (job: ProductionJob, stageIndex: number, successMessage: string) => {
     const stage = KANBAN_STAGES[stageIndex];
     if (!stage) return false;
+    // Guard DUY NHẤT trước khi ghi DB: một nấc/lần, VietQR phải đã trả (COD được).
+    const move = stageMoveOf(job, stage.index);
+    if (!move.ok) { onShowToast?.(`Không chuyển được nấc: ${move.reason}.`); return false; }
     const status = STATUS_BY_STAGE[stage.key];
     const result = await dbService.updateOrderStatus(job.id, stage.index, status);
     if (!result.success) {
@@ -653,7 +659,10 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                             Không có đơn ở nấc này
                           </div>
                         ) : (
-                          stageJobs.map((job) => (
+                          stageJobs.map((job) => {
+                            const back = stageMoveOf(job, job.stageIndex - 1), next = stageMoveOf(job, job.stageIndex + 1);
+                            const pay = paymentBadgeOf(job);
+                            return (
                             <div
                               key={job.id}
                               className="bg-surface border border-line rounded-md p-3 shadow-e0 hover:shadow-e1 transition-all duration-300 text-xs space-y-2 group"
@@ -710,6 +719,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
 
                               {/* Dispatch status & Assigned Machine */}
                               <div className="text-xs space-y-1">
+                                <span className={`inline-flex text-xs font-medium px-1.5 py-0.5 rounded-sm border ${pay.className}`} title={pay.detail}>{pay.label}</span>
                                 {job.assignedWorkshopName ? (
                                   <div className="flex items-center gap-1 text-fg-muted truncate" title={job.assignedWorkshopName}>
                                     <Icon name="factory" size={14} className="text-primary" />
@@ -779,7 +789,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                                       variant="ghost"
                                       size="sm"
                                       aria-label="Lùi lại 1 nấc"
-                                      title="Lùi lại 1 nấc"
+                                      title={back.ok ? 'Lùi lại 1 nấc' : back.reason}
+                                      disabled={!back.ok}
                                       onClick={() => handleRegress(job.id)}
                                     >
                                       <Icon name="arrow_back" size={16} />
@@ -791,7 +802,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                                       variant="primary"
                                       size="sm"
                                       trailingIcon={<Icon name="arrow_forward" size={14} />}
-                                      title={`Chuyển sang: ${KANBAN_STAGES[stage.index + 1].shortVi}`}
+                                      title={next.ok ? `Chuyển sang: ${KANBAN_STAGES[stage.index + 1].shortVi}` : next.reason}
+                                      disabled={!next.ok}
                                       onClick={() => handleAdvance(job.id)}
                                     >
                                       Tiếp
@@ -800,7 +812,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                                 </div>
                               </div>
                             </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -901,6 +914,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                             <span className="text-xs font-bold px-2 py-0.5 bg-surface-muted text-fg-muted border border-line-subtle rounded-full">
                               Chưa phân bổ
                             </span>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${paymentBadgeOf(job).className}`} title={paymentBadgeOf(job).detail}>{paymentBadgeOf(job).label}</span>
                           </div>
                           <h4 className="font-bold text-fg mt-1">{job.customerName || EMPTY_VALUE}</h4>
                           <p className="text-xs text-fg-muted">
@@ -1170,6 +1184,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                   <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-line text-fg-muted font-mono">
                     Nấc {selectedJob.stageIndex + 1}: {KANBAN_STAGES[selectedJob.stageIndex].shortVi}
                   </span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${paymentBadgeOf(selectedJob).className}`} title={paymentBadgeOf(selectedJob).detail}>{paymentBadgeOf(selectedJob).label}</span>
                 </span>
                 <span className="block text-sm font-bold text-fg">{selectedJob.customerName || EMPTY_VALUE}</span>
               </span>
@@ -1183,6 +1198,7 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                 <p className="text-xs font-semibold text-fg-muted uppercase tracking-wider block mb-2">
                   Chuyển Nấc Trực Tiếp (ghi orders.status_stage_index xuống Supabase)
                 </p>
+                <p className="text-xs text-fg-muted mb-2">Chỉ tiến/lùi một nấc; VietQR phải đã thanh toán trước khi bắt đầu — COD được phép.</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {KANBAN_STAGES.map((s) => (
                     <Button
@@ -1190,6 +1206,8 @@ export const Group5ProductionPanel: React.FC<Group5ProductionPanelProps> = ({
                       variant={selectedJob.stageIndex === s.index ? 'primary' : 'secondary'}
                       size="sm"
                       className="justify-start gap-1.5"
+                      disabled={!stageMoveOf(selectedJob, s.index).ok}
+                      title={stageMoveOf(selectedJob, s.index).reason || undefined}
                       onClick={() => handleSetStage(selectedJob.id, s.index)}
                     >
                       <span className="font-mono text-xs opacity-75">Nấc #{s.index + 1}</span>
