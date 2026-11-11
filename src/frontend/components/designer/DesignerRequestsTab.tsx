@@ -315,7 +315,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {isCurrentOpen ? (
                 <Button
                   size="sm"
@@ -328,7 +328,7 @@ export const DesignerRequestsTab: React.FC<DesignerRequestsTabProps> = ({
                 </Button>
               ) : (
                 <>
-                  <div className="hidden w-32 sm:block">
+                  <div className="w-28 sm:w-32">
                     <Input
                       type="number"
                       inputMode="numeric"

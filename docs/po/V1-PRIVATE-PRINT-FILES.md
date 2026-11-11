@@ -27,6 +27,25 @@
 | Admin | Admin được `select` bucket để kiểm/hỗ trợ; cùng `canStartPrinting` với lab |
 | Lưu ý | Path string **không phải bằng chứng** object tồn tại; signed URL không được lưu DB/log/ảnh |
 
+### 2.1 Nguồn tệp cho đơn catalog (bổ sung sau review v3.1)
+
+Đơn catalog guest **không** có upload của khách. Mỗi dòng cần in phải có **nguồn tệp tin cậy**:
+
+```
+PrintFileRef = {
+  source: 'custom_upload' | 'catalog_product';
+  path?: string;          // chỉ với custom_upload / bản copy private
+  productId?: string;     // catalog_product
+  name, sizeBytes, contentType, checksum;
+  verifiedAt?: string;    // chỉ set sau khi object tồn tại + role được phép
+}
+```
+
+- Catalog: server/service resolve từ `productId` → file nguồn (public URL hoặc bản copy private). Client **không** tự khai path/verified.
+- Nếu catalog chưa có file nguồn hoặc chưa xác minh quyền tải → item ở trạng thái `missing/unverified`, được “Nhận việc kiểm hồ sơ”, **không** bắt đầu in.
+- Guest catalog checkout vẫn được; không bắt đăng nhập chỉ vì thiếu upload khách.
+- **Hiện trạng code (Group 3):** `canStartPrinting` chỉ kiểm `printFile.path` cho mọi item. Catalog item chỉ có `productId` ⇒ **sẽ khóa toàn bộ đơn catalog**. Đây là gap phải sửa trước khi dùng gate với đơn thật; không nới gate thành “có productId là cho qua”.
+
 ## 3. Access matrix (draft)
 
 | Vai trò | Insert | Select (tạo signed URL) | Delete |
@@ -43,6 +62,7 @@
 - [ ] Checkout lưu đúng ref vào `orders.items[].printFile`; reload vẫn còn ref.
 - [ ] Xưởng được gán tạo signed URL ngắn hạn mở đúng file; xưởng khác 403/không có object.
 - [ ] File bị xoá/không tồn tại → lab/admin thấy “thiếu tệp”, không bắt đầu sản xuất.
+- [ ] Catalog guest: checkout không bắt login; item catalog có nguồn tệp tin cậy **hoặc** bị chặn start với lý do “chưa xác minh tệp catalog”; không cho qua chỉ vì `productId`.
 - [ ] Lab + admin dùng cùng `canStartPrinting`; không có đường UI nào bỏ qua.
 - [ ] Không lưu signed URL vào DB/log/ảnh; token không lộ.
 - [ ] Upload >6MB có thông báo giới hạn/resumable (nếu chưa làm TUS, phải nói rõ chưa hỗ trợ).
