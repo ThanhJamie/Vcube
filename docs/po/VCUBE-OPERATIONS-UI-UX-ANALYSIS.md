@@ -557,6 +557,21 @@ Ba nhánh `group2/base` + `lab` (`c8f59fa`) + `admin` (`38ad62d`) + `service` (`
 
 **Chưa kiểm chứng:** DB thật/ghi đơn; file in chưa lưu trong order; idempotency trừ kho; `partner_id` unique/FK chưa có migration.
 
+### 11.3 Nhóm 3 — Tệp in & gate bắt đầu sản xuất (2026-11-11)
+
+Nhánh `group3/print-file`, **không push**; không migration/DB.
+
+| Item | Trạng thái | Thay đổi | Bằng chứng |
+|---|---|---|---|
+| Tệp in | **PARTIAL** | `MyQueueItem.printFile` + mapping `orders.items`; phiếu báo có/thiếu tệp | Mock file vs no-file |
+| Bắt đầu in | **FIXED (mock)** | `canStartPrinting` yêu cầu mọi dòng có tệp; nút nấc 3+ khoá khi thiếu; handler guard | Stage 2 + file → nấc 4 enabled; no-file → disabled + lý do |
+| Nhận việc | **FIXED** | Vẫn cho nhận ở nấc 0/1 để kiểm tra hồ sơ dù thiếu tệp | Mock lab |
+| Upload/quyền tải tệp | **CHƯA CÓ** | Chưa có upload lúc tạo đơn, policy Storage cho xưởng, signed URL | Cần quyết định/migration |
+| Trừ kho idempotent | **CHƯA CÓ** | Cần cột/ledger unique hoặc RPC atomic | Chưa áp migration |
+| RLS PII | **CHƯA KIỂM CHỨNG** | Chưa runtime-test xưởng chỉ đọc đơn được gán | Cần tài khoản/đơn thật |
+
+**Gate:** tsc PASS; 203/203; `npm run check` 24/24; 1440/390 0 tràn/0 pageerror.
+
 - Báo cáo nháp đầy đủ: `/tmp/opencode/ops-analysis/worker-A.md`, `worker-B.md`, `worker-C.md`, `worker-D.md`.
 - Ảnh: `/tmp/opencode/ops-analysis/worker-a-*.png`, `worker-b-*.png`, `worker-c-*.png`, `worker-d-*.png`.
 - Source chính: `src/frontend/views/{CheckoutView,OrderTrackingView,MyOrdersView,OrderSuccessView,WorkshopSettingsView,DesignerDashboardView,AdminDashboardView}.tsx`; `src/frontend/components/{admin/groups,designer,workshop,OrderProgress,custom}/*`; `src/backend/services/{orderService,workshop/*,customDesignService,settingsService}.ts`; `supabase/migrations/*`.
