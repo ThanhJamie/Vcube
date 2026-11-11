@@ -21,6 +21,7 @@ interface PrintJobItem {
   layerHeightMm?: number | null;
   weightGrams?: number | null;
   note?: string | null;
+  printFile?: { path: string; name?: string | null } | null;
 }
 interface PrintJobOrder {
   id: string;
@@ -121,6 +122,8 @@ export const PrintJobDetail: React.FC<PrintJobDetailProps> = ({ order, onClose }
       ? `Nấc ${order.statusStageIndex + 1}/8`
       : `Nấc: ${EMPTY_VALUE}`;
   const statusText = STATUS_LABELS[order.status] ?? (order.status || 'Chưa có');
+  const fileItems = order.items.filter((item) => Boolean(item.printFile?.path));
+  const allFilesReady = order.items.length > 0 && fileItems.length === order.items.length;
 
   return (
     <Card as="section" padding="lg" className="space-y-4" aria-label="Phiếu việc in">
@@ -199,14 +202,28 @@ export const PrintJobDetail: React.FC<PrintJobDetailProps> = ({ order, onClose }
         )}
       </div>
 
-      <p className="flex items-start gap-2 rounded-md border border-dashed border-line bg-surface-muted p-3 text-xs text-fg-muted">
-        <Icon name="info" size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <span>
-          <strong className="font-semibold text-fg">Tệp in: chưa có trong đơn.</strong>{' '}
-          Đơn hàng hiện không lưu liên kết tệp in, nên phiếu này không có tệp để mở — xưởng nhận tệp
-          qua kênh điều phối hoặc liên hệ bộ phận vận hành.
-        </span>
-      </p>
+      {allFilesReady ? (
+        <div className="space-y-1 rounded-md border border-positive/20 bg-positive-tint p-3 text-xs text-fg-muted">
+          <p className="font-semibold text-positive">Tệp in: đã có tham chiếu cho {fileItems.length}/{order.items.length} dòng.</p>
+          <ul className="list-inside list-disc">
+            {fileItems.map((item) => (
+              <li key={item.id}>
+                {item.name}: <span className="font-mono text-fg">{item.printFile?.name || item.printFile?.path}</span>
+              </li>
+            ))}
+          </ul>
+          <p>Việc mở/tải tệp chỉ thực hiện sau khi xưởng được cấp signed URL theo quyền của đơn được phân công.</p>
+        </div>
+      ) : (
+        <p className="flex items-start gap-2 rounded-md border border-dashed border-line bg-surface-muted p-3 text-xs text-fg-muted">
+          <Icon name="info" size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>
+            <strong className="font-semibold text-fg">Tệp in: chưa đủ cho tất cả dòng hàng.</strong>{' '}
+            {fileItems.length}/{order.items.length} dòng có tham chiếu tệp. Xưởng được nhận việc để
+            kiểm tra hồ sơ, nhưng <strong>không được bắt đầu sản xuất</strong> cho tới khi mọi dòng có tệp.
+          </span>
+        </p>
+      )}
     </Card>
   );
 };

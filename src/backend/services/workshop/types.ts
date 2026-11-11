@@ -209,6 +209,8 @@ export interface MyQueueItem {
   /** Khối lượng nhựa 1 chi tiết (g) — chỉ để hiển thị, không tự tính lại. */
   weightGrams: number | null;
   note: string | null;
+  /** Tham chiếu tệp in đã lưu cùng đơn (path/bucket); null = chưa có ⇒ chặn bắt đầu in. */
+  printFile: { path: string; name: string | null } | null;
 }
 
 /** Một đơn được giao CHO XƯỞNG NÀY (`orders.assigned_workshop_id = partner_id`). */

@@ -4,7 +4,7 @@ import { Button, DataTable, EmptyState, Field, Input, type DataTableColumn, Icon
 import { formatDate, formatNumber, EMPTY_VALUE } from '@frontend/lib/format';
 import { MES_PIPELINE_STAGES } from '../../OrderProgress';
 import { MY_ORDER_STATUS_LABELS, type MyQueueOrder } from '@backend/services/workshopService';
-import { canAcceptJob, canAdvanceTo, canMarkDelivered, canStartProduction, isTerminalOrderStatus } from '@frontend/lib/productionRules';
+import { canAcceptJob, canAdvanceTo, canMarkDelivered, canStartPrinting, canStartProduction, isTerminalOrderStatus } from '@frontend/lib/productionRules';
 import { PrintJobDetail, PaymentBadge, isPaymentBlocked } from '../PrintJobDetail';
 import { QUEUE_KANBAN_COLUMNS } from './helpers';
 import type { WorkshopSettingsController } from './types';
@@ -187,7 +187,8 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                 <div className="flex flex-wrap items-center gap-1">
                   {MES_PIPELINE_STAGES.map((stage, idx) => {
                     const paidReady = canStartProduction(row);
-                    const locked = !paidReady || !canAdvanceTo(stageIndex, idx);
+                    const fileReady = canStartPrinting(row.items);
+                    const locked = !paidReady || !canAdvanceTo(stageIndex, idx) || (idx >= 3 && (stageIndex ?? 0) < 3 && !fileReady);
                     return (
                       <button
                         key={stage.id}
@@ -200,9 +201,11 @@ const queueColumns = useMemo<DataTableColumn<MyQueueOrder>[]>(
                         title={
                           !paidReady
                             ? 'VietQR/chuyển khoản chưa được xác nhận thanh toán — chưa được tiến nấc (COD được phép).'
-                            : locked
-                              ? `Không lùi/nhảy nấc — chỉ tiến từ nấc ${stageIndex != null ? stageIndex + 1 : '—'} lên nấc kế tiếp`
-                              : `Đặt nấc ${idx + 1}/8 — ${stage.label}`
+                            : (idx >= 3 && (stageIndex ?? 0) < 3 && !fileReady)
+                              ? 'Chưa đủ tệp in cho tất cả dòng hàng — chỉ được nhận việc/kiểm tra hồ sơ, chưa được bắt đầu sản xuất.'
+                              : locked
+                                ? `Không lùi/nhảy nấc — chỉ tiến từ nấc ${stageIndex != null ? stageIndex + 1 : '—'} lên nấc kế tiếp`
+                                : `Đặt nấc ${idx + 1}/8 — ${stage.label}`
                         }
                         aria-label={`Đặt nấc ${idx + 1}/8 — ${stage.label}`}
                         className={`inline-flex items-center justify-center rounded-sm border px-1.5 py-0.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 max-md:min-h-11 max-md:min-w-11 ${

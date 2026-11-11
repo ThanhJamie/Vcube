@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { formatNumber } from '@frontend/lib/format';
 import { useAuth } from '../context/AuthContext';
 import { MES_PIPELINE_STAGES } from '../components/OrderProgress';
-import { canAcceptJob, canAdvanceTo, canMarkDelivered, canStartProduction, isTerminalOrderStatus } from '../lib/productionRules';
+import { canAcceptJob, canAdvanceTo, canMarkDelivered, canStartPrinting, canStartProduction, isTerminalOrderStatus } from '../lib/productionRules';
 import { workshopService, MY_MACHINE_STATUS_LABELS, MY_ORDER_STATUS_BY_STAGE, type MaterialCatalogRef, type MyAccessory, type MyInventoryLog, type MyMachine, type MyMaterial, type MyQueueOrder, type MyWorkshopProfile, type PrinterFleetRef } from '@backend/services/workshopService';
 import { SettingsHeader } from '../components/workshop/settings/SettingsHeader';
 import { SettingsBanners } from '../components/workshop/settings/SettingsBanners';
@@ -215,6 +215,10 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
       // Guard thứ hai (UI đã disable): VietQR chưa trả KHÔNG được tiến nấc; chỉ tiến đúng 1 nấc.
       if (!canStartProduction(order) || !canAdvanceTo(order.statusStageIndex, stageIndex)) {
         notify('Không chuyển được nấc: đơn chưa xác nhận thanh toán hoặc sai thứ tự (chỉ tiến một nấc).', 'warning');
+        return;
+      }
+      if ((order.statusStageIndex ?? 0) < 3 && stageIndex >= 3 && !canStartPrinting(order.items)) {
+        notify(`Chưa bắt đầu sản xuất được đơn ${order.orderNumber}: thiếu tham chiếu tệp in.`, 'warning');
         return;
       }
       const stage = MES_PIPELINE_STAGES[stageIndex];
