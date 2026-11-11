@@ -213,18 +213,46 @@ export async function addMyInventoryLog(input: MyInventoryLogInput): Promise<MyI
   }
 }
 
+/** Kết quả tự động trừ kho của một đơn HOÀN THÀNH. */
+export interface StockDeductionSummary {
+  deducted: number;
+  skipped: number;
+  /**
+   * Lý do cấp LÔ khi không trừ được dòng nào (thiếu hồ sơ xưởng, thiếu vật liệu, lỗi đọc…).
+   * Khác hẳn với "item chưa khai khối lượng" — tầng hiển thị phải đọc trường này để không
+   * đổ lỗi sai cho dữ liệu sản phẩm (`docs/design/data-honesty.md`).
+   */
+  reason?: string;
+  /** Số item bị bỏ qua CHỈ vì thiếu khối lượng — con số duy nhất được gọi là "chưa khai khối lượng". */
+  skippedNoWeight?: number;
+}
+
 /**
  * Trừ kho vật liệu của xưởng khi một đơn HOÀN THÀNH.
+ *
+ * `partnerId` là **slug** (`workshop_profiles.partner_id`, khớp `orders.assigned_workshop_id`),
+ * còn `workshop_materials.workshop_id` là **uuid FK** trỏ `workshop_profiles.id`. Vì vậy phải
+ * resolve hồ sơ xưởng TRƯỚC rồi mới lọc vật liệu theo uuid đó (trước đây query thẳng
+ * `workshop_id = partnerId` nên không khớp hàng nào ⇒ không trừ kho mà vẫn đổ lỗi "chưa khai
+ * khối lượng" ở tầng toast).
  *
  * CHỈ trừ khi item khai `weightGrams` (khối lượng thực của chi tiết). Item không khai khối
  * lượng ⇒ `skipped` (KHÔNG bịa số gram). Mỗi lần trừ ghi một phiếu `Export` vào sổ kho để
  * truy vết, dùng lại `addMyInventoryLog` (đọc tồn từ máy chủ rồi mới tính tồn mới).
+ *
+ * Không tìm thấy hồ sơ/vật liệu: vẫn tăng `skipped` cho từng item không xử lý được, kèm
+ * `reason` nói đúng nguyên nhân (và `console.warn` để còn dấu vết khi UI chưa đọc `reason`).
  */
 export async function deductMaterialsForCompletedOrder(
   orderId: string,
   partnerId: string,
-): Promise<{ deducted: number; skipped: number }> {
-  const summary = { deducted: 0, skipped: 0 };
+): Promise<StockDeductionSummary> {
+  const summary: StockDeductionSummary = { deducted: 0, skipped: 0 };
+  if (!partnerId) {
+    summary.reason = 'Đơn chưa được gán mã đối tác xưởng nên không thể đối chiếu kho.';
+    console.warn('[WorkshopService] Trừ kho bỏ qua:', summary.reason);
+    return summary;
+  }
   try {
     const { data: order, error } = await supabase
       .from('orders')
@@ -232,19 +260,67 @@ export async function deductMaterialsForCompletedOrder(
       .eq('id', orderId)
       .eq('assigned_workshop_id', partnerId)
       .maybeSingle();
-    if (error || !order) return summary;
+    if (error) {
+      summary.reason = `Không đọc được đơn để trừ kho: ${error.message}`;
+      console.warn('[WorkshopService] Trừ kho bỏ qua:', summary.reason);
+      return summary;
+    }
+    if (!order) {
+      summary.reason = `Không tìm thấy đơn thuộc xưởng ${partnerId} (sai mã đối tác hoặc không có quyền đọc).`;
+      console.warn('[WorkshopService] Trừ kho bỏ qua:', summary.reason);
+      return summary;
+    }
 
     const record = order as Record<string, unknown>;
     const orderNumber = String(record.order_number ?? orderId);
     const items: unknown[] = Array.isArray(record.items) ? (record.items as unknown[]) : [];
     if (items.length === 0) return summary;
 
-    const { data: mats } = await supabase
-      .from('workshop_materials')
-      .select('id,name')
-      .eq('workshop_id', partnerId);
-    const materials = (mats ?? []) as Array<{ id: string; name: string | null }>;
+    // 1. Resolve slug → uuid hồ sơ xưởng. `partner_id` KHÔNG có unique constraint
+    //    (20260901_baseline_schema.sql:924) ⇒ lấy TẤT CẢ rồi đối chiếu vật liệu trên từng
+    //    hồ sơ, thay vì đoán một hàng.
+    const { data: profileRows, error: profileError } = await supabase
+      .from('workshop_profiles')
+      .select('id')
+      .eq('partner_id', partnerId);
+    if (profileError) {
+      summary.skipped += items.length;
+      summary.reason = `Không đọc được hồ sơ xưởng (partner_id = ${partnerId}): ${profileError.message}`;
+      console.warn('[WorkshopService] Trừ kho bỏ qua:', summary.reason);
+      return summary;
+    }
+    const profileIds = ((profileRows ?? []) as Array<{ id: string }>)
+      .map((p) => p.id)
+      .filter(Boolean);
+    if (profileIds.length === 0) {
+      summary.skipped += items.length;
+      summary.reason = `Không tìm thấy hồ sơ xưởng có partner_id = ${partnerId} (hoặc tài khoản không có quyền đọc).`;
+      console.warn('[WorkshopService] Trừ kho bỏ qua:', summary.reason);
+      return summary;
+    }
+    if (profileIds.length > 1) {
+      console.warn(
+        `[WorkshopService] partner_id = ${partnerId} có ${profileIds.length} hồ sơ xưởng; đối chiếu vật liệu trên tất cả.`,
+      );
+    }
 
+    // 2. Vật liệu lọc theo ĐÚNG uuid hồ sơ (cột `workshop_materials.workshop_id` là FK uuid).
+    const { data: mats, error: matError } = await supabase
+      .from('workshop_materials')
+      .select('id,name,workshop_id')
+      .in('workshop_id', profileIds);
+    if (matError) {
+      summary.skipped += items.length;
+      summary.reason = `Không đọc được vật liệu của xưởng ${partnerId}: ${matError.message}`;
+      console.warn('[WorkshopService] Trừ kho bỏ qua:', summary.reason);
+      return summary;
+    }
+    const materials = (mats ?? []) as Array<{ id: string; name: string | null; workshop_id: string }>;
+    if (materials.length === 0) {
+      summary.reason = `Xưởng ${partnerId} chưa khai vật liệu nào trong kho — không có gì để trừ.`;
+    }
+
+    let skippedNoWeight = 0;
     for (const raw of items) {
       const it = (raw ?? {}) as Record<string, unknown>;
       const weight = Number(it.weightGrams ?? it.weight_grams);
@@ -252,7 +328,9 @@ export async function deductMaterialsForCompletedOrder(
       const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
       const materialName = typeof it.material === 'string' ? it.material.trim().toLowerCase() : '';
       if (!materialName || !Number.isFinite(weight) || weight <= 0) {
+        // Skip vì CHÍNH item thiếu khối lượng — đây mới là "chưa khai khối lượng".
         summary.skipped++;
+        skippedNoWeight++;
         continue;
       }
       // Khớp tên vật liệu: item lưu dạng "PLA (Prusa MK4)" nên so khớp chứa tên vật liệu xưởng.
@@ -265,7 +343,7 @@ export async function deductMaterialsForCompletedOrder(
         continue;
       }
       const res = await addMyInventoryLog({
-        workshopProfileId: partnerId,
+        workshopProfileId: mat.workshop_id,
         materialId: mat.id,
         action: 'Export',
         grams: weight * qty,
@@ -274,8 +352,16 @@ export async function deductMaterialsForCompletedOrder(
       if (res.success) summary.deducted++;
       else summary.skipped++;
     }
+    if (skippedNoWeight > 0) summary.skippedNoWeight = skippedNoWeight;
+    if (summary.skipped > 0 && !summary.reason) {
+      console.warn(
+        `[WorkshopService] Đơn ${orderNumber}: bỏ qua ${summary.skipped} item (thiếu khối lượng hoặc không khớp vật liệu kho).`,
+      );
+    }
     return summary;
-  } catch {
+  } catch (e: any) {
+    summary.reason = `Lỗi không xác định khi trừ kho: ${e?.message || 'không rõ'}`;
+    console.warn('[WorkshopService] Trừ kho thất bại:', summary.reason);
     return summary;
   }
 }

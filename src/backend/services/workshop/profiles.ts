@@ -3,8 +3,6 @@ import { ok, fail, type WriteResult } from '../../lib/result';
 import {
   WorkshopProfile
 } from '../../../types';
-import { SEED_WORKSHOP_PROFILES } from './seed';
-import { readFromStorage, writeToStorage, STORAGE_KEYS } from './storage';
 import { getCurrentUserId, mapMyWorkshopProfile } from './shared';
 import type { MyWorkshopProfileResult, MyWorkshopProfilePatch } from './types';
 
@@ -18,13 +16,24 @@ export async function checkSupabaseHealth(): Promise<{ online: boolean; message:
     if (error) throw error;
     return { online: true, message: 'Supabase Cloud PostgreSQL connected.' };
   } catch (err: any) {
-    return { online: false, message: `Offline / Local fallback active: ${err?.message || 'Connection timeout'}` };
+    return { online: false, message: `Không kết nối được Supabase: ${err?.message || 'Connection timeout'}` };
   }
 }
 
 // ----------------------------------------------------------------------------
 // 1. WORKSHOP PROFILES (workshop_profiles)
 // ----------------------------------------------------------------------------
+/**
+ * Danh sách hồ sơ xưởng — CHỈ đọc bảng thật `workshop_profiles`.
+ *
+ * Trước đây hàm này rơi về `SEED_WORKSHOP_PROFILES` (3 xưởng BỊA) khi bảng rỗng/lỗi và còn
+ * ghi kết quả DB vào localStorage (`vcube_db_workshop_profiles`). Hệ quả: admin phân bổ đơn
+ * cho một xưởng không tồn tại, và lần đọc sau lại thấy dữ liệu cũ trong localStorage
+ * (`docs/design/data-honesty.md` CI-05/CI-07). Nay DB là nguồn DUY NHẤT:
+ *   - rỗng ⇒ trả `[]` (KHÔNG seed, KHÔNG đọc localStorage);
+ *   - lỗi ⇒ trả `[]` + `console.warn` nguyên văn (giữ chữ ký cũ `Promise<WorkshopProfile[]>`;
+ *     tầng view phân biệt "rỗng" bằng chính mảng rỗng và thấy cảnh báo trong console).
+ */
 export async function getWorkshopProfiles(filterRegion?: string): Promise<WorkshopProfile[]> {
   try {
     let query = supabase.from('workshop_profiles').select('*').order('created_at', { ascending: true });
@@ -32,32 +41,31 @@ export async function getWorkshopProfiles(filterRegion?: string): Promise<Worksh
       query = query.eq('region', filterRegion);
     }
     const { data, error } = await query;
-    if (!error && data && data.length > 0) {
-      const mapped: WorkshopProfile[] = data.map((d: any) => ({
-        id: d.id,
-        userId: d.user_id,
-        partnerId: d.partner_id,
-        workshopName: d.workshop_name,
-        address: d.address,
-        region: d.region,
-        totalMachines: Number(d.total_machines || 0),
-        activeMachinesNow: Number(d.active_machines_now || 0),
-        electricityRateOverride: d.electricity_rate_override ? Number(d.electricity_rate_override) : undefined,
-        laborRateOverride: d.labor_rate_override ? Number(d.labor_rate_override) : undefined,
-        verifiedStatus: d.verified_status || 'Pending',
-        contactPhone: d.contact_phone,
-        contactEmail: d.contact_email,
-        createdAt: d.created_at,
-        updatedAt: d.updated_at
-      }));
-      writeToStorage(STORAGE_KEYS.WORKSHOP_PROFILES, mapped);
-      return mapped;
+    if (error) {
+      console.warn('[WorkshopService] Không đọc được workshop_profiles:', error.message);
+      return [];
     }
-  } catch (e) {
-    console.warn('[WorkshopService] Supabase getWorkshopProfiles fallback to local:', e);
+    return (data ?? []).map((d: any) => ({
+      id: d.id,
+      userId: d.user_id,
+      partnerId: d.partner_id,
+      workshopName: d.workshop_name,
+      address: d.address,
+      region: d.region,
+      totalMachines: Number(d.total_machines || 0),
+      activeMachinesNow: Number(d.active_machines_now || 0),
+      electricityRateOverride: d.electricity_rate_override ? Number(d.electricity_rate_override) : undefined,
+      laborRateOverride: d.labor_rate_override ? Number(d.labor_rate_override) : undefined,
+      verifiedStatus: d.verified_status || 'Pending',
+      contactPhone: d.contact_phone,
+      contactEmail: d.contact_email,
+      createdAt: d.created_at,
+      updatedAt: d.updated_at
+    }));
+  } catch (e: any) {
+    console.warn('[WorkshopService] Không đọc được workshop_profiles:', e?.message || e);
+    return [];
   }
-  const local = readFromStorage<WorkshopProfile[]>(STORAGE_KEYS.WORKSHOP_PROFILES, SEED_WORKSHOP_PROFILES);
-  return filterRegion && filterRegion !== 'all' ? local.filter(w => w.region === filterRegion) : local;
 }
 
 export async function getWorkshopProfileById(id: string): Promise<WorkshopProfile | null> {
@@ -91,10 +99,8 @@ export async function saveWorkshopProfile(profile: Partial<WorkshopProfile> & { 
     updatedAt: now
   };
 
-  // Update local storage first
-  const local = readFromStorage<WorkshopProfile[]>(STORAGE_KEYS.WORKSHOP_PROFILES, SEED_WORKSHOP_PROFILES);
-  const updatedLocal = [fullProfile, ...local.filter(w => w.id !== id)];
-  writeToStorage(STORAGE_KEYS.WORKSHOP_PROFILES, updatedLocal);
+  // DB là nguồn DUY NHẤT: không còn ghi bản sao vào localStorage. Người gọi phải đọc lại
+  // bằng `getWorkshopProfiles()` sau khi lưu thành công.
 
   // W7 — `partner_id` và `verified_status` là 2 cột ĐẶC QUYỀN (chỉ admin gán/duyệt).
   // `upsert` = INSERT **hoặc** UPDATE: nếu gửi kèm 2 cột này khi UPDATE một hàng ĐÃ có
@@ -129,8 +135,6 @@ export async function saveWorkshopProfile(profile: Partial<WorkshopProfile> & { 
 }
 
 export async function deleteWorkshopProfile(id: string): Promise<WriteResult> {
-  const local = readFromStorage<WorkshopProfile[]>(STORAGE_KEYS.WORKSHOP_PROFILES, SEED_WORKSHOP_PROFILES);
-  writeToStorage(STORAGE_KEYS.WORKSHOP_PROFILES, local.filter(w => w.id !== id));
   try {
     const { error } = await supabase.from('workshop_profiles').delete().eq('id', id);
     if (error) throw error;
