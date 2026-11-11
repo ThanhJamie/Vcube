@@ -34,8 +34,9 @@
 
 - Chưa submit đơn thật; snapshot được kiểm bằng mock order + đọc source gateway/RPC.
 - Đơn tạo trước bản này không có snapshot → cần liên hệ hỗ trợ; không tự suy bank hiện tại.
-- Token qua router state mất khi F5; khách vẫn có thể nhập mã + token ở cổng tra cứu.
+- **Guest token sau checkout:** token hiển thị ở khối “Đã tạo đơn hàng” (`/checkout`) và trang success, có nút Sao chép; **không có email/SMS và không có cách lấy lại** nếu khách không lưu. Router state chỉ giữ token khi đi tiếp trong phiên; F5 mất state. Đây là giới hạn sản phẩm, không phải lỗi điều hướng — cần PO quyết định kênh gửi/lưu token.
+- **Trạng thái thanh toán:** đã kiểm mock paid + cancelled: card không còn kêu thanh toán/không hiện bank cho paid/cancelled; đơn cũ thiếu snapshot hiện thông báo trung thực.
 - OPS-24 vẫn mở follow-up hai admin/hai trình duyệt (site_content full object).
 - OPS-23 vẫn cần purge key cũ `vcube_custom_design_requests` một lần.
 - OPS-19 vẫn cần review cleanup Storage khi asset lỗi trong luồng designer.
-- DB auth audit (ngoài nhóm): xem báo cáo bàn giao; không tự đổi mật khẩu.
+- DB auth audit (ngoài nhóm): 7 tài khoản đã rotate qua Auth Admin API; không có mật khẩu trong repo/log.

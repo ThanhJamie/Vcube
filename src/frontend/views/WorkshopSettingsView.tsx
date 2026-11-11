@@ -297,7 +297,7 @@ export const WorkshopSettingsView: React.FC<WorkshopSettingsViewProps> = ({
         notify(
           `Đơn ${order.orderNumber} đã hoàn tất (đã giao).` +
             (sd
-              ? ` Kho: đã trừ ${sd.deducted} vật liệu${sd.skipped > 0 ? `, bỏ qua ${sd.skipped} (chưa khai khối lượng)` : ''}.`
+              ? ` Kho: đã trừ ${sd.deducted} vật liệu${sd.skipped > 0 ? `, bỏ qua ${sd.skipped}${sd.skippedNoWeight ? ` (${sd.skippedNoWeight} chưa khai khối lượng)` : ''}${sd.reason ? ` — ${sd.reason}` : ''}` : ''}.`
               : ''),
           'success',
         );

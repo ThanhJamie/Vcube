@@ -61,10 +61,7 @@ export interface CartItem {
   colorHex?: string;
   dimensions?: string;
   resolution?: string;
-  /** OPS-02: snapshot thông số in để xưởng không phải suy từ chuỗi `resolution`. */
-  infill?: string;
-  layerHeightMm?: number;
-  note?: string;
+  infill?: string; layerHeightMm?: number; note?: string;
   /** Khối lượng nhựa ước tính cho 1 cái (g) — dùng để tự trừ kho khi đơn hoàn thành. */
   weightGrams?: number | null;
   customText?: string;
@@ -117,15 +114,10 @@ export interface Order {
     image: string;
     price: number;
     quantity: number;
-    /** OPS-02: giữ liên kết sản phẩm/ficha kỹ thuật để phiếu việc xưởng có nguồn. */
-    productId?: string;
-    dimensions?: string;
-    material?: string;
-    color?: string;
-    resolution?: string;
-    infill?: string;
-    layerHeightMm?: number;
-    note?: string;
+    productId?: string; dimensions?: string;
+    material?: string; color?: string;
+    resolution?: string; infill?: string;
+    layerHeightMm?: number; note?: string;
     license?: string;
     version?: string;
     customText?: string;

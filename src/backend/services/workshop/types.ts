@@ -253,7 +253,7 @@ export type MyOrderProgressResult = WriteResult<
   {
     updatedRows: number;
     /** Kết quả tự động trừ kho khi đơn chuyển sang `completed` (chỉ khi item khai khối lượng). */
-    stockDeduction?: { deducted: number; skipped: number };
+    stockDeduction?: { deducted: number; skipped: number; reason?: string; skippedNoWeight?: number };
   }
 >;
 

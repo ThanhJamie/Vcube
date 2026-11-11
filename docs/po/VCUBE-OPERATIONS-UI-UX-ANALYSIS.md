@@ -537,6 +537,26 @@ Hai nhánh `group1/orders-a` (`3b37784`) + `group1/orders-b` (`e50ace4`) → tí
 
 **Follow-up:** đơn cũ không snapshot cần hỗ trợ tay; token state mất khi F5; OPS-24/23/19 vẫn mở như §5 Nhóm 0.
 
+### 11.2 Nhóm 2 — Xưởng In (2026-11-11)
+
+Ba nhánh `group2/base` + `lab` (`c8f59fa`) + `admin` (`38ad62d`) + `service` (`b50ae45`) → tích hợp `02cdebd`, **không push**. Giả định tạm: VietQR phải paid trước khi in; COD được in trước khi thu.
+
+| Item | Trạng thái | Thay đổi | Bằng chứng |
+|---|---|---|---|
+| OPS-02 | **PARTIAL** | Snapshot thêm `productId/dimensions/infill/layerHeightMm/note`; queue đọc khách/SĐT/địa chỉ/ghi chú, item đủ màu/kích thước/độ đặc/lớp/khối lượng | Lab detail mock: đủ trường; thiếu file báo “chưa có” |
+| OPS-41 | **FIXED** | `/lab/queue` có nút Chi tiết + phiếu việc inline (390/768/1440) | `g2-review-lab-1440/390.png` |
+| OPS-03 | **PARTIAL** | Guard dùng index canonical; nhãn khách/lab/admin vẫn khác nhau | Rules + browser |
+| OPS-08 | **FIXED (giả định)** | VietQR chưa trả bị chặn nhận/advance; COD được; admin/lab dùng chung rule | Mock lab/admin |
+| OPS-09 | **FIXED** | Chỉ tiến 1 nấc; terminal không thao tác; “Nhận việc” không lùi đơn | Mock lab |
+| OPS-10 | **FIXED** | “Xác nhận hoàn thành” chỉ stage 6→7; “Đánh dấu đã giao” chỉ stage 7 + shipping | Mock lab |
+| OPS-11 | **FIXED (source)** | Resolve `partner_id` → `workshop_profiles.id`; query kho theo UUID; skip có reason/`skippedNoWeight`; log đúng | Script stub service |
+| OPS-12 | **FIXED (source)** | Bỏ fallback seed + localStorage; admin select chỉ DB; DB rỗng ⇒ 0 option | Browser admin mock |
+| OPS-13/14 | **OPEN** | QC/notes bền + realtime chưa làm (theo thứ tự PO) | — |
+
+**Gate:** tsc PASS; 203/203 unit; `npm run check` 24/24; lab 29/29 + admin 52/52 check mock; 390/768/1440 0 tràn/0 pageerror.
+
+**Chưa kiểm chứng:** DB thật/ghi đơn; file in chưa lưu trong order; idempotency trừ kho; `partner_id` unique/FK chưa có migration.
+
 - Báo cáo nháp đầy đủ: `/tmp/opencode/ops-analysis/worker-A.md`, `worker-B.md`, `worker-C.md`, `worker-D.md`.
 - Ảnh: `/tmp/opencode/ops-analysis/worker-a-*.png`, `worker-b-*.png`, `worker-c-*.png`, `worker-d-*.png`.
 - Source chính: `src/frontend/views/{CheckoutView,OrderTrackingView,MyOrdersView,OrderSuccessView,WorkshopSettingsView,DesignerDashboardView,AdminDashboardView}.tsx`; `src/frontend/components/{admin/groups,designer,workshop,OrderProgress,custom}/*`; `src/backend/services/{orderService,workshop/*,customDesignService,settingsService}.ts`; `supabase/migrations/*`.

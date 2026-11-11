@@ -1,16 +1,52 @@
 import type { BadgeVariant } from '@frontend/ui';
 import { Badge, Button, Card, Icon } from '@frontend/ui';
 import { EMPTY_VALUE, formatDate, formatNumber, formatWeight } from '@frontend/lib/format';
-import { MY_ORDER_STATUS_LABELS, type MyQueueItem, type MyQueueOrder } from '@backend/services/workshopService';
 
 /**
  * PrintJobDetail — phiếu việc in của MỘT đơn thuộc xưởng đang đăng nhập.
  *
- * Nguồn dữ liệu DUY NHẤT là snapshot `orders.items` + `orders.shipping_address` đã đọc ở
- * `workshop/queue.ts` (không gọi DB thêm, không đọc sản phẩm hiện tại). Đơn cũ thiếu trường
- * nào thì in "Chưa có" cho trường đó — KHÔNG suy diễn, KHÔNG bịa thông số in.
- * Đơn hiện KHÔNG lưu URL tệp in ⇒ phiếu nói rõ "chưa có", không dựng link giả.
+ * Kiểu dữ liệu khai báo cục bộ (structural) để component frontend không import tầng
+ * backend/service; caller `QueueTab` truyền `MyQueueOrder` tương thích.
  */
+interface PrintJobItem {
+  id: string;
+  name: string;
+  quantity: number;
+  material?: string | null;
+  color?: string | null;
+  productId?: string | null;
+  dimensions?: string | null;
+  resolution?: string | null;
+  infill?: string | null;
+  layerHeightMm?: number | null;
+  weightGrams?: number | null;
+  note?: string | null;
+}
+interface PrintJobOrder {
+  id: string;
+  orderNumber: string;
+  date: string | null;
+  estimatedDelivery: string;
+  status: string;
+  statusStageIndex: number | null;
+  paymentStatus?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
+  customerNote?: string | null;
+  items: PrintJobItem[];
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending_payment: 'Chờ thanh toán',
+  processing: 'Đang gia công',
+  printing: 'Đang in 3D',
+  post_processing: 'Hậu kỳ',
+  packaging: 'Đóng gói',
+  shipping: 'Đang giao',
+  completed: 'Hoàn thành',
+  cancelled: 'Đã huỷ',
+};
 
 /** Nhãn + sắc badge thanh toán dùng chung cho hàng đợi và phiếu việc. */
 export function paymentStatusInfo(status: string | null | undefined): { label: string; variant: BadgeVariant } {
@@ -60,7 +96,7 @@ const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) =
   </div>
 );
 
-const ITEM_FIELDS = (item: MyQueueItem): { label: string; value: string }[] => [
+const ITEM_FIELDS = (item: PrintJobItem): { label: string; value: string }[] => [
   { label: 'Vật liệu', value: text(item.material) },
   { label: 'Màu', value: text(item.color) },
   { label: 'Kích thước', value: text(item.dimensions) },
@@ -75,7 +111,7 @@ const ITEM_FIELDS = (item: MyQueueItem): { label: string; value: string }[] => [
 ];
 
 export interface PrintJobDetailProps {
-  order: MyQueueOrder;
+  order: PrintJobOrder;
   onClose: () => void;
 }
 
@@ -84,7 +120,7 @@ export const PrintJobDetail: React.FC<PrintJobDetailProps> = ({ order, onClose }
     order.statusStageIndex != null
       ? `Nấc ${order.statusStageIndex + 1}/8`
       : `Nấc: ${EMPTY_VALUE}`;
-  const statusText = MY_ORDER_STATUS_LABELS[order.status] ?? (order.status || 'Chưa có');
+  const statusText = STATUS_LABELS[order.status] ?? (order.status || 'Chưa có');
 
   return (
     <Card as="section" padding="lg" className="space-y-4" aria-label="Phiếu việc in">
