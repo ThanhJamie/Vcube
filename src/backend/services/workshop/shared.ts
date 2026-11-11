@@ -165,6 +165,15 @@ export function mapMyQueueOrder(d: Record<string, unknown>): MyQueueOrder {
       layerHeightMm: toNumberOrNull(it.layerHeightMm),
       weightGrams: toNumberOrNull(it.weightGrams),
       note: it.note ? String(it.note) : null,
+      printFile:
+        it.printFile && typeof it.printFile === 'object' && typeof (it.printFile as Record<string, unknown>).path === 'string'
+          ? {
+              path: String((it.printFile as Record<string, unknown>).path),
+              name: (it.printFile as Record<string, unknown>).name
+                ? String((it.printFile as Record<string, unknown>).name)
+                : null,
+            }
+          : null,
     })),
   };
 }

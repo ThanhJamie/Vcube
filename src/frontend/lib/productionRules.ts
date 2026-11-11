@@ -56,6 +56,11 @@ export const canMarkDelivered = (stageIndex: number | null, status: string | nul
 export const canRollback = (stageIndex: number | null, status: string | null): boolean =>
   stageIndex !== null && stageIndex > 0 && !isTerminalOrderStatus(status) && status !== 'shipping';
 
+/** Phiếu việc chỉ được bắt đầu in khi MỌI dòng có tham chiếu tệp in đã lưu. */
+export function canStartPrinting(items: Array<{ printFile?: { path?: string | null } | null }>): boolean {
+  return items.length > 0 && items.every((item) => Boolean(item.printFile?.path));
+}
+
 /** Nhãn hành động kế tiếp cho UI lab (không tự ghi DB). */
 export type ProgressOrder = PaymentSource & {
   statusStageIndex: number | null;
